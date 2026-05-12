@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* === Tecnofra palette - tema light ===
+       Sfondo neutro tenue, card bianche staccate da bordi marcati e ombre nette. */
+    --background: 200 18% 93%;
+    --foreground: 200 45% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 45% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 45% 12%;
+
+    --primary: 184 85% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 20% 88%;
+    --secondary-foreground: 200 45% 12%;
+
+    --muted: 200 18% 90%;
+    --muted-foreground: 200 22% 32%;
+
+    --accent: 184 85% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 25% 70%;
+    --input: 200 22% 75%;
+    --ring: 184 85% 32%;
+
+    --ink: 195 50% 14%;
+    --paper: 0 0% 100%;
+    --rule: 195 50% 14%;
+    --dept: 184 85% 32%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 184 42% 93%;
+
+    --radius: 0.25rem;
+
+    --shadow-hard: 4px 4px 0 0 hsl(var(--ink));
+    --shadow-soft: 0 1px 0 0 hsl(var(--border)), 0 10px 28px -10px hsl(200 50% 15% / 0.25);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark theme: petrolio profondo, contrasto morbido per lunghe sessioni */
+    --background: 200 25% 9%;
+    --foreground: 184 25% 90%;
+    --card: 200 25% 12%;
+    --card-foreground: 184 25% 90%;
+    --popover: 200 25% 12%;
+    --popover-foreground: 184 25% 90%;
+    --primary: 184 75% 48%;
+    --primary-foreground: 200 30% 8%;
+    --secondary: 200 20% 18%;
+    --secondary-foreground: 184 25% 90%;
+    --muted: 200 18% 16%;
+    --muted-foreground: 184 12% 65%;
+    --accent: 184 75% 48%;
+    --accent-foreground: 200 30% 8%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 184 25% 95%;
+    --border: 200 18% 24%;
+    --input: 200 18% 22%;
+    --ring: 184 75% 48%;
+    --ink: 184 25% 90%;
+    --paper: 200 25% 12%;
+    --rule: 184 25% 60%;
+    --dept: 184 75% 48%;
+    --dept-foreground: 200 30% 8%;
+    --dept-soft: 200 20% 18%;
+
+    --shadow-hard: 4px 4px 0 0 hsl(200 30% 4%);
+    --shadow-soft: 0 1px 0 0 hsl(var(--border)), 0 8px 24px -12px hsl(0 0% 0% / 0.5);
+  }
+
+  [data-dept="tappezzeria"] {
+    --dept: 184 85% 32%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 184 42% 93%;
+  }
+
+  [data-dept="stampa"] {
+    --dept: 28 86% 46%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 32 78% 93%;
+  }
+
+  [data-dept="falegnameria"] {
+    --dept: 145 42% 34%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 145 34% 93%;
+  }
+
+  [data-dept="montaggi"] {
+    --dept: 18 68% 42%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 18 52% 94%;
+  }
+
+  [data-dept="riepilogo"] {
+    --dept: 225 58% 42%;
+    --dept-foreground: 0 0% 100%;
+    --dept-soft: 225 48% 94%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-feature-settings: "tnum", "ss01";
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-card border-2 border-[hsl(var(--ink))] rounded-sm;
+    box-shadow: var(--shadow-hard);
+  }
+
+  .rule-line {
+    background-image: repeating-linear-gradient(
+      90deg,
+      hsl(var(--ink)) 0,
+      hsl(var(--ink)) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+    height: 2px;
+  }
+
+  .input-bare {
+    @apply bg-transparent border-0 border-b-2 border-[hsl(var(--ink))] rounded-none px-1 py-1 focus:outline-none focus:ring-0 focus:border-primary transition-colors;
+  }
+
+  .label-cap {
+    @apply text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground;
+  }
+}
+
+/* Nascondi le freccette spinner negli input number (non servono nei calcoli) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ============================================================
+   MOBILE OPTIMIZATIONS
+   Migliora leggibilità, touch target e scrolling su smartphone
+   senza modificare il layout desktop.
+   ============================================================ */
+
+/* Safe area iPhone notch/home indicator */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  header.sticky,
+  header.app-header,
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    /* Evita lo zoom automatico di iOS sui form: serve >= 16px sugli input */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  h1, .text-4xl, .text-5xl, .text-6xl { font-size: 1.75rem !important; line-height: 1.15; }
+  h2, .text-3xl { font-size: 1.4rem !important; line-height: 1.2; }
+  h3, .text-2xl { font-size: 1.2rem !important; line-height: 1.25; }
+
+  /* Tutti gli input/textarea/select almeno 16px per non triggerare zoom iOS */
+  input, select, textarea, button {
+    font-size: 16px !important;
+  }
+
+  /* Touch target minimi (linee guida WCAG/Apple/Google) */
+  button, [role="button"], a.btn, .input-bare, input, select {
+    min-height: 40px;
+  }
+
+  /* Tabelle: scroll orizzontale invece di sfondare il layout */
+  .panel, main, section, article {
+    overflow-x: auto;
+  }
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dialog/Sheet shadcn: usa quasi tutta la larghezza */
+  [role="dialog"] {
+    max-width: 96vw !important;
+    width: 96vw !important;
+    max-height: 92vh !important;
+    overflow-y: auto;
+  }
+
+  /* Padding container ridotti */
+  .container { padding-left: 0.75rem; padding-right: 0.75rem; }
+
+  header > div,
+  main,
+  footer > div {
+    max-width: 100%;
+  }
+
+  header .container,
+  header [class*="max-w-"] {
+    min-width: 0;
+  }
+
+  /* Header: forza wrap + padding ridotti su mobile per evitare overflow */
+  header > div {
+    flex-wrap: wrap !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+    gap: 0.5rem !important;
+  }
+  header h1 { font-size: 1.15rem !important; }
+  header h1 + p, header .text-sm { font-size: 0.78rem !important; }
+
+  /* Main padding ridotti su mobile */
+  main { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+
+  /* Tab/nav scroll orizzontale automatico */
+  nav, [role="tablist"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+  }
+  nav > *, [role="tablist"] > * { flex-shrink: 0; }
+
+  /* Griglie: forza colonna singola dove era multi-colonna senza breakpoint */
+  .grid-cols-2:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]),
+  .grid-cols-3:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]),
+  .grid-cols-4:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]),
+  .grid-cols-5:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]),
+  .grid-cols-6:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Evita testo che sfonda */
+  * { word-wrap: break-word; overflow-wrap: break-word; }
+
+  /* Riduci ombra "hard" che su mobile crea scroll laterale */
+  .panel {
+    box-shadow: 2px 2px 0 0 hsl(var(--ink)) !important;
+    margin-right: 2px;
+  }
+}

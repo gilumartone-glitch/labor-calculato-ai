@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listino>
+  <materiali>
+    <materiale>
+      <name>Forex 5mm</name>
+      <color>Bianco</color>
+      <height>305x205</height>
+      <unit>mq</unit>
+      <pricePiece>18.5</pricePiece>
+      <priceCut>22</priceCut>
+      <note></note>
+    </materiale>
+    <materiale>
+      <name>Plexiglass 3mm</name>
+      <color>Trasparente</color>
+      <height>200x100</height>
+      <unit>mq</unit>
+      <pricePiece>45</pricePiece>
+      <priceCut>50</priceCut>
+      <note></note>
+    </materiale>
+  </materiali>
+  <lavorazioni>
+    <lavorazione>
+      <name>Stampa UV</name>
+      <type>unità</type>
+      <unit>mq</unit>
+      <price>25</price>
+      <note></note>
+    </lavorazione>
+    <lavorazione>
+      <name>Taglio sagomato</name>
+      <type>ora</type>
+      <unit>h</unit>
+      <price>35</price>
+      <note></note>
+    </lavorazione>
+  </lavorazioni>
+</listino>

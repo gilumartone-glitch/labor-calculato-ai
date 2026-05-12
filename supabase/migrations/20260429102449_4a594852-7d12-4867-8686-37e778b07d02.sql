@@ -1,0 +1,1 @@
+ALTER TABLE public.contabilita_state REPLICA IDENTITY FULL;

@@ -1,0 +1,82 @@
+<!doctype html>
+    <html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Tecnofra Lab</title>
+    <link rel="icon" href="/favicon.ico?v=3" type="image/x-icon" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=3" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tecnofra Lab" />
+    <meta name="description" content="Calcola in tempo reale il prezzo di lavorazioni di laboratorio: tappezzeria, stampa, falegnameria. Materiali, manodopera, tempo macchina e margine." />
+    <meta name="author" content="Officina" />
+
+    <meta property="og:title" content="Officina · Calcolatore prezzi lavorazioni" />
+    <meta property="og:description" content="Componi materiali, manodopera e tempo macchina. Ottieni il prezzo giusto, in tempo reale." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script>
+      // Auto-recover da schermata bianca su mobile (PWA / Aggiungi a Home).
+      // Dopo un deploy, l'HTML in cache punta a bundle JS vecchi che non
+      // esistono più: il browser fallisce silenziosamente. Intercettiamo
+      // gli errori di caricamento dei moduli e ricarichiamo una volta sola.
+      (function () {
+        var KEY = '__tf_reloaded_once';
+        function isChunkErr(msg) {
+          if (!msg) return false;
+          msg = String(msg);
+          return /Failed to fetch dynamically imported module/i.test(msg)
+              || /Importing a module script failed/i.test(msg)
+              || /ChunkLoadError/i.test(msg)
+              || /Loading chunk [\d]+ failed/i.test(msg)
+              || /error loading dynamically imported module/i.test(msg);
+        }
+        function recover(reason) {
+          try {
+            if (sessionStorage.getItem(KEY)) return;
+            sessionStorage.setItem(KEY, '1');
+          } catch (e) {}
+          // Pulisci eventuali cache (CacheStorage) prima di ricaricare
+          if (window.caches && caches.keys) {
+            caches.keys().then(function (ks) {
+              return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }).finally(function () { location.reload(); });
+          } else {
+            location.reload();
+          }
+          console.warn('[tf] auto-reload after load error:', reason);
+        }
+        window.addEventListener('error', function (e) {
+          if (isChunkErr(e && (e.message || (e.error && e.error.message)))) recover(e.message);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason;
+          var msg = r && (r.message || r);
+          if (isChunkErr(msg)) recover(msg);
+        });
+        // Quando la pagina torna visibile (utente rientra nella PWA),
+        // resetta il flag così un eventuale errore futuro può ri-recuperare.
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') {
+            try { sessionStorage.removeItem(KEY); } catch (e) {}
+          }
+        });
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

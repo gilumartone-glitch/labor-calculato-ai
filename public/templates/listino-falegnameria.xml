@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listino>
+  <materiali>
+    <materiale>
+      <name>MDF 18mm</name>
+      <color>Naturale</color>
+      <height>305x122</height>
+      <unit>mq</unit>
+      <pricePiece>22</pricePiece>
+      <priceCut>26</priceCut>
+      <note></note>
+    </materiale>
+  </materiali>
+  <lavorazioni>
+    <lavorazione>
+      <name>Fresatura CNC</name>
+      <type>ora</type>
+      <unit>h</unit>
+      <price>45</price>
+      <note></note>
+    </lavorazione>
+  </lavorazioni>
+</listino>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listino>
+  <materiali>
+    <materiale>
+      <name>Velluto</name>
+      <color>Blu</color>
+      <height>140</height>
+      <composition>100% poliestere</composition>
+      <unit>m</unit>
+      <pricePiece>12</pricePiece>
+      <priceCut>15</priceCut>
+      <note></note>
+    </materiale>
+  </materiali>
+  <lavorazioni>
+    <lavorazione>
+      <name>Cucitura</name>
+      <type>ora</type>
+      <unit>h</unit>
+      <price>30</price>
+      <note></note>
+    </lavorazione>
+  </lavorazioni>
+</listino>

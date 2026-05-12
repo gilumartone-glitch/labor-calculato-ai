@@ -1,0 +1,1395 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      app_pages: {
+        Row: {
+          description: string | null
+          key: string
+          label: string
+          ordine: number
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          label: string
+          ordine?: number
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          label?: string
+          ordine?: number
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          detail: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          new_state: Json | null
+          prev_state: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          detail?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          new_state?: Json | null
+          prev_state?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          detail?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          new_state?: Json | null
+          prev_state?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      catalogs: {
+        Row: {
+          data: Json
+          dept: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data?: Json
+          dept: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          dept?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      commessa_assegnatari: {
+        Row: {
+          assigned_at: string
+          commessa_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          commessa_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          commessa_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commessa_assegnatari_commessa_id_fkey"
+            columns: ["commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commesse: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          created_by: string
+          data_scadenza: string | null
+          descrizione: string | null
+          id: string
+          importo: number | null
+          note: string | null
+          ordine: number
+          priorita: Database["public"]["Enums"]["commessa_priorita"]
+          reparto: Database["public"]["Enums"]["commessa_reparto"]
+          snapshot: Json | null
+          stato: Database["public"]["Enums"]["commessa_stato"]
+          tipo: Database["public"]["Enums"]["commessa_tipo"]
+          titolo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          created_by: string
+          data_scadenza?: string | null
+          descrizione?: string | null
+          id?: string
+          importo?: number | null
+          note?: string | null
+          ordine?: number
+          priorita?: Database["public"]["Enums"]["commessa_priorita"]
+          reparto?: Database["public"]["Enums"]["commessa_reparto"]
+          snapshot?: Json | null
+          stato?: Database["public"]["Enums"]["commessa_stato"]
+          tipo?: Database["public"]["Enums"]["commessa_tipo"]
+          titolo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          created_by?: string
+          data_scadenza?: string | null
+          descrizione?: string | null
+          id?: string
+          importo?: number | null
+          note?: string | null
+          ordine?: number
+          priorita?: Database["public"]["Enums"]["commessa_priorita"]
+          reparto?: Database["public"]["Enums"]["commessa_reparto"]
+          snapshot?: Json | null
+          stato?: Database["public"]["Enums"]["commessa_stato"]
+          tipo?: Database["public"]["Enums"]["commessa_tipo"]
+          titolo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contabilita_state: {
+        Row: {
+          data: Json
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data?: Json
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      design_draft_versions: {
+        Row: {
+          created_at: string
+          draft_id: string
+          id: string
+          name: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          draft_id: string
+          id?: string
+          name?: string
+          snapshot?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          draft_id?: string
+          id?: string
+          name?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      design_drafts: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          ordine: number
+          snapshot: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          ordine?: number
+          snapshot?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          ordine?: number
+          snapshot?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          code: string
+          created_at: string
+          descrizione: string | null
+          id: string
+          kind: Database["public"]["Enums"]["inv_item_kind"]
+          material_attrs: Json
+          material_color: string | null
+          material_height: string | null
+          material_key: string | null
+          material_name: string | null
+          nome: string
+          note: string | null
+          posizione: string | null
+          qty_intera: number
+          qty_sfrido: number
+          reparto: string
+          soglia_minima: number
+          um: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          descrizione?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["inv_item_kind"]
+          material_attrs?: Json
+          material_color?: string | null
+          material_height?: string | null
+          material_key?: string | null
+          material_name?: string | null
+          nome: string
+          note?: string | null
+          posizione?: string | null
+          qty_intera?: number
+          qty_sfrido?: number
+          reparto?: string
+          soglia_minima?: number
+          um?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          descrizione?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["inv_item_kind"]
+          material_attrs?: Json
+          material_color?: string | null
+          material_height?: string | null
+          material_key?: string | null
+          material_name?: string | null
+          nome?: string
+          note?: string | null
+          posizione?: string | null
+          qty_intera?: number
+          qty_sfrido?: number
+          reparto?: string
+          soglia_minima?: number
+          um?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_reservations: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          order_id: string
+          qty: number
+          reserved_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          order_id: string
+          qty?: number
+          reserved_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          order_id?: string
+          qty?: number
+          reserved_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_reservations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_reservations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_scrap_pieces: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          h_mm: number
+          id: string
+          inventory_id: string
+          note: string | null
+          posizione: string | null
+          reserved_for_order: string | null
+          reserved_for_sub: string | null
+          status: Database["public"]["Enums"]["scrap_piece_status"]
+          thickness_mm: number | null
+          updated_at: string
+          w_mm: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          h_mm: number
+          id?: string
+          inventory_id: string
+          note?: string | null
+          posizione?: string | null
+          reserved_for_order?: string | null
+          reserved_for_sub?: string | null
+          status?: Database["public"]["Enums"]["scrap_piece_status"]
+          thickness_mm?: number | null
+          updated_at?: string
+          w_mm: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          h_mm?: number
+          id?: string
+          inventory_id?: string
+          note?: string | null
+          posizione?: string | null
+          reserved_for_order?: string | null
+          reserved_for_sub?: string | null
+          status?: Database["public"]["Enums"]["scrap_piece_status"]
+          thickness_mm?: number | null
+          updated_at?: string
+          w_mm?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_scrap_pieces_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_contact_categories: {
+        Row: {
+          category_id: string
+          contact_id: string
+          created_at: string
+        }
+        Insert: {
+          category_id: string
+          contact_id: string
+          created_at?: string
+        }
+        Update: {
+          category_id?: string
+          contact_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_contact_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contact_categories_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_contacts: {
+        Row: {
+          azienda: string | null
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          nome: string
+          note: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          azienda?: string | null
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          nome: string
+          note?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          azienda?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          note?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing_newsletters: {
+        Row: {
+          attachments: Json
+          blocks: Json
+          category_ids: Json
+          content_html: string
+          created_at: string
+          created_by: string
+          from_email: string | null
+          from_name: string | null
+          id: string
+          mailchimp_audience_id: string | null
+          mailchimp_campaign_id: string | null
+          preview_text: string | null
+          recipients_count: number
+          sent_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          blocks?: Json
+          category_ids?: Json
+          content_html?: string
+          created_at?: string
+          created_by: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          mailchimp_audience_id?: string | null
+          mailchimp_campaign_id?: string | null
+          preview_text?: string | null
+          recipients_count?: number
+          sent_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          blocks?: Json
+          category_ids?: Json
+          content_html?: string
+          created_at?: string
+          created_by?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          mailchimp_audience_id?: string | null
+          mailchimp_campaign_id?: string | null
+          preview_text?: string | null
+          recipients_count?: number
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prod_chat_channels: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["prod_chat_kind"]
+          members: string[]
+          name: string
+          order_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["prod_chat_kind"]
+          members?: string[]
+          name: string
+          order_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["prod_chat_kind"]
+          members?: string[]
+          name?: string
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prod_chat_channels_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prod_chat_messages: {
+        Row: {
+          body: string
+          channel_id: string
+          created_at: string
+          id: string
+          reactions: Json
+          user_id: string
+        }
+        Insert: {
+          body: string
+          channel_id: string
+          created_at?: string
+          id?: string
+          reactions?: Json
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel_id?: string
+          created_at?: string
+          id?: string
+          reactions?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prod_chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "prod_chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prod_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_urgent: boolean
+          link: string | null
+          message: string
+          order_id: string | null
+          read_at: string | null
+          type: Database["public"]["Enums"]["prod_notif_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_urgent?: boolean
+          link?: string | null
+          message: string
+          order_id?: string | null
+          read_at?: string | null
+          type: Database["public"]["Enums"]["prod_notif_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_urgent?: boolean
+          link?: string | null
+          message?: string
+          order_id?: string | null
+          read_at?: string | null
+          type?: Database["public"]["Enums"]["prod_notif_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prod_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_orders: {
+        Row: {
+          attachments: Json
+          cliente: string
+          code: string
+          corriere: string | null
+          created_at: string
+          created_by: string
+          customer_order_ref: string | null
+          data: string
+          ddt_causale: string | null
+          ddt_date: string | null
+          ddt_note: string | null
+          ddt_number: string | null
+          delivery: Database["public"]["Enums"]["prod_delivery"]
+          id: string
+          nesting_included: boolean
+          note: string | null
+          priorita: Database["public"]["Enums"]["prod_priority"]
+          production_name: string | null
+          snapshot: Json | null
+          source_commessa_id: string | null
+          spedizione_at: string | null
+          status: Database["public"]["Enums"]["prod_order_status"]
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          cliente: string
+          code: string
+          corriere?: string | null
+          created_at?: string
+          created_by: string
+          customer_order_ref?: string | null
+          data?: string
+          ddt_causale?: string | null
+          ddt_date?: string | null
+          ddt_note?: string | null
+          ddt_number?: string | null
+          delivery?: Database["public"]["Enums"]["prod_delivery"]
+          id?: string
+          nesting_included?: boolean
+          note?: string | null
+          priorita?: Database["public"]["Enums"]["prod_priority"]
+          production_name?: string | null
+          snapshot?: Json | null
+          source_commessa_id?: string | null
+          spedizione_at?: string | null
+          status?: Database["public"]["Enums"]["prod_order_status"]
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          cliente?: string
+          code?: string
+          corriere?: string | null
+          created_at?: string
+          created_by?: string
+          customer_order_ref?: string | null
+          data?: string
+          ddt_causale?: string | null
+          ddt_date?: string | null
+          ddt_note?: string | null
+          ddt_number?: string | null
+          delivery?: Database["public"]["Enums"]["prod_delivery"]
+          id?: string
+          nesting_included?: boolean
+          note?: string | null
+          priorita?: Database["public"]["Enums"]["prod_priority"]
+          production_name?: string | null
+          snapshot?: Json | null
+          source_commessa_id?: string | null
+          spedizione_at?: string | null
+          status?: Database["public"]["Enums"]["prod_order_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      production_sub_checklist: {
+        Row: {
+          created_at: string
+          done_at: string | null
+          done_by: string | null
+          id: string
+          label: string
+          note: string | null
+          ordine: number
+          status: Database["public"]["Enums"]["checklist_item_status"]
+          sub_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          label: string
+          note?: string | null
+          ordine?: number
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          sub_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          label?: string
+          note?: string | null
+          ordine?: number
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          sub_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_sub_checklist_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "production_sub_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_sub_orders: {
+        Row: {
+          code: string
+          completed_at: string | null
+          created_at: string
+          depends_on: string | null
+          dept: Database["public"]["Enums"]["prod_dept"]
+          files: Json
+          id: string
+          note: string | null
+          order_id: string
+          ordine: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejected_to: string | null
+          rejection_reason: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["prod_sub_status"]
+          supplier_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          completed_at?: string | null
+          created_at?: string
+          depends_on?: string | null
+          dept: Database["public"]["Enums"]["prod_dept"]
+          files?: Json
+          id?: string
+          note?: string | null
+          order_id: string
+          ordine?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejected_to?: string | null
+          rejection_reason?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["prod_sub_status"]
+          supplier_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          depends_on?: string | null
+          dept?: Database["public"]["Enums"]["prod_dept"]
+          files?: Json
+          id?: string
+          note?: string | null
+          order_id?: string
+          ordine?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejected_to?: string | null
+          rejection_reason?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["prod_sub_status"]
+          supplier_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_sub_orders_depends_on_fkey"
+            columns: ["depends_on"]
+            isOneToOne: false
+            referencedRelation: "production_sub_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_sub_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          approved: boolean
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          settori: Database["public"]["Enums"]["app_settore"][]
+          updated_at: string
+        }
+        Insert: {
+          approved?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          settori?: Database["public"]["Enums"]["app_settore"][]
+          updated_at?: string
+        }
+        Update: {
+          approved?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          settori?: Database["public"]["Enums"]["app_settore"][]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["permission_level"]
+          page_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["permission_level"]
+          page_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["permission_level"]
+          page_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_page_key_fkey"
+            columns: ["page_key"]
+            isOneToOne: false
+            referencedRelation: "app_pages"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_workspaces: {
+        Row: {
+          created_at: string
+          data: Json
+          key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      admin_list_users: {
+        Args: never
+        Returns: {
+          approved: boolean
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          roles: string[]
+        }[]
+      }
+      admin_set_user_permission: {
+        Args: {
+          _level: Database["public"]["Enums"]["permission_level"]
+          _page: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      admin_set_user_roles: {
+        Args: { _roles: string[]; _user_id: string }
+        Returns: undefined
+      }
+      has_permission: {
+        Args: {
+          _page: string
+          _required: Database["public"]["Enums"]["permission_level"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      return_order_to_revision: {
+        Args: { _order_id: string; _reason: string; _sub_order_id: string }
+        Returns: string
+      }
+    }
+    Enums: {
+      app_role:
+        | "admin"
+        | "member"
+        | "contabilita"
+        | "produzione"
+        | "commerciale"
+        | "magazzino"
+        | "coordinatore"
+      app_settore:
+        | "grafica"
+        | "stampa"
+        | "taglio"
+        | "tappezzeria"
+        | "stampa_3d"
+        | "falegnameria"
+        | "altro"
+        | "amministrazione"
+        | "logistica"
+        | "magazzino"
+        | "acquisti"
+      checklist_item_status: "todo" | "done" | "skipped"
+      commessa_priorita: "bassa" | "media" | "alta"
+      commessa_reparto:
+        | "tappezzeria"
+        | "stampa"
+        | "falegnameria"
+        | "generale"
+        | "amministrazione"
+        | "logistica"
+      commessa_stato:
+        | "da_fare"
+        | "preventivo"
+        | "in_produzione"
+        | "pronto"
+        | "consegnato"
+      commessa_tipo: "commessa" | "task"
+      inv_item_kind: "nuovo" | "sfrido"
+      permission_level: "none" | "read" | "write"
+      prod_chat_kind: "generale" | "ordine" | "diretto"
+      prod_delivery: "spedizione" | "ritiro" | "mezzo_proprio" | "corriere"
+      prod_dept:
+        | "taglio"
+        | "stampa"
+        | "tappezzeria"
+        | "assemblaggio"
+        | "altro"
+        | "grafica"
+        | "stampa_3d"
+        | "falegnameria"
+        | "magazzino"
+        | "acquisti"
+      prod_notif_type:
+        | "ordine_creato"
+        | "subordine_assegnato"
+        | "subordine_completato"
+        | "ordine_pronto"
+        | "ordine_chiuso"
+        | "stock_basso"
+        | "chat_messaggio"
+        | "priorita_cambiata"
+        | "subordine_rimandato"
+        | "ordine_rimandato"
+        | "magazzino_da_preparare"
+      prod_order_status:
+        | "nuovo"
+        | "in_corso"
+        | "pronto"
+        | "spedito"
+        | "chiuso"
+        | "annullato"
+      prod_priority: "normale" | "urgente" | "bloccante"
+      prod_sub_status:
+        | "in_attesa"
+        | "in_lavorazione"
+        | "completato"
+        | "bloccato"
+        | "rimandato"
+      scrap_piece_status: "libero" | "riservato" | "usato"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: [
+        "admin",
+        "member",
+        "contabilita",
+        "produzione",
+        "commerciale",
+        "magazzino",
+        "coordinatore",
+      ],
+      app_settore: [
+        "grafica",
+        "stampa",
+        "taglio",
+        "tappezzeria",
+        "stampa_3d",
+        "falegnameria",
+        "altro",
+        "amministrazione",
+        "logistica",
+        "magazzino",
+        "acquisti",
+      ],
+      checklist_item_status: ["todo", "done", "skipped"],
+      commessa_priorita: ["bassa", "media", "alta"],
+      commessa_reparto: [
+        "tappezzeria",
+        "stampa",
+        "falegnameria",
+        "generale",
+        "amministrazione",
+        "logistica",
+      ],
+      commessa_stato: [
+        "da_fare",
+        "preventivo",
+        "in_produzione",
+        "pronto",
+        "consegnato",
+      ],
+      commessa_tipo: ["commessa", "task"],
+      inv_item_kind: ["nuovo", "sfrido"],
+      permission_level: ["none", "read", "write"],
+      prod_chat_kind: ["generale", "ordine", "diretto"],
+      prod_delivery: ["spedizione", "ritiro", "mezzo_proprio", "corriere"],
+      prod_dept: [
+        "taglio",
+        "stampa",
+        "tappezzeria",
+        "assemblaggio",
+        "altro",
+        "grafica",
+        "stampa_3d",
+        "falegnameria",
+        "magazzino",
+        "acquisti",
+      ],
+      prod_notif_type: [
+        "ordine_creato",
+        "subordine_assegnato",
+        "subordine_completato",
+        "ordine_pronto",
+        "ordine_chiuso",
+        "stock_basso",
+        "chat_messaggio",
+        "priorita_cambiata",
+        "subordine_rimandato",
+        "ordine_rimandato",
+        "magazzino_da_preparare",
+      ],
+      prod_order_status: [
+        "nuovo",
+        "in_corso",
+        "pronto",
+        "spedito",
+        "chiuso",
+        "annullato",
+      ],
+      prod_priority: ["normale", "urgente", "bloccante"],
+      prod_sub_status: [
+        "in_attesa",
+        "in_lavorazione",
+        "completato",
+        "bloccato",
+        "rimandato",
+      ],
+      scrap_piece_status: ["libero", "riservato", "usato"],
+    },
+  },
+} as const

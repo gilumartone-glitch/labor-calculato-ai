@@ -428,6 +428,14 @@ type Props = {
   graphicOnly?: boolean;
   /** Mostra solo riepilogo testuale (no grafico). */
   textOnly?: boolean;
+  /** Stato di nesting salvato nel preventivo (override formato + bin misti per gruppo).
+   *  Quando presente ha PRIORITÀ sulla logica pickedStockId, così la produzione
+   *  vede ESATTAMENTE il nesting deciso dal progettista nel calcolatore. */
+  nestingState?: {
+    overrides?: Record<string, NestingFormatOverride | null>;
+    mixedBins?: Record<string, NestingMixedBin[] | null>;
+  };
+  customerType?: any;
 };
 
 /**

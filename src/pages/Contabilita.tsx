@@ -336,7 +336,51 @@ const initialState = (): AccountingState => ({
   salaries: seedAllSalaries(),
   salariesProcessed: [true, true, true, true, false, false, false, false, false, false, false, false],
   salaryPayDates: defaultSalaryPayDates(),
-});
+  });
+
+  /**
+   * Setter funzionale per i movimenti: accetta un array OPPURE una callback
+   * (prev) => next. Usa sempre lo stato più recente (no closure stale) e
+   * marca gli ID modificati come "recently modified" così il merge realtime
+   * non li sovrascrive con la versione vecchia del cloud.
+   */
+  type MovUpdater = CashMovement[] | ((prev: CashMovement[]) => CashMovement[]);
+  const setMovementsFn = useCallback((updater: MovUpdater) => {
+    setState((prev) => {
+      localEditUntilRef.current = Date.now() + 12000;
+      pushHistory(prev);
+      setFuture([]);
+      const nextMovements = typeof updater === "function"
+        ? (updater as (m: CashMovement[]) => CashMovement[])(prev.movements)
+        : updater;
+      // Marca come "recently modified" tutti gli ID toccati (nuovi + cambiati).
+      const prevById = new Map(prev.movements.map((m) => [m.id, m]));
+      const touched: string[] = [];
+      for (const m of nextMovements) {
+        const before = prevById.get(m.id);
+        if (!before || JSON.stringify(before) !== JSON.stringify(m)) touched.push(m.id);
+      }
+      if (touched.length > 0) markRecentlyModified(touched);
+      // Tombstones per le cancellazioni
+      const afterIds = new Set(nextMovements.map((x) => x.id));
+      const removed: string[] = [];
+      for (const item of prev.movements) if (!afterIds.has(item.id)) removed.push(item.id);
+      const prevDel = prev.deletedIds ?? {};
+      const next: AccountingState = {
+        ...prev,
+        movements: nextMovements,
+        deletedIds: {
+          movements: Array.from(new Set([...(prevDel.movements ?? []), ...removed])),
+          fixedExpenses: prevDel.fixedExpenses ?? [],
+          salaries: prevDel.salaries ?? [],
+          contacts: prevDel.contacts ?? [],
+        },
+      };
+      persistState(next);
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 const defaultProcessedFlags = () => [true, true, true, true, false, false, false, false, false, false, false, false];
 const isCompleteDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);

@@ -60,7 +60,7 @@ const PiecesNestingTabs = ({
   subDept,
 }: {
   pieces: { piece: any; deptLabel: string; catalog: any }[];
-  mergedNesting: { pieces: any[]; catalog: any; deptLabel: string } | null | undefined;
+  mergedNesting: { pieces: any[]; catalog: any; deptLabel: string; nestingState?: any } | null | undefined;
   deptLabel: string;
   subDept: any;
 }) => {

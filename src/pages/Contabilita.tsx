@@ -2104,7 +2104,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           .filter((m) => !m.id.startsWith("__") && touchedQuadrants.has(quadrantKey(m.type, m.status)))
           .map((m) => m.id),
       );
-      setMovements([...movements.filter((m) => !idsToReplace.has(m.id)), ...newOnes]);
+      setMovements((prev) => [...prev.filter((m) => !idsToReplace.has(m.id)), ...newOnes]);
       const labels: Record<string, string> = {
         "entrata|cassa": "Cassa Entrate",
         "uscita|cassa": "Cassa Uscite",

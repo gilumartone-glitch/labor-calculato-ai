@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, Layers, Droplets } from "lucide-react";
+import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
@@ -53,7 +53,7 @@ const Hub = () => {
 
   const visible = TILES.filter((t) => can(t.key, "read"));
   const showMagazzino = isAdmin || approved;
-  const showVendite = can("preventivi", "read");
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,38 +115,6 @@ const Hub = () => {
                 <p className="text-sm text-white/80">Scorte di Laboratorio e Tappezzeria, sotto-soglia e sfridi</p>
                 <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
               </Link>
-            )}
-            {showVendite && (
-              <>
-                <Link
-                  to="/preventivi?tab=magazzino&sub=danza"
-                  className="group relative border-2 bg-[hsl(190_62%_34%)] text-white border-[hsl(190_62%_22%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-14 h-14 rounded-sm bg-[hsl(190_62%_22%)] text-white grid place-items-center">
-                      <Layers className="w-7 h-7" />
-                    </div>
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-white/70">vendite</span>
-                  </div>
-                  <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Tappeti danza</h3>
-                  <p className="text-sm text-white/80">Listino e calcolo rotoli tappeto danza</p>
-                  <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
-                </Link>
-                <Link
-                  to="/preventivi?tab=magazzino&sub=ignifugo"
-                  className="group relative border-2 bg-[hsl(12_70%_42%)] text-white border-[hsl(12_70%_28%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-14 h-14 rounded-sm bg-[hsl(12_70%_28%)] text-white grid place-items-center">
-                      <Droplets className="w-7 h-7" />
-                    </div>
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-white/70">vendite</span>
-                  </div>
-                  <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Vernici ignifughe</h3>
-                  <p className="text-sm text-white/80">Listino e calcolo latte vernici ignifughe</p>
-                  <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
-                </Link>
-              </>
             )}
             {(isAdmin || approved) && (
               <Link

@@ -26,6 +26,16 @@ interface Props {
   /** Se passata, abilita l'aggancio definitivo (prenotazione soft) ai pezzi del gruppo
    *  direttamente dal pannello di nesting. Riceve la nuova lista pieces da salvare. */
   onPiecesChange?: (pieces: PieceLine[]) => void;
+  /** Stato iniziale per ripristinare overrides e bin misti dal salvataggio. */
+  initialNestingState?: {
+    overrides?: Record<string, NestingFormatOverride | null>;
+    mixedBins?: Record<string, NestingMixedBin[] | null>;
+  };
+  /** Notifica i cambiamenti di stato del nesting per persistenza nello snapshot. */
+  onNestingStateChange?: (state: {
+    overrides: Record<string, NestingFormatOverride | null>;
+    mixedBins: Record<string, NestingMixedBin[] | null>;
+  }) => void;
 }
 
 const fmt = (n: number, d = 2) =>

@@ -1275,7 +1275,7 @@ const AdditionsControl = ({ movement, onChange, compact = false }: { movement: C
   );
 };
 
-const MovementsTable = ({ movements, setMovements, addMovement, openingCash, setOpeningCash }: { movements: CashMovement[]; setMovements: (m: CashMovement[]) => void; addMovement: () => void; openingCash: number; setOpeningCash: (n: number) => void }) => (
+const MovementsTable = ({ movements, setMovements, addMovement, openingCash, setOpeningCash }: { movements: CashMovement[]; setMovements: (m: CashMovement[] | ((prev: CashMovement[]) => CashMovement[])) => void; addMovement: () => void; openingCash: number; setOpeningCash: (n: number) => void }) => (
   <Card className="border-2 border-dept shadow-soft">
     <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Entrate e uscite</CardTitle><Button size="sm" onClick={addMovement}><Plus className="h-4 w-4" />Movimento</Button></CardHeader>
     <CardContent className="space-y-3">
@@ -1595,7 +1595,7 @@ const MovementWizard = ({ open, onOpenChange, onCreate, contacts, onAddContact }
   );
 };
 
-const ForecastTable = ({ rows, movements, salaries, setMovements, salaryPayDates, setSalaryPayDates, contacts, onAddContact, currentCash }: { rows: { month: string; movements: CashMovement[]; cashIn: number; cashOut: number; expectedIn: number; expectedOut: number; fixed: number; cashSaldo: number; expectedSaldo: number; runningCash: number; runningForecast: number }[]; movements: CashMovement[]; salaries: Salary[]; setMovements: (m: CashMovement[]) => void; salaryPayDates: string[]; setSalaryPayDates: (d: string[]) => void; contacts: Contact[]; onAddContact: (c: Contact) => void; currentCash: number }) => (
+const ForecastTable = ({ rows, movements, salaries, setMovements, salaryPayDates, setSalaryPayDates, contacts, onAddContact, currentCash }: { rows: { month: string; movements: CashMovement[]; cashIn: number; cashOut: number; expectedIn: number; expectedOut: number; fixed: number; cashSaldo: number; expectedSaldo: number; runningCash: number; runningForecast: number }[]; movements: CashMovement[]; salaries: Salary[]; setMovements: (m: CashMovement[] | ((prev: CashMovement[]) => CashMovement[])) => void; salaryPayDates: string[]; setSalaryPayDates: (d: string[]) => void; contacts: Contact[]; onAddContact: (c: Contact) => void; currentCash: number }) => (
   <div className="space-y-5">{rows.map((r) => <MonthSection key={r.month} row={r} movements={movements} salaries={salaries} setMovements={setMovements} salaryPayDates={salaryPayDates} setSalaryPayDates={setSalaryPayDates} contacts={contacts} onAddContact={onAddContact} currentCash={currentCash} />)}</div>
 );
 
@@ -1904,7 +1904,7 @@ const detectImportBlocks = (rows: string[][]): ImportColumnBlock[] => {
   return blocks.length > 0 ? blocks : [0, 4, 8, 12].map((offset, index) => ({ descriptionCol: offset, dateCol: offset + 1, methodCol: offset + 2, amountCol: offset + 3, ...IMPORT_TARGETS[index] }));
 };
 
-const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDates, setSalaryPayDates, contacts, onAddContact, currentCash }: { row: { month: string; movements: CashMovement[]; cashIn: number; cashOut: number; expectedIn: number; expectedOut: number; fixed: number; cashSaldo: number; expectedSaldo: number; runningCash: number; runningForecast: number }; movements: CashMovement[]; salaries: Salary[]; setMovements: (m: CashMovement[]) => void; salaryPayDates: string[]; setSalaryPayDates: (d: string[]) => void; contacts: Contact[]; onAddContact: (c: Contact) => void; currentCash: number }) => {
+const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDates, setSalaryPayDates, contacts, onAddContact, currentCash }: { row: { month: string; movements: CashMovement[]; cashIn: number; cashOut: number; expectedIn: number; expectedOut: number; fixed: number; cashSaldo: number; expectedSaldo: number; runningCash: number; runningForecast: number }; movements: CashMovement[]; salaries: Salary[]; setMovements: (m: CashMovement[] | ((prev: CashMovement[]) => CashMovement[])) => void; salaryPayDates: string[]; setSalaryPayDates: (d: string[]) => void; contacts: Contact[]; onAddContact: (c: Contact) => void; currentCash: number }) => {
   const monthIndex = MONTHS.indexOf(r.month);
   const updateMovement = (id: string, patch: Partial<CashMovement>) => {
     if (id.startsWith("__sal-") && patch.date && isCompleteDate(patch.date)) {

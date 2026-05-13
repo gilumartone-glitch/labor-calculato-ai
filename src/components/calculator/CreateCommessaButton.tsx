@@ -89,25 +89,52 @@ export const CreateCommessaButton = ({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [titolo, setTitolo] = useState(defaultTitle);
-  const [cliente, setCliente] = useState("");
-  const [prodName, setProdName] = useState("");
-  const [importo, setImporto] = useState<number>(defaultAmount);
-  const [reparto, setReparto] = useState<CommessaReparto>(defaultReparto);
-  const [priorita, setPriorita] = useState<CommessaPriorita>("media");
-  const [scadenza, setScadenza] = useState<string>("");
-  const [note, setNote] = useState("");
-  const [warehouseOnly, setWarehouseOnly] = useState(false);
+  type FormState = {
+    titolo: string; cliente: string; prodName: string; importo: number;
+    reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
+    note: string; warehouseOnly: boolean;
+    materialOnlyDepts: ProdDept[];
+  };
+  const initialForm: FormState = {
+    titolo: defaultTitle, cliente: "", prodName: "",
+    importo: defaultAmount, reparto: defaultReparto, priorita: "media",
+    scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
+  };
+  const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
+  const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts } = form;
+  const setTitolo = (v: string) => patch({ titolo: v });
+  const setCliente = (v: string) => patch({ cliente: v });
+  const setProdName = (v: string) => patch({ prodName: v });
+  const setImporto = (v: number) => patch({ importo: v });
+  const setReparto = (v: CommessaReparto) => patch({ reparto: v });
+  const setPriorita = (v: CommessaPriorita) => patch({ priorita: v });
+  const setScadenza = (v: string) => patch({ scadenza: v });
+  const setNote = (v: string) => patch({ note: v });
+  const setWarehouseOnly = (v: boolean) => patch({ warehouseOnly: v });
+  const toggleMaterialOnlyDept = (d: ProdDept) =>
+    setForm((f) => ({
+      ...f,
+      materialOnlyDepts: f.materialOnlyDepts.includes(d) ? f.materialOnlyDepts.filter((x) => x !== d) : [...f.materialOnlyDepts, d],
+    }));
+
+  const inferredDepts: ProdDept[] = useMemo(
+    () => inferProdDeptsFromSnapshot(snapshot as any),
+    [snapshot],
+  );
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | { clienteName: string; productionSnapshot: Snapshot }>(null);
 
-  // Re-sync defaults quando si riapre il dialog
+  // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
     if (v) {
-      setTitolo(defaultTitle);
-      setImporto(defaultAmount);
-      setReparto(defaultReparto);
-      // warehouseOnly viene impostato dal trigger, non resettarlo qui
+      setForm((f) => ({
+        ...f,
+        titolo: f.titolo || defaultTitle,
+        importo: f.importo || defaultAmount,
+        reparto: f.reparto || defaultReparto,
+      }));
     }
     setOpen(v);
   };

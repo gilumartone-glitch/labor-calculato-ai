@@ -369,7 +369,8 @@ export const CreateCommessaButton = ({
       setConfirmOpen(false);
       setOpen(false);
       setPendingPayload(null);
-      setCliente(""); setNote(""); setScadenza(""); setPriorita("media"); setWarehouseOnly(false);
+      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
+      clearForm();
       navigate(`/produzione/board?order=${pord.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Errore creazione ordine");

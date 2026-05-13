@@ -577,7 +577,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
               {filtered.length === 0 ? <div className="p-3 text-[12px] text-muted-foreground">Nessun prodotto disponibile con queste caratteristiche.</div> : filtered.map((p) => (
                 <button key={p.id} type="button" onClick={() => { setSelectedId(p.id); setClassId(""); }} className={`w-full text-left p-3 hover:bg-muted/30 ${selected?.id === p.id ? "bg-dept-soft/40" : ""}`}>
                   <div className="text-sm font-semibold">{p.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{p.color} · {p.base || "Base"} · {(p.finishes ?? []).join(", ")} · {(p.classes ?? []).map((c) => c.className).join(", ")} · {p.coats || 1} mani</div>
+                  <div className="text-[11px] text-muted-foreground">{(p.colors ?? []).join(", ") || "colore n/d"} · {p.base || "Base"} · {(p.finishes ?? []).join(", ")} · {(p.classes ?? []).map((c) => c.className).join(", ")} · {p.coats || 1} mani</div>
                 </button>
               ))}
             </div>
@@ -636,7 +636,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                       <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setMode("calcolo"); }}>Usa</Button>
                       <button onClick={(e) => { e.stopPropagation(); rm(p.id); }} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">{p.treatedMaterials || "materiali n/d"} · {p.color || "colore n/d"} · {p.base || "Base"} · {p.coats || 1} mani</div>
+                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">{p.treatedMaterials || "materiali n/d"} · {(p.colors ?? []).join(", ") || "colore n/d"} · {p.base || "Base"} · {p.coats || 1} mani</div>
                     {isSel && <FireProductEditor product={p} update={(patch) => upd(p.id, patch)} colorOptions={allColors} baseOptions={allBases} materialOptions={allMaterials} classOptions={allClasses} canLabelOptions={allCanLabels} />}
                   </div>
                 );
@@ -676,7 +676,7 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
         <Field label="Materiali trattati (più valori)">
           <MultiTagInput value={matTags} onChange={setMatTags} options={materialOptions} placeholder="aggiungi materiale…" />
         </Field>
-        <Field label="Colore"><SelectWithAdd value={p.color} onChange={(v) => update({ color: v })} options={colorOptions} placeholder="—" /></Field>
+        <Field label="Colori (più valori)"><MultiTagInput value={p.colors ?? []} onChange={(colors) => update({ colors })} options={colorOptions} placeholder="aggiungi colore…" /></Field>
         <Field label="Base"><SelectWithAdd value={p.base} onChange={(v) => update({ base: v })} options={baseOptions} placeholder="—" /></Field>
         <Field label="Tipo"><select value={p.baseType} onChange={(e) => update({ baseType: e.target.value as FireBaseType })} className="h-8 text-[12px] w-full border rounded-sm px-2 bg-background"><option value="base">Solo base</option><option value="base_finitura">Base + finitura</option></select></Field>
         <Field label="Componenti"><select value={p.component} onChange={(e) => update({ component: e.target.value as FireComponent })} className="h-8 text-[12px] w-full border rounded-sm px-2 bg-background"><option value="mono">Monocomponente</option><option value="bi">Bicomponente</option></select></Field>

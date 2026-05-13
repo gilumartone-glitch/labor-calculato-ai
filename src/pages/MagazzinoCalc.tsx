@@ -14,7 +14,7 @@ type DanceRoll = {
   rollWidth: number;
   rollLength: number;
   colors: string[];
-  pricePerRoll?: number;
+  pricePerSqm?: number;
   note?: string;
 };
 
@@ -29,7 +29,7 @@ type FireProduct = {
   id: string;
   name: string;
   treatedMaterials: string;
-  color: string;
+  colors: string[];
   base: string;
   baseType: FireBaseType;
   component: FireComponent;
@@ -62,7 +62,11 @@ const hydrate = (raw: unknown): MagState => {
         rollWidth: Number(r.rollWidth ?? 0),
         rollLength: Number(r.rollLength ?? 0),
         colors: Array.isArray(r.colors) ? r.colors : (r.color ? [String(r.color)] : []),
-        pricePerRoll: r.pricePerRoll != null ? Number(r.pricePerRoll) : undefined,
+        pricePerSqm: r.pricePerSqm != null
+          ? Number(r.pricePerSqm)
+          : (r.pricePerRoll != null && Number(r.rollLength) > 0 && Number(r.rollWidth) > 0
+              ? Number(r.pricePerRoll) / (Number(r.rollLength) * Number(r.rollWidth))
+              : undefined),
         note: r.note,
       }))
     : [];
@@ -71,7 +75,9 @@ const hydrate = (raw: unknown): MagState => {
         id: f.id ?? uid(),
         name: f.name ?? "",
         treatedMaterials: f.treatedMaterials ?? "",
-        color: f.color ?? "",
+        colors: Array.isArray(f.colors)
+          ? f.colors.map(String).filter(Boolean)
+          : (f.color ? splitTags(String(f.color)) : []),
         base: f.base ?? (f.baseType === "base_finitura" ? "Base + finitura" : "Base"),
         baseType: (f.baseType ?? "base") as FireBaseType,
         component: (f.component ?? "mono") as FireComponent,
@@ -316,8 +322,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const totalLen = strips * along;
     const rollsNeeded = Math.ceil(totalLen / selected.rollLength);
     const totalCovered = rollsNeeded * selected.rollLength;
-    const unit = Number(selected.pricePerRoll ?? 0);
-    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, totalPrice: unit * rollsNeeded };
+    const purchasedSqm = rollsNeeded * selected.rollLength * selected.rollWidth;
+    const unit = Number(selected.pricePerSqm ?? 0);
+    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, purchasedSqm, totalPrice: unit * purchasedSqm };
   }, [selected, activePoints, customPoints, stageW, stageH, direction]);
 
   return (
@@ -339,7 +346,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
               {filtered.length === 0 ? <div className="p-3 text-[12px] text-muted-foreground">Nessun tappeto disponibile coi filtri.</div> : filtered.map((r) => (
                 <button key={r.id} type="button" onClick={() => setSelectedId(r.id)} className={`w-full text-left p-2.5 hover:bg-muted/30 ${selected?.id === r.id ? "bg-dept-soft/40" : ""}`}>
                   <div className="text-sm font-semibold">{r.name}</div>
-                  <div className="text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori n/d"}{r.pricePerRoll ? ` · ${eur(r.pricePerRoll)}/rotolo` : ""}</div>
+                  <div className="text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori n/d"}{r.pricePerSqm ? ` · ${eur(r.pricePerSqm)}/m²` : ""}</div>
                 </button>
               ))}
             </div>
@@ -367,8 +374,8 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                     <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
                     <KPI label="Rotoli interi" value={`${calc.rollsNeeded}`} hint={`rotoli da ${fmt(selected.rollLength)} m`} highlight />
                     <KPI label="Sfrido residuo" value={`${fmt(calc.leftover)} m`} hint={`Superficie ${fmt(calc.surface)} m²`} />
-                    <KPI label="Prezzo unitario" value={eur(calc.unitPrice)} hint="per rotolo" />
-                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${calc.rollsNeeded} × ${eur(calc.unitPrice)}`} highlight />
+                    <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint="prezzo a m²" />
+                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${fmt(calc.purchasedSqm)} m² × ${eur(calc.unitPrice)}`} highlight />
                   </div>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>
@@ -393,13 +400,13 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); setMode("calcolo"); }}>Usa</Button>
                       <button onClick={(e) => { e.stopPropagation(); removeRoll(r.id); }} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori non indicati"}{r.pricePerRoll ? ` · ${eur(r.pricePerRoll)}/rotolo` : ""}</div>
+                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori non indicati"}{r.pricePerSqm ? ` · ${eur(r.pricePerSqm)}/m²` : ""}</div>
                     {isSel && (
                       <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
                         <Field label="Spessore (mm)"><Input type="number" step="0.1" value={r.thicknessMm || ""} onChange={(e) => updateRoll(r.id, { thicknessMm: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Altezza rotolo (m)"><Input type="number" step="0.1" value={r.rollWidth || ""} onChange={(e) => updateRoll(r.id, { rollWidth: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Lunghezza rotolo (m)"><Input type="number" step="0.1" value={r.rollLength || ""} onChange={(e) => updateRoll(r.id, { rollLength: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
-                        <Field label="Prezzo / rotolo (€)"><Input type="number" step="0.01" value={r.pricePerRoll ?? ""} onChange={(e) => updateRoll(r.id, { pricePerRoll: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                        <Field label="Prezzo / m² (€)"><Input type="number" step="0.01" value={r.pricePerSqm ?? ""} onChange={(e) => updateRoll(r.id, { pricePerSqm: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <div className="col-span-full"><ChipsEditor label="Colori disponibili" values={r.colors ?? []} onChange={(colors) => updateRoll(r.id, { colors })} placeholder="es. Nero, Grigio, Rosso" /></div>
                       </div>
                     )}
@@ -503,7 +510,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const [surface, setSurface] = useState<number>(0);
   const [classId, setClassId] = useState<string>("");
 
-  const allColors = useMemo(() => Array.from(new Set(products.map((p) => p.color).filter(Boolean))), [products]);
+  const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
   const allMaterials = useMemo(() => Array.from(new Set(products.flatMap((p) => splitTags(p.treatedMaterials)))), [products]);
   const allClasses = useMemo(() => Array.from(new Set(products.flatMap((p) => (p.classes ?? []).map((c) => c.className).filter(Boolean)))), [products]);
@@ -511,7 +518,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   const filtered = useMemo(() => products.filter((p) => {
     const mOk = includesLoose(p.treatedMaterials, needMaterial);
-    const cOk = includesLoose(p.color, needColor);
+    const cOk = !needColor.trim() || (p.colors ?? []).some((c) => includesLoose(c, needColor));
     const clOk = !needClass || (p.classes ?? []).some((c) => includesLoose(c.className, needClass));
     const bOk = includesLoose(p.base, needBase);
     const fOk = !needFinish || (p.finishes ?? []).includes(needFinish);
@@ -523,7 +530,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   const add = () => {
     const p: FireProduct = {
-      id: uid(), name: "Nuovo prodotto ignifugo", treatedMaterials: "", color: "", base: "Base",
+      id: uid(), name: "Nuovo prodotto ignifugo", treatedMaterials: "", colors: [], base: "Base",
       baseType: "base", component: "mono", coats: 1,
       cans: [{ id: uid(), kg: 5, label: "5", price: 0 }, { id: uid(), kg: 25, label: "25", price: 0 }],
       classes: [{ id: uid(), className: "Cl. 1", consumptionKgPerM2: 0.25 }], finishes: ["opaca"],
@@ -570,7 +577,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
               {filtered.length === 0 ? <div className="p-3 text-[12px] text-muted-foreground">Nessun prodotto disponibile con queste caratteristiche.</div> : filtered.map((p) => (
                 <button key={p.id} type="button" onClick={() => { setSelectedId(p.id); setClassId(""); }} className={`w-full text-left p-3 hover:bg-muted/30 ${selected?.id === p.id ? "bg-dept-soft/40" : ""}`}>
                   <div className="text-sm font-semibold">{p.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{p.color} · {p.base || "Base"} · {(p.finishes ?? []).join(", ")} · {(p.classes ?? []).map((c) => c.className).join(", ")} · {p.coats || 1} mani</div>
+                  <div className="text-[11px] text-muted-foreground">{(p.colors ?? []).join(", ") || "colore n/d"} · {p.base || "Base"} · {(p.finishes ?? []).join(", ")} · {(p.classes ?? []).map((c) => c.className).join(", ")} · {p.coats || 1} mani</div>
                 </button>
               ))}
             </div>
@@ -629,7 +636,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                       <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setMode("calcolo"); }}>Usa</Button>
                       <button onClick={(e) => { e.stopPropagation(); rm(p.id); }} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">{p.treatedMaterials || "materiali n/d"} · {p.color || "colore n/d"} · {p.base || "Base"} · {p.coats || 1} mani</div>
+                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">{p.treatedMaterials || "materiali n/d"} · {(p.colors ?? []).join(", ") || "colore n/d"} · {p.base || "Base"} · {p.coats || 1} mani</div>
                     {isSel && <FireProductEditor product={p} update={(patch) => upd(p.id, patch)} colorOptions={allColors} baseOptions={allBases} materialOptions={allMaterials} classOptions={allClasses} canLabelOptions={allCanLabels} />}
                   </div>
                 );
@@ -669,7 +676,7 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
         <Field label="Materiali trattati (più valori)">
           <MultiTagInput value={matTags} onChange={setMatTags} options={materialOptions} placeholder="aggiungi materiale…" />
         </Field>
-        <Field label="Colore"><SelectWithAdd value={p.color} onChange={(v) => update({ color: v })} options={colorOptions} placeholder="—" /></Field>
+        <Field label="Colori (più valori)"><MultiTagInput value={p.colors ?? []} onChange={(colors) => update({ colors })} options={colorOptions} placeholder="aggiungi colore…" /></Field>
         <Field label="Base"><SelectWithAdd value={p.base} onChange={(v) => update({ base: v })} options={baseOptions} placeholder="—" /></Field>
         <Field label="Tipo"><select value={p.baseType} onChange={(e) => update({ baseType: e.target.value as FireBaseType })} className="h-8 text-[12px] w-full border rounded-sm px-2 bg-background"><option value="base">Solo base</option><option value="base_finitura">Base + finitura</option></select></Field>
         <Field label="Componenti"><select value={p.component} onChange={(e) => update({ component: e.target.value as FireComponent })} className="h-8 text-[12px] w-full border rounded-sm px-2 bg-background"><option value="mono">Monocomponente</option><option value="bi">Bicomponente</option></select></Field>

@@ -1987,11 +1987,27 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
   const exitSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); };
   const selectAllInMonth = () => setSelectedIds(new Set(monthRealIds));
   const [openGroup, setOpenGroup] = useState<{ label: string; ids: string[]; type: MovementType; status: MovementStatus } | null>(null);
+  const [groupRenameDraft, setGroupRenameDraft] = useState("");
+  useEffect(() => { setGroupRenameDraft(openGroup?.label ?? ""); }, [openGroup]);
   const groupKey = (description: string) => normalizeText(description).trim();
   const openGroupItems = useMemo(
     () => openGroup ? openGroup.ids.map((id) => movements.find((m) => m.id === id)).filter(Boolean) as CashMovement[] : [],
     [openGroup, movements],
   );
+  const renameGroup = () => {
+    if (!openGroup) return;
+    const newName = groupRenameDraft.trim();
+    if (!newName || newName === openGroup.label) return;
+    const ids = new Set(openGroup.ids);
+    setMovements((prev) => prev.map((m) => ids.has(m.id) ? { ...m, description: newName } : m));
+    setOpenGroup({ ...openGroup, label: newName });
+    toast.success(`Voci rinominate in "${newName}"`);
+  };
+  // F10: conferma e chiudi la scheda di modifica o il dialog di gruppo
+  useConfirmShortcut(() => {
+    if (openGroup) { renameGroup(); setOpenGroup(null); return; }
+    if (editingId) { setEditingId(null); return; }
+  }, !!editingId || !!openGroup);
   const deleteMovementById = (id: string) => {
     if (id.startsWith("__")) return;
     setMovements((prev) => prev.filter((x) => x.id !== id));

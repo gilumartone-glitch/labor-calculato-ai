@@ -102,6 +102,8 @@ export type ProdSubOrder = {
   rejected_by?: string | null;
   /** Per i sub di reparto 'acquisti': nome fornitore. */
   supplier_name?: string | null;
+  /** Operatore assegnato a questa lavorazione. */
+  assignee_id?: string | null;
 };
 
 export type InvItem = {

@@ -831,6 +831,7 @@ export type Database = {
       }
       production_sub_orders: {
         Row: {
+          assignee_id: string | null
           code: string
           completed_at: string | null
           created_at: string
@@ -851,6 +852,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assignee_id?: string | null
           code: string
           completed_at?: string | null
           created_at?: string
@@ -871,6 +873,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assignee_id?: string | null
           code?: string
           completed_at?: string | null
           created_at?: string

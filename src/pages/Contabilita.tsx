@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownCircle, ArrowUpCircle, CalendarClock, Check, ChevronRight, History, Landmark, Loader2, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, CalendarClock, Check, ChevronRight, History, Landmark, Loader2, Pencil, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from "lucide-react";
+import { useConfirmShortcut } from "@/hooks/useConfirmShortcut";
+import { StepDateInput } from "@/components/contabilita/StepDateInput";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";

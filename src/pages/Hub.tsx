@@ -53,7 +53,7 @@ const Hub = () => {
 
   const visible = TILES.filter((t) => can(t.key, "read"));
   const showMagazzino = isAdmin || approved;
-  const showVendite = can("preventivi", "read");
+  
 
   return (
     <div className="min-h-screen bg-background">

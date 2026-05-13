@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Workflow, Loader2, PackageCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -24,8 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";

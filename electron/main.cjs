@@ -90,9 +90,10 @@ function createWindow() {
     }, 5000);
   });
 
-  // Apriamo sempre i DevTools per diagnosticare la finestra bianca.
-  // Quando il problema sarà risolto, li richiuderemo.
-  win.webContents.openDevTools({ mode: "detach" });
+  // DevTools disponibili solo in sviluppo o con env DEBUG_DEVTOOLS=1.
+  if (isDev || process.env.DEBUG_DEVTOOLS === "1") {
+    win.webContents.openDevTools({ mode: "detach" });
+  }
 
   win.webContents.on("did-fail-load", (_e, code, desc, url) => {
     console.error("did-fail-load", code, desc, url);

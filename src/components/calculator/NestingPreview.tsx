@@ -442,10 +442,6 @@ type Props = {
  * Calcola e mostra il nesting per i pezzi passati.
  * Da usare nel modulo Produzione (read-only).
  */
-export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly }: Props) => {
-  const { inventory, scraps } = useProdStore();
-  const groups = useMemo(() => {
-    if (!catalog || !pieces.length) return [] as NestingGroup[];
 export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly, nestingState, customerType }: Props) => {
   const { inventory, scraps } = useProdStore();
   const groups = useMemo(() => {

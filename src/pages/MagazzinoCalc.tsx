@@ -344,7 +344,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
               {filtered.length === 0 ? <div className="p-3 text-[12px] text-muted-foreground">Nessun tappeto disponibile coi filtri.</div> : filtered.map((r) => (
                 <button key={r.id} type="button" onClick={() => setSelectedId(r.id)} className={`w-full text-left p-2.5 hover:bg-muted/30 ${selected?.id === r.id ? "bg-dept-soft/40" : ""}`}>
                   <div className="text-sm font-semibold">{r.name}</div>
-                  <div className="text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori n/d"}{r.pricePerRoll ? ` · ${eur(r.pricePerRoll)}/rotolo` : ""}</div>
+                  <div className="text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori n/d"}{r.pricePerSqm ? ` · ${eur(r.pricePerSqm)}/m²` : ""}</div>
                 </button>
               ))}
             </div>

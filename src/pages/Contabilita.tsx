@@ -831,10 +831,10 @@ export default function Contabilita() {
       salaries: prevDel.salaries ?? [],
       contacts: prevDel.contacts ?? [],
     };
-    if (patch.movements) nextDeleted.movements = Array.from(new Set([...nextDeleted.movements, ...diffRemoved(prev.movements, patch.movements)]));
-    if (patch.fixedExpenses) nextDeleted.fixedExpenses = Array.from(new Set([...nextDeleted.fixedExpenses, ...diffRemoved(prev.fixedExpenses, patch.fixedExpenses)]));
-    if (patch.salaries) nextDeleted.salaries = Array.from(new Set([...nextDeleted.salaries, ...diffRemoved(prev.salaries ?? [], patch.salaries)]));
-    if (patch.contacts) nextDeleted.contacts = Array.from(new Set([...nextDeleted.contacts, ...diffRemoved(prev.contacts ?? [], patch.contacts)]));
+    if (resolved.movements) nextDeleted.movements = Array.from(new Set([...nextDeleted.movements, ...diffRemoved(prev.movements, resolved.movements)]));
+    if (resolved.fixedExpenses) nextDeleted.fixedExpenses = Array.from(new Set([...nextDeleted.fixedExpenses, ...diffRemoved(prev.fixedExpenses, resolved.fixedExpenses)]));
+    if (resolved.salaries) nextDeleted.salaries = Array.from(new Set([...nextDeleted.salaries, ...diffRemoved(prev.salaries ?? [], resolved.salaries)]));
+    if (resolved.contacts) nextDeleted.contacts = Array.from(new Set([...nextDeleted.contacts, ...diffRemoved(prev.contacts ?? [], resolved.contacts)]));
     next.deletedIds = nextDeleted;
     persistState(next);
     return next;

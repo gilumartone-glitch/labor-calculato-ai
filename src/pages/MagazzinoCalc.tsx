@@ -14,7 +14,7 @@ type DanceRoll = {
   rollWidth: number;
   rollLength: number;
   colors: string[];
-  pricePerRoll?: number;
+  pricePerSqm?: number;
   note?: string;
 };
 

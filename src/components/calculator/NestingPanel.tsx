@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layers3, AlertTriangle, ChevronDown, ChevronRight, Sparkles, Settings2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import { Catalog, PieceLine, CatalogMaterial } from "./types";

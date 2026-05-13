@@ -437,6 +437,31 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
           </div>
         )}
 
+        {/* Operatore per il reparto successivo */}
+        {nextSub && (
+          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 space-y-2">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+              Prossima lavorazione: {DEPT_LABEL[nextSub.dept as ProdDept]} · {nextSub.code}
+            </div>
+            <div>
+              <Label className="text-[11px]">Assegna operatore</Label>
+              <select
+                value={nextAssignee}
+                onChange={(e) => setNextAssignee(e.target.value)}
+                className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+              >
+                <option value="">— Nessuno —</option>
+                {nextDeptOps.map((o) => (
+                  <option key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</option>
+                ))}
+                {nextDeptOps.length === 0 && (
+                  <option disabled value="__none">Nessun operatore con settore {DEPT_LABEL[nextSub.dept as ProdDept]}</option>
+                )}
+              </select>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between items-center pt-2">
           <div className="text-[11px] text-muted-foreground">
             {pickedScrapPieces.length > 0 && <>{pickedScrapPieces.length} sfrido/i agganciati verranno marcati USATI · </>}

@@ -134,6 +134,20 @@ const Inner = () => {
     }
   };
 
+  const resetPassword = async (user: AdminUser) => {
+    const pwd = window.prompt(`Nuova password per ${user.email} (min 6 caratteri):`);
+    if (pwd === null) return;
+    if (pwd.length < 6) { toast.error("Password troppo corta"); return; }
+    const { data, error } = await supabase.functions.invoke("admin-set-password", {
+      body: { user_id: user.id, password: pwd },
+    });
+    if (error || (data as any)?.error) {
+      toast.error(((data as any)?.error) || error?.message || "Errore cambio password");
+      return;
+    }
+    toast.success("Password aggiornata");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b-2 border-ink bg-paper">

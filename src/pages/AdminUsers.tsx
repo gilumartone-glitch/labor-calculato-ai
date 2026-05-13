@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RouteGuard } from "@/components/RouteGuard";
 import { ALL_SETTORI, AppSettore, SETTORE_LABEL } from "@/lib/produzione/types";
@@ -134,6 +134,20 @@ const Inner = () => {
     }
   };
 
+  const resetPassword = async (user: AdminUser) => {
+    const pwd = window.prompt(`Nuova password per ${user.email} (min 6 caratteri):`);
+    if (pwd === null) return;
+    if (pwd.length < 6) { toast.error("Password troppo corta"); return; }
+    const { data, error } = await supabase.functions.invoke("admin-set-password", {
+      body: { user_id: user.id, password: pwd },
+    });
+    if (error || (data as any)?.error) {
+      toast.error(((data as any)?.error) || error?.message || "Errore cambio password");
+      return;
+    }
+    toast.success("Password aggiornata");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b-2 border-ink bg-paper">
@@ -227,9 +241,14 @@ const Inner = () => {
                         <div className="text-[11px] text-muted-foreground">{u.email}</div>
                       </td>
                       <td className="px-3 py-2">
-                        <button onClick={() => toggleApproved(u)} className={`inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] uppercase tracking-wider border-2 ${u.approved ? "bg-emerald-600 text-white border-emerald-700" : "border-amber-500 text-amber-700 bg-amber-50"}`}>
-                          {u.approved ? <><Check className="w-3 h-3" /> Attivo</> : "In attesa"}
-                        </button>
+                        <div className="flex flex-col gap-1">
+                          <button onClick={() => toggleApproved(u)} className={`inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] uppercase tracking-wider border-2 ${u.approved ? "bg-emerald-600 text-white border-emerald-700" : "border-amber-500 text-amber-700 bg-amber-50"}`}>
+                            {u.approved ? <><Check className="w-3 h-3" /> Attivo</> : "In attesa"}
+                          </button>
+                          <button onClick={() => resetPassword(u)} title="Cambia password" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-ink/30 hover:border-ink hover:bg-ink hover:text-paper">
+                            <KeyRound className="w-3 h-3" /> Password
+                          </button>
+                        </div>
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1 max-w-[260px]">

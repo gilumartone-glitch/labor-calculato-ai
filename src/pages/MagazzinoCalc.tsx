@@ -372,8 +372,8 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                     <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
                     <KPI label="Rotoli interi" value={`${calc.rollsNeeded}`} hint={`rotoli da ${fmt(selected.rollLength)} m`} highlight />
                     <KPI label="Sfrido residuo" value={`${fmt(calc.leftover)} m`} hint={`Superficie ${fmt(calc.surface)} m²`} />
-                    <KPI label="Prezzo unitario" value={eur(calc.unitPrice)} hint="per rotolo" />
-                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${calc.rollsNeeded} × ${eur(calc.unitPrice)}`} highlight />
+                    <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint="prezzo a m²" />
+                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${fmt(calc.purchasedSqm)} m² × ${eur(calc.unitPrice)}`} highlight />
                   </div>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>

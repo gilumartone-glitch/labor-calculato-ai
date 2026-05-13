@@ -29,7 +29,7 @@ type FireProduct = {
   id: string;
   name: string;
   treatedMaterials: string;
-  color: string;
+  colors: string[];
   base: string;
   baseType: FireBaseType;
   component: FireComponent;
@@ -75,7 +75,9 @@ const hydrate = (raw: unknown): MagState => {
         id: f.id ?? uid(),
         name: f.name ?? "",
         treatedMaterials: f.treatedMaterials ?? "",
-        color: f.color ?? "",
+        colors: Array.isArray(f.colors)
+          ? f.colors.map(String).filter(Boolean)
+          : (f.color ? splitTags(String(f.color)) : []),
         base: f.base ?? (f.baseType === "base_finitura" ? "Base + finitura" : "Base"),
         baseType: (f.baseType ?? "base") as FireBaseType,
         component: (f.component ?? "mono") as FireComponent,

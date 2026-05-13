@@ -1928,10 +1928,26 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     if (to && d > to) return false;
     return true;
   };
-  const filteredMovements = r.movements.filter((m) => {
-    if (q && !(m.description.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))) return false;
-    return inRange(m.date);
+  const SORT_KEY = "officina:contabilita:sortBy";
+  const [sortBy, setSortBy] = useState<"date" | "name" | "amount">(() => {
+    if (typeof window === "undefined") return "date";
+    const v = window.localStorage.getItem(SORT_KEY);
+    return v === "name" || v === "amount" ? v : "date";
   });
+  useEffect(() => {
+    try { window.localStorage.setItem(SORT_KEY, sortBy); } catch { /* noop */ }
+  }, [sortBy]);
+  const filteredMovements = useMemo(() => {
+    const base = r.movements.filter((m) => {
+      if (q && !(m.description.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))) return false;
+      return inRange(m.date);
+    });
+    const sorted = [...base];
+    if (sortBy === "date") sorted.sort((a, b) => a.date.localeCompare(b.date));
+    else if (sortBy === "name") sorted.sort((a, b) => a.description.localeCompare(b.description, "it", { sensitivity: "base" }));
+    else if (sortBy === "amount") sorted.sort((a, b) => b.amount - a.amount);
+    return sorted;
+  }, [r.movements, q, from, to, sortBy]);
   const rangeActive = !!(from || to);
   const rangeTotals = computeMovementTotals(filteredMovements);
   const rangeCashSaldo = rangeTotals.cashIn - rangeTotals.cashOut;

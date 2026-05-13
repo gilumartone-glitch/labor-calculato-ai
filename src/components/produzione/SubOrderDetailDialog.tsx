@@ -190,7 +190,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   /** Pezzi raggruppati per catalog (di solito uno solo per reparto) per il nesting. */
   const mergedNesting = useMemo(() => {
-    if (!sub) return null as null | { catalog: any; pieces: any[]; deptLabel: string };
+    if (!sub) return null as null | { catalog: any; pieces: any[]; deptLabel: string; nestingState?: any };
     const nestingItems = sub.dept === "stampa" || sub.dept === "taglio"
       ? allPieces.filter(({ piece, deptKey, catalog }) => {
           const k = (deptKey ?? "").toLowerCase();
@@ -217,8 +217,13 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
     }
     const catalogs = Array.from(new Set(items.map((it) => it.catalog)));
     const catalog = mergeCatalogs(catalogs as any[]);
-    return { catalog, pieces, deptLabel: items[0].deptLabel };
-  }, [sub, allPieces, relevantPieces]);
+    // Recupera nestingState dal primo reparto coinvolto (es. "stampa") per riprodurre
+    // ESATTAMENTE il nesting deciso nel calcolatore.
+    const firstDeptKey = items[0].deptKey;
+    const srcDept = snapshotDepts.find((d) => d.key === firstDeptKey);
+    const nestingState = (srcDept?.state as any)?.nestingState;
+    return { catalog, pieces, deptLabel: items[0].deptLabel, nestingState };
+  }, [sub, allPieces, relevantPieces, snapshotDepts]);
 
   const allFiles = useMemo(() => [
     ...orderFiles.map((f) => ({ ...f, _origin: "ordine" as const })),

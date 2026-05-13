@@ -50,7 +50,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Tecnofra Lab"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "gilumartone-glitch",
+        "repo": "workprice-buddy-new",
+        "releaseType": "release"
+      }
+    ]
   },
   "scripts": {
     "dev": "vite",
@@ -63,7 +71,7 @@
     "electron": "electron .",
     "electron:dev": "ELECTRON_START_URL=http://localhost:8080 electron .",
     "electron:build": "vite build && electron-builder --win --x64 --publish never",
-    "electron:publish": "vite build && electron-builder --win --x64 --publish never"
+    "electron:publish": "vite build && electron-builder --win --x64 --publish always"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

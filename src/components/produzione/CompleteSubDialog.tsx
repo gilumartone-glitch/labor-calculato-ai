@@ -276,6 +276,26 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
       }
 
       await refreshInventory();
+
+      // Aggiorna assegnatario sulla lavorazione successiva e notifica
+      if (nextSub && nextAssignee && nextAssignee !== nextSub.assignee_id) {
+        const { error: eA } = await supabase
+          .from("production_sub_orders")
+          .update({ assignee_id: nextAssignee } as any)
+          .eq("id", nextSub.id);
+        if (eA) console.error(eA);
+        if (user && nextAssignee !== user.id) {
+          await notify({
+            userIds: [nextAssignee],
+            type: "ordine_creato",
+            message: `Assegnata a te: ${nextSub.code} · ${DEPT_LABEL[nextSub.dept as ProdDept]}${order ? " (" + order.cliente + ")" : ""}`,
+            order_id: nextSub.order_id,
+            link: `/produzione/board?order=${nextSub.order_id}`,
+            is_urgent: false,
+          });
+        }
+      }
+
       await onConfirmed();
       toast.success(`Sub ${sub.code} completato`);
       onOpenChange(false);

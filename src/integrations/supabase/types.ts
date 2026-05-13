@@ -1093,6 +1093,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_production_order_code: { Args: never; Returns: string }
       return_order_to_revision: {
         Args: { _order_id: string; _reason: string; _sub_order_id: string }
         Returns: string

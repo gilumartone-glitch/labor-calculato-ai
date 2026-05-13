@@ -1,19 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ProdOrder, ProdSubOrder } from "./types";
 
-/** Genera un codice ordine ORD-YYYY-### incrementale per anno corrente. */
+/** Genera un codice ordine ORD-YYYY-### incrementale per anno corrente.
+ *  Usa una funzione SECURITY DEFINER per leggere TUTTI gli ordini, anche quelli
+ *  non visibili all'utente corrente per via delle policy RLS (evita collisioni). */
 export async function nextOrderCode(): Promise<string> {
+  const { data, error } = await supabase.rpc("next_production_order_code");
+  if (!error && typeof data === "string" && data.length > 0) return data;
+  // Fallback: leggi quello visibile
   const year = new Date().getFullYear();
   const prefix = `ORD-${year}-`;
-  const { data } = await supabase
+  const { data: rows } = await supabase
     .from("production_orders")
     .select("code")
     .like("code", `${prefix}%`)
     .order("code", { ascending: false })
     .limit(1);
   let n = 1;
-  if (data && data[0]?.code) {
-    const m = data[0].code.match(/-(\d+)$/);
+  if (rows && rows[0]?.code) {
+    const m = rows[0].code.match(/-(\d+)$/);
     if (m) n = parseInt(m[1], 10) + 1;
   }
   return `${prefix}${String(n).padStart(3, "0")}`;

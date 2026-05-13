@@ -50,7 +50,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Tecnofra Lab"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "gilumartone-glitch",
+        "repo": "workprice-buddy-new",
+        "releaseType": "release"
+      }
+    ]
   },
   "scripts": {
     "dev": "vite",

@@ -404,7 +404,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                         <Field label="Spessore (mm)"><Input type="number" step="0.1" value={r.thicknessMm || ""} onChange={(e) => updateRoll(r.id, { thicknessMm: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Altezza rotolo (m)"><Input type="number" step="0.1" value={r.rollWidth || ""} onChange={(e) => updateRoll(r.id, { rollWidth: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Lunghezza rotolo (m)"><Input type="number" step="0.1" value={r.rollLength || ""} onChange={(e) => updateRoll(r.id, { rollLength: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
-                        <Field label="Prezzo / rotolo (€)"><Input type="number" step="0.01" value={r.pricePerRoll ?? ""} onChange={(e) => updateRoll(r.id, { pricePerRoll: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                        <Field label="Prezzo / m² (€)"><Input type="number" step="0.01" value={r.pricePerSqm ?? ""} onChange={(e) => updateRoll(r.id, { pricePerSqm: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <div className="col-span-full"><ChipsEditor label="Colori disponibili" values={r.colors ?? []} onChange={(colors) => updateRoll(r.id, { colors })} placeholder="es. Nero, Grigio, Rosso" /></div>
                       </div>
                     )}

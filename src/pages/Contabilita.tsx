@@ -2199,7 +2199,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                     if (q <= 0) return;
                     const today = new Date().toISOString().slice(0, 10);
                     const cassaMov: CashMovement = normalizeMovement({ id: uid(), date: today, description: `Acconto — ${m.description}`, category: m.category, paymentMethod: m.paymentMethod, type: m.type, status: "cassa", amount: q, invoiceNumber: m.invoiceNumber });
-                    setMovements([...movements.map((x) => x.id === m.id ? normalizeMovement({ ...x, amount: Math.max(0, x.amount - q), acconto: undefined }) : x), cassaMov]);
+                    setMovements((prev) => [...prev.map((x) => x.id === m.id ? normalizeMovement({ ...x, amount: Math.max(0, x.amount - q), acconto: undefined }) : x), cassaMov]);
                     toast.success(`Acconto di ${eur(q)} registrato in cassa`);
                   }}>Applica</Button>
                 </div>

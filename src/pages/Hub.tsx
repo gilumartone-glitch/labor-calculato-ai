@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, Layers, Droplets } from "lucide-react";
+import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";

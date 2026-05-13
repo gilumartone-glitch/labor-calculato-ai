@@ -1323,8 +1323,8 @@ const MovementsTable = ({ movements, setMovements, addMovement, openingCash, set
                     amount: q,
                     invoiceNumber: m.invoiceNumber,
                   });
-                  setMovements([
-                    ...movements.map((x) => x.id === m.id ? { ...x, amount: Math.max(0, x.amount - q), acconto: undefined } : x),
+                  setMovements((prev) => [
+                    ...prev.map((x) => x.id === m.id ? { ...x, amount: Math.max(0, x.amount - q), acconto: undefined } : x),
                     cassaMov,
                   ]);
                   toast.success(`Acconto di ${eur(q)} registrato in cassa`);

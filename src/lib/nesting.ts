@@ -336,7 +336,14 @@ const explodePieces = (
         });
       }
 
-      orientations.sort((a, b) => a.panels - b.panels || a.alongM - b.alongM);
+      // Scelgo l'orientamento che consuma MENO rotolo: stima ≈ panels × alongM
+      // (meno pannelli non sempre = meno rotolo consumato).
+      orientations.sort(
+        (a, b) =>
+          a.panels * a.alongM - b.panels * b.alongM ||
+          a.panels - b.panels ||
+          a.alongM - b.alongM,
+      );
       const best = orientations[0];
 
       for (let c = 0; c < qty; c++) {
@@ -402,7 +409,12 @@ const explodePieces = (
           });
         }
         if (orientations.length > 0) {
-          orientations.sort((a, b) => a.panels - b.panels || a.alongM - b.alongM);
+          orientations.sort(
+            (a, b) =>
+              a.panels * a.alongM - b.panels * b.alongM ||
+              a.panels - b.panels ||
+              a.alongM - b.alongM,
+          );
           const best = orientations[0];
           for (let c = 0; c < qty; c++) {
             const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;

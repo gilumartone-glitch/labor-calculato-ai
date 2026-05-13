@@ -2004,7 +2004,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       status,
       amount: 0,
     });
-    setMovements([...movements, newMov]);
+    setMovements((prev) => [...prev, newMov]);
     setEditingId(newMov.id);
   };
   const importFile = async (file: File) => {

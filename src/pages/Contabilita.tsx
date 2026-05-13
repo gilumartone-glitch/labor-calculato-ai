@@ -2214,7 +2214,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               </div>
             </Field>
             <Field label="Metodo"><PaymentMethodSelect className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
-            <Field label="Data"><DateInput className="h-9 text-xs" value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} /></Field>
+            <Field label="Data"><StepDateInput value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} onConfirm={() => setEditingId(null)} /></Field>
             <Field label="N° Fattura"><TextInput className="h-9 text-xs font-mono" value={m.invoiceNumber ?? ""} placeholder="es. 2026/123" onCommit={(invoiceNumber) => updateMovement(m.id, { invoiceNumber })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
             <Field label="Gestito per Acconti">
               <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">

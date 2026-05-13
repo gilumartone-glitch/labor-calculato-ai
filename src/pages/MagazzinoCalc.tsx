@@ -788,7 +788,15 @@ function KPI({ label, value, hint, highlight }: { label: string; value: string; 
  *  o invio. Mostra i suggerimenti già usati altrove. */
 function MultiTagInput({ value, onChange, options, placeholder }: { value: string[]; onChange: (v: string[]) => void; options: string[]; placeholder?: string }) {
   const [draft, setDraft] = useState("");
-  const dlistId = `mti-${Math.random().toString(36).slice(2, 8)}`;
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
   const commit = (raw?: string) => {
     const text = (raw ?? draft).trim();
     if (!text) { setDraft(""); return; }
@@ -798,9 +806,12 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
     onChange(next);
     setDraft("");
   };
-  const remaining = options.filter((o) => !value.includes(o));
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const remaining = Array.from(new Set(options))
+    .filter((o) => o && !value.includes(o))
+    .filter((o) => !draft.trim() || norm(o).includes(norm(draft)));
   return (
-    <div className="space-y-1">
+    <div ref={wrapRef} className="space-y-1 relative">
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {value.map((t) => (
@@ -814,18 +825,35 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
       <div className="flex gap-1">
         <Input
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(); } }}
-          onBlur={() => commit()}
-          list={dlistId}
+          onChange={(e) => { setDraft(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(); }
+            else if (e.key === "Escape") { setOpen(false); }
+          }}
+          onBlur={() => { setTimeout(() => commit(), 120); }}
           placeholder={placeholder ?? "aggiungi…"}
           className="h-7 text-[11px]"
         />
-        <datalist id={dlistId}>{remaining.map((o) => <option key={o} value={o} />)}</datalist>
         <Button type="button" size="sm" variant="outline" onClick={() => commit()} className="h-7 px-2 text-[11px]">
           <Plus className="w-3 h-3" />
         </Button>
       </div>
+      {open && remaining.length > 0 && (
+        <ul className="absolute z-30 left-0 right-0 top-full mt-1 bg-paper border-2 border-ink rounded-sm shadow-lg max-h-44 overflow-y-auto">
+          {remaining.slice(0, 12).map((o) => (
+            <li key={o}>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(o); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-ink hover:text-paper"
+              >
+                {o}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

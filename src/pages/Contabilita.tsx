@@ -1282,32 +1282,32 @@ const MovementsTable = ({ movements, setMovements, addMovement, openingCash, set
       <Field label="Cassa iniziale"><NumberInput value={openingCash} onChange={setOpeningCash} /></Field>
       {movements.map((m) => <div key={m.id} className="space-y-2 rounded-sm border border-border bg-background p-3">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[120px_minmax(220px,1fr)_150px_130px_110px_120px_130px_40px] xl:items-end">
-          <Field label="Data"><DateInput value={m.date} onCommit={(v) => setMovements(movements.map((x) => x.id === m.id ? { ...x, date: v } : x))} /></Field>
-          <Field label="Causale"><TextInput value={m.description} onCommit={(description) => setMovements(movements.map((x) => x.id === m.id ? { ...x, description } : x))} /></Field>
-          <Field label="Categoria"><TextInput value={m.category} onCommit={(category) => setMovements(movements.map((x) => x.id === m.id ? { ...x, category } : x))} /></Field>
-          <Field label="Metodo"><PaymentMethodSelect className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.paymentMethod ?? ""} onChange={(v) => setMovements(movements.map((x) => x.id === m.id ? normalizeMovement({ ...x, paymentMethod: v }) : x))} /></Field>
-          <Field label="Tipo"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.type} onChange={(e) => setMovements(movements.map((x) => x.id === m.id ? { ...x, type: e.target.value as MovementType } : x))}><option value="entrata">Entrata</option><option value="uscita">Uscita</option></select></Field>
-          <Field label="Stato"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.status} onChange={(e) => setMovements(movements.map((x) => x.id === m.id ? { ...x, status: e.target.value as MovementStatus } : x))}><option value="cassa">Cassa</option><option value="previsto">Competenza</option></select></Field>
+          <Field label="Data"><DateInput value={m.date} onCommit={(v) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, date: v } : x))} /></Field>
+          <Field label="Causale"><TextInput value={m.description} onCommit={(description) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, description } : x))} /></Field>
+          <Field label="Categoria"><TextInput value={m.category} onCommit={(category) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, category } : x))} /></Field>
+          <Field label="Metodo"><PaymentMethodSelect className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.paymentMethod ?? ""} onChange={(v) => setMovements((prev) => prev.map((x) => x.id === m.id ? normalizeMovement({ ...x, paymentMethod: v }) : x))} /></Field>
+          <Field label="Tipo"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.type} onChange={(e) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, type: e.target.value as MovementType } : x))}><option value="entrata">Entrata</option><option value="uscita">Uscita</option></select></Field>
+          <Field label="Stato"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.status} onChange={(e) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, status: e.target.value as MovementStatus } : x))}><option value="cassa">Cassa</option><option value="previsto">Competenza</option></select></Field>
           <Field label="Importo">
             <div className="flex items-center gap-1">
-              <NumberInput value={m.amount} onChange={(amount) => setMovements(movements.map((x) => x.id === m.id ? { ...x, amount } : x))} />
-              <AdditionsControl movement={m} onChange={(patch) => setMovements(movements.map((x) => x.id === m.id ? { ...x, ...patch } : x))} />
+              <NumberInput value={m.amount} onChange={(amount) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, amount } : x))} />
+              <AdditionsControl movement={m} onChange={(patch) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, ...patch } : x))} />
             </div>
           </Field>
-          <Button type="button" size="icon" variant="ghost" onClick={() => setMovements(movements.filter((x) => x.id !== m.id))}><Trash2 className="h-4 w-4" /></Button>
+          <Button type="button" size="icon" variant="ghost" onClick={() => setMovements((prev) => prev.filter((x) => x.id !== m.id))}><Trash2 className="h-4 w-4" /></Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[260px_200px_260px_1fr] xl:items-end">
-          <Field label="N° Fattura"><TextInput className="font-mono" placeholder="es. 2026/123" value={m.invoiceNumber ?? ""} onCommit={(invoiceNumber) => setMovements(movements.map((x) => x.id === m.id ? { ...x, invoiceNumber } : x))} /></Field>
+          <Field label="N° Fattura"><TextInput className="font-mono" placeholder="es. 2026/123" value={m.invoiceNumber ?? ""} onCommit={(invoiceNumber) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, invoiceNumber } : x))} /></Field>
           <Field label="Gestito per Acconti">
             <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
-              <input type="checkbox" checked={!!m.gestitoAcconti} onChange={(e) => setMovements(movements.map((x) => x.id === m.id ? { ...x, gestitoAcconti: e.target.checked, acconto: e.target.checked ? x.acconto : undefined } : x))} />
+              <input type="checkbox" checked={!!m.gestitoAcconti} onChange={(e) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, gestitoAcconti: e.target.checked, acconto: e.target.checked ? x.acconto : undefined } : x))} />
               Sì
             </label>
           </Field>
           {m.status === "previsto" && m.gestitoAcconti && (
             <Field label={`Acconto (in cassa)${(m.acconto ?? 0) > 0 && m.amount > 0 ? ` · residuo ${eur(Math.max(0, m.amount - (m.acconto ?? 0)))}` : ""}`}>
               <div className="flex gap-2">
-                <NumberInput value={m.acconto ?? 0} onChange={(acconto) => setMovements(movements.map((x) => x.id === m.id ? { ...x, acconto: Math.max(0, Math.min(acconto, x.amount)) } : x))} />
+                <NumberInput value={m.acconto ?? 0} onChange={(acconto) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, acconto: Math.max(0, Math.min(acconto, x.amount)) } : x))} />
                 <Button type="button" size="sm" variant="outline" disabled={!((m.acconto ?? 0) > 0)} onClick={() => {
                   const q = Math.max(0, Math.min(Number(m.acconto || 0), m.amount));
                   if (q <= 0) return;
@@ -1914,7 +1914,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       toast.success(`Data stipendi ${r.month} salvata`);
       return;
     }
-    setMovements(movements.map((m) => m.id === id ? normalizeMovement({ ...m, ...patch }) : m));
+    setMovements((prev) => prev.map((m) => m.id === id ? normalizeMovement({ ...m, ...patch }) : m));
   };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -1949,7 +1949,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     if (selectedInMonth.length === 0) return;
     if (!confirm(`Cancellare ${selectedInMonth.length} voci da ${r.month}?`)) return;
     const toDelete = new Set(selectedInMonth);
-    setMovements(movements.filter((m) => !toDelete.has(m.id)));
+    setMovements((prev) => prev.filter((m) => !toDelete.has(m.id)));
     setSelectedIds(new Set());
     toast.success(`${toDelete.size} voci cancellate`);
   };
@@ -1957,14 +1957,14 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const today = new Date().toISOString().slice(0, 10);
     const toUpdate = new Set(selectedMovements.filter((m) => m.status === "previsto").map((m) => m.id));
     if (toUpdate.size === 0) return;
-    setMovements(movements.map((m) => toUpdate.has(m.id) ? normalizeMovement({ ...m, status: "cassa", date: today }) : m));
+    setMovements((prev) => prev.map((m) => toUpdate.has(m.id) ? normalizeMovement({ ...m, status: "cassa", date: today }) : m));
     setSelectedIds(new Set());
     toast.success(`${toUpdate.size} voci messe in cassa`);
   };
   const bulkMarkUnpaid = () => {
     const toUpdate = new Set(selectedMovements.filter((m) => m.status === "cassa").map((m) => m.id));
     if (toUpdate.size === 0) return;
-    setMovements(movements.map((m) => toUpdate.has(m.id) ? normalizeMovement({ ...m, status: "previsto" }) : m));
+    setMovements((prev) => prev.map((m) => toUpdate.has(m.id) ? normalizeMovement({ ...m, status: "previsto" }) : m));
     setSelectedIds(new Set());
     toast.success(`${toUpdate.size} voci messe in competenza`);
   };
@@ -1978,7 +1978,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
   );
   const deleteMovementById = (id: string) => {
     if (id.startsWith("__")) return;
-    setMovements(movements.filter((x) => x.id !== id));
+    setMovements((prev) => prev.filter((x) => x.id !== id));
     if (editingId === id) setEditingId(null);
   };
   const deleteWholeGroup = () => {
@@ -1986,7 +1986,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const ids = new Set(openGroup.ids.filter((i) => !i.startsWith("__")));
     if (ids.size === 0) return;
     if (!confirm(`Cancellare tutte le ${ids.size} voci di "${openGroup.label}"?`)) return;
-    setMovements(movements.filter((m) => !ids.has(m.id)));
+    setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
     setOpenGroup(null);
     toast.success(`${ids.size} voci cancellate`);
   };
@@ -2206,7 +2206,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               </Field>
             )}
             <div className="col-span-2 flex items-center justify-end gap-2 pt-1">
-              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={() => { setMovements(movements.filter((x) => x.id !== m.id)); setEditingId(null); }}><Trash2 className="h-3.5 w-3.5" />Elimina</Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={() => { setMovements((prev) => prev.filter((x) => x.id !== m.id)); setEditingId(null); }}><Trash2 className="h-3.5 w-3.5" />Elimina</Button>
               <Button type="submit" size="sm" className="h-7 text-xs">OK</Button>
             </div>
           </form>
@@ -2283,7 +2283,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                       const ids = new Set(items.filter((it) => !it.id.startsWith("__")).map((it) => it.id));
                       if (ids.size === 0) return;
                       if (!confirm(`Cancellare tutte le ${ids.size} voci di "${label}"?`)) return;
-                      setMovements(movements.filter((m) => !ids.has(m.id)));
+                      setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
                       toast.success(`${ids.size} voci cancellate`);
                     }}
                     className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"

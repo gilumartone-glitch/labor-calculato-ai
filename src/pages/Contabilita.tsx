@@ -807,13 +807,16 @@ export default function Contabilita() {
     toast.success("Dati iniziali ricaricati");
   };
 
-  const update = (patch: Partial<AccountingState>) => setState((prev) => {
+  const update = (
+    patch: Partial<AccountingState> | ((prev: AccountingState) => Partial<AccountingState>),
+  ) => setState((prev) => {
     // Finestra ampia di "sto modificando localmente": il merge realtime
     // non sovrascrive scalari (es. date stipendi) appena modificati.
     localEditUntilRef.current = Date.now() + 8000;
     pushHistory(prev);
     setFuture([]);
-    const next = { ...prev, ...patch };
+    const resolved = typeof patch === "function" ? patch(prev) : patch;
+    const next = { ...prev, ...resolved };
     // Rileva cancellazioni e registrale come tombstone così non risorgono dal cloud.
     const diffRemoved = <T extends { id: string }>(before: T[] = [], after: T[] = []) => {
       const afterIds = new Set(after.map((x) => x.id));

@@ -67,9 +67,9 @@ if errorlevel 1 (
 
 echo.
 echo === Creo configurazione locale desktop ===
-> .env.local echo VITE_SUPABASE_URL=https://nnuxzyrchpbpztohlunb.supabase.co
->> .env.local echo VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im5udXh6eXJjaHBicHp0b2hsdW5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTk3ODEsImV4cCI6MjA5MjQzNTc4MX0.mgLS9ur46B2Sp5WrkmDNtnfs6RXimG7yolWv-LmbYG0
->> .env.local echo VITE_SUPABASE_PROJECT_ID=nnuxzyrchpbpztohlunb
+> .env.local echo VITE_SUPABASE_URL=https://oylveuwfvsijguwzlauw.supabase.co
+>> .env.local echo VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95bHZldXdmdnNpamd1d3psYXV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTU4NjMsImV4cCI6MjA5NDE3MTg2M30.lSrUmQLS1ilqPKwdUoCZwZslnai_Z8BIqODm02C92MI
+>> .env.local echo VITE_SUPABASE_PROJECT_ID=oylveuwfvsijguwzlauw
 
 echo.
 echo ============================================

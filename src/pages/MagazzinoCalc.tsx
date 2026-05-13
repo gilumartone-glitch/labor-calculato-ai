@@ -510,7 +510,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const [surface, setSurface] = useState<number>(0);
   const [classId, setClassId] = useState<string>("");
 
-  const allColors = useMemo(() => Array.from(new Set(products.map((p) => p.color).filter(Boolean))), [products]);
+  const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
   const allMaterials = useMemo(() => Array.from(new Set(products.flatMap((p) => splitTags(p.treatedMaterials)))), [products]);
   const allClasses = useMemo(() => Array.from(new Set(products.flatMap((p) => (p.classes ?? []).map((c) => c.className).filter(Boolean)))), [products]);
@@ -518,7 +518,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   const filtered = useMemo(() => products.filter((p) => {
     const mOk = includesLoose(p.treatedMaterials, needMaterial);
-    const cOk = includesLoose(p.color, needColor);
+    const cOk = !needColor.trim() || (p.colors ?? []).some((c) => includesLoose(c, needColor));
     const clOk = !needClass || (p.classes ?? []).some((c) => includesLoose(c.className, needClass));
     const bOk = includesLoose(p.base, needBase);
     const fOk = !needFinish || (p.finishes ?? []).includes(needFinish);
@@ -530,7 +530,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   const add = () => {
     const p: FireProduct = {
-      id: uid(), name: "Nuovo prodotto ignifugo", treatedMaterials: "", color: "", base: "Base",
+      id: uid(), name: "Nuovo prodotto ignifugo", treatedMaterials: "", colors: [], base: "Base",
       baseType: "base", component: "mono", coats: 1,
       cans: [{ id: uid(), kg: 5, label: "5", price: 0 }, { id: uid(), kg: 25, label: "25", price: 0 }],
       classes: [{ id: uid(), className: "Cl. 1", consumptionKgPerM2: 0.25 }], finishes: ["opaca"],

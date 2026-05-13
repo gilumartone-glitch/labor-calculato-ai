@@ -398,7 +398,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); setMode("calcolo"); }}>Usa</Button>
                       <button onClick={(e) => { e.stopPropagation(); removeRoll(r.id); }} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori non indicati"}{r.pricePerRoll ? ` · ${eur(r.pricePerRoll)}/rotolo` : ""}</div>
+                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m · {(r.colors ?? []).join(", ") || "colori non indicati"}{r.pricePerSqm ? ` · ${eur(r.pricePerSqm)}/m²` : ""}</div>
                     {isSel && (
                       <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
                         <Field label="Spessore (mm)"><Input type="number" step="0.1" value={r.thicknessMm || ""} onChange={(e) => updateRoll(r.id, { thicknessMm: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>

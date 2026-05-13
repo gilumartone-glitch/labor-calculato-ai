@@ -115,6 +115,7 @@ const PiecesNestingTabs = ({
           <NestingPreview
             pieces={mergedNesting.pieces}
             catalog={mergedNesting.catalog}
+            nestingState={mergedNesting.nestingState}
             title={`Nesting globale · ${mergedNesting.deptLabel}`}
           />
         )}

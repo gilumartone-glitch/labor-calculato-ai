@@ -63,7 +63,21 @@ type Props = {
 
 export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed }: Props) => {
   const { user } = useAuth();
-  const { inventory, scraps, refreshInventory } = useProdStore();
+  const { inventory, scraps, refreshInventory, subs, profiles } = useProdStore();
+
+  // Lavorazione successiva (chi dipende da me)
+  const nextSub = useMemo(
+    () => (sub ? subs.find((s) => s.depends_on === sub.id) ?? null : null),
+    [sub, subs],
+  );
+  const nextDeptOps = useMemo(() => {
+    if (!nextSub) return [] as typeof profiles;
+    return profiles.filter((p) => Array.isArray(p.settori) && (p.settori as any).includes(nextSub.dept));
+  }, [nextSub, profiles]);
+  const [nextAssignee, setNextAssignee] = useState<string>("");
+  useEffect(() => {
+    if (open && nextSub) setNextAssignee(nextSub.assignee_id ?? "");
+  }, [open, nextSub]);
 
   // Pezzi sfrido riservati per questo sub
   const reservedPieces: ScrapPiece[] = useMemo(

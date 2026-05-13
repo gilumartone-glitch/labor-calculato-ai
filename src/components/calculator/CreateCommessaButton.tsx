@@ -507,9 +507,44 @@ export const CreateCommessaButton = ({
           <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
             ✓ Il dettaglio del calcolo verrà salvato come snapshot nella commessa.
           </div>
+
+          {!warehouseOnly && inferredDepts.length > 0 && (
+            <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                Solo materiale per reparto
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Spunta i reparti per cui NON serve la lavorazione: il materiale verrà gestito direttamente dal magazzino.
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {inferredDepts.map((d) => {
+                  const on = materialOnlyDepts.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleMaterialOnlyDept(d)}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
+                        on ? "bg-amber-100 text-amber-900 border-amber-500" : "border-ink/20 text-ink/60 hover:border-ink"
+                      }`}
+                    >
+                      {DEPT_LABEL[d]} {on ? "· solo materiale" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
+          <button
+            type="button"
+            onClick={() => { setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto }); clearForm(); }}
+            className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-destructive font-mono mr-auto"
+          >
+            Pulisci modulo
+          </button>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
             Annulla
           </Button>

@@ -39,12 +39,17 @@ function createWindow() {
     icon: path.join(__dirname, "..", "build", "icon.png"),
     backgroundColor: "#f4f7f8",
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.cjs"),
     },
   });
+
+  // Avvia massimizzata a schermo intero
+  win.maximize();
+  win.once("ready-to-show", () => win.show());
 
   if (isDev) {
     win.loadURL(process.env.ELECTRON_START_URL);

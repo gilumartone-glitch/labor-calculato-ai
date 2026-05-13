@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";
-import { ProdSubOrder, ProdOrder, InvItem, ScrapPiece } from "@/lib/produzione/types";
+import { ProdSubOrder, ProdOrder, InvItem, ScrapPiece, DEPT_LABEL, ProdDept } from "@/lib/produzione/types";
 import { fmtMm, nextScrapCode } from "@/lib/produzione/scrap";
-import { logAction } from "@/lib/produzione/helpers";
+import { logAction, notify } from "@/lib/produzione/helpers";
 import { collectSnapshotDepartments, collectSnapshotPieces, type ProdSnapshot } from "@/lib/produzione/snapshot";
 import { NestingPreview } from "@/components/calculator/NestingPreview";
 import { mergeCatalogs } from "@/lib/nesting";
@@ -63,7 +63,21 @@ type Props = {
 
 export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed }: Props) => {
   const { user } = useAuth();
-  const { inventory, scraps, refreshInventory } = useProdStore();
+  const { inventory, scraps, refreshInventory, subs, profiles } = useProdStore();
+
+  // Lavorazione successiva (chi dipende da me)
+  const nextSub = useMemo(
+    () => (sub ? subs.find((s) => s.depends_on === sub.id) ?? null : null),
+    [sub, subs],
+  );
+  const nextDeptOps = useMemo(() => {
+    if (!nextSub) return [] as typeof profiles;
+    return profiles.filter((p) => Array.isArray(p.settori) && (p.settori as any).includes(nextSub.dept));
+  }, [nextSub, profiles]);
+  const [nextAssignee, setNextAssignee] = useState<string>("");
+  useEffect(() => {
+    if (open && nextSub) setNextAssignee(nextSub.assignee_id ?? "");
+  }, [open, nextSub]);
 
   // Pezzi sfrido riservati per questo sub
   const reservedPieces: ScrapPiece[] = useMemo(
@@ -262,6 +276,26 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
       }
 
       await refreshInventory();
+
+      // Aggiorna assegnatario sulla lavorazione successiva e notifica
+      if (nextSub && nextAssignee && nextAssignee !== nextSub.assignee_id) {
+        const { error: eA } = await supabase
+          .from("production_sub_orders")
+          .update({ assignee_id: nextAssignee } as any)
+          .eq("id", nextSub.id);
+        if (eA) console.error(eA);
+        if (user && nextAssignee !== user.id) {
+          await notify({
+            userIds: [nextAssignee],
+            type: "ordine_creato",
+            message: `Assegnata a te: ${nextSub.code} · ${DEPT_LABEL[nextSub.dept as ProdDept]}${order ? " (" + order.cliente + ")" : ""}`,
+            order_id: nextSub.order_id,
+            link: `/produzione/board?order=${nextSub.order_id}`,
+            is_urgent: false,
+          });
+        }
+      }
+
       await onConfirmed();
       toast.success(`Sub ${sub.code} completato`);
       onOpenChange(false);
@@ -399,6 +433,31 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Operatore per il reparto successivo */}
+        {nextSub && (
+          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 space-y-2">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+              Prossima lavorazione: {DEPT_LABEL[nextSub.dept as ProdDept]} · {nextSub.code}
+            </div>
+            <div>
+              <Label className="text-[11px]">Assegna operatore</Label>
+              <select
+                value={nextAssignee}
+                onChange={(e) => setNextAssignee(e.target.value)}
+                className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+              >
+                <option value="">— Nessuno —</option>
+                {nextDeptOps.map((o) => (
+                  <option key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</option>
+                ))}
+                {nextDeptOps.length === 0 && (
+                  <option disabled value="__none">Nessun operatore con settore {DEPT_LABEL[nextSub.dept as ProdDept]}</option>
+                )}
+              </select>
             </div>
           </div>
         )}

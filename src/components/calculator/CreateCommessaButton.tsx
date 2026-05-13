@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Workflow, Loader2, PackageCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -24,8 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
@@ -88,25 +89,52 @@ export const CreateCommessaButton = ({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [titolo, setTitolo] = useState(defaultTitle);
-  const [cliente, setCliente] = useState("");
-  const [prodName, setProdName] = useState("");
-  const [importo, setImporto] = useState<number>(defaultAmount);
-  const [reparto, setReparto] = useState<CommessaReparto>(defaultReparto);
-  const [priorita, setPriorita] = useState<CommessaPriorita>("media");
-  const [scadenza, setScadenza] = useState<string>("");
-  const [note, setNote] = useState("");
-  const [warehouseOnly, setWarehouseOnly] = useState(false);
+  type FormState = {
+    titolo: string; cliente: string; prodName: string; importo: number;
+    reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
+    note: string; warehouseOnly: boolean;
+    materialOnlyDepts: ProdDept[];
+  };
+  const initialForm: FormState = {
+    titolo: defaultTitle, cliente: "", prodName: "",
+    importo: defaultAmount, reparto: defaultReparto, priorita: "media",
+    scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
+  };
+  const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
+  const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts } = form;
+  const setTitolo = (v: string) => patch({ titolo: v });
+  const setCliente = (v: string) => patch({ cliente: v });
+  const setProdName = (v: string) => patch({ prodName: v });
+  const setImporto = (v: number) => patch({ importo: v });
+  const setReparto = (v: CommessaReparto) => patch({ reparto: v });
+  const setPriorita = (v: CommessaPriorita) => patch({ priorita: v });
+  const setScadenza = (v: string) => patch({ scadenza: v });
+  const setNote = (v: string) => patch({ note: v });
+  const setWarehouseOnly = (v: boolean) => patch({ warehouseOnly: v });
+  const toggleMaterialOnlyDept = (d: ProdDept) =>
+    setForm((f) => ({
+      ...f,
+      materialOnlyDepts: f.materialOnlyDepts.includes(d) ? f.materialOnlyDepts.filter((x) => x !== d) : [...f.materialOnlyDepts, d],
+    }));
+
+  const inferredDepts: ProdDept[] = useMemo(
+    () => inferProdDeptsFromSnapshot(snapshot as any),
+    [snapshot],
+  );
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | { clienteName: string; productionSnapshot: Snapshot }>(null);
 
-  // Re-sync defaults quando si riapre il dialog
+  // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
     if (v) {
-      setTitolo(defaultTitle);
-      setImporto(defaultAmount);
-      setReparto(defaultReparto);
-      // warehouseOnly viene impostato dal trigger, non resettarlo qui
+      setForm((f) => ({
+        ...f,
+        titolo: f.titolo || defaultTitle,
+        importo: f.importo || defaultAmount,
+        reparto: f.reparto || defaultReparto,
+      }));
     }
     setOpen(v);
   };
@@ -163,7 +191,9 @@ export const CreateCommessaButton = ({
         const fallbackDept = REPARTO_TO_PROD[reparto];
         // Determina i reparti reali dai pezzi dello snapshot (es. stampa+taglio).
         const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
-        const depts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
+        const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
+        // Filtra fuori i reparti contrassegnati come "solo materiale" (no lavorazione, solo magazzino).
+        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d));
         const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
         const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
           code: prodCode,
@@ -238,12 +268,9 @@ export const CreateCommessaButton = ({
         },
       });
       setOpen(false);
-      // Reset campi
-      setCliente("");
-      setNote("");
-      setScadenza("");
-      setPriorita("media");
-      setWarehouseOnly(false);
+      // Reset campi e cancella la persistenza
+      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
+      clearForm();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";
       toast.error("Errore creazione commessa", { description: msg });
@@ -342,7 +369,8 @@ export const CreateCommessaButton = ({
       setConfirmOpen(false);
       setOpen(false);
       setPendingPayload(null);
-      setCliente(""); setNote(""); setScadenza(""); setPriorita("media"); setWarehouseOnly(false);
+      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
+      clearForm();
       navigate(`/produzione/board?order=${pord.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
@@ -479,9 +507,44 @@ export const CreateCommessaButton = ({
           <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
             ✓ Il dettaglio del calcolo verrà salvato come snapshot nella commessa.
           </div>
+
+          {!warehouseOnly && inferredDepts.length > 0 && (
+            <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                Solo materiale per reparto
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Spunta i reparti per cui NON serve la lavorazione: il materiale verrà gestito direttamente dal magazzino.
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {inferredDepts.map((d) => {
+                  const on = materialOnlyDepts.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleMaterialOnlyDept(d)}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
+                        on ? "bg-amber-100 text-amber-900 border-amber-500" : "border-ink/20 text-ink/60 hover:border-ink"
+                      }`}
+                    >
+                      {DEPT_LABEL[d]} {on ? "· solo materiale" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
+          <button
+            type="button"
+            onClick={() => { setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto }); clearForm(); }}
+            className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-destructive font-mono mr-auto"
+          >
+            Pulisci modulo
+          </button>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
             Annulla
           </Button>

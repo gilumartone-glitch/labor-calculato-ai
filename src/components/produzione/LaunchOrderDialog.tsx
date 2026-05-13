@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, X, Upload, Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import {
   ProdDept, ProdPriority, ProdDelivery, DEPT_LABEL, PRIORITY_LABEL, SUB_DEPT_SUFFIX,
 } from "@/lib/produzione/types";
@@ -21,42 +22,63 @@ const DEPTS: ProdDept[] = [
 
 type UploadedFile = { name: string; type: string; path: string; size: number };
 
+type FormState = {
+  cliente: string;
+  data: string;
+  note: string;
+  depts: ProdDept[];
+  deptNotes: Record<string, string>;
+  deptAssignees: Record<string, string>;
+  attachments: UploadedFile[];
+  nesting: boolean;
+  priorita: ProdPriority;
+  delivery: ProdDelivery;
+  warehouseOnly: boolean;
+  magazzinoNote: string;
+};
+
+const STORAGE_KEY = "prod:launch-order";
+
 export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: { open: boolean; onOpenChange: (v: boolean) => void; warehouseOnlyDefault?: boolean }) => {
   const { user } = useAuth();
   const refresh = useProdStore((s) => s.refreshOrders);
+  const profiles = useProdStore((s) => s.profiles);
 
-  const [cliente, setCliente] = useState("");
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
-  const [note, setNote] = useState("");
-  const [depts, setDepts] = useState<ProdDept[]>([]);
-  const [deptNotes, setDeptNotes] = useState<Record<string, string>>({});
-  const [attachments, setAttachments] = useState<UploadedFile[]>([]);
+  const initial: FormState = {
+    cliente: "", data: new Date().toISOString().slice(0, 10), note: "",
+    depts: [], deptNotes: {}, deptAssignees: {}, attachments: [], nesting: false,
+    priorita: "normale", delivery: "corriere",
+    warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
+  };
+  const [form, setForm, clearForm] = useLocalStorageState<FormState>(STORAGE_KEY, initial);
   const [uploading, setUploading] = useState(false);
-  const [nesting, setNesting] = useState(false);
-  const [priorita, setPriorita] = useState<ProdPriority>("normale");
-  const [delivery, setDelivery] = useState<ProdDelivery>("corriere");
-  const [warehouseOnly, setWarehouseOnly] = useState<boolean>(!!warehouseOnlyDefault);
-  const [magazzinoNote, setMagazzinoNote] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Quando viene aperto in "solo magazzino" via prop, sincronizza
+  useEffect(() => {
+    if (open && warehouseOnlyDefault && !form.warehouseOnly) {
+      setForm((f) => ({ ...f, warehouseOnly: true }));
+    }
+  }, [open, warehouseOnlyDefault]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
+
   const reset = () => {
-    setCliente(""); setNote(""); setDepts([]); setDeptNotes({});
-    setAttachments([]); setNesting(false);
-    setPriorita("normale"); setDelivery("corriere");
-    setWarehouseOnly(!!warehouseOnlyDefault); setMagazzinoNote("");
+    setForm({ ...initial, warehouseOnly: !!warehouseOnlyDefault });
+    clearForm();
   };
 
   const toggleDept = (d: ProdDept) => {
-    setDepts((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]);
+    setForm((f) => ({ ...f, depts: f.depts.includes(d) ? f.depts.filter((x) => x !== d) : [...f.depts, d] }));
   };
 
   const moveDept = (idx: number, dir: -1 | 1) => {
-    setDepts((prev) => {
+    setForm((f) => {
       const j = idx + dir;
-      if (j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
+      if (j < 0 || j >= f.depts.length) return f;
+      const next = [...f.depts];
       [next[idx], next[j]] = [next[j], next[idx]];
-      return next;
+      return { ...f, depts: next };
     });
   };
 
@@ -72,20 +94,25 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         if (error) { toast.error(`${f.name}: ${error.message}`); continue; }
         uploaded.push({ name: f.name, type: f.type || ext, path, size: f.size });
       }
-      setAttachments((p) => [...p, ...uploaded]);
+      patch({ attachments: [...form.attachments, ...uploaded] });
     } finally {
       setUploading(false);
     }
   };
 
   const removeAttachment = async (idx: number) => {
-    const a = attachments[idx];
+    const a = form.attachments[idx];
     if (a?.path) await supabase.storage.from("prod-files").remove([a.path]);
-    setAttachments((p) => p.filter((_, j) => j !== idx));
+    patch({ attachments: form.attachments.filter((_, j) => j !== idx) });
   };
+
+  const operatorsForDept = (d: ProdDept) =>
+    profiles.filter((p) => Array.isArray(p.settori) && (p.settori as any).includes(d));
 
   const submit = async () => {
     if (!user) return;
+    const { cliente, depts, warehouseOnly, deptNotes, deptAssignees, magazzinoNote, attachments,
+      nesting, priorita, delivery, data, note } = form;
     if (!cliente.trim()) { toast.error("Cliente obbligatorio"); return; }
     if (!warehouseOnly && depts.length === 0) { toast.error("Seleziona almeno un reparto (oppure spunta 'Senza lavorazione')"); return; }
     setSaving(true);
@@ -98,12 +125,13 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
       }).select().single();
       if (error) throw error;
 
-      // Sequenza: prima i reparti scelti (se non 'senza lavorazione'), POI sempre Magazzino in coda.
       const sequence: ProdDept[] = warehouseOnly ? ["magazzino"] : [...depts, "magazzino"];
       const seqNotes: Record<string, string> = { ...deptNotes, magazzino: magazzinoNote };
       const insertedIds: string[] = [];
+      const assigneeNotifyTargets: Array<{ userId: string; dept: ProdDept; subId: string }> = [];
       for (let i = 0; i < sequence.length; i++) {
         const d = sequence[i];
+        const assignee = deptAssignees[d] || null;
         const { data: row, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: order.id,
           code: subCode(code, SUB_DEPT_SUFFIX[d], 1),
@@ -112,16 +140,18 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           note: seqNotes[d] || null,
           files: [],
           depends_on: i === 0 ? null : insertedIds[i - 1],
-        }).select("id").single();
+          assignee_id: assignee,
+        } as any).select("id").single();
         if (e2) throw e2;
         insertedIds.push(row.id);
+        if (assignee && assignee !== user.id) assigneeNotifyTargets.push({ userId: assignee, dept: d, subId: row.id });
       }
 
       await logAction({
         action: "FLOW_LANCIATO",
         entity_type: "order", entity_id: order.id,
         detail: `Ordine ${code} lanciato per ${cliente} (sequenza: ${sequence.map((d) => DEPT_LABEL[d]).join(" → ")})`,
-        new_state: { code, sequence, warehouseOnly, priorita, files: attachments.length },
+        new_state: { code, sequence, warehouseOnly, priorita, files: attachments.length, assignees: deptAssignees },
       });
 
       const writers = await getProduzioneWriters();
@@ -137,8 +167,18 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         });
       }
 
-      // Notifica al responsabile magazzino se l'ordine parte direttamente dal magazzino
-      // (cioè è 'senza lavorazione' — altrimenti riceverà la notifica al completamento dell'ultimo sub di lavorazione)
+      // Notifica diretta agli operatori assegnati
+      for (const t of assigneeNotifyTargets) {
+        await notify({
+          userIds: [t.userId],
+          type: "ordine_creato",
+          message: `Assegnato a te: ${code} · ${DEPT_LABEL[t.dept]} (${cliente})`,
+          order_id: order.id,
+          link: `/produzione/board?order=${order.id}`,
+          is_urgent: priorita !== "normale",
+        });
+      }
+
       if (warehouseOnly) {
         const magUsers = (await getMagazzinoUsers()).filter((u) => u !== user.id);
         if (magUsers.length > 0) {
@@ -164,6 +204,8 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     }
   };
 
+  const { cliente, data, note, depts, deptNotes, deptAssignees, attachments, nesting, priorita, delivery, warehouseOnly, magazzinoNote } = form;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -177,23 +219,23 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
               <Label className="m-0">Senza lavorazione (solo magazzino)</Label>
               <div className="text-[10px] text-muted-foreground">Prodotti già pronti — il magazzino li prepara per la consegna</div>
             </div>
-            <Switch checked={warehouseOnly} onCheckedChange={setWarehouseOnly} />
+            <Switch checked={warehouseOnly} onCheckedChange={(v) => patch({ warehouseOnly: v })} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Cliente *</Label>
-              <Input value={cliente} onChange={(e) => setCliente(e.target.value)} />
+              <Input value={cliente} onChange={(e) => patch({ cliente: e.target.value })} />
             </div>
             <div>
               <Label>Data</Label>
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+              <Input type="date" value={data} onChange={(e) => patch({ data: e.target.value })} />
             </div>
           </div>
 
           <div>
             <Label>Note generali</Label>
-            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} />
           </div>
 
           {!warehouseOnly && (
@@ -215,9 +257,11 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
             </div>
             {depts.length > 0 && (
               <div className="mt-3 space-y-2 border-l-2 border-primary/30 pl-3">
-                {depts.map((d, i) => (
-                  <div key={d} className="border border-ink/15 rounded-sm p-2">
-                    <div className="flex items-center justify-between mb-1">
+                {depts.map((d, i) => {
+                  const ops = operatorsForDept(d);
+                  return (
+                  <div key={d} className="border border-ink/15 rounded-sm p-2 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="font-mono text-[11px] font-bold">
                         <span className="text-primary">#{i + 1}</span> · {DEPT_LABEL[d]}
                         {i > 0 && <span className="text-[10px] text-muted-foreground ml-2">⇠ dipende da {DEPT_LABEL[depts[i - 1]]}</span>}
@@ -227,13 +271,29 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
                         <button type="button" onClick={() => moveDept(i, 1)} disabled={i === depts.length - 1} className="p-1 border border-ink/20 rounded-sm disabled:opacity-30"><ArrowDown className="w-3 h-3" /></button>
                       </div>
                     </div>
-                    <Input
-                      value={deptNotes[d] ?? ""}
-                      onChange={(e) => setDeptNotes({ ...deptNotes, [d]: e.target.value })}
-                      placeholder={`Istruzioni per ${DEPT_LABEL[d]}`}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={deptNotes[d] ?? ""}
+                        onChange={(e) => patch({ deptNotes: { ...deptNotes, [d]: e.target.value } })}
+                        placeholder={`Istruzioni per ${DEPT_LABEL[d]}`}
+                      />
+                      <select
+                        value={deptAssignees[d] ?? ""}
+                        onChange={(e) => patch({ deptAssignees: { ...deptAssignees, [d]: e.target.value } })}
+                        className="h-10 px-2 border-2 border-input rounded-md bg-background text-sm"
+                      >
+                        <option value="">Operatore (facoltativo)…</option>
+                        {ops.map((o) => (
+                          <option key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</option>
+                        ))}
+                        {ops.length === 0 && (
+                          <option disabled value="__none">Nessun operatore con settore {DEPT_LABEL[d]}</option>
+                        )}
+                      </select>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <div className="mt-2 text-[10px] font-mono text-muted-foreground">↳ Magazzino sarà aggiunto automaticamente in coda</div>
@@ -242,13 +302,13 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
 
           <div>
             <Label>Note per il magazzino</Label>
-            <Input value={magazzinoNote} onChange={(e) => setMagazzinoNote(e.target.value)} placeholder="Imballo speciale, articoli particolari, ecc." />
+            <Input value={magazzinoNote} onChange={(e) => patch({ magazzinoNote: e.target.value })} placeholder="Imballo speciale, articoli particolari, ecc." />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Priorità</Label>
-              <select value={priorita} onChange={(e) => setPriorita(e.target.value as ProdPriority)} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
+              <select value={priorita} onChange={(e) => patch({ priorita: e.target.value as ProdPriority })} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
                 <option value="normale">Normale</option>
                 <option value="urgente">Urgente</option>
                 <option value="bloccante">Bloccante</option>
@@ -256,7 +316,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
             </div>
             <div>
               <Label>Consegna</Label>
-              <select value={delivery} onChange={(e) => setDelivery(e.target.value as ProdDelivery)} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
+              <select value={delivery} onChange={(e) => patch({ delivery: e.target.value as ProdDelivery })} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
                 <option value="ritiro">Ritiro cliente</option>
                 <option value="mezzo_proprio">Mezzo proprio</option>
                 <option value="corriere">Corriere</option>
@@ -290,14 +350,19 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           {!warehouseOnly && (
           <div className="flex items-center justify-between border-2 border-ink/15 rounded-sm px-3 py-2">
             <Label className="m-0">Nesting incluso?</Label>
-            <Switch checked={nesting} onCheckedChange={setNesting} />
+            <Switch checked={nesting} onCheckedChange={(v) => patch({ nesting: v })} />
           </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Lancio…" : (warehouseOnly ? "Invia al magazzino" : "Lancia nel Flow")}</Button>
+        <div className="flex items-center justify-between pt-2">
+          <button type="button" onClick={reset} className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-destructive font-mono">
+            Pulisci modulo
+          </button>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
+            <Button onClick={submit} disabled={saving}>{saving ? "Lancio…" : (warehouseOnly ? "Invia al magazzino" : "Lancia nel Flow")}</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

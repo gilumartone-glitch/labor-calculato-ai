@@ -320,8 +320,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const totalLen = strips * along;
     const rollsNeeded = Math.ceil(totalLen / selected.rollLength);
     const totalCovered = rollsNeeded * selected.rollLength;
-    const unit = Number(selected.pricePerRoll ?? 0);
-    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, totalPrice: unit * rollsNeeded };
+    const purchasedSqm = rollsNeeded * selected.rollLength * selected.rollWidth;
+    const unit = Number(selected.pricePerSqm ?? 0);
+    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, purchasedSqm, totalPrice: unit * purchasedSqm };
   }, [selected, activePoints, customPoints, stageW, stageH, direction]);
 
   return (

@@ -35,7 +35,7 @@ export const useProdStore = create<State>((set, get) => ({
       supabase.from("production_sub_orders").select("*").order("ordine", { ascending: true }),
       supabase.from("inventory_items").select("*").order("code", { ascending: true }),
       supabase.from("inventory_scrap_pieces").select("*").order("code", { ascending: true }),
-      supabase.from("profiles").select("id, display_name, avatar_url"),
+      supabase.from("profiles").select("id, display_name, avatar_url, settori"),
     ]);
     set({
       loaded: true,

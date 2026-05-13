@@ -7,7 +7,9 @@ import {
   NestingPieceItem,
   NESTING_SAFETY_BORDER_CM,
   NestingMixedBin,
+  NestingFormatOverride,
   recomputeGroupWithMixedBins,
+  recomputeGroupWithOverride,
   buildPieceIndexMap,
   piecesOfGroup,
 } from "@/lib/nesting";
@@ -426,24 +428,41 @@ type Props = {
   graphicOnly?: boolean;
   /** Mostra solo riepilogo testuale (no grafico). */
   textOnly?: boolean;
+  /** Stato di nesting salvato nel preventivo (override formato + bin misti per gruppo).
+   *  Quando presente ha PRIORITÀ sulla logica pickedStockId, così la produzione
+   *  vede ESATTAMENTE il nesting deciso dal progettista nel calcolatore. */
+  nestingState?: {
+    overrides?: Record<string, NestingFormatOverride | null>;
+    mixedBins?: Record<string, NestingMixedBin[] | null>;
+  };
+  customerType?: any;
 };
 
 /**
  * Calcola e mostra il nesting per i pezzi passati.
  * Da usare nel modulo Produzione (read-only).
  */
-export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly }: Props) => {
+export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly, nestingState, customerType }: Props) => {
   const { inventory, scraps } = useProdStore();
   const groups = useMemo(() => {
     if (!catalog || !pieces.length) return [] as NestingGroup[];
     try {
-      const base = computeNesting(pieces, catalog);
-      // Se i pezzi hanno pickedStockId (scelta progettista da magazzino),
-      // ricalcoliamo il gruppo distribuendoli sui bin reali (sfridi/lastre)
-      // così l'operatore vede ESATTAMENTE quello che è stato agganciato.
+      const base = computeNesting(pieces, catalog, customerType);
       const indexMap = buildPieceIndexMap(pieces);
       return base.map((g) => {
         const groupPieces = piecesOfGroup(pieces, g.key);
+
+        // 1) PRIORITÀ MASSIMA: stato salvato nel preventivo (mixedBins → poi override formato).
+        const savedMixed = nestingState?.mixedBins?.[g.key];
+        if (savedMixed && savedMixed.length > 0) {
+          return recomputeGroupWithMixedBins(g, groupPieces, savedMixed, indexMap);
+        }
+        const savedOv = nestingState?.overrides?.[g.key];
+        if (savedOv && savedOv.widthM > 0 && savedOv.heightM > 0) {
+          return recomputeGroupWithOverride(g, groupPieces, catalog, savedOv, indexMap, customerType);
+        }
+
+        // 2) Fallback storico: ricostruisci dai pickedStockId dei pezzi (vecchi ordini senza nestingState).
         const tokens: { kind: "item" | "scrap"; id: string }[] = [];
         for (const p of groupPieces) {
           if (!p.pickedStockId) continue;
@@ -458,7 +477,6 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           }
         }
         if (tokens.length === 0) return g;
-        // Dedup mantenendo ordine
         const seen = new Set<string>();
         const bins: NestingMixedBin[] = [];
         for (const t of tokens) {
@@ -504,7 +522,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     } catch {
       return [];
     }
-  }, [pieces, catalog, inventory, scraps]);
+  }, [pieces, catalog, inventory, scraps, nestingState, customerType]);
 
   if (groups.length === 0) {
     return null;

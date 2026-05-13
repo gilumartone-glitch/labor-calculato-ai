@@ -262,6 +262,12 @@ export type DepartmentState = {
   perimeters: PerimeterLine[];
   pieces: PieceLine[];
   transports: TransportLine[];
+  /** Stato del pannello di nesting: override formato per gruppo e bin misti per gruppo.
+   *  Persistito nello snapshot in modo che la produzione veda lo stesso nesting del preventivo. */
+  nestingState?: {
+    overrides?: Record<string, any | null>;
+    mixedBins?: Record<string, any[] | null>;
+  };
 };
 
 export type DepartmentTotals = {

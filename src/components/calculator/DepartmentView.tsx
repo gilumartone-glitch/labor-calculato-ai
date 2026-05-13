@@ -595,6 +595,8 @@ export const DepartmentView = ({
               catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}
               customerType={customerType}
               onPiecesChange={(next) => setState({ ...state, pieces: next })}
+              initialNestingState={state.nestingState as any}
+              onNestingStateChange={(ns) => setState({ ...state, nestingState: ns as any })}
             />
           ) : (
             <div className="panel p-8 text-center text-sm text-muted-foreground">

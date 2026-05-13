@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layers3, AlertTriangle, ChevronDown, ChevronRight, Sparkles, Settings2, Bug } from "lucide-react";
 import { toast } from "sonner";
 import { Catalog, PieceLine, CatalogMaterial } from "./types";
@@ -26,6 +26,16 @@ interface Props {
   /** Se passata, abilita l'aggancio definitivo (prenotazione soft) ai pezzi del gruppo
    *  direttamente dal pannello di nesting. Riceve la nuova lista pieces da salvare. */
   onPiecesChange?: (pieces: PieceLine[]) => void;
+  /** Stato iniziale per ripristinare overrides e bin misti dal salvataggio. */
+  initialNestingState?: {
+    overrides?: Record<string, NestingFormatOverride | null>;
+    mixedBins?: Record<string, NestingMixedBin[] | null>;
+  };
+  /** Notifica i cambiamenti di stato del nesting per persistenza nello snapshot. */
+  onNestingStateChange?: (state: {
+    overrides: Record<string, NestingFormatOverride | null>;
+    mixedBins: Record<string, NestingMixedBin[] | null>;
+  }) => void;
 }
 
 const fmt = (n: number, d = 2) =>
@@ -990,16 +1000,29 @@ const GroupSummary = ({
   );
 };
 
-export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange }: Props) => {
+export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
   const baseGroups = useMemo(
     () => computeNesting(pieces, catalog, customerType),
     [pieces, catalog, customerType],
   );
   /** Override formato per gruppo (chiave = group.key). */
-  const [overrides, setOverrides] = useState<Record<string, NestingFormatOverride | null>>({});
+  const [overrides, setOverrides] = useState<Record<string, NestingFormatOverride | null>>(
+    () => initialNestingState?.overrides ?? {},
+  );
   /** Bin misti per gruppo: quando presenti, hanno PRIORITÀ sull'override singolo per la preview. */
-  const [mixedBinsByGroup, setMixedBinsByGroup] = useState<Record<string, NestingMixedBin[] | null>>({});
+  const [mixedBinsByGroup, setMixedBinsByGroup] = useState<Record<string, NestingMixedBin[] | null>>(
+    () => initialNestingState?.mixedBins ?? {},
+  );
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
+
+  // Bubbla i cambi di stato verso il padre (per persistenza nello snapshot).
+  const firstSync = useRef(true);
+  useEffect(() => {
+    if (firstSync.current) { firstSync.current = false; return; }
+    onNestingStateChange?.({ overrides, mixedBins: mixedBinsByGroup });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overrides, mixedBinsByGroup]);
+
 
   /** Applico l'override (se presente) a ciascun gruppo. */
   const groups = useMemo(

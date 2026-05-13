@@ -221,15 +221,30 @@ export const DepartmentView = ({
   };
 
   const addPiece = () => {
-    const firstName = catalog.materials[0]?.name ?? "";
+    const firstName = catalog.materials.find((m) => m.name.trim())?.name ?? "";
+    const variantsForProduct = catalog.materials.filter((m) => m.name === firstName);
+    const pickFirst = (values: (string | undefined)[], allowEmpty = false) => {
+      const cleaned = values.map((v) => v ?? "");
+      const preferred = cleaned.find((v) => v.trim());
+      return preferred ?? (allowEmpty ? cleaned[0] ?? "" : "");
+    };
+    const firstColor = pickFirst(variantsForProduct.map((m) => m.color));
+    const variantsForColor = variantsForProduct.filter((m) => !firstColor || m.color === firstColor);
+    const firstFireproof = pickFirst(variantsForColor.map((m) => m.fireproof), true);
+    const variantsForFireproof = variantsForColor.filter((m) => !firstFireproof || m.fireproof === firstFireproof);
+    const firstThickness = pickFirst(variantsForFireproof.map((m) => m.thickness));
+    const variantsForThickness = variantsForFireproof.filter((m) => !firstThickness || (m.thickness ?? "") === firstThickness);
+    const firstFinish = pickFirst(variantsForThickness.map((m) => m.finish));
     const newLine: PieceLine = {
       id: uid(),
       productName: firstName,
-      color: "",
-      fireproof: "",
+      color: firstColor,
+      fireproof: firstFireproof,
       matchedHeight: "",
       matchedHeightUnit: "cm",
       catalogMaterialId: null,
+      thickness: firstThickness,
+      finish: firstFinish,
       priceMode: "cut",
       materialQty: 0,
       width: 0,

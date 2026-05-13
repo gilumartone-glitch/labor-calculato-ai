@@ -268,12 +268,9 @@ export const CreateCommessaButton = ({
         },
       });
       setOpen(false);
-      // Reset campi
-      setCliente("");
-      setNote("");
-      setScadenza("");
-      setPriorita("media");
-      setWarehouseOnly(false);
+      // Reset campi e cancella la persistenza
+      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
+      clearForm();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";
       toast.error("Errore creazione commessa", { description: msg });

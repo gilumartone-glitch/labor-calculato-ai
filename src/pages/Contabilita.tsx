@@ -513,17 +513,42 @@ export default function Contabilita() {
   const localEditUntilRef = useRef(0);
   const stateRef = useRef<AccountingState | null>(null);
   const ownSaveUntilRef = useRef(0);
+  /**
+   * ID modificati di recente localmente: per questi, il merge realtime
+   * NON sovrascrive con la versione remota (eviterebbe il classico bug
+   * "spunto pagato → torna in competenze" perché un evento realtime arriva
+   * tra la modifica locale e il salvataggio cloud).
+   */
+  const recentlyModifiedRef = useRef<Map<string, number>>(new Map());
+  const RECENT_MODIFIED_TTL_MS = 15000;
+  const markRecentlyModified = useCallback((ids: string[]) => {
+    const expiry = Date.now() + RECENT_MODIFIED_TTL_MS;
+    for (const id of ids) recentlyModifiedRef.current.set(id, expiry);
+  }, []);
+  const getRecentIds = useCallback(() => {
+    const now = Date.now();
+    const out = new Set<string>();
+    for (const [id, exp] of recentlyModifiedRef.current) {
+      if (exp > now) out.add(id);
+      else recentlyModifiedRef.current.delete(id);
+    }
+    return out;
+  }, []);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
 
   // Merge granulare anti-cancellazione: fonde lo stato remoto con quello locale
   // per ID, in modo che modifiche concorrenti di utenti diversi non si distruggano.
-  const mergeById = <T extends { id: string }>(local: T[], remote: T[], tombstones: Set<string> = new Set()): T[] => {
+  const mergeById = <T extends { id: string }>(local: T[], remote: T[], tombstones: Set<string> = new Set(), keepLocalIds: Set<string> = new Set()): T[] => {
     const map = new Map<string, T>();
     for (const item of local) if (!tombstones.has(item.id)) map.set(item.id, item);
     // Il remoto vince sui record con stesso id (last-write-wins per riga),
-    // ma le righe presenti solo in locale o solo in remoto vengono preservate.
-    // Le righe presenti nei tombstones (cancellate da qualcuno) NON tornano.
-    for (const item of remote) if (!tombstones.has(item.id)) map.set(item.id, item);
+    // EXCEPT per gli ID modificati di recente localmente: in quel caso il
+    // locale resta finché non scade la finestra (così la spunta non torna indietro).
+    for (const item of remote) {
+      if (tombstones.has(item.id)) continue;
+      if (keepLocalIds.has(item.id) && map.has(item.id)) continue;
+      map.set(item.id, item);
+    }
     return Array.from(map.values());
   };
 
@@ -545,6 +570,7 @@ export default function Contabilita() {
     const tFix = new Set(deletedIds.fixedExpenses);
     const tSal = new Set(deletedIds.salaries);
     const tCon = new Set(deletedIds.contacts);
+    const recent = getRecentIds();
     return {
     // Campi scalari: durante una modifica locale attiva preferisci il locale
     // per evitare che le date stipendi e altri scalari "si auto-cambino".
@@ -553,10 +579,10 @@ export default function Contabilita() {
     salariesProcessed: localActive ? (local.salariesProcessed ?? remote.salariesProcessed) : (remote.salariesProcessed ?? local.salariesProcessed),
     salaryPayDates: localActive ? (local.salaryPayDates ?? remote.salaryPayDates) : (remote.salaryPayDates ?? local.salaryPayDates),
     // Liste con id: merge per id (nessuna cancellazione di righe modificate altrove)
-      movements: mergeById(local.movements, remote.movements ?? [], tMov),
-      fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix),
-      salaries: mergeById(local.salaries ?? [], remote.salaries ?? [], tSal),
-      contacts: mergeById(local.contacts ?? [], remote.contacts ?? [], tCon),
+      movements: mergeById(local.movements, remote.movements ?? [], tMov, recent),
+      fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix, recent),
+      salaries: mergeById(local.salaries ?? [], remote.salaries ?? [], tSal, recent),
+      contacts: mergeById(local.contacts ?? [], remote.contacts ?? [], tCon, recent),
       deletedIds,
     };
   };

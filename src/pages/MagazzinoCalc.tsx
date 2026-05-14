@@ -388,7 +388,68 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const totalCovered = rollsNeeded * selected.rollLength;
     const purchasedSqm = rollsNeeded * selected.rollLength * selected.rollWidth;
     const unit = Number(selected.pricePerSqm ?? 0);
-    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, purchasedSqm, totalPrice: unit * purchasedSqm };
+    const cutSurcharge = 1.2; // +20% al m² per acquisto al taglio
+    const cutStep = 5;        // acquisto al taglio in multipli di 5 m lineari
+    const w = selected.rollWidth;
+    const L = selected.rollLength;
+
+    // Opzione A: tutto rotoli interi
+    const optWhole = {
+      key: "whole" as const,
+      label: "Solo rotoli interi",
+      wholeRolls: rollsNeeded,
+      cutMeters: 0,
+      purchasedM: rollsNeeded * L,
+      purchasedSqm: rollsNeeded * L * w,
+      price: rollsNeeded * L * w * unit,
+    };
+    // Opzione B: tutto al taglio (multipli di 5 m, +20%)
+    const cutAllM = Math.ceil(totalLen / cutStep) * cutStep;
+    const optCut = {
+      key: "cut" as const,
+      label: "Solo al taglio",
+      wholeRolls: 0,
+      cutMeters: cutAllM,
+      purchasedM: cutAllM,
+      purchasedSqm: cutAllM * w,
+      price: cutAllM * w * unit * cutSurcharge,
+    };
+    // Opzione C: misto = N rotoli interi + resto al taglio (arrotondato a 5 m)
+    const maxWhole = Math.floor(totalLen / L);
+    let optMix: typeof optWhole | null = null;
+    let bestMixPrice = Infinity;
+    for (let n = 0; n <= maxWhole; n++) {
+      const remain = Math.max(0, totalLen - n * L);
+      const cutM = remain > 0 ? Math.ceil(remain / cutStep) * cutStep : 0;
+      if (cutM === 0 && n < rollsNeeded) continue; // serve almeno coprire totalLen
+      const purchasedM = n * L + cutM;
+      if (purchasedM < totalLen - 1e-9) continue;
+      const price = n * L * w * unit + cutM * w * unit * cutSurcharge;
+      if (price < bestMixPrice) {
+        bestMixPrice = price;
+        optMix = {
+          key: "whole",
+          label: `${n} rotolo${n === 1 ? "" : "i"} + ${fmt(cutM)} m al taglio`,
+          wholeRolls: n,
+          cutMeters: cutM,
+          purchasedM,
+          purchasedSqm: purchasedM * w,
+          price,
+        } as any;
+      }
+    }
+    const options = [optWhole, optCut, ...(optMix ? [optMix] : [])];
+    const best = options.reduce((a, c) => (c.price < a.price ? c : a));
+
+    return {
+      strips, totalLen, rollsNeeded,
+      leftover: totalCovered - totalLen,
+      surface, bounds: b,
+      unitPrice: unit,
+      purchasedSqm, totalPrice: unit * purchasedSqm,
+      options, best,
+      cutSurcharge, cutStep,
+    };
   }, [selected, activePoints, customPoints, stageW, stageH, direction]);
 
   return (
@@ -433,14 +494,43 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                 <DanceNestingCanvas points={activePoints} customPoints={customPoints} roomW={stageW} roomH={stageH} rollWidth={selected.rollWidth} direction={direction} />
 
                 {calc ? (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-                    <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
-                    <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
-                    <KPI label="Rotoli interi" value={`${calc.rollsNeeded}`} hint={`rotoli da ${fmt(selected.rollLength)} m`} highlight />
-                    <KPI label="Sfrido residuo" value={`${fmt(calc.leftover)} m`} hint={`Superficie ${fmt(calc.surface)} m²`} />
-                    <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint="prezzo a m²" />
-                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${fmt(calc.purchasedSqm)} m² × ${eur(calc.unitPrice)}`} highlight />
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                      <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
+                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
+                      <KPI label="Superficie sala" value={`${fmt(calc.surface)} m²`} hint={`sfrido ${fmt(calc.leftover)} m`} />
+                      <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint={`taglio +${Math.round((calc.cutSurcharge - 1) * 100)}% (${eur(calc.unitPrice * calc.cutSurcharge)}/m²)`} />
+                    </div>
+
+                    <div className="border-2 border-ink/15 rounded-sm bg-background">
+                      <div className="px-3 py-2 border-b bg-muted/30 font-mono text-[10px] uppercase tracking-widest flex items-center justify-between">
+                        <span>Confronto opzioni di acquisto</span>
+                        <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
+                      </div>
+                      <div className="divide-y">
+                        {calc.options.map((o, i) => {
+                          const isBest = o === calc.best;
+                          return (
+                            <div key={i} className={`px-3 py-2 flex items-center justify-between gap-3 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                              <div className="text-[12px]">
+                                <div className="font-semibold flex items-center gap-2">
+                                  {o.label}
+                                  {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {o.wholeRolls > 0 && `${o.wholeRolls} rotolo${o.wholeRolls === 1 ? "" : "i"} × ${fmt(selected.rollLength)} m`}
+                                  {o.wholeRolls > 0 && o.cutMeters > 0 && " + "}
+                                  {o.cutMeters > 0 && `${fmt(o.cutMeters)} m al taglio`}
+                                  {" · "}{fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
+                                </div>
+                              </div>
+                              <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>
             )}

@@ -94,6 +94,19 @@ export type NestingGroup = {
    *  questo array contiene un elemento per ogni "foglio" usato — con dimensioni
    *  proprie. `items[i].sheetIndex` punta a `mixedSheets[i]`. */
   mixedSheets?: NestingMixedSheet[];
+  /** % di sfruttamento medio della larghezza del rotolo (0..1).
+   *  = areaUsata / (rollWidth × totalLength) ma calcolata "in larghezza":
+   *  = (areaUsata / totalLength) / rollWidth. Indica quanto della larghezza
+   *  disponibile viene effettivamente coperta dai pezzi. */
+  widthUsagePct?: number;
+  /** Metri di larghezza non utilizzati in media per ogni metro lineare di rotolo
+   *  (rollWidth − areaUsata/totalLength). 0 = larghezza sfruttata al 100%. */
+  widthUnusedM?: number;
+  /** Lunghezza che si sarebbe consumata sommando i singoli pezzi senza nesting
+   *  (somma di panelLengthM × panels per pezzo, equivalente al "naive" lineare). */
+  naiveLengthM?: number;
+  /** Metri lineari di rotolo risparmiati dal nesting rispetto al calcolo per-pezzo. */
+  lengthSavedM?: number;
 };
 
 const factorOf = (u: DimUnit) => (u === "m" ? 1 : u === "cm" ? 0.01 : 0.001);
@@ -962,6 +975,21 @@ const computeGroup = (
       : totalLengthM * purchaseUnit;
   }
 
+  // ---- Indicatori di sfruttamento del rotolo ----
+  // Larghezza media usata su tutta la lunghezza sviluppata.
+  const avgWidthUsedM = totalLengthM > 0 ? usedAreaM2 / totalLengthM : 0;
+  const widthUsagePct = surfaceWidthM > 0 ? Math.min(1, avgWidthUsedM / surfaceWidthM) : 0;
+  const widthUnusedM = Math.max(0, surfaceWidthM - avgWidthUsedM);
+  // "Naive" length: somma delle lunghezze occupate da ogni copia se piazzate da sole
+  // (= somma dei loro h, già post-split per teli affiancati). Per le lastre non ha
+  // significato lineare → resta a 0.
+  const naiveLengthM = format === "rotolo"
+    ? raw.reduce((s, r) => s + r.h, 0)
+    : 0;
+  const lengthSavedM = format === "rotolo"
+    ? Math.max(0, naiveLengthM - totalLengthM)
+    : 0;
+
   return {
     key,
     label,
@@ -988,6 +1016,10 @@ const computeGroup = (
     sheetWidthM: format === "lastra" ? surfaceWidthM : undefined,
     seamLengthM,
     seamCost,
+    widthUsagePct,
+    widthUnusedM,
+    naiveLengthM,
+    lengthSavedM,
   };
 };
 
@@ -1037,9 +1069,17 @@ export const computeNesting = (
       // Filtro: solo quelle che riescono a piazzare TUTTI i pezzi
       const feasible = candidates.filter((c) => c.unplaced.length === 0 && c.items.length > 0);
       const pool = feasible.length > 0 ? feasible : candidates;
-      // Ordino per: 1) costo materiale ottimizzato (proxy del miglior compromesso
-      // sfrido + lastre/scarto), 2) sfrido percentuale, 3) lunghezza/area minore
+      // Ordino per:
+      //  1) PREFERISCO le varianti SENZA cuciture introdotte da split (seamLengthM=0):
+      //     un rullo più alto che contiene il pezzo intero vince SEMPRE su uno più stretto
+      //     che richiede di spezzarlo, anche se il costo è marginalmente diverso.
+      //  2) costo materiale ottimizzato
+      //  3) sfrido percentuale
+      //  4) lunghezza/area minore
       pool.sort((a, b) => {
+        const aHasSeams = (a.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
+        const bHasSeams = (b.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
+        if (aHasSeams !== bHasSeams) return aHasSeams - bHasSeams;
         const dCost = a.materialCostOptimized - b.materialCostOptimized;
         if (Math.abs(dCost) > 1e-3) return dCost;
         const dWaste = a.wastePct - b.wastePct;

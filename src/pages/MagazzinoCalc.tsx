@@ -541,6 +541,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                         <span>Confronto opzioni di acquisto</span>
                         <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
                       </div>
+                      <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
+                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                      </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
                           const isBest = o === calc.best;
@@ -552,10 +555,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                                   {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground">
-                                  {o.wholeRolls > 0 && `${o.wholeRolls} rotolo${o.wholeRolls === 1 ? "" : "i"} × ${fmt(selected.rollLength)} m`}
-                                  {o.wholeRolls > 0 && o.cutMeters > 0 && " + "}
-                                  {o.cutMeters > 0 && `${fmt(o.cutMeters)} m al taglio`}
-                                  {" · "}{fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
+                                  totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
                                 </div>
                               </div>
                               <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>

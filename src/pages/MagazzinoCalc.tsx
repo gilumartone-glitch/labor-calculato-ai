@@ -534,18 +534,34 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
                           const isBest = o === calc.best;
+                          const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
+                          const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
-                            <div key={i} className={`px-3 py-2 flex items-center justify-between gap-3 ${isBest ? "bg-dept-soft/40" : ""}`}>
-                              <div className="text-[12px]">
-                                <div className="font-semibold flex items-center gap-2">
+                            <div key={i} className={`px-3 py-2.5 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-[12px] font-semibold flex items-center gap-2">
                                   {o.label}
                                   {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
+                                <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                              </div>
+                              <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
+                                {o.wholeRolls > 0 && (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(selected.rollLength)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
+                                    <span className="tabular-nums">{eur(o.wholePrice)}</span>
+                                  </div>
+                                )}
+                                {o.cutMeters > 0 && (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>· taglio mt {fmt(o.cutMeters)}×{fmt(selected.rollWidth)} = {fmt(cutSqm)} m² @ {eur(o.cutUnit)}/m²</span>
+                                    <span className="tabular-nums">{eur(o.cutPrice)}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between gap-3 text-foreground/70">
+                                  <span>totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²</span>
                                 </div>
                               </div>
-                              <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
                             </div>
                           );
                         })}

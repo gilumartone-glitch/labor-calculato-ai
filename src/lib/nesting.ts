@@ -336,24 +336,25 @@ const explodePieces = (
         });
       }
 
-      // Scelgo l'orientamento che consuma MENO rotolo: stima ≈ panels × alongM
-      // (meno pannelli non sempre = meno rotolo consumato).
-      orientations.sort(
-        (a, b) =>
+      // Scelgo l'orientamento che consuma MENO rotolo: stima ≈ panels × alongM.
+      // Preferisco SEMPRE l'orientamento senza cuciture (1 solo telo) quando esiste,
+      // anche se il consumo di metri è leggermente maggiore — meglio un pezzo unico
+      // che spezzato. Esempio: rullo h=320 e pezzo 620×300 ruotabile → 1 telo da
+      // 620 m, non 2 teli da 300 m con cucitura.
+      orientations.sort((a, b) => {
+        if ((a.panels === 1) !== (b.panels === 1)) return a.panels === 1 ? -1 : 1;
+        return (
           a.panels * a.alongM - b.panels * b.alongM ||
           a.panels - b.panels ||
-          a.alongM - b.alongM,
-      );
+          a.alongM - b.alongM
+        );
+      });
       const best = orientations[0];
 
-      // Se NON serve spezzare (1 solo pannello in entrambe le orientazioni e
-      // rotazione consentita), lascio decidere allo shelf packer: la rotazione
-      // resta attiva e il packer sceglie l'orientamento che riempie meglio
-      // la larghezza del rotolo (es. 80×150 su h=320 → 4 pezzi affiancati).
-      const noSplitNeeded =
-        p.allowRotation &&
-        orientations.length > 1 &&
-        orientations.every((o) => o.panels === 1);
+      // Se il miglior orientamento NON richiede cuciture (1 solo telo), lascio
+      // decidere allo shelf packer l'orientamento finale: la rotazione resta
+      // attiva e il packer può affiancare più copie sulla larghezza del rotolo.
+      const noSplitNeeded = p.allowRotation && best.panels === 1;
       if (noSplitNeeded) {
         for (let c = 0; c < qty; c++) {
           const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;

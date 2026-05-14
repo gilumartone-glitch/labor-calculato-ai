@@ -753,6 +753,7 @@ const computeGroup = (
     pieces[0].fireproof,
     pieces[0].thickness,
     pieces[0].finish,
+    pieces[0].variantId,
   );
   const hemMap = buildHemMap(pieces, catalog);
   const picked = forcedVariant ?? pickRollVariant(variants, pieces, hemMap);
@@ -1009,6 +1010,7 @@ export const computeNesting = (
       ps[0].fireproof,
       ps[0].thickness,
       ps[0].finish,
+      ps[0].variantId,
     );
     let g: NestingGroup;
     if (allVariants.length <= 1) {

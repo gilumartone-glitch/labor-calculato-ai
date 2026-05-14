@@ -969,6 +969,43 @@ const GroupSummary = ({
               <div className="tabular-nums font-semibold text-primary">{eur(group.materialCostOptimized)}</div>
             </div>
           </div>
+          {(group.widthUsagePct !== undefined || (group.lengthSavedM ?? 0) > 0.005) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-[11px] border-t border-dashed border-ink/15 pt-2">
+              {group.widthUsagePct !== undefined && (
+                <>
+                  <div>
+                    <div className="label-cap mb-0.5">Sfrutt. larghezza</div>
+                    <div className={`tabular-nums font-semibold ${group.widthUsagePct >= 0.85 ? "text-primary" : group.widthUsagePct >= 0.6 ? "text-ink" : "text-destructive"}`}>
+                      {fmt((group.widthUsagePct ?? 0) * 100, 1)}%
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      su {fmtCm(group.rollWidthM)} cm di rullo
+                    </div>
+                  </div>
+                  <div>
+                    <div className="label-cap mb-0.5">Larghezza non usata</div>
+                    <div className="tabular-nums">{fmtCm(group.widthUnusedM ?? 0)} cm</div>
+                    <div className="text-[10px] text-muted-foreground">media per ml</div>
+                  </div>
+                </>
+              )}
+              {(group.lengthSavedM ?? 0) > 0.005 && (
+                <>
+                  <div>
+                    <div className="label-cap mb-0.5">Lung. "ingenua"</div>
+                    <div className="tabular-nums line-through opacity-60">{fmtCm(group.naiveLengthM ?? 0)} cm</div>
+                  </div>
+                  <div>
+                    <div className="label-cap mb-0.5">Metri risparmiati</div>
+                    <div className="tabular-nums font-semibold text-primary inline-flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      {fmtCm(group.lengthSavedM ?? 0)} cm
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {(group.scrapCost > 0.005 ||
             group.minBillingExtra > 0.005 ||
             (group.seamCost ?? 0) > 0.005) && (

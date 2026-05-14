@@ -54,13 +54,28 @@ type FireProduct = {
 type Point = { x: number; y: number };
 type Segment = { id: string; length: number; angle: number };
 type StripDirection = "vertical" | "horizontal";
+
+type SaleUnit = "m" | "m²" | "pz" | "kg";
+type SaleProduct = {
+  id: string;
+  name: string;
+  detail?: string;
+  variants: string[];
+  unit: SaleUnit;
+  pricePurchase?: number;
+  priceSell?: number;
+  note?: string;
+};
+
 type MagState = {
-  version: 4;
+  version: 5;
   danceRolls: DanceRoll[];
   fireProducts: FireProduct[];
+  printProducts: SaleProduct[];
+  fabricProducts: SaleProduct[];
 };
-const initial: MagState = { version: 4, danceRolls: [], fireProducts: [] };
-const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
+const initial: MagState = { version: 5, danceRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
+const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v5", "officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
 
 const hydrate = (raw: unknown): MagState => {
   const p = raw as any;

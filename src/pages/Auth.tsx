@@ -5,12 +5,28 @@ import { Loader2, LogIn, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+const REMEMBER_KEY = "officina:auth:remember";
+
 const Auth = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  // Pre-compila se l'utente ha scelto "Ricorda credenziali"
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(REMEMBER_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { email?: string; password?: string };
+      if (saved.email) setEmail(saved.email);
+      if (saved.password) setPassword(atob(saved.password));
+    } catch {
+      /* noop */
+    }
+  }, []);
 
   // Se già loggato, vai all'hub postazioni
   useEffect(() => {
@@ -27,6 +43,13 @@ const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      try {
+        if (remember) {
+          window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password: btoa(password) }));
+        } else {
+          window.localStorage.removeItem(REMEMBER_KEY);
+        }
+      } catch { /* noop */ }
       toast.success("Accesso effettuato");
       navigate("/hub", { replace: true });
     } catch (err) {
@@ -85,6 +108,16 @@ const Auth = () => {
                 className="input-bare w-full text-sm"
               />
             </div>
+
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="accent-primary"
+              />
+              Ricorda credenziali su questo computer
+            </label>
 
             <button
               type="submit"

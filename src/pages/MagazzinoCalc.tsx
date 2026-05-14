@@ -322,20 +322,18 @@ export default function MagazzinoCalc() {
         <SaleProductSection
           title="Prodotti stampa"
           categoryKey="stampa"
-          products={state.printProducts ?? []}
-          setProducts={(printProducts) => update({ printProducts })}
-          variantLabel="Supporto / formato"
-          variantPlaceholder="es. Forex 5mm, PVC 500g, Banner 510g"
+          sourceDept="stampa"
+          sourceLabel="Listino Laboratorio"
+          variantLabel="Variante"
           defaultUnit="m²"
         />
       ) : (
         <SaleProductSection
           title="Tessuti"
           categoryKey="tessuti"
-          products={state.fabricProducts ?? []}
-          setProducts={(fabricProducts) => update({ fabricProducts })}
+          sourceDept="tappezzeria"
+          sourceLabel="Listino Tappezzeria"
           variantLabel="Colore / variante"
-          variantPlaceholder="es. Nero, Bianco, Rosso"
           defaultUnit="m"
         />
       )}

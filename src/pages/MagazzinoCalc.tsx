@@ -134,7 +134,7 @@ const hydrate = (raw: unknown): MagState => {
         note: f.note,
       }))
     : [];
-  return { version: 4, danceRolls, fireProducts };
+  return { version: 5, danceRolls, fireProducts };
 };
 
 const fmt = (n: number, d = 2) =>

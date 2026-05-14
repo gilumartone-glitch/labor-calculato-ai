@@ -365,6 +365,16 @@ export const computePieceMaterial = (
   // come (€/mq d'acquisto × 1,3) — moltiplicatore FISSO per lo sfrido, non quello cliente.
   // Per i materiali in €/ml manteniamo il calcolo lineare (metri lineari × €/ml di vendita).
   const SCRAP_SELL_MULT = 1.3;
+  // Lo sfrido iniziale del rotolo si addebita SOLO se il pezzo richiede stampa.
+  // Se il cliente prende solo il materiale (nessuna stampa selezionata) non c'è
+  // scarto di partenza da imputare.
+  const hasPrintWork =
+    !!piece.printOpId ||
+    (piece.perimeters ?? []).some((pp) => {
+      const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
+      return (op?.category ?? "") === "stampa";
+    });
+  const noPrintNoScrap = !hasPrintWork;
   // Prezzo d'ACQUISTO unitario (per calcolo sfrido a costo). Per il nuovo schema
   // Tappezzeria (manual sell prices) il costo è in `costPrice`. Per lo schema legacy
   // "molt. automatici" il costo è già in pricePiece/priceCut (= prezzo d'acquisto).

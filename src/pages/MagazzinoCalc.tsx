@@ -401,73 +401,60 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       key: string; label: string;
       wholeRolls: number; cutMeters: number;
       purchasedM: number; purchasedSqm: number; price: number;
+      wholePrice: number; cutPrice: number;
+      wholeUnit: number; cutUnit: number;
     };
     const options: Opt[] = [];
-    const priceOf = (wholeRolls: number, cutMeters: number) =>
-      wholeRolls * L * w * unit + cutMeters * w * unit * cutSurcharge;
+    const wholeUnit = unit;
+    const cutUnit = unit * cutSurcharge;
+    const makeOpt = (key: string, label: string, wholeRolls: number, cutMeters: number): Opt => {
+      const wholePrice = wholeRolls * L * w * wholeUnit;
+      const cutPrice = cutMeters * w * cutUnit;
+      const purchasedM = wholeRolls * L + cutMeters;
+      return {
+        key, label, wholeRolls, cutMeters,
+        purchasedM, purchasedSqm: purchasedM * w,
+        price: wholePrice + cutPrice,
+        wholePrice, cutPrice, wholeUnit, cutUnit,
+      };
+    };
+
+    // Vincolo fisico: un singolo pezzo "al taglio" non può superare la lunghezza
+    // del rotolo (L). Una fascia non si può spezzare tra due pezzi.
+    // → cutMeters valido solo se cutMeters <= L E contiene fasce intere
+    //   (cutMeters / along >= numero fasce richieste sul taglio).
 
     if (along <= L && stripsPerRoll >= 1) {
-      // A) Solo rotoli interi: copro tutte le fasce raggruppando floor(L/along) per rotolo
+      // A) Solo rotoli interi
       {
         const wholeRolls = Math.ceil(strips / stripsPerRoll);
-        const purchasedM = wholeRolls * L;
-        options.push({
-          key: "whole", label: `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi`,
-          wholeRolls, cutMeters: 0,
-          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, 0),
-        });
+        options.push(makeOpt("whole", `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi`, wholeRolls, 0));
       }
-      // B) Solo al taglio: pezzo unico di lunghezza pari a metri lineari, arrotondato a step
+      // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
       {
-        const cutMeters = ceilToStep(totalLen);
-        options.push({
-          key: "cut", label: `${fmt(cutMeters)} m al taglio`,
-          wholeRolls: 0, cutMeters,
-          purchasedM: cutMeters, purchasedSqm: cutMeters * w, price: priceOf(0, cutMeters),
-        });
+        const cutMeters = ceilToStep(strips * along);
+        if (cutMeters > 0 && cutMeters <= L) {
+          options.push(makeOpt("cut", `${fmt(cutMeters)} m al taglio`, 0, cutMeters));
+        }
       }
-      // C) Mix: K rotoli interi (coprono K*stripsPerRoll fasce) + taglio per le restanti
+      // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
       const maxWholeRolls = Math.floor(strips / stripsPerRoll);
       for (let K = 1; K <= maxWholeRolls; K++) {
-        const stripsCovered = K * stripsPerRoll;
-        const stripsRemain = strips - stripsCovered;
-        if (stripsRemain <= 0) continue; // gestito da A
+        const stripsRemain = strips - K * stripsPerRoll;
+        if (stripsRemain <= 0) continue;
         const cutMeters = ceilToStep(stripsRemain * along);
-        const purchasedM = K * L + cutMeters;
-        options.push({
-          key: `mix-${K}`,
-          label: `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio`,
-          wholeRolls: K, cutMeters,
-          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(K, cutMeters),
-        });
+        if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
+        options.push(makeOpt(
+          `mix-${K}`,
+          `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio`,
+          K, cutMeters,
+        ));
       }
     } else if (along > L) {
       // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
       const perStrip = wholePerStripIfBigger;
-      // A) interi
-      {
-        const wholeRolls = perStrip * strips;
-        const purchasedM = wholeRolls * L;
-        options.push({
-          key: "whole", label: `${wholeRolls} rotoli interi`,
-          wholeRolls, cutMeters: 0,
-          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, 0),
-        });
-      }
-      // C) mix per fascia: floor(along/L) interi per fascia + taglio del resto
-      const wholePerStripMix = Math.floor(along / L);
-      const remPerStrip = along - wholePerStripMix * L;
-      if (remPerStrip > 0) {
-        const wholeRolls = wholePerStripMix * strips;
-        const cutMeters = ceilToStep(remPerStrip * strips);
-        const purchasedM = wholeRolls * L + cutMeters;
-        options.push({
-          key: "mix",
-          label: `${wholeRolls} rotoli interi + ${fmt(cutMeters)} m al taglio`,
-          wholeRolls, cutMeters,
-          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, cutMeters),
-        });
-      }
+      const wholeRolls = perStrip * strips;
+      options.push(makeOpt("whole", `${wholeRolls} rotoli interi`, wholeRolls, 0));
     }
 
     const best = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
@@ -547,18 +534,34 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
                           const isBest = o === calc.best;
+                          const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
+                          const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
-                            <div key={i} className={`px-3 py-2 flex items-center justify-between gap-3 ${isBest ? "bg-dept-soft/40" : ""}`}>
-                              <div className="text-[12px]">
-                                <div className="font-semibold flex items-center gap-2">
+                            <div key={i} className={`px-3 py-2.5 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-[12px] font-semibold flex items-center gap-2">
                                   {o.label}
                                   {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
+                                <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                              </div>
+                              <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
+                                {o.wholeRolls > 0 && (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(selected.rollLength)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
+                                    <span className="tabular-nums">{eur(o.wholePrice)}</span>
+                                  </div>
+                                )}
+                                {o.cutMeters > 0 && (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>· taglio mt {fmt(o.cutMeters)}×{fmt(selected.rollWidth)} = {fmt(cutSqm)} m² @ {eur(o.cutUnit)}/m²</span>
+                                    <span className="tabular-nums">{eur(o.cutPrice)}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between gap-3 text-foreground/70">
+                                  <span>totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²</span>
                                 </div>
                               </div>
-                              <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
                             </div>
                           );
                         })}

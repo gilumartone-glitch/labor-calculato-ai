@@ -109,6 +109,16 @@ const Auth = () => {
               />
             </div>
 
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="accent-primary"
+              />
+              Ricorda credenziali su questo computer
+            </label>
+
             <button
               type="submit"
               disabled={loading}

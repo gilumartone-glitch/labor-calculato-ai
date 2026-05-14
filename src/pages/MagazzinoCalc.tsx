@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Calculator as CalcIcon, Layers, Droplets, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon, Layers, Droplets, ChevronDown, ChevronRight, RotateCw, Printer, Scissors, PackageCheck, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 import { SelectWithAdd } from "@/components/calculator/SelectWithAdd";
+import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";
+import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 /* ============== Tipi ============== */
 type DanceRoll = {

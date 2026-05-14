@@ -91,18 +91,22 @@ export const isTiroAPacchetto = (name: string): boolean =>
   (name || "").trim().toLowerCase() === "tiro a pacchetto";
 
 /**
- * Calcola il numero di "file" (tiri verticali) in base alla larghezza del pezzo (m):
- *  - fino a 6 m → 3 file
- *  - 6 – 9 m  → 4 file
- *  - 9 – 12 m → 4 file (range superiore)
- *  - oltre 12 m → 1 fila ogni 160 cm = ceil(width / 1.60)
+ * Calcola il numero di "file" (tiri verticali) in base alla larghezza del pezzo (m).
+ * Regole:
+ *  - i due laterali sono sempre conteggiati
+ *  - passo target ≈ 1,5 m tra una fila e l'altra
+ *  - il numero totale di file è SEMPRE DISPARI (così esiste sempre un centrale
+ *    e i tiri risultano disposti simmetricamente)
+ *  - minimo 3 file (sx + centro + dx)
  */
 export const tiroFiles = (widthM: number): number => {
   if (!isFinite(widthM) || widthM <= 0) return 0;
-  if (widthM <= 6) return 3;
-  if (widthM <= 9) return 4;
-  if (widthM <= 12) return 4;
-  return Math.ceil(widthM / 1.6);
+  // numero di intervalli da ~1,5 m + 1 (per contare entrambi i laterali)
+  const intervals = Math.max(2, Math.ceil(widthM / 1.5));
+  let n = intervals + 1;
+  // forza dispari
+  if (n % 2 === 0) n += 1;
+  return Math.max(3, n);
 };
 
 /**

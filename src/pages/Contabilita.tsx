@@ -1952,7 +1952,10 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
   const rangeTotals = computeMovementTotals(filteredMovements);
   const rangeCashSaldo = rangeTotals.cashIn - rangeTotals.cashOut;
   const rangeExpectedSaldo = rangeTotals.expectedIn - rangeTotals.expectedOut;
-  const rangeCoverage = currentCash - rangeTotals.expectedOut;
+  // Cassa attuale del mese = saldo cassa a fine mese (quello mostrato come "Cassa" nella riga)
+  const rangeCoverage = r.runningCash - rangeTotals.expectedOut;
+  // Cassa prevista del mese = saldo previsionale a fine mese
+  const rangeForecastCoverage = r.runningForecast - rangeTotals.expectedOut;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const toggleSelected = (id: string) => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });

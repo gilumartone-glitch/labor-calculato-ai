@@ -390,13 +390,12 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const w = selected.rollWidth;
     const L = selected.rollLength;
 
-    // Per ogni STRISCIA serve `along` metri continui (non spezzabili).
-    // Calcolo le opzioni per UNA striscia, poi moltiplico per `strips`.
-    const wholePerStrip = Math.ceil(along / L);                 // rotoli interi necessari per coprire una striscia
-    const remainAfterWhole = Math.max(0, along - Math.floor(along / L) * L);
-    const cutForMixPerStrip = remainAfterWhole > 0 ? Math.ceil(remainAfterWhole / cutStep) * cutStep : 0;
-    const wholeForMixPerStrip = Math.floor(along / L);
-    const cutOnlyPerStrip = along <= L ? Math.ceil(along / cutStep) * cutStep : 0; // valido solo se entra in 1 rotolo
+    // Ogni FASCIA richiede `along` metri continui (non spezzabili tra rotoli, salvo along>L).
+    // Da un rotolo intero possiamo ricavare floor(L/along) fasce (se along<=L).
+    const stripsPerRoll = along > 0 && along <= L ? Math.floor(L / along) : 0;
+    const wholePerStripIfBigger = along > L ? Math.ceil(along / L) : 0; // se la fascia non entra in 1 rotolo
+
+    const ceilToStep = (m: number) => (m > 0 ? Math.ceil(m / cutStep) * cutStep : 0);
 
     type Opt = {
       key: string; label: string;
@@ -404,58 +403,86 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       purchasedM: number; purchasedSqm: number; price: number;
     };
     const options: Opt[] = [];
+    const priceOf = (wholeRolls: number, cutMeters: number) =>
+      wholeRolls * L * w * unit + cutMeters * w * unit * cutSurcharge;
 
-    // A) Tutti rotoli interi
-    {
-      const wholeRolls = wholePerStrip * strips;
-      const purchasedM = wholeRolls * L;
-      options.push({
-        key: "whole",
-        label: `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi (${strips} × ${wholePerStrip} × ${fmt(L)} m)`,
-        wholeRolls, cutMeters: 0,
-        purchasedM, purchasedSqm: purchasedM * w,
-        price: purchasedM * w * unit,
-      });
+    if (along <= L && stripsPerRoll >= 1) {
+      // A) Solo rotoli interi: copro tutte le fasce raggruppando floor(L/along) per rotolo
+      {
+        const wholeRolls = Math.ceil(strips / stripsPerRoll);
+        const purchasedM = wholeRolls * L;
+        options.push({
+          key: "whole", label: `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi`,
+          wholeRolls, cutMeters: 0,
+          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, 0),
+        });
+      }
+      // B) Solo al taglio: pezzo unico di lunghezza pari a metri lineari, arrotondato a step
+      {
+        const cutMeters = ceilToStep(totalLen);
+        options.push({
+          key: "cut", label: `${fmt(cutMeters)} m al taglio`,
+          wholeRolls: 0, cutMeters,
+          purchasedM: cutMeters, purchasedSqm: cutMeters * w, price: priceOf(0, cutMeters),
+        });
+      }
+      // C) Mix: K rotoli interi (coprono K*stripsPerRoll fasce) + taglio per le restanti
+      const maxWholeRolls = Math.floor(strips / stripsPerRoll);
+      for (let K = 1; K <= maxWholeRolls; K++) {
+        const stripsCovered = K * stripsPerRoll;
+        const stripsRemain = strips - stripsCovered;
+        if (stripsRemain <= 0) continue; // gestito da A
+        const cutMeters = ceilToStep(stripsRemain * along);
+        const purchasedM = K * L + cutMeters;
+        options.push({
+          key: `mix-${K}`,
+          label: `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio`,
+          wholeRolls: K, cutMeters,
+          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(K, cutMeters),
+        });
+      }
+    } else if (along > L) {
+      // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
+      const perStrip = wholePerStripIfBigger;
+      // A) interi
+      {
+        const wholeRolls = perStrip * strips;
+        const purchasedM = wholeRolls * L;
+        options.push({
+          key: "whole", label: `${wholeRolls} rotoli interi`,
+          wholeRolls, cutMeters: 0,
+          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, 0),
+        });
+      }
+      // C) mix per fascia: floor(along/L) interi per fascia + taglio del resto
+      const wholePerStripMix = Math.floor(along / L);
+      const remPerStrip = along - wholePerStripMix * L;
+      if (remPerStrip > 0) {
+        const wholeRolls = wholePerStripMix * strips;
+        const cutMeters = ceilToStep(remPerStrip * strips);
+        const purchasedM = wholeRolls * L + cutMeters;
+        options.push({
+          key: "mix",
+          label: `${wholeRolls} rotoli interi + ${fmt(cutMeters)} m al taglio`,
+          wholeRolls, cutMeters,
+          purchasedM, purchasedSqm: purchasedM * w, price: priceOf(wholeRolls, cutMeters),
+        });
+      }
     }
 
-    // B) Solo al taglio (solo se la striscia entra in 1 rotolo)
-    if (cutOnlyPerStrip > 0) {
-      const cutMeters = cutOnlyPerStrip * strips;
-      options.push({
-        key: "cut",
-        label: `${strips} taglio${strips === 1 ? "" : "i"} da ${fmt(cutOnlyPerStrip)} m`,
-        wholeRolls: 0, cutMeters,
-        purchasedM: cutMeters, purchasedSqm: cutMeters * w,
-        price: cutMeters * w * unit * cutSurcharge,
-      });
-    }
-
-    // C) Misto per striscia: floor(along/L) rotoli interi + taglio del resto (multipli di 5)
-    if (along > L && cutForMixPerStrip > 0) {
-      const wholeRolls = wholeForMixPerStrip * strips;
-      const cutMeters = cutForMixPerStrip * strips;
-      const purchasedM = wholeRolls * L + cutMeters;
-      options.push({
-        key: "mix",
-        label: `${strips} × (${wholeForMixPerStrip} rotolo${wholeForMixPerStrip === 1 ? "" : "i"} + ${fmt(cutForMixPerStrip)} m al taglio)`,
-        wholeRolls, cutMeters,
-        purchasedM, purchasedSqm: purchasedM * w,
-        price: wholeRolls * L * w * unit + cutMeters * w * unit * cutSurcharge,
-      });
-    }
-
-    const best = options.reduce((a, c) => (c.price < a.price ? c : a));
-    const rollsNeeded = wholePerStrip * strips;
-    const totalCovered = rollsNeeded * L;
+    const best = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
+    const rollsNeeded = best ? best.wholeRolls + (best.cutMeters > 0 ? 1 : 0) : 0;
+    const totalCovered = best ? best.purchasedM : 0;
 
     return {
       strips, totalLen, along, rollsNeeded,
-      leftover: totalCovered - totalLen,
+      leftover: Math.max(0, totalCovered - totalLen),
       surface, bounds: b,
       unitPrice: unit,
-      purchasedSqm: best.purchasedSqm, totalPrice: best.price,
+      purchasedSqm: best?.purchasedSqm ?? 0, totalPrice: best?.price ?? 0,
       options, best,
       cutSurcharge, cutStep,
+      stripsPerRoll,
     };
   }, [selected, activePoints, customPoints, stageW, stageH, direction]);
 

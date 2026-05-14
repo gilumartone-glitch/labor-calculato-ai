@@ -981,9 +981,21 @@ function SaleProductSection({
     if (!productName && productNames.length) setProductName(productNames[0] as string);
   }, [productNames, productName]);
 
-  const variants = useMemo(
+  const variantsByName = useMemo(
     () => materials.filter((m: any) => m.name === productName),
     [materials, productName],
+  );
+  const heights = useMemo(
+    () => Array.from(new Set(variantsByName.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+    [variantsByName],
+  );
+  useEffect(() => {
+    // se cambia prodotto, resetta filtro altezza
+    if (heightFilter && !heights.includes(heightFilter)) setHeightFilter("");
+  }, [heights, heightFilter]);
+  const variants = useMemo(
+    () => heightFilter ? variantsByName.filter((m: any) => String(m.height || "") === heightFilter) : variantsByName,
+    [variantsByName, heightFilter],
   );
   useEffect(() => {
     if (!variants.find((v: any) => v.id === variantId)) {

@@ -1037,9 +1037,17 @@ export const computeNesting = (
       // Filtro: solo quelle che riescono a piazzare TUTTI i pezzi
       const feasible = candidates.filter((c) => c.unplaced.length === 0 && c.items.length > 0);
       const pool = feasible.length > 0 ? feasible : candidates;
-      // Ordino per: 1) costo materiale ottimizzato (proxy del miglior compromesso
-      // sfrido + lastre/scarto), 2) sfrido percentuale, 3) lunghezza/area minore
+      // Ordino per:
+      //  1) PREFERISCO le varianti SENZA cuciture introdotte da split (seamLengthM=0):
+      //     un rullo più alto che contiene il pezzo intero vince SEMPRE su uno più stretto
+      //     che richiede di spezzarlo, anche se il costo è marginalmente diverso.
+      //  2) costo materiale ottimizzato
+      //  3) sfrido percentuale
+      //  4) lunghezza/area minore
       pool.sort((a, b) => {
+        const aHasSeams = (a.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
+        const bHasSeams = (b.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
+        if (aHasSeams !== bHasSeams) return aHasSeams - bHasSeams;
         const dCost = a.materialCostOptimized - b.materialCostOptimized;
         if (Math.abs(dCost) > 1e-3) return dCost;
         const dWaste = a.wastePct - b.wastePct;

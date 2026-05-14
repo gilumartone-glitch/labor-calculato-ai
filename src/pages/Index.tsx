@@ -58,7 +58,7 @@ const TABS: {
     key: "magazzino",
     label: "Vendite",
     icon: Warehouse,
-    description: "Database prodotti per la vendita (tappeto danza, vernici ignifughe) e calcolatori di fabbisogno.",
+    description: "Database prodotti per la vendita (tappeto danza, vernici ignifughe, prodotti stampa, tessuti) e calcolatori di fabbisogno.",
     template: { url: "", name: "" },
   },
   {

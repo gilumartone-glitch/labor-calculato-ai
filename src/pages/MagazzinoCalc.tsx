@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Calculator as CalcIcon, Layers, Droplets, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon, Layers, Droplets, ChevronDown, ChevronRight, RotateCw, Printer, Scissors, PackageCheck, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 import { SelectWithAdd } from "@/components/calculator/SelectWithAdd";
+import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";
+import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 /* ============== Tipi ============== */
 type DanceRoll = {
@@ -43,13 +54,28 @@ type FireProduct = {
 type Point = { x: number; y: number };
 type Segment = { id: string; length: number; angle: number };
 type StripDirection = "vertical" | "horizontal";
+
+type SaleUnit = "m" | "m²" | "pz" | "kg";
+type SaleProduct = {
+  id: string;
+  name: string;
+  detail?: string;
+  variants: string[];
+  unit: SaleUnit;
+  pricePurchase?: number;
+  priceSell?: number;
+  note?: string;
+};
+
 type MagState = {
-  version: 4;
+  version: 5;
   danceRolls: DanceRoll[];
   fireProducts: FireProduct[];
+  printProducts: SaleProduct[];
+  fabricProducts: SaleProduct[];
 };
-const initial: MagState = { version: 4, danceRolls: [], fireProducts: [] };
-const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
+const initial: MagState = { version: 5, danceRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
+const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v5", "officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
 
 const hydrate = (raw: unknown): MagState => {
   const p = raw as any;
@@ -108,7 +134,23 @@ const hydrate = (raw: unknown): MagState => {
         note: f.note,
       }))
     : [];
-  return { version: 4, danceRolls, fireProducts };
+  const hydrateSale = (arr: any): SaleProduct[] => Array.isArray(arr) ? arr.map((s: any) => ({
+    id: s?.id ?? uid(),
+    name: String(s?.name ?? ""),
+    detail: s?.detail ?? "",
+    variants: Array.isArray(s?.variants) ? s.variants.map(String).filter(Boolean) : [],
+    unit: (["m", "m²", "pz", "kg"] as SaleUnit[]).includes(s?.unit) ? s.unit : "pz",
+    pricePurchase: s?.pricePurchase != null ? Number(s.pricePurchase) : undefined,
+    priceSell: s?.priceSell != null ? Number(s.priceSell) : undefined,
+    note: s?.note,
+  })) : [];
+  return {
+    version: 5,
+    danceRolls,
+    fireProducts,
+    printProducts: hydrateSale(p.printProducts),
+    fabricProducts: hydrateSale(p.fabricProducts),
+  };
 };
 
 const fmt = (n: number, d = 2) =>
@@ -236,11 +278,13 @@ export default function MagazzinoCalc() {
     hydrate,
     localStorageKeys: MAGAZZINO_LOCAL_KEYS,
   });
-  const [sub, setSub] = useState<"danza" | "ignifugo">(() => {
+  const [sub, setSub] = useState<"danza" | "ignifugo" | "stampa" | "tessuti">(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("sub") === "ignifugo" ? "ignifugo" : "danza";
+    const v = params.get("sub");
+    if (v === "ignifugo" || v === "stampa" || v === "tessuti") return v;
+    return "danza";
   });
-  const update = (patch: Partial<MagState>) => setState({ ...state, ...patch, version: 4 });
+  const update = (patch: Partial<MagState>) => setState({ ...state, ...patch, version: 5 });
 
   return (
     <div className="space-y-6">
@@ -252,10 +296,12 @@ export default function MagazzinoCalc() {
         </p>
       </div>
 
-      <div className="flex gap-1 border-b-2 border-ink/15">
+      <div className="flex gap-1 border-b-2 border-ink/15 flex-wrap">
         {([
           { key: "danza", label: "Tappeto danza", Icon: Layers },
           { key: "ignifugo", label: "Vernice ignifuga", Icon: Droplets },
+          { key: "stampa", label: "Prodotti stampa", Icon: Printer },
+          { key: "tessuti", label: "Tessuti", Icon: Scissors },
         ] as const).map(({ key, label, Icon }) => {
           const active = sub === key;
           return (
@@ -270,8 +316,28 @@ export default function MagazzinoCalc() {
         <div className="p-10 text-center text-[12px] text-muted-foreground">Caricamento…</div>
       ) : sub === "danza" ? (
         <DanceSection rolls={state.danceRolls ?? []} setRolls={(danceRolls) => update({ danceRolls })} />
-      ) : (
+      ) : sub === "ignifugo" ? (
         <FireSection products={state.fireProducts ?? []} setProducts={(fireProducts) => update({ fireProducts })} />
+      ) : sub === "stampa" ? (
+        <SaleProductSection
+          title="Prodotti stampa"
+          categoryKey="stampa"
+          products={state.printProducts ?? []}
+          setProducts={(printProducts) => update({ printProducts })}
+          variantLabel="Supporto / formato"
+          variantPlaceholder="es. Forex 5mm, PVC 500g, Banner 510g"
+          defaultUnit="m²"
+        />
+      ) : (
+        <SaleProductSection
+          title="Tessuti"
+          categoryKey="tessuti"
+          products={state.fabricProducts ?? []}
+          setProducts={(fabricProducts) => update({ fabricProducts })}
+          variantLabel="Colore / variante"
+          variantPlaceholder="es. Nero, Bianco, Rosso"
+          defaultUnit="m"
+        />
       )}
     </div>
   );
@@ -854,6 +920,408 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/* ============== Sezione generica vendita prodotti (stampa / tessuti) ============== */
+type SaleCategory = "stampa" | "tessuti";
+type CartLine = { id: string; productId: string; variant: string; qty: number };
+
+function SaleProductSection({
+  title,
+  categoryKey,
+  products,
+  setProducts,
+  variantLabel,
+  variantPlaceholder,
+  defaultUnit,
+}: {
+  title: string;
+  categoryKey: SaleCategory;
+  products: SaleProduct[];
+  setProducts: (p: SaleProduct[]) => void;
+  variantLabel: string;
+  variantPlaceholder: string;
+  defaultUnit: SaleUnit;
+}) {
+  const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
+  const [selectedId, setSelectedId] = useState<string>(products[0]?.id ?? "");
+  const [variant, setVariant] = useState("");
+  const [qty, setQty] = useState<number>(0);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cliente, setCliente] = useState("");
+  const [orderNote, setOrderNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const selected = products.find((p) => p.id === selectedId) ?? products[0];
+
+  const sellOf = (p: SaleProduct): number => {
+    if (p.priceSell != null && Number.isFinite(p.priceSell)) return p.priceSell;
+    if (p.pricePurchase != null && Number.isFinite(p.pricePurchase)) return p.pricePurchase * 1.5;
+    return 0;
+  };
+
+  const lineTotal = (line: CartLine): { product: SaleProduct | undefined; sell: number; purchase: number } => {
+    const p = products.find((x) => x.id === line.productId);
+    if (!p) return { product: undefined, sell: 0, purchase: 0 };
+    return { product: p, sell: sellOf(p) * line.qty, purchase: (p.pricePurchase ?? 0) * line.qty };
+  };
+
+  const cartTotals = useMemo(() => {
+    let sell = 0, purchase = 0;
+    for (const l of cart) { const t = lineTotal(l); sell += t.sell; purchase += t.purchase; }
+    return { sell, purchase };
+  }, [cart, products]);
+
+  const add = () => {
+    const p: SaleProduct = { id: uid(), name: "Nuovo prodotto", variants: [], unit: defaultUnit };
+    setProducts([...products, p]);
+    setSelectedId(p.id);
+    setMode("catalogo");
+  };
+  const upd = (id: string, patch: Partial<SaleProduct>) =>
+    setProducts(products.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const rm = (id: string) => {
+    setProducts(products.filter((p) => p.id !== id));
+    if (selectedId === id) setSelectedId("");
+  };
+
+  const addToCart = () => {
+    if (!selected || qty <= 0) return;
+    setCart([...cart, { id: uid(), productId: selected.id, variant, qty }]);
+    setQty(0);
+  };
+
+  const onWarehouseConfirm = async (d: WarehouseConfirmData) => {
+    if (!user || cart.length === 0) return;
+    setSaving(true);
+    try {
+      const code = await nextOrderCode();
+      const noteLines = cart.map((l) => {
+        const p = products.find((x) => x.id === l.productId);
+        if (!p) return null;
+        return `• ${p.name}${l.variant ? ` (${l.variant})` : ""} — ${l.qty} ${p.unit} · vendita ${eur(sellOf(p) * l.qty)}`;
+      }).filter(Boolean).join("\n");
+      const fullNote = `Vendita ${categoryKey} (solo materiale)\n${noteLines}${orderNote ? `\n\nNote: ${orderNote}` : ""}`;
+
+      const { data: pord, error: e1 } = await supabase
+        .from("production_orders")
+        .insert({
+          code,
+          cliente: (cliente || d.production_name || "Cliente").slice(0, 200),
+          data: new Date().toISOString().slice(0, 10),
+          note: fullNote,
+          priorita: "normale",
+          delivery: "corriere",
+          status: "in_corso",
+          attachments: [],
+          nesting_included: false,
+          created_by: user.id,
+          snapshot: { source: "vendite", category: categoryKey, items: cart.map((l) => {
+            const p = products.find((x) => x.id === l.productId);
+            return { name: p?.name, variant: l.variant, qty: l.qty, unit: p?.unit, priceSell: p ? sellOf(p) : 0, pricePurchase: p?.pricePurchase ?? 0 };
+          }) } as never,
+          customer_order_ref: d.customer_order_ref,
+          production_name: d.production_name || null,
+        } as any)
+        .select()
+        .single();
+      if (e1) throw e1;
+
+      let firstAcquistiId: string | null = null;
+      if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
+        const acquistiRows = d.missing.map((m, i) => ({
+          order_id: pord.id,
+          code: subCode(code, SUB_DEPT_SUFFIX["acquisti"], i + 1),
+          dept: "acquisti" as const,
+          ordine: i,
+          note: `Da ordinare: ${m.label}${m.detail ? " · " + m.detail : ""} (rif. ${d.customer_order_ref})`,
+          supplier_name: m.supplier_name || null,
+          files: [],
+        }));
+        const { data: acquistiSubs, error: ea } = await supabase
+          .from("production_sub_orders")
+          .insert(acquistiRows as any)
+          .select("id");
+        if (ea) throw ea;
+        firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
+
+        await notify({
+          userIds: [d.acquisti_assignee_id],
+          type: "magazzino_da_preparare",
+          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${cliente || "vendita"}`,
+          order_id: pord.id,
+          link: "/produzione/acquisti",
+          is_urgent: false,
+        });
+      }
+
+      const { error: e2 } = await supabase.from("production_sub_orders").insert({
+        order_id: pord.id,
+        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
+        dept: "magazzino",
+        ordine: (d.missing?.length ?? 0),
+        note: `Vendita ${title} · ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
+        files: [],
+        depends_on: firstAcquistiId,
+      });
+      if (e2) throw e2;
+
+      await notify({
+        userIds: [d.assignee_id],
+        type: "magazzino_da_preparare",
+        message: d.missing?.length
+          ? `In attesa acquisti — ${code} · ${cliente || "vendita"} (${d.missing.length} materiali)`
+          : `Da preparare: ${code} · ${cliente || "vendita"} (Ordine ${d.customer_order_ref})`,
+        order_id: pord.id,
+        link: "/produzione/preparazione",
+        is_urgent: false,
+      });
+
+      await logAction({
+        action: "VENDITA_LANCIATA",
+        entity_type: "order",
+        entity_id: pord.id,
+        detail: `Vendita ${categoryKey} ${code} — rif. cliente ${d.customer_order_ref}`,
+        new_state: { code, category: categoryKey, items: cart.length },
+      });
+
+      toast.success(`Ordine ${code} creato e inviato al magazzino`);
+      setConfirmOpen(false);
+      setOrderOpen(false);
+      setCart([]);
+      setCliente("");
+      setOrderNote("");
+      navigate(`/produzione/board?order=${pord.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const materialsForDialog = useMemo(() => cart.map((l) => {
+    const p = products.find((x) => x.id === l.productId);
+    return {
+      key: l.id,
+      label: p?.name ?? "—",
+      detail: [l.variant, `${l.qty} ${p?.unit ?? ""}`].filter(Boolean).join(" · "),
+    };
+  }), [cart, products]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo prezzi</Button>
+        <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino magazzino</Button>
+        <div className="flex-1" />
+        <Button size="sm" variant="outline" disabled={cart.length === 0} onClick={() => setOrderOpen(true)}>
+          <PackageCheck className="w-3.5 h-3.5 mr-1" /> Ordine ({cart.length})
+        </Button>
+      </div>
+
+      {mode === "calcolo" ? (
+        <div className="border-2 border-ink/15 rounded-sm bg-paper">
+          <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
+            <CalcIcon className="w-3.5 h-3.5" />
+            <div className="font-mono text-[10px] uppercase tracking-widest">Calcolo prezzo vendita — solo materiale</div>
+          </div>
+          <div className="p-4 space-y-4">
+            {products.length === 0 ? (
+              <div className="text-[12px] text-muted-foreground">Nessun prodotto a listino. Vai su <strong>Listino magazzino</strong> e aggiungine uno.</div>
+            ) : (
+              <>
+                <div className="grid md:grid-cols-3 gap-3">
+                  <Field label="Prodotto">
+                    <select
+                      value={selected?.id ?? ""}
+                      onChange={(e) => { setSelectedId(e.target.value); setVariant(""); }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </Field>
+                  {selected && selected.variants.length > 0 && (
+                    <Field label={variantLabel}>
+                      <select
+                        value={variant}
+                        onChange={(e) => setVariant(e.target.value)}
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="">—</option>
+                        {selected.variants.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </Field>
+                  )}
+                  <Field label={`Quantità (${selected?.unit ?? defaultUnit})`}>
+                    <Input type="number" step="0.01" value={qty || ""} onChange={(e) => setQty(Number(e.target.value))} />
+                  </Field>
+                </div>
+
+                {selected && qty > 0 && (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <KPI label="Prezzo unitario" value={`${eur(sellOf(selected))}/${selected.unit}`} hint={selected.pricePurchase ? `acquisto ${eur(selected.pricePurchase)}` : "vendita"} />
+                    <KPI label="Quantità" value={`${fmt(qty)} ${selected.unit}`} hint={variant || "—"} />
+                    <KPI label="Costo materiale" value={eur((selected.pricePurchase ?? 0) * qty)} hint="prezzo d'acquisto" />
+                    <KPI label="Prezzo vendita" value={eur(sellOf(selected) * qty)} hint="solo materiale, no lavorazione" highlight />
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={addToCart} disabled={!selected || qty <= 0}>
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Aggiungi all'ordine
+                  </Button>
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="border-2 border-ink/15 rounded-sm">
+                    <div className="px-3 py-2 bg-muted/40 border-b font-mono text-[10px] uppercase tracking-widest">Carrello ordine ({cart.length})</div>
+                    <div className="divide-y">
+                      {cart.map((l) => {
+                        const t = lineTotal(l);
+                        return (
+                          <div key={l.id} className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center">
+                            <div>
+                              <strong>{t.product?.name ?? "—"}</strong>
+                              {l.variant && <span className="text-muted-foreground"> · {l.variant}</span>}
+                            </div>
+                            <div className="text-right font-mono">{fmt(l.qty)} {t.product?.unit}</div>
+                            <div className="text-right font-mono font-bold">{eur(t.sell)}</div>
+                            <button onClick={() => setCart(cart.filter((x) => x.id !== l.id))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        );
+                      })}
+                      <div className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center bg-dept-soft/30">
+                        <div className="font-bold">Totale vendita</div>
+                        <div></div>
+                        <div className="text-right font-mono font-bold text-dept">{eur(cartTotals.sell)}</div>
+                        <div></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="border-2 border-ink/15 rounded-sm bg-paper">
+          <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between">
+            <div className="font-mono text-[10px] uppercase tracking-widest">{title} ({products.length})</div>
+            <Button size="sm" onClick={add} className="h-7 px-2"><Plus className="w-3 h-3 mr-1" />Aggiungi</Button>
+          </div>
+          {products.length === 0 ? (
+            <div className="p-6 text-center text-[12px] text-muted-foreground">Nessun prodotto. Aggiungi il primo per iniziare.</div>
+          ) : (
+            <div className="divide-y max-h-[72vh] overflow-y-auto">
+              {products.map((p) => {
+                const isSel = selected?.id === p.id;
+                return (
+                  <div key={p.id} className={`p-3 cursor-pointer hover:bg-muted/30 ${isSel ? "bg-dept-soft/40" : ""}`} onClick={() => setSelectedId(p.id)}>
+                    <div className="flex items-center gap-2">
+                      {isSel ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                      <Input value={p.name} onChange={(e) => upd(p.id, { name: e.target.value })} onClick={(e) => e.stopPropagation()} className="h-8 text-[12px] flex-1" placeholder="Nome" />
+                      <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); setMode("calcolo"); }}>Usa</Button>
+                      <button onClick={(e) => { e.stopPropagation(); rm(p.id); }} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <div className="mt-1 pl-6 text-[11px] text-muted-foreground">
+                      {p.detail || "—"} · {(p.variants ?? []).join(", ") || "varianti n/d"} · {p.pricePurchase ? `${eur(p.pricePurchase)}/${p.unit} acquisto · ${eur(sellOf(p))}/${p.unit} vendita` : "prezzo n/d"}
+                    </div>
+                    {isSel && (
+                      <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Field label="Dettaglio (es. spessore, grammatura)">
+                          <Input value={p.detail ?? ""} onChange={(e) => upd(p.id, { detail: e.target.value })} className="h-8 text-[12px]" placeholder="es. 5mm · h 140cm" />
+                        </Field>
+                        <Field label="Unità di misura">
+                          <select value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value as SaleUnit })} className="h-8 text-[12px] w-full border rounded-sm px-2 bg-background">
+                            <option value="m">m (metro)</option>
+                            <option value="m²">m² (mq)</option>
+                            <option value="pz">pz</option>
+                            <option value="kg">kg</option>
+                          </select>
+                        </Field>
+                        <Field label={`Prezzo acquisto / ${p.unit} (€)`}>
+                          <Input type="number" step="0.01" value={p.pricePurchase ?? ""} onChange={(e) => upd(p.id, { pricePurchase: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" />
+                        </Field>
+                        <Field label={`Prezzo vendita / ${p.unit} (€) — opzionale`}>
+                          <Input type="number" step="0.01" placeholder={p.pricePurchase ? `auto ${eur(p.pricePurchase * 1.5)}` : "—"} value={p.priceSell ?? ""} onChange={(e) => upd(p.id, { priceSell: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" />
+                        </Field>
+                        <div className="col-span-full">
+                          <ChipsEditor label={variantLabel + " disponibili"} values={p.variants ?? []} onChange={(variants) => upd(p.id, { variants })} placeholder={variantPlaceholder} />
+                        </div>
+                        <div className="col-span-full">
+                          <Field label="Note">
+                            <Textarea value={p.note ?? ""} onChange={(e) => upd(p.id, { note: e.target.value })} className="text-[12px] min-h-[60px]" />
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mini-dialog: cliente + apri ConfirmToWarehouseDialog */}
+      <Dialog open={orderOpen} onOpenChange={setOrderOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2"><PackageCheck className="w-4 h-4" /> Crea ordine — {title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Cliente *</Label>
+              <ContactSelect type="cliente" value={cliente} onChange={setCliente} />
+            </div>
+            <div>
+              <Label>Note ordine</Label>
+              <Textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Note interne / istruzioni" />
+            </div>
+            <div className="border-2 border-ink/15 rounded-sm p-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Articoli ({cart.length})</div>
+              <div className="divide-y text-[11px]">
+                {cart.map((l) => {
+                  const t = lineTotal(l);
+                  return (
+                    <div key={l.id} className="py-1 flex justify-between gap-2">
+                      <span><strong>{t.product?.name}</strong>{l.variant ? ` · ${l.variant}` : ""}</span>
+                      <span className="font-mono">{fmt(l.qty)} {t.product?.unit} — {eur(t.sell)}</span>
+                    </div>
+                  );
+                })}
+                <div className="py-1 flex justify-between font-bold text-dept">
+                  <span>Totale vendita</span>
+                  <span className="font-mono">{eur(cartTotals.sell)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOrderOpen(false)}>Annulla</Button>
+            <Button onClick={() => { if (!cliente.trim()) { toast.error("Inserisci il cliente"); return; } setConfirmOpen(true); }}>
+              Continua → Magazzino
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmToWarehouseDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Invia al magazzino — ${title}`}
+        defaultRef=""
+        defaultProductionName={cliente}
+        materials={materialsForDialog}
+        saving={saving}
+        onConfirm={onWarehouseConfirm}
+      />
     </div>
   );
 }

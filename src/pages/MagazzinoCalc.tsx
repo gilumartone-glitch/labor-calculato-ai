@@ -388,7 +388,68 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const totalCovered = rollsNeeded * selected.rollLength;
     const purchasedSqm = rollsNeeded * selected.rollLength * selected.rollWidth;
     const unit = Number(selected.pricePerSqm ?? 0);
-    return { strips, totalLen, rollsNeeded, leftover: totalCovered - totalLen, surface, bounds: b, unitPrice: unit, purchasedSqm, totalPrice: unit * purchasedSqm };
+    const cutSurcharge = 1.2; // +20% al m² per acquisto al taglio
+    const cutStep = 5;        // acquisto al taglio in multipli di 5 m lineari
+    const w = selected.rollWidth;
+    const L = selected.rollLength;
+
+    // Opzione A: tutto rotoli interi
+    const optWhole = {
+      key: "whole" as const,
+      label: "Solo rotoli interi",
+      wholeRolls: rollsNeeded,
+      cutMeters: 0,
+      purchasedM: rollsNeeded * L,
+      purchasedSqm: rollsNeeded * L * w,
+      price: rollsNeeded * L * w * unit,
+    };
+    // Opzione B: tutto al taglio (multipli di 5 m, +20%)
+    const cutAllM = Math.ceil(totalLen / cutStep) * cutStep;
+    const optCut = {
+      key: "cut" as const,
+      label: "Solo al taglio",
+      wholeRolls: 0,
+      cutMeters: cutAllM,
+      purchasedM: cutAllM,
+      purchasedSqm: cutAllM * w,
+      price: cutAllM * w * unit * cutSurcharge,
+    };
+    // Opzione C: misto = N rotoli interi + resto al taglio (arrotondato a 5 m)
+    const maxWhole = Math.floor(totalLen / L);
+    let optMix: typeof optWhole | null = null;
+    let bestMixPrice = Infinity;
+    for (let n = 0; n <= maxWhole; n++) {
+      const remain = Math.max(0, totalLen - n * L);
+      const cutM = remain > 0 ? Math.ceil(remain / cutStep) * cutStep : 0;
+      if (cutM === 0 && n < rollsNeeded) continue; // serve almeno coprire totalLen
+      const purchasedM = n * L + cutM;
+      if (purchasedM < totalLen - 1e-9) continue;
+      const price = n * L * w * unit + cutM * w * unit * cutSurcharge;
+      if (price < bestMixPrice) {
+        bestMixPrice = price;
+        optMix = {
+          key: "whole",
+          label: `${n} rotolo${n === 1 ? "" : "i"} + ${fmtNum(cutM)} m al taglio`,
+          wholeRolls: n,
+          cutMeters: cutM,
+          purchasedM,
+          purchasedSqm: purchasedM * w,
+          price,
+        } as any;
+      }
+    }
+    const options = [optWhole, optCut, ...(optMix ? [optMix] : [])];
+    const best = options.reduce((a, c) => (c.price < a.price ? c : a));
+
+    return {
+      strips, totalLen, rollsNeeded,
+      leftover: totalCovered - totalLen,
+      surface, bounds: b,
+      unitPrice: unit,
+      purchasedSqm, totalPrice: unit * purchasedSqm,
+      options, best,
+      cutSurcharge, cutStep,
+    };
   }, [selected, activePoints, customPoints, stageW, stageH, direction]);
 
   return (

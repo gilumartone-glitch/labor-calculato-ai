@@ -398,7 +398,7 @@ export const computePieceMaterial = (
     const priceUnit = materialPriceUnit(plan.material);
     // In Tappezzeria (catalog marcato con __skipInitialScrap) NON addebitiamo
     // lo sfrido iniziale e vendiamo il rotolo a metri lineari reali usati.
-    const skipInitialScrap = !!catalog.__skipInitialScrap;
+    const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && skipInitialScrap) {
       // Nesting interno alla card: più copie dello stesso pezzo possono
       // affiancarsi sulla larghezza del rotolo. Calcoliamo i metri lineari
@@ -453,7 +453,7 @@ export const computePieceMaterial = (
     const format = plan.material.format ?? "rotolo";
     const purchase = purchaseUnit(plan.material);
     const priceUnit = materialPriceUnit(plan.material);
-    const skipInitialScrap = !!catalog.__skipInitialScrap;
+    const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
       // BUGFIX coerente con clientCostForPlan: pezzi più larghi del rullo
@@ -576,7 +576,7 @@ export const computePieceMaterial = (
   const priceUnit = materialPriceUnit(material);
   const purchase = purchaseUnit(material);
   const purchasePerSqm = priceUnit === "mq" ? purchase : rollWidthM > 0 ? purchase / rollWidthM : 0;
-  const skipInitialScrap = !!catalog.__skipInitialScrap;
+  const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
   const workingMaterialCost =
     skipInitialScrap && format === "rotolo"
       ? best.plan.totalMetersM * purchase

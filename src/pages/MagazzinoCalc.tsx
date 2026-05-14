@@ -429,7 +429,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
         bestMixPrice = price;
         optMix = {
           key: "whole",
-          label: `${n} rotolo${n === 1 ? "" : "i"} + ${fmtNum(cutM)} m al taglio`,
+          label: `${n} rotolo${n === 1 ? "" : "i"} + ${fmt(cutM)} m al taglio`,
           wholeRolls: n,
           cutMeters: cutM,
           purchasedM,

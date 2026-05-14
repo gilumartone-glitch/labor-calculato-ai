@@ -134,7 +134,23 @@ const hydrate = (raw: unknown): MagState => {
         note: f.note,
       }))
     : [];
-  return { version: 5, danceRolls, fireProducts };
+  const hydrateSale = (arr: any): SaleProduct[] => Array.isArray(arr) ? arr.map((s: any) => ({
+    id: s?.id ?? uid(),
+    name: String(s?.name ?? ""),
+    detail: s?.detail ?? "",
+    variants: Array.isArray(s?.variants) ? s.variants.map(String).filter(Boolean) : [],
+    unit: (["m", "m²", "pz", "kg"] as SaleUnit[]).includes(s?.unit) ? s.unit : "pz",
+    pricePurchase: s?.pricePurchase != null ? Number(s.pricePurchase) : undefined,
+    priceSell: s?.priceSell != null ? Number(s.priceSell) : undefined,
+    note: s?.note,
+  })) : [];
+  return {
+    version: 5,
+    danceRolls,
+    fireProducts,
+    printProducts: hydrateSale(p.printProducts),
+    fabricProducts: hydrateSale(p.fabricProducts),
+  };
 };
 
 const fmt = (n: number, d = 2) =>

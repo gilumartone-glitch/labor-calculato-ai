@@ -1008,10 +1008,12 @@ function SaleProductSection({
       .filter(Boolean).join(" · ") || "—";
   const unitOf = (m: any): SaleUnit => {
     if (!m) return defaultUnit;
+    const u = String(m.unit || "").toLowerCase();
+    if (u === "mq" || u === "m²" || u === "m2") return "m²";
+    if (u === "ml" || u === "mt" || u === "m") return "m";
+    if (u === "pz" || u === "kg") return u as SaleUnit;
     if (m.priceUnit === "mq") return "m²";
     if (m.priceUnit === "ml") return "m";
-    if (m.unit === "mq") return "m²";
-    if (m.unit === "m" || m.unit === "pz" || m.unit === "kg") return m.unit as SaleUnit;
     return defaultUnit;
   };
   const purchaseOf = (m: any): number => {

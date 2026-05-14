@@ -94,6 +94,19 @@ export type NestingGroup = {
    *  questo array contiene un elemento per ogni "foglio" usato — con dimensioni
    *  proprie. `items[i].sheetIndex` punta a `mixedSheets[i]`. */
   mixedSheets?: NestingMixedSheet[];
+  /** % di sfruttamento medio della larghezza del rotolo (0..1).
+   *  = areaUsata / (rollWidth × totalLength) ma calcolata "in larghezza":
+   *  = (areaUsata / totalLength) / rollWidth. Indica quanto della larghezza
+   *  disponibile viene effettivamente coperta dai pezzi. */
+  widthUsagePct?: number;
+  /** Metri di larghezza non utilizzati in media per ogni metro lineare di rotolo
+   *  (rollWidth − areaUsata/totalLength). 0 = larghezza sfruttata al 100%. */
+  widthUnusedM?: number;
+  /** Lunghezza che si sarebbe consumata sommando i singoli pezzi senza nesting
+   *  (somma di panelLengthM × panels per pezzo, equivalente al "naive" lineare). */
+  naiveLengthM?: number;
+  /** Metri lineari di rotolo risparmiati dal nesting rispetto al calcolo per-pezzo. */
+  lengthSavedM?: number;
 };
 
 const factorOf = (u: DimUnit) => (u === "m" ? 1 : u === "cm" ? 0.01 : 0.001);

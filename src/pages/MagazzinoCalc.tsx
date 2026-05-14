@@ -278,11 +278,13 @@ export default function MagazzinoCalc() {
     hydrate,
     localStorageKeys: MAGAZZINO_LOCAL_KEYS,
   });
-  const [sub, setSub] = useState<"danza" | "ignifugo">(() => {
+  const [sub, setSub] = useState<"danza" | "ignifugo" | "stampa" | "tessuti">(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("sub") === "ignifugo" ? "ignifugo" : "danza";
+    const v = params.get("sub");
+    if (v === "ignifugo" || v === "stampa" || v === "tessuti") return v;
+    return "danza";
   });
-  const update = (patch: Partial<MagState>) => setState({ ...state, ...patch, version: 4 });
+  const update = (patch: Partial<MagState>) => setState({ ...state, ...patch, version: 5 });
 
   return (
     <div className="space-y-6">
@@ -294,10 +296,12 @@ export default function MagazzinoCalc() {
         </p>
       </div>
 
-      <div className="flex gap-1 border-b-2 border-ink/15">
+      <div className="flex gap-1 border-b-2 border-ink/15 flex-wrap">
         {([
           { key: "danza", label: "Tappeto danza", Icon: Layers },
           { key: "ignifugo", label: "Vernice ignifuga", Icon: Droplets },
+          { key: "stampa", label: "Prodotti stampa", Icon: Printer },
+          { key: "tessuti", label: "Tessuti", Icon: Scissors },
         ] as const).map(({ key, label, Icon }) => {
           const active = sub === key;
           return (
@@ -312,8 +316,28 @@ export default function MagazzinoCalc() {
         <div className="p-10 text-center text-[12px] text-muted-foreground">Caricamento…</div>
       ) : sub === "danza" ? (
         <DanceSection rolls={state.danceRolls ?? []} setRolls={(danceRolls) => update({ danceRolls })} />
-      ) : (
+      ) : sub === "ignifugo" ? (
         <FireSection products={state.fireProducts ?? []} setProducts={(fireProducts) => update({ fireProducts })} />
+      ) : sub === "stampa" ? (
+        <SaleProductSection
+          title="Prodotti stampa"
+          categoryKey="stampa"
+          products={state.printProducts ?? []}
+          setProducts={(printProducts) => update({ printProducts })}
+          variantLabel="Supporto / formato"
+          variantPlaceholder="es. Forex 5mm, PVC 500g, Banner 510g"
+          defaultUnit="m²"
+        />
+      ) : (
+        <SaleProductSection
+          title="Tessuti"
+          categoryKey="tessuti"
+          products={state.fabricProducts ?? []}
+          setProducts={(fabricProducts) => update({ fabricProducts })}
+          variantLabel="Colore / variante"
+          variantPlaceholder="es. Nero, Bianco, Rosso"
+          defaultUnit="m"
+        />
       )}
     </div>
   );

@@ -558,8 +558,25 @@ const shelfPack = (
   units: PairedUnit[],
   rollWidthM: number,
 ): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  // Per ogni unit scelgo prima l'orientamento che sfrutta meglio la larghezza del rotolo.
+  // Così un pezzo 620×300 su rotolo h 320 diventa 300×620 e resta un telo unico,
+  // non due pannelli 320×620 affiancati/spezzati in preview.
+  type OrientedUnit = PairedUnit & { originalW: number; originalH: number };
+  const oriented: OrientedUnit[] = units.map((u) => {
+    const canRotate = u.w !== u.h && u.parts.every((p) => p.allowRotation);
+    const candidates = [
+      { w: u.w, h: u.h },
+      ...(canRotate ? [{ w: u.h, h: u.w }] : []),
+    ].filter((c) => c.w <= rollWidthM + 1e-6);
+    const best = (candidates.length > 0 ? candidates : [{ w: u.w, h: u.h }]).sort((a, b) => {
+      const aSideWaste = rollWidthM - a.w;
+      const bSideWaste = rollWidthM - b.w;
+      return aSideWaste - bSideWaste || b.h - a.h;
+    })[0];
+    return { ...u, w: best.w, h: best.h, originalW: u.w, originalH: u.h };
+  });
   // Ordino per altezza del bbox decrescente; in caso di parità, larghezza decrescente
-  const sorted = [...units].sort((a, b) => b.h - a.h || b.w - a.w);
+  const sorted = [...oriented].sort((a, b) => b.h - a.h || b.w - a.w);
   type Shelf = { y: number; height: number; usedW: number };
   const shelves: Shelf[] = [];
   const items: NestingPieceItem[] = [];
@@ -591,13 +608,9 @@ const shelfPack = (
   };
 
   for (const u of sorted) {
-    // Provo prima senza rotazione
-    const candidates: { w: number; h: number; rotated: boolean }[] = [{ w: u.w, h: u.h, rotated: false }];
-    // Per rettangoli ruotare 90° non altera la forma: tento sempre la rotazione.
-    // Per triangoli/trapezi accoppiati, la rotazione resta vincolata al flag dell'utente.
-    const allRect = u.parts.every((p) => p.shape === "rect");
-    const allowRot = allRect ? true : u.parts.every((p) => p.allowRotation);
-    if (allowRot && u.w !== u.h) candidates.push({ w: u.h, h: u.w, rotated: true });
+    const candidates: { w: number; h: number; rotated: boolean }[] = [
+      { w: u.w, h: u.h, rotated: u.w !== u.originalW || u.h !== u.originalH },
+    ];
 
     let placed = false;
     for (const cand of candidates) {

@@ -947,6 +947,7 @@ function SaleProductSection({
   const [catalog, setCatalog] = useState<{ materials: any[]; markupPct?: number } | null>(null);
   const [loadingCat, setLoadingCat] = useState(true);
   const [productName, setProductName] = useState("");
+  const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -980,9 +981,21 @@ function SaleProductSection({
     if (!productName && productNames.length) setProductName(productNames[0] as string);
   }, [productNames, productName]);
 
-  const variants = useMemo(
+  const variantsByName = useMemo(
     () => materials.filter((m: any) => m.name === productName),
     [materials, productName],
+  );
+  const heights = useMemo(
+    () => Array.from(new Set(variantsByName.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+    [variantsByName],
+  );
+  useEffect(() => {
+    // se cambia prodotto, resetta filtro altezza
+    if (heightFilter && !heights.includes(heightFilter)) setHeightFilter("");
+  }, [heights, heightFilter]);
+  const variants = useMemo(
+    () => heightFilter ? variantsByName.filter((m: any) => String(m.height || "") === heightFilter) : variantsByName,
+    [variantsByName, heightFilter],
   );
   useEffect(() => {
     if (!variants.find((v: any) => v.id === variantId)) {
@@ -1182,16 +1195,28 @@ function SaleProductSection({
             <div className="text-[12px] text-muted-foreground">Nessun materiale a listino in <strong>{sourceLabel}</strong>. Aggiungi i prodotti nella pagina del reparto.</div>
           ) : (
             <>
-              <div className="grid md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Field label="Prodotto">
                   <select
                     value={productName}
-                    onChange={(e) => { setProductName(e.target.value); setVariantId(""); }}
+                    onChange={(e) => { setProductName(e.target.value); setHeightFilter(""); setVariantId(""); }}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {productNames.map((n) => <option key={n as string} value={n as string}>{n as string}</option>)}
                   </select>
                 </Field>
+                {heights.length > 0 && (
+                  <Field label="Altezza">
+                    <select
+                      value={heightFilter}
+                      onChange={(e) => { setHeightFilter(e.target.value); setVariantId(""); }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Tutte</option>
+                      {heights.map((h) => <option key={h} value={h}>{h}{selected?.heightUnit || "cm"}</option>)}
+                    </select>
+                  </Field>
+                )}
                 {variants.length > 0 && (
                   <Field label={variantLabel}>
                     <select
@@ -1203,8 +1228,13 @@ function SaleProductSection({
                     </select>
                   </Field>
                 )}
-                <Field label={`Quantità (${selected ? unitOf(selected) : defaultUnit})`}>
-                  <Input type="number" step="0.01" value={qty || ""} onChange={(e) => setQty(Number(e.target.value))} />
+                <Field label="Quantità">
+                  <div className="relative">
+                    <Input type="number" step="0.01" value={qty || ""} onChange={(e) => setQty(Number(e.target.value))} className="pr-12" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono uppercase tracking-wider text-muted-foreground pointer-events-none">
+                      {selected ? unitOf(selected) : defaultUnit}
+                    </span>
+                  </div>
                 </Field>
               </div>
 

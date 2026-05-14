@@ -102,8 +102,12 @@ const pieceQty = (p: PieceLine) => Math.max(1, Math.floor(Number(p.quantity) || 
 
 const normMaterialText = (s: string | undefined | null) => (s ?? "").trim().toLowerCase();
 
-const materialGroupKey = (p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish">) =>
-  [p.productName, p.color, p.fireproof, p.thickness, p.finish].map(normMaterialText).join("||");
+const materialGroupKey = (
+  p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish" | "variantId" | "catalogMaterialId">,
+) =>
+  [p.productName, p.color, p.fireproof, p.thickness, p.finish, p.variantId ?? p.catalogMaterialId]
+    .map(normMaterialText)
+    .join("||");
 
 const materialPriceUnit = (m: CatalogMaterial): "mq" | "ml" => {
   if (m.priceUnit === "mq" || m.priceUnit === "ml") return m.priceUnit;
@@ -203,7 +207,19 @@ const candidateVariants = (
   fireproof: string,
   thickness?: string,
   finish?: string,
+  variantId?: string | null,
 ): { material: CatalogMaterial; heightM: number }[] => {
+  if (variantId) {
+    const selected = materials.find((m) => m.id === variantId);
+    if (selected) {
+      const v = parseFloat(String(selected.height).replace(",", "."));
+      const u: DimUnit = (["mm", "cm", "m"] as const).includes(selected.heightUnit as DimUnit)
+        ? (selected.heightUnit as DimUnit)
+        : "cm";
+      const heightM = isFinite(v) && v > 0 ? convertLength(v, u, "m") : 0;
+      return heightM > 0 ? [{ material: selected, heightM }] : [];
+    }
+  }
   const pn = normMaterialText(productName);
   const cn = normMaterialText(color);
   const fn = normMaterialText(fireproof);
@@ -544,8 +560,25 @@ const shelfPack = (
   units: PairedUnit[],
   rollWidthM: number,
 ): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  // Per ogni unit scelgo prima l'orientamento che sfrutta meglio la larghezza del rotolo.
+  // Così un pezzo 620×300 su rotolo h 320 diventa 300×620 e resta un telo unico,
+  // non due pannelli 320×620 affiancati/spezzati in preview.
+  type OrientedUnit = PairedUnit & { originalW: number; originalH: number };
+  const oriented: OrientedUnit[] = units.map((u) => {
+    const canRotate = u.w !== u.h && u.parts.every((p) => p.allowRotation);
+    const candidates = [
+      { w: u.w, h: u.h },
+      ...(canRotate ? [{ w: u.h, h: u.w }] : []),
+    ].filter((c) => c.w <= rollWidthM + 1e-6);
+    const best = (candidates.length > 0 ? candidates : [{ w: u.w, h: u.h }]).sort((a, b) => {
+      const aSideWaste = rollWidthM - a.w;
+      const bSideWaste = rollWidthM - b.w;
+      return aSideWaste - bSideWaste || b.h - a.h;
+    })[0];
+    return { ...u, w: best.w, h: best.h, originalW: u.w, originalH: u.h };
+  });
   // Ordino per altezza del bbox decrescente; in caso di parità, larghezza decrescente
-  const sorted = [...units].sort((a, b) => b.h - a.h || b.w - a.w);
+  const sorted = [...oriented].sort((a, b) => b.h - a.h || b.w - a.w);
   type Shelf = { y: number; height: number; usedW: number };
   const shelves: Shelf[] = [];
   const items: NestingPieceItem[] = [];
@@ -577,13 +610,9 @@ const shelfPack = (
   };
 
   for (const u of sorted) {
-    // Provo prima senza rotazione
-    const candidates: { w: number; h: number; rotated: boolean }[] = [{ w: u.w, h: u.h, rotated: false }];
-    // Per rettangoli ruotare 90° non altera la forma: tento sempre la rotazione.
-    // Per triangoli/trapezi accoppiati, la rotazione resta vincolata al flag dell'utente.
-    const allRect = u.parts.every((p) => p.shape === "rect");
-    const allowRot = allRect ? true : u.parts.every((p) => p.allowRotation);
-    if (allowRot && u.w !== u.h) candidates.push({ w: u.h, h: u.w, rotated: true });
+    const candidates: { w: number; h: number; rotated: boolean }[] = [
+      { w: u.w, h: u.h, rotated: u.w !== u.originalW || u.h !== u.originalH },
+    ];
 
     let placed = false;
     for (const cand of candidates) {
@@ -739,6 +768,7 @@ const computeGroup = (
     pieces[0].fireproof,
     pieces[0].thickness,
     pieces[0].finish,
+    pieces[0].variantId ?? pieces[0].catalogMaterialId,
   );
   const hemMap = buildHemMap(pieces, catalog);
   const picked = forcedVariant ?? pickRollVariant(variants, pieces, hemMap);
@@ -995,6 +1025,7 @@ export const computeNesting = (
       ps[0].fireproof,
       ps[0].thickness,
       ps[0].finish,
+      ps[0].variantId ?? ps[0].catalogMaterialId,
     );
     let g: NestingGroup;
     if (allVariants.length <= 1) {

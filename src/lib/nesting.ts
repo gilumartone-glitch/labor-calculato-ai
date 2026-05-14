@@ -103,9 +103,11 @@ const pieceQty = (p: PieceLine) => Math.max(1, Math.floor(Number(p.quantity) || 
 const normMaterialText = (s: string | undefined | null) => (s ?? "").trim().toLowerCase();
 
 const materialGroupKey = (
-  p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish" | "variantId">,
+  p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish" | "variantId" | "catalogMaterialId">,
 ) =>
-  [p.productName, p.color, p.fireproof, p.thickness, p.finish, p.variantId].map(normMaterialText).join("||");
+  [p.productName, p.color, p.fireproof, p.thickness, p.finish, p.variantId ?? p.catalogMaterialId]
+    .map(normMaterialText)
+    .join("||");
 
 const materialPriceUnit = (m: CatalogMaterial): "mq" | "ml" => {
   if (m.priceUnit === "mq" || m.priceUnit === "ml") return m.priceUnit;

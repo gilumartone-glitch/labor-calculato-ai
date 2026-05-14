@@ -353,6 +353,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [segments, setSegments] = useState<Segment[]>([]);
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
+  const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 

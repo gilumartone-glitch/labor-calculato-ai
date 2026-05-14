@@ -494,14 +494,43 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                 <DanceNestingCanvas points={activePoints} customPoints={customPoints} roomW={stageW} roomH={stageH} rollWidth={selected.rollWidth} direction={direction} />
 
                 {calc ? (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-                    <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
-                    <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
-                    <KPI label="Rotoli interi" value={`${calc.rollsNeeded}`} hint={`rotoli da ${fmt(selected.rollLength)} m`} highlight />
-                    <KPI label="Sfrido residuo" value={`${fmt(calc.leftover)} m`} hint={`Superficie ${fmt(calc.surface)} m²`} />
-                    <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint="prezzo a m²" />
-                    <KPI label="Prezzo totale" value={eur(calc.totalPrice)} hint={`${fmt(calc.purchasedSqm)} m² × ${eur(calc.unitPrice)}`} highlight />
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                      <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
+                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
+                      <KPI label="Superficie sala" value={`${fmt(calc.surface)} m²`} hint={`sfrido ${fmt(calc.leftover)} m`} />
+                      <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint={`taglio +${Math.round((calc.cutSurcharge - 1) * 100)}% (${eur(calc.unitPrice * calc.cutSurcharge)}/m²)`} />
+                    </div>
+
+                    <div className="border-2 border-ink/15 rounded-sm bg-background">
+                      <div className="px-3 py-2 border-b bg-muted/30 font-mono text-[10px] uppercase tracking-widest flex items-center justify-between">
+                        <span>Confronto opzioni di acquisto</span>
+                        <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
+                      </div>
+                      <div className="divide-y">
+                        {calc.options.map((o, i) => {
+                          const isBest = o === calc.best;
+                          return (
+                            <div key={i} className={`px-3 py-2 flex items-center justify-between gap-3 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                              <div className="text-[12px]">
+                                <div className="font-semibold flex items-center gap-2">
+                                  {o.label}
+                                  {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {o.wholeRolls > 0 && `${o.wholeRolls} rotolo${o.wholeRolls === 1 ? "" : "i"} × ${fmt(selected.rollLength)} m`}
+                                  {o.wholeRolls > 0 && o.cutMeters > 0 && " + "}
+                                  {o.cutMeters > 0 && `${fmt(o.cutMeters)} m al taglio`}
+                                  {" · "}{fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²
+                                </div>
+                              </div>
+                              <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>
             )}

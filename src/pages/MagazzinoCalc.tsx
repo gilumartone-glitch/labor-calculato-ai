@@ -353,6 +353,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [segments, setSegments] = useState<Segment[]>([]);
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
+  const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 
@@ -461,6 +462,16 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const rollsNeeded = best ? best.wholeRolls + (best.cutMeters > 0 ? 1 : 0) : 0;
     const totalCovered = best ? best.purchasedM : 0;
 
+    // Nastro: perimetro sala + giunzioni tra teli (along × (strips - 1))
+    const perimeter = activePoints.reduce((sum, p, i) => {
+      const n = activePoints[(i + 1) % activePoints.length];
+      return sum + Math.hypot(n.x - p.x, n.y - p.y);
+    }, 0);
+    const tapeJunctions = Math.max(0, strips - 1) * along;
+    const tapeMeters = perimeter + tapeJunctions;
+    const tapeRollLen = tapeType === "danza" ? 33 : 25;
+    const tapeRolls = tapeMeters > 0 ? Math.ceil(tapeMeters / tapeRollLen) : 0;
+
     return {
       strips, totalLen, along, rollsNeeded,
       leftover: Math.max(0, totalCovered - totalLen),
@@ -470,8 +481,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       options, best,
       cutSurcharge, cutStep,
       stripsPerRoll,
+      perimeter, tapeJunctions, tapeMeters, tapeRollLen, tapeRolls,
     };
-  }, [selected, activePoints, customPoints, stageW, stageH, direction]);
+  }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType]);
 
   return (
     <div className="space-y-4">
@@ -565,6 +577,38 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    <div className="border-2 border-ink/15 rounded-sm bg-background">
+                      <div className="px-3 py-2 border-b bg-muted/30 font-mono text-[10px] uppercase tracking-widest flex items-center justify-between gap-3">
+                        <span>Nastro per giunzioni e perimetro</span>
+                        <select
+                          value={tapeType}
+                          onChange={(e) => setTapeType(e.target.value as "danza" | "biadesivo")}
+                          className="h-7 rounded-sm border border-input bg-background px-2 text-[11px] font-mono normal-case tracking-normal"
+                        >
+                          <option value="danza">Nastro danza · 33 m/rotolo</option>
+                          <option value="biadesivo">Biadesivo · 25 m/rotolo</option>
+                        </select>
+                      </div>
+                      <div className="px-3 py-2.5 text-[12px] space-y-1">
+                        <div className="flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                          <span>· perimetro sala</span>
+                          <span className="tabular-nums">{fmt(calc.perimeter)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                          <span>· giunzioni teli ({Math.max(0, calc.strips - 1)} × {fmt(calc.along)} m)</span>
+                          <span className="tabular-nums">{fmt(calc.tapeJunctions)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between font-semibold pt-1 border-t border-ink/10">
+                          <span>Totale nastro necessario</span>
+                          <span className="font-mono tabular-nums">{fmt(calc.tapeMeters)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-muted-foreground">Rotoli da {calc.tapeRollLen} m</span>
+                          <span className="font-mono font-bold text-dept">{calc.tapeRolls} rotolo{calc.tapeRolls === 1 ? "" : "i"}</span>
+                        </div>
                       </div>
                     </div>
                   </>

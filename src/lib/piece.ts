@@ -514,7 +514,14 @@ export const computePieceMaterial = (
 
   const wrap = (p: OrientationPlan | null, isRot: boolean): FullPlan | null => {
     if (!p) return null;
-    const u = materialUnitCost(p.material, piece.priceMode, customer);
+    // In Tappezzeria (catalog marcato __skipInitialScrap) il prezzo del materiale
+    // nelle lavorazioni si prende SEMPRE dal "prezzo a taglio" senza moltiplicatori,
+    // indipendentemente dal priceMode scelto sul pezzo.
+    const effectiveMode: "piece" | "cut" = catalog.__skipInitialScrap ? "cut" : piece.priceMode;
+    const u = catalog.__skipInitialScrap
+      ? materialUnitCost(p.material, "cut") // niente customer => niente molt. Riv/Fin
+      : materialUnitCost(p.material, piece.priceMode, customer);
+    void effectiveMode;
     const materialCost = clientCostForPlan(p, u);
     const seamCost = p.seamLengthM * seamPrice;
     const cost = materialCost + seamCost;

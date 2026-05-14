@@ -947,6 +947,7 @@ function SaleProductSection({
   const [catalog, setCatalog] = useState<{ materials: any[]; markupPct?: number } | null>(null);
   const [loadingCat, setLoadingCat] = useState(true);
   const [productName, setProductName] = useState("");
+  const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
   const [cart, setCart] = useState<CartLine[]>([]);

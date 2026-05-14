@@ -346,6 +346,32 @@ const explodePieces = (
       );
       const best = orientations[0];
 
+      // Se NON serve spezzare (1 solo pannello in entrambe le orientazioni e
+      // rotazione consentita), lascio decidere allo shelf packer: la rotazione
+      // resta attiva e il packer sceglie l'orientamento che riempie meglio
+      // la larghezza del rotolo (es. 80×150 su h=320 → 4 pezzi affiancati).
+      const noSplitNeeded =
+        p.allowRotation &&
+        orientations.length > 1 &&
+        orientations.every((o) => o.panels === 1);
+      if (noSplitNeeded) {
+        for (let c = 0; c < qty; c++) {
+          const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;
+          items.push({
+            pieceId: p.id,
+            copy: c,
+            label: copyLabel,
+            shape: "rect",
+            w,
+            h,
+            widthBottomM,
+            allowRotation: true,
+            realArea: real,
+          });
+        }
+        continue;
+      }
+
       for (let c = 0; c < qty; c++) {
         const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;
         let remainingCrossM = best.crossM;

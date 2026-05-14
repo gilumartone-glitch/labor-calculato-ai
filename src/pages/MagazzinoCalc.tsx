@@ -579,6 +579,38 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                         })}
                       </div>
                     </div>
+
+                    <div className="border-2 border-ink/15 rounded-sm bg-background">
+                      <div className="px-3 py-2 border-b bg-muted/30 font-mono text-[10px] uppercase tracking-widest flex items-center justify-between gap-3">
+                        <span>Nastro per giunzioni e perimetro</span>
+                        <select
+                          value={tapeType}
+                          onChange={(e) => setTapeType(e.target.value as "danza" | "biadesivo")}
+                          className="h-7 rounded-sm border border-input bg-background px-2 text-[11px] font-mono normal-case tracking-normal"
+                        >
+                          <option value="danza">Nastro danza · 33 m/rotolo</option>
+                          <option value="biadesivo">Biadesivo · 25 m/rotolo</option>
+                        </select>
+                      </div>
+                      <div className="px-3 py-2.5 text-[12px] space-y-1">
+                        <div className="flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                          <span>· perimetro sala</span>
+                          <span className="tabular-nums">{fmt(calc.perimeter)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                          <span>· giunzioni teli ({Math.max(0, calc.strips - 1)} × {fmt(calc.along)} m)</span>
+                          <span className="tabular-nums">{fmt(calc.tapeJunctions)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between font-semibold pt-1 border-t border-ink/10">
+                          <span>Totale nastro necessario</span>
+                          <span className="font-mono tabular-nums">{fmt(calc.tapeMeters)} m</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-muted-foreground">Rotoli da {calc.tapeRollLen} m</span>
+                          <span className="font-mono font-bold text-dept">{calc.tapeRolls} rotolo{calc.tapeRolls === 1 ? "" : "i"}</span>
+                        </div>
+                      </div>
+                    </div>
                   </>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>

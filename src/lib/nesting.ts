@@ -975,6 +975,21 @@ const computeGroup = (
       : totalLengthM * purchaseUnit;
   }
 
+  // ---- Indicatori di sfruttamento del rotolo ----
+  // Larghezza media usata su tutta la lunghezza sviluppata.
+  const avgWidthUsedM = totalLengthM > 0 ? usedAreaM2 / totalLengthM : 0;
+  const widthUsagePct = surfaceWidthM > 0 ? Math.min(1, avgWidthUsedM / surfaceWidthM) : 0;
+  const widthUnusedM = Math.max(0, surfaceWidthM - avgWidthUsedM);
+  // "Naive" length: somma delle lunghezze occupate da ogni copia se piazzate da sole
+  // (= somma dei loro h, già post-split per teli affiancati). Per le lastre non ha
+  // significato lineare → resta a 0.
+  const naiveLengthM = format === "rotolo"
+    ? raw.reduce((s, r) => s + r.h, 0)
+    : 0;
+  const lengthSavedM = format === "rotolo"
+    ? Math.max(0, naiveLengthM - totalLengthM)
+    : 0;
+
   return {
     key,
     label,
@@ -1001,6 +1016,10 @@ const computeGroup = (
     sheetWidthM: format === "lastra" ? surfaceWidthM : undefined,
     seamLengthM,
     seamCost,
+    widthUsagePct,
+    widthUnusedM,
+    naiveLengthM,
+    lengthSavedM,
   };
 };
 

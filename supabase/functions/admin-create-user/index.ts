@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
       permissions?: { page_key: string; level: "none" | "read" | "write" }[];
     };
 
-    if (!email || !password || password.length < 6) {
-      return new Response(JSON.stringify({ error: "Email e password (min 6) sono obbligatori" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!email || !password || password.length < 8) {
+      return new Response(JSON.stringify({ error: "Email e password (min 8 caratteri) sono obbligatori" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -52,8 +52,15 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: { display_name: display_name ?? email.split("@")[0] },
     });
-    if (createErr || !created.user) {
-      return new Response(JSON.stringify({ error: createErr?.message ?? "Creazione fallita" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (createErr || !created?.user) {
+      console.error("createUser error", { email, error: createErr });
+      const msg = createErr?.message ?? "Creazione fallita";
+      const human = /weak|pwned|password/i.test(msg)
+        ? "Password troppo debole o compromessa. Usa qualcosa tipo 'Tecnofra2026!'"
+        : /already|exists|registered/i.test(msg)
+        ? "Email già registrata"
+        : msg;
+      return new Response(JSON.stringify({ error: human, raw: msg }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const newId = created.user.id;
 

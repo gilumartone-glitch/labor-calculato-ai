@@ -365,6 +365,7 @@ function ManualMagazzinoOrderForm({
   const [assignee, setAssignee] = useState("");
   const [users, setUsers] = useState<{ id: string; display_name: string | null }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [pickerLineId, setPickerLineId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })

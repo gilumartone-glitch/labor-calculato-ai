@@ -26,6 +26,7 @@ import ProdAcquisti from "./pages/produzione/ProdAcquisti.tsx";
 import ProdLog from "./pages/produzione/ProdLog.tsx";
 import MagazzinoView from "./pages/MagazzinoView.tsx";
 import Marketing from "./pages/Marketing.tsx";
+import { FloatingHubButton } from "@/components/HubLink";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
       <Sonner />
       <Router>
         <AuthProvider>
+          <FloatingHubButton />
           <Routes>
             <Route path="/" element={<Navigate to="/hub" replace />} />
             <Route path="/preventivi" element={<RouteGuard page="preventivi"><Index /></RouteGuard>} />

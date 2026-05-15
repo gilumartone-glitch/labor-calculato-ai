@@ -421,7 +421,15 @@ const Index = () => {
     } catch {
       return null;
     }
-  }).filter(Boolean);
+  }).filter((entry: any) => {
+    if (!entry) return false;
+    const t = entry.totals ?? {};
+    const sum = (Number(t.materials) || 0) + (Number(t.operations) || 0) + (Number(t.perimeters) || 0) + (Number(t.pieces) || 0) + (Number(t.transports) || 0) + (Number(t.total) || 0);
+    if (sum > 0) return true;
+    const d = entry.details ?? {};
+    const hasItems = (d.materials?.length ?? 0) + (d.accessories?.length ?? 0) + (d.transports?.length ?? 0) + (d.workerCount ?? 0) + (d.laborHours ?? 0) > 0;
+    return hasItems;
+  });
 
   const summaryData = (["tappezzeria", "stampa"] as DepartmentKey[]).map((k) => ({
     key: k,

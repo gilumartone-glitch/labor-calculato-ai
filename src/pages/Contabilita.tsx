@@ -1772,16 +1772,22 @@ const QuickDateInput = ({
         let raw = e.target.value;
         // Solo cifre e "/"
         raw = raw.replace(/[^\d/]/g, "");
-        // Auto-inserimento dello slash dopo 2 cifre di giorno o mese
-        // (solo quando si sta aggiungendo testo, non cancellando)
         if (raw.length > draft.length) {
-          // gg → gg/
-          if (/^\d{2}$/.test(raw)) raw = raw + "/";
-          // gg/mm → gg/mm/
-          else if (/^\d{2}\/\d{2}$/.test(raw)) raw = raw + "/";
-          // se l'utente scrive una 3ª cifra subito dopo 2 di giorno/mese senza /
-          else if (/^\d{3}$/.test(raw)) raw = raw.slice(0, 2) + "/" + raw.slice(2);
-          else if (/^\d{2}\/\d{3}$/.test(raw)) raw = raw.slice(0, 5) + "/" + raw.slice(5);
+          // Caso digitazione/incolla in blocco di sole cifre: ddmmyy / ddmmyyyy
+          const digits = raw.replace(/\//g, "");
+          if (/^\d+$/.test(raw) && digits.length >= 3) {
+            if (digits.length <= 4) raw = digits.slice(0, 2) + "/" + digits.slice(2);
+            else if (digits.length <= 6) raw = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+            else raw = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4, 8);
+          } else {
+            // gg → gg/
+            if (/^\d{2}$/.test(raw)) raw = raw + "/";
+            // gg/mm → gg/mm/
+            else if (/^\d{2}\/\d{2}$/.test(raw)) raw = raw + "/";
+            // se l'utente scrive una 3ª cifra subito dopo 2 di giorno/mese senza /
+            else if (/^\d{3}$/.test(raw)) raw = raw.slice(0, 2) + "/" + raw.slice(2);
+            else if (/^\d{2}\/\d{3}$/.test(raw)) raw = raw.slice(0, 5) + "/" + raw.slice(5);
+          }
         }
         // Limita lunghezza max gg/mm/aaaa
         if (raw.length > 10) raw = raw.slice(0, 10);
@@ -2273,7 +2279,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                 if (!confirm(`Cancellare "${m.description || "(senza voce)"}" del ${m.date}?`)) return;
                 deleteMovementById(m.id);
               }}
-              className="ml-1 grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

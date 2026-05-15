@@ -657,12 +657,33 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                         )}
                       </div>
                     </div>
+
+                    {/* Invia al Flow: ordine magazzino con override manuale */}
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setFlowCliente("");
+                          setFlowRef("");
+                          setFlowTappetoMeters(Number((calc.best?.purchasedM ?? 0).toFixed(2)));
+                          setFlowTappetoRolls(calc.best?.wholeRolls ?? 0);
+                          setFlowTapeMeters(Number(calc.tapeMeters.toFixed(2)));
+                          setFlowTapeRolls(calc.tapeRolls);
+                          setFlowNote(`Tappeto ${selected.name}${chosenColor ? ` · ${chosenColor}` : ""} · sala ${fmt(stageW)}×${fmt(stageH)} m`);
+                          setFlowOpen(true);
+                        }}
+                      >
+                        <PackageCheck className="w-4 h-4 mr-2" />
+                        Invia al Flow
+                      </Button>
+                    </div>
                   </>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>
             )}
           </div>
         </div>
+
       ) : (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between">

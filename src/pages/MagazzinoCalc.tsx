@@ -627,13 +627,21 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                           <span className="tabular-nums">{fmt(calc.tapeJunctions)} m</span>
                         </div>
                         <div className="flex items-center justify-between font-semibold pt-1 border-t border-ink/10">
-                          <span>Totale nastro necessario</span>
+                          <span>Totale nastro (somma pezzi interi)</span>
                           <span className="font-mono tabular-nums">{fmt(calc.tapeMeters)} m</span>
                         </div>
+                        <div className="text-[10px] text-muted-foreground font-mono">
+                          {calc.tapePieces.length} pezzi interi: {calc.tapePieces.map((p) => fmt(p)).join(" + ")} m
+                        </div>
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-muted-foreground">Rotoli da {calc.tapeRollLen} m</span>
+                          <span className="text-muted-foreground">Rotoli da {calc.tapeRollLen} m (no giunte sul singolo lato)</span>
                           <span className="font-mono font-bold text-dept">{calc.tapeRolls} rotolo{calc.tapeRolls === 1 ? "" : "i"}</span>
                         </div>
+                        {calc.tapeOversize && (
+                          <div className="text-[10px] text-destructive font-mono">
+                            ⚠ alcuni lati superano la lunghezza del rotolo ({calc.tapeRollLen} m): servirà giunta o rotolo più lungo.
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>

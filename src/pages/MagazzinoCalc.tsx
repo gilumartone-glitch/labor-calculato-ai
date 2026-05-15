@@ -29,6 +29,18 @@ type DanceRoll = {
   note?: string;
 };
 
+type TapeKind = "danza" | "biadesivo" | "altro";
+type TapeRoll = {
+  id: string;
+  name: string;
+  kind: TapeKind;
+  rollLength: number; // m per rotolo
+  widthMm?: number;   // larghezza nastro
+  colors: string[];
+  pricePerRoll?: number;
+  note?: string;
+};
+
 type FireBaseType = "base" | "base_finitura";
 type FireComponent = "mono" | "bi";
 type FireFinish = "opaca" | "satinata" | "lucida";
@@ -70,11 +82,12 @@ type SaleProduct = {
 type MagState = {
   version: 5;
   danceRolls: DanceRoll[];
+  tapeRolls: TapeRoll[];
   fireProducts: FireProduct[];
   printProducts: SaleProduct[];
   fabricProducts: SaleProduct[];
 };
-const initial: MagState = { version: 5, danceRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
+const initial: MagState = { version: 5, danceRolls: [], tapeRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
 const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v5", "officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
 
 const hydrate = (raw: unknown): MagState => {
@@ -144,9 +157,22 @@ const hydrate = (raw: unknown): MagState => {
     priceSell: s?.priceSell != null ? Number(s.priceSell) : undefined,
     note: s?.note,
   })) : [];
+  const tapeRolls: TapeRoll[] = Array.isArray(p.tapeRolls)
+    ? p.tapeRolls.map((t: any) => ({
+        id: t.id ?? uid(),
+        name: String(t.name ?? ""),
+        kind: (["danza", "biadesivo", "altro"] as TapeKind[]).includes(t.kind) ? t.kind : "danza",
+        rollLength: Number(t.rollLength ?? 0),
+        widthMm: t.widthMm != null ? Number(t.widthMm) : undefined,
+        colors: Array.isArray(t.colors) ? t.colors.map(String).filter(Boolean) : [],
+        pricePerRoll: t.pricePerRoll != null ? Number(t.pricePerRoll) : undefined,
+        note: t.note,
+      }))
+    : [];
   return {
     version: 5,
     danceRolls,
+    tapeRolls,
     fireProducts,
     printProducts: hydrateSale(p.printProducts),
     fabricProducts: hydrateSale(p.fabricProducts),
@@ -315,7 +341,12 @@ export default function MagazzinoCalc() {
       {!ready ? (
         <div className="p-10 text-center text-[12px] text-muted-foreground">Caricamento…</div>
       ) : sub === "danza" ? (
-        <DanceSection rolls={state.danceRolls ?? []} setRolls={(danceRolls) => update({ danceRolls })} />
+        <DanceSection
+          rolls={state.danceRolls ?? []}
+          setRolls={(danceRolls) => update({ danceRolls })}
+          tapes={state.tapeRolls ?? []}
+          setTapes={(tapeRolls) => update({ tapeRolls })}
+        />
       ) : sub === "ignifugo" ? (
         <FireSection products={state.fireProducts ?? []} setProducts={(fireProducts) => update({ fireProducts })} />
       ) : sub === "stampa" ? (
@@ -347,14 +378,21 @@ type ManualLine = { id: string; descrizione: string; qty: string; um: string; no
 type PickedItem = { label: string; um: string };
 
 /* ============== Picker dialogs (selezione prodotto dal listino) ============== */
-function DancePickerDialog({ rolls, onPick, onClose }: {
-  rolls: DanceRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
+function DancePickerDialog({ rolls, tapes, onPick, onClose }: {
+  rolls: DanceRoll[]; tapes: TapeRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("");
   const [thickness, setThickness] = useState<number>(0);
-  const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
   const allNames = useMemo(() => Array.from(new Set(rolls.map((r) => r.name).filter(Boolean))), [rolls]);
+  // Colori filtrati per nome selezionato (se scelto), altrimenti tutti
+  const allColors = useMemo(() => {
+    const src = name ? rolls.filter((r) => includesLoose(r.name, name)) : rolls;
+    return Array.from(new Set(src.flatMap((r) => r.colors ?? []).filter(Boolean)));
+  }, [rolls, name]);
+  // Reset colore se non più disponibile
+  useEffect(() => { if (color && !allColors.includes(color)) setColor(""); }, [allColors, color]);
+
   const filtered = useMemo(() => rolls.filter((r) => {
     const nOk = !name || includesLoose(r.name, name);
     const cOk = !color || (r.colors ?? []).some((c) => includesLoose(c, color));
@@ -370,6 +408,11 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
     onPick({ label, um: kind === "rotolo" ? "rotoli" : "m" });
   };
 
+  const pickTape = (t: TapeRoll, c: string) => {
+    const base = `Nastro ${t.name || t.kind}${t.widthMm ? ` ${t.widthMm}mm` : ""}${c ? ` · ${c}` : ""}`;
+    onPick({ label: `${base} (rotolo ${fmt(t.rollLength)}m)`, um: "rotoli" });
+  };
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
@@ -377,14 +420,19 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <Field label="Nome"><SelectWithAdd value={name} onChange={setName} options={allNames} placeholder="Tutti" emptyLabel="Tutti" /></Field>
-            <Field label="Colore"><SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label={name ? `Colore (${allColors.length} per "${name}")` : "Colore"}>
+              <SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder={allColors.length === 0 ? "—" : "Tutti"} emptyLabel="Tutti" />
+            </Field>
             <Field label="Spessore min (mm)"><Input type="number" step="0.1" value={thickness || ""} onChange={(e) => setThickness(Number(e.target.value))} /></Field>
           </div>
-          <div className="border border-ink/15 rounded-sm divide-y max-h-[50vh] overflow-auto">
+          <div className="border border-ink/15 rounded-sm divide-y max-h-[40vh] overflow-auto">
             {filtered.length === 0 ? (
               <div className="p-3 text-[12px] text-muted-foreground">Nessun tappeto coi filtri.</div>
             ) : filtered.map((r) => {
-              const colors = (r.colors ?? []).length ? r.colors : [""];
+              // Se c'è un colore selezionato, mostra solo quel colore per questo prodotto
+              const baseColors = (r.colors ?? []).length ? r.colors : [""];
+              const colors = color ? baseColors.filter((c) => includesLoose(c, color)) : baseColors;
+              if (colors.length === 0) return null;
               return (
                 <div key={r.id} className="p-2.5">
                   <div className="text-sm font-semibold">{r.name}</div>
@@ -404,10 +452,28 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
               );
             })}
           </div>
-          <div className="border-t pt-2 flex flex-wrap gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground self-center">Accessori:</span>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro danza (33 m/rotolo)", um: "rotoli" })}>Nastro danza</Button>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" })}>Nastro biadesivo</Button>
+
+          <div className="border-t pt-2">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1.5">Listino nastri</div>
+            {tapes.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground">Nessun nastro nel listino. Aggiungili dalla tab "Listino nastri".</div>
+            ) : (
+              <div className="border border-ink/15 rounded-sm divide-y max-h-[28vh] overflow-auto">
+                {tapes.map((t) => {
+                  const cs = (t.colors ?? []).length ? t.colors : [""];
+                  return (
+                    <div key={t.id} className="p-2">
+                      <div className="text-[12px] font-semibold">{t.name || `Nastro ${t.kind}`} <span className="text-[10px] font-normal text-muted-foreground">· {t.kind}{t.widthMm ? ` · ${t.widthMm} mm` : ""} · {fmt(t.rollLength)} m/rotolo</span></div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {cs.map((c, i) => (
+                          <Button key={i} size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => pickTape(t, c)}>{c || "Aggiungi"} · rotolo</Button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
@@ -425,7 +491,10 @@ function FirePickerDialog({ products, onPick, onClose }: {
   const [klass, setKlass] = useState("");
   const [base, setBase] = useState("");
   const allNames = useMemo(() => Array.from(new Set(products.map((p) => p.name).filter(Boolean))), [products]);
-  const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
+  const allColors = useMemo(() => {
+    const src = name ? products.filter((p) => includesLoose(p.name, name)) : products;
+    return Array.from(new Set(src.flatMap((p) => p.colors ?? []).filter(Boolean)));
+  }, [products, name]);
   const allMaterials = useMemo(() => Array.from(new Set(products.flatMap((p) => splitTags(p.treatedMaterials)))), [products]);
   const allClasses = useMemo(() => Array.from(new Set(products.flatMap((p) => (p.classes ?? []).map((c) => c.className).filter(Boolean)))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
@@ -700,12 +769,55 @@ function ManualMagazzinoOrderForm({
   );
 }
 
+/* ============== Sezione Listino nastri ============== */
+function TapeListSection({ tapes, setTapes }: { tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {
+  const add = () => {
+    const t: TapeRoll = { id: uid(), name: "Nuovo nastro", kind: "danza", rollLength: 33, widthMm: 50, colors: [] };
+    setTapes([...tapes, t]);
+  };
+  const upd = (id: string, patch: Partial<TapeRoll>) => setTapes(tapes.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const del = (id: string) => setTapes(tapes.filter((t) => t.id !== id));
+  return (
+    <div className="border-2 border-ink/15 rounded-sm bg-paper">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between">
+        <div className="font-mono text-[10px] uppercase tracking-widest">Listino nastri ({tapes.length})</div>
+        <Button size="sm" onClick={add} className="h-7 px-2"><Plus className="w-3 h-3 mr-1" />Aggiungi</Button>
+      </div>
+      {tapes.length === 0 ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">Nessun nastro. Aggiungi il primo per iniziare.</div>
+      ) : (
+        <div className="divide-y max-h-[72vh] overflow-y-auto">
+          {tapes.map((t) => (
+            <div key={t.id} className="p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Input value={t.name} onChange={(e) => upd(t.id, { name: e.target.value })} className="h-8 text-[12px] flex-1" placeholder="Nome (es. Nastro danza)" />
+                <select value={t.kind} onChange={(e) => upd(t.id, { kind: e.target.value as TapeKind })} className="h-8 px-2 border border-input rounded-sm bg-background text-[12px]">
+                  <option value="danza">Danza</option>
+                  <option value="biadesivo">Biadesivo</option>
+                  <option value="altro">Altro</option>
+                </select>
+                <button onClick={() => del(t.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <Field label="Lunghezza rotolo (m)"><Input type="number" step="0.1" value={t.rollLength || ""} onChange={(e) => upd(t.id, { rollLength: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <Field label="Larghezza (mm)"><Input type="number" value={t.widthMm ?? ""} onChange={(e) => upd(t.id, { widthMm: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <Field label="Prezzo / rotolo (€)"><Input type="number" step="0.01" value={t.pricePerRoll ?? ""} onChange={(e) => upd(t.id, { pricePerRoll: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <div className="col-span-full"><ChipsEditor label="Colori disponibili" values={t.colors ?? []} onChange={(colors) => upd(t.id, { colors })} placeholder="es. Nero, Bianco, Trasparente" /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============== Sezione Tappeto danza ============== */
-function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void }) {
+function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void; tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
-  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine" | "nastri">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
   const [needThickness, setNeedThickness] = useState<number>(0);
   const [needColor, setNeedColor] = useState<string>("");
@@ -898,7 +1010,8 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo & nesting</Button>
         <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
-        <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino magazzino</Button>
+        <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino tappeti</Button>
+        <Button size="sm" variant={mode === "nastri" ? "default" : "outline"} onClick={() => setMode("nastri")}>Listino nastri</Button>
       </div>
 
       {mode === "ordine" ? (
@@ -911,9 +1024,11 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             { descrizione: "Nastro biadesivo", um: "rotoli" },
           ]}
           picker={(onPick, onClose) => (
-            <DancePickerDialog rolls={rolls} onPick={onPick} onClose={onClose} />
+            <DancePickerDialog rolls={rolls} tapes={tapes} onPick={onPick} onClose={onClose} />
           )}
         />
+      ) : mode === "nastri" ? (
+        <TapeListSection tapes={tapes} setTapes={setTapes} />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Calcolo & nesting tappeto</div></div>

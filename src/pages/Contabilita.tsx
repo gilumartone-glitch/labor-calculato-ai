@@ -2328,6 +2328,19 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
             <Field label="Metodo"><PaymentMethodSelect className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
             <Field label="Data"><StepDateInput value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} onConfirm={() => setEditingId(null)} /></Field>
             <Field label="N° Fattura"><TextInput className="h-9 text-xs font-mono" value={m.invoiceNumber ?? ""} placeholder="es. 2026/123" onCommit={(invoiceNumber) => updateMovement(m.id, { invoiceNumber })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
+            <Field label="Pagato">
+              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                <input type="checkbox" className="h-3.5 w-3.5 cursor-pointer accent-dept" checked={m.status === "cassa"} onChange={(e) => {
+                  if (e.target.checked && m.status !== "cassa") {
+                    const today = new Date().toISOString().slice(0, 10);
+                    updateMovement(m.id, { status: "cassa", date: today });
+                  } else {
+                    updateMovement(m.id, { status: e.target.checked ? "cassa" : "previsto" });
+                  }
+                }} />
+                {m.status === "cassa" ? "Sì (in cassa)" : "No (previsto)"}
+              </label>
+            </Field>
             <Field label="Gestito per Acconti">
               <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
                 <input type="checkbox" checked={!!m.gestitoAcconti} onChange={(e) => updateMovement(m.id, { gestitoAcconti: e.target.checked, acconto: e.target.checked ? m.acconto : undefined })} />

@@ -343,6 +343,8 @@ export default function MagazzinoCalc() {
 
 /* ============== Sezione Tappeto danza ============== */
 function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
   const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
@@ -354,6 +356,17 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
+
+  // Dialog "Invia al Flow"
+  const [flowOpen, setFlowOpen] = useState(false);
+  const [flowBusy, setFlowBusy] = useState(false);
+  const [flowCliente, setFlowCliente] = useState("");
+  const [flowRef, setFlowRef] = useState("");
+  const [flowTappetoMeters, setFlowTappetoMeters] = useState<number>(0);
+  const [flowTappetoRolls, setFlowTappetoRolls] = useState<number>(0);
+  const [flowTapeMeters, setFlowTapeMeters] = useState<number>(0);
+  const [flowTapeRolls, setFlowTapeRolls] = useState<number>(0);
+  const [flowNote, setFlowNote] = useState("");
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 

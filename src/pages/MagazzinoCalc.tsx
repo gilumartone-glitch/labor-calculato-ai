@@ -346,8 +346,6 @@ type ManualLine = { id: string; descrizione: string; qty: string; um: string; no
 
 type PickedItem = { label: string; um: string };
 type PickedItem = { label: string; um: string };
-
-/* ============== Picker dialogs (selezione prodotto dal listino) ============== */
 function DancePickerDialog({ rolls, onPick, onClose }: {
   rolls: DanceRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
 }) {

@@ -986,8 +986,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
         />
       ) : mode === "nastri" ? (
         <TapeListSection tapes={tapes} setTapes={setTapes} />
-      ) : null}
-      {mode !== "ordine" && mode !== "nastri" && (
+      ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Calcolo & nesting tappeto</div></div>
           <div className="p-4 space-y-4">

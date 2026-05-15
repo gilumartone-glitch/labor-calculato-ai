@@ -373,14 +373,21 @@ type ManualLine = { id: string; descrizione: string; qty: string; um: string; no
 type PickedItem = { label: string; um: string };
 
 /* ============== Picker dialogs (selezione prodotto dal listino) ============== */
-function DancePickerDialog({ rolls, onPick, onClose }: {
-  rolls: DanceRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
+function DancePickerDialog({ rolls, tapes, onPick, onClose }: {
+  rolls: DanceRoll[]; tapes: TapeRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("");
   const [thickness, setThickness] = useState<number>(0);
-  const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
   const allNames = useMemo(() => Array.from(new Set(rolls.map((r) => r.name).filter(Boolean))), [rolls]);
+  // Colori filtrati per nome selezionato (se scelto), altrimenti tutti
+  const allColors = useMemo(() => {
+    const src = name ? rolls.filter((r) => includesLoose(r.name, name)) : rolls;
+    return Array.from(new Set(src.flatMap((r) => r.colors ?? []).filter(Boolean)));
+  }, [rolls, name]);
+  // Reset colore se non più disponibile
+  useEffect(() => { if (color && !allColors.includes(color)) setColor(""); }, [allColors, color]);
+
   const filtered = useMemo(() => rolls.filter((r) => {
     const nOk = !name || includesLoose(r.name, name);
     const cOk = !color || (r.colors ?? []).some((c) => includesLoose(c, color));
@@ -396,6 +403,11 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
     onPick({ label, um: kind === "rotolo" ? "rotoli" : "m" });
   };
 
+  const pickTape = (t: TapeRoll, c: string) => {
+    const base = `Nastro ${t.name || t.kind}${t.widthMm ? ` ${t.widthMm}mm` : ""}${c ? ` · ${c}` : ""}`;
+    onPick({ label: `${base} (rotolo ${fmt(t.rollLength)}m)`, um: "rotoli" });
+  };
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
@@ -403,14 +415,19 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <Field label="Nome"><SelectWithAdd value={name} onChange={setName} options={allNames} placeholder="Tutti" emptyLabel="Tutti" /></Field>
-            <Field label="Colore"><SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label={name ? `Colore (${allColors.length} per "${name}")` : "Colore"}>
+              <SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder={allColors.length === 0 ? "—" : "Tutti"} emptyLabel="Tutti" />
+            </Field>
             <Field label="Spessore min (mm)"><Input type="number" step="0.1" value={thickness || ""} onChange={(e) => setThickness(Number(e.target.value))} /></Field>
           </div>
-          <div className="border border-ink/15 rounded-sm divide-y max-h-[50vh] overflow-auto">
+          <div className="border border-ink/15 rounded-sm divide-y max-h-[40vh] overflow-auto">
             {filtered.length === 0 ? (
               <div className="p-3 text-[12px] text-muted-foreground">Nessun tappeto coi filtri.</div>
             ) : filtered.map((r) => {
-              const colors = (r.colors ?? []).length ? r.colors : [""];
+              // Se c'è un colore selezionato, mostra solo quel colore per questo prodotto
+              const baseColors = (r.colors ?? []).length ? r.colors : [""];
+              const colors = color ? baseColors.filter((c) => includesLoose(c, color)) : baseColors;
+              if (colors.length === 0) return null;
               return (
                 <div key={r.id} className="p-2.5">
                   <div className="text-sm font-semibold">{r.name}</div>
@@ -430,10 +447,28 @@ function DancePickerDialog({ rolls, onPick, onClose }: {
               );
             })}
           </div>
-          <div className="border-t pt-2 flex flex-wrap gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground self-center">Accessori:</span>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro danza (33 m/rotolo)", um: "rotoli" })}>Nastro danza</Button>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" })}>Nastro biadesivo</Button>
+
+          <div className="border-t pt-2">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1.5">Listino nastri</div>
+            {tapes.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground">Nessun nastro nel listino. Aggiungili dalla tab "Listino nastri".</div>
+            ) : (
+              <div className="border border-ink/15 rounded-sm divide-y max-h-[28vh] overflow-auto">
+                {tapes.map((t) => {
+                  const cs = (t.colors ?? []).length ? t.colors : [""];
+                  return (
+                    <div key={t.id} className="p-2">
+                      <div className="text-[12px] font-semibold">{t.name || `Nastro ${t.kind}`} <span className="text-[10px] font-normal text-muted-foreground">· {t.kind}{t.widthMm ? ` · ${t.widthMm} mm` : ""} · {fmt(t.rollLength)} m/rotolo</span></div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {cs.map((c, i) => (
+                          <Button key={i} size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => pickTape(t, c)}>{c || "Aggiungi"} · rotolo</Button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
@@ -451,7 +486,10 @@ function FirePickerDialog({ products, onPick, onClose }: {
   const [klass, setKlass] = useState("");
   const [base, setBase] = useState("");
   const allNames = useMemo(() => Array.from(new Set(products.map((p) => p.name).filter(Boolean))), [products]);
-  const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
+  const allColors = useMemo(() => {
+    const src = name ? products.filter((p) => includesLoose(p.name, name)) : products;
+    return Array.from(new Set(src.flatMap((p) => p.colors ?? []).filter(Boolean)));
+  }, [products, name]);
   const allMaterials = useMemo(() => Array.from(new Set(products.flatMap((p) => splitTags(p.treatedMaterials)))), [products]);
   const allClasses = useMemo(() => Array.from(new Set(products.flatMap((p) => (p.classes ?? []).map((c) => c.className).filter(Boolean)))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);

@@ -47,9 +47,6 @@ export const ProdLayout = ({ children }: { children: ReactNode }) => {
   const SidebarInner = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
         <div className="px-4 py-4 border-b-2 border-ink/15">
-          <Link to="/hub" onClick={onNavigate} className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground hover:text-ink font-mono">
-            <ArrowLeft className="w-3 h-3" /> Hub
-          </Link>
           <div className="font-display text-lg font-semibold leading-none mt-2">
             Produzione <span className="text-primary">·</span>
           </div>

@@ -739,6 +739,21 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             { descrizione: "Nastro danza", um: "rotoli" },
             { descrizione: "Nastro biadesivo", um: "rotoli" },
           ]}
+          catalogOptions={[
+            ...rolls.flatMap((r) => {
+              const base = `Tappeto ${r.name}${r.thicknessMm ? ` ${fmt(r.thicknessMm)}mm` : ""}`;
+              const colors = (r.colors ?? []).length ? r.colors : [""];
+              return colors.flatMap((c) => {
+                const lbl = c ? `${base} · ${c}` : base;
+                return [
+                  { label: `${lbl} (rotolo intero ${fmt(r.rollLength)}×${fmt(r.rollWidth)}m)`, um: "rotoli" },
+                  { label: `${lbl} (taglio)`, um: "m" },
+                ];
+              });
+            }),
+            { label: "Nastro danza (33 m/rotolo)", um: "rotoli" },
+            { label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" },
+          ]}
         />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">

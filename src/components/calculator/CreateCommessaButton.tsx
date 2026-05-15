@@ -243,7 +243,7 @@ export const CreateCommessaButton = ({
           new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo" },
         });
 
-        const writers = await getProduzioneWriters();
+        const writers = await getProduzioneWriters(depts);
         const targets = writers.filter((u) => u !== user.id);
         if (targets.length > 0) {
           await notify({

@@ -2613,6 +2613,30 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
     setProcessed(next);
+    // Se sto attivando "elaborati" e il mese è vuoto, precompila i nomi del mese
+    // più recente con dipendenti (cercando a ritroso, anche da dicembre dell'anno scorso).
+    if (v && monthRows.length === 0) {
+      const order: number[] = [];
+      for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
+      const srcMonth = order.find((m) => salaries.some((s) => s.month === m));
+      if (srcMonth !== undefined) {
+        const prefilled: Salary[] = salaries
+          .filter((s) => s.month === srcMonth)
+          .map((s) => ({
+            id: uid(),
+            name: s.name,
+            month: openMonth,
+            totale: s.totale,
+            bonifico: s.bonifico,
+            contanti: s.contanti,
+            sc: s.sc,
+            cassaBanca: s.cassaBanca,
+            cassaContanti: s.cassaContanti,
+          }));
+        setSalaries([...salaries, ...prefilled]);
+        toast.success(`Precompilati ${prefilled.length} dipendenti da ${MONTHS[srcMonth]}`);
+      }
+    }
   };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
   const updatePayDate = (v: string) => {

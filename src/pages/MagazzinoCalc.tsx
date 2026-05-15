@@ -29,6 +29,18 @@ type DanceRoll = {
   note?: string;
 };
 
+type TapeKind = "danza" | "biadesivo" | "altro";
+type TapeRoll = {
+  id: string;
+  name: string;
+  kind: TapeKind;
+  rollLength: number; // m per rotolo
+  widthMm?: number;   // larghezza nastro
+  colors: string[];
+  pricePerRoll?: number;
+  note?: string;
+};
+
 type FireBaseType = "base" | "base_finitura";
 type FireComponent = "mono" | "bi";
 type FireFinish = "opaca" | "satinata" | "lucida";

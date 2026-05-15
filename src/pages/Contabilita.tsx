@@ -2279,7 +2279,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                 if (!confirm(`Cancellare "${m.description || "(senza voce)"}" del ${m.date}?`)) return;
                 deleteMovementById(m.id);
               }}
-              className="ml-1 grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

@@ -2385,12 +2385,10 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
         <span className="px-1">Voce</span>
-        <span className="text-center">Met.</span>
-        <span className="text-center">Pag.</span>
         <span className="px-1 text-right">Importo</span>
         <span></span>
       </div>

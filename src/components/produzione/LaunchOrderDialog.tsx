@@ -154,7 +154,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         new_state: { code, sequence, warehouseOnly, priorita, files: attachments.length, assignees: deptAssignees },
       });
 
-      const writers = await getProduzioneWriters();
+      const writers = await getProduzioneWriters(sequence);
       const targets = writers.filter((u) => u !== user.id);
       if (targets.length > 0) {
         await notify({

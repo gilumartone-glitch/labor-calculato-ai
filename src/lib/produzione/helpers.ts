@@ -81,14 +81,28 @@ export function orderProgress(subs: ProdSubOrder[]): number {
   return Math.round((done / subs.length) * 100);
 }
 
-/** Restituisce gli utenti che hanno permessi di scrittura sulla pagina produzione. */
-export async function getProduzioneWriters(): Promise<string[]> {
+/** Restituisce gli utenti che hanno permessi di scrittura sulla pagina produzione.
+ *  Se viene passato `depts`, filtra solo gli utenti il cui profilo ha almeno
+ *  uno dei settori richiesti (così non spammiamo notifiche cross-reparto).
+ *  Gli admin sono sempre inclusi. */
+export async function getProduzioneWriters(depts?: string[]): Promise<string[]> {
   const { data } = await supabase
     .from("user_permissions")
     .select("user_id")
     .eq("page_key", "produzione")
     .eq("level", "write");
-  return (data ?? []).map((r: any) => r.user_id);
+  const writerIds = (data ?? []).map((r: any) => r.user_id);
+  if (!depts || depts.length === 0 || writerIds.length === 0) return writerIds;
+
+  const [{ data: profs }, { data: admins }] = await Promise.all([
+    supabase.from("profiles").select("id, settori").in("id", writerIds),
+    supabase.from("user_roles").select("user_id").eq("role", "admin").in("user_id", writerIds),
+  ]);
+  const adminSet = new Set((admins ?? []).map((r: any) => r.user_id));
+  const deptSet = new Set(depts);
+  return (profs ?? [])
+    .filter((p: any) => adminSet.has(p.id) || ((p.settori ?? []) as string[]).some((s) => deptSet.has(s)))
+    .map((p: any) => p.id);
 }
 
 /** Tutti gli admin. */

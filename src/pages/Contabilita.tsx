@@ -449,6 +449,15 @@ const writeLocalState = (next: AccountingState, savedAt = Date.now()) => {
   return serialized;
 };
 
+const readLocalSavedAt = () => {
+  try {
+    const n = Number(localStorage.getItem(LOCAL_SAVED_AT_KEY) || 0);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+};
+
 const persistState = (next: AccountingState, notify = false) => {
   try {
     writeLocalState(next);
@@ -559,7 +568,7 @@ export default function Contabilita() {
     return b.every((item) => ids.has(item.id));
   };
 
-  const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean): AccountingState => {
+  const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean, preferLocalRecords = false): AccountingState => {
     const unionIds = (a?: string[], b?: string[]) => Array.from(new Set([...(a ?? []), ...(b ?? [])]));
     const deletedIds = {
       movements: unionIds(local.deletedIds?.movements, remote.deletedIds?.movements),
@@ -571,7 +580,7 @@ export default function Contabilita() {
     const tFix = new Set(deletedIds.fixedExpenses);
     const tSal = new Set(deletedIds.salaries);
     const tCon = new Set(deletedIds.contacts);
-    const recent = getRecentIds();
+    const recent = preferLocalRecords ? new Set(local.movements.map((m) => m.id)) : getRecentIds();
     return {
     // Campi scalari: durante una modifica locale attiva preferisci il locale
     // per evitare che le date stipendi e altri scalari "si auto-cambino".
@@ -610,7 +619,9 @@ export default function Contabilita() {
         const remoteSerialized = serializeAccountingState(remote);
         const remoteSavedAt = data.updated_at ? new Date(data.updated_at as string).getTime() : 0;
         const local = stateRef.current ?? remote;
-        const merged = mergeRemoteState(local, remote, false);
+        const localSavedAt = readLocalSavedAt();
+        const preferLocalAtStart = localSavedAt > remoteSavedAt + 1000;
+        const merged = mergeRemoteState(local, remote, preferLocalAtStart, preferLocalAtStart);
         const mergedSerialized = serializeAccountingState(merged);
         // Il cloud è la fonte comune: all'avvio non scartare più il remoto solo
         // perché questo browser ha un timestamp locale più recente. Unisci invece
@@ -628,6 +639,25 @@ export default function Contabilita() {
           )
         ) {
           toast.info("Contabilità unificata con le modifiche trovate su questo dispositivo.", { duration: 5000 });
+        }
+        if (preferLocalAtStart && mergedSerialized !== remoteSerialized) {
+          lastRemoteRef.current = remoteSerialized;
+          ownSaveUntilRef.current = Date.now() + 2500;
+          const { data: authData } = await supabase.auth.getUser();
+          const uid = authData?.user?.id ?? null;
+          const { error: restoreError } = await supabase
+            .from("contabilita_state")
+            .upsert(
+              [{ key: REMOTE_KEY, data: merged as unknown as never, updated_by: uid as unknown as never }],
+              { onConflict: "key" },
+            );
+          if (restoreError) {
+            setSaveStatus("error");
+            toast.error("Non riesco a riportare sul cloud le modifiche locali: resta su questa pagina finché non risulta Salvato.", { duration: 10000, id: "contab-save-error" });
+          } else {
+            lastRemoteRef.current = mergedSerialized;
+            setSaveStatus("idle");
+          }
         }
       }
       remoteLoadedRef.current = true;
@@ -877,6 +907,14 @@ export default function Contabilita() {
       for (const item of before) if (!afterIds.has(item.id)) removed.push(item.id);
       return removed;
     };
+    const diffTouched = <T extends { id: string }>(before: T[] = [], after: T[] = []) => {
+      const beforeMap = new Map(before.map((x) => [x.id, JSON.stringify(sortForStableJson(x))]));
+      const touched = new Set<string>(diffRemoved(before, after));
+      for (const item of after) {
+        if (beforeMap.get(item.id) !== JSON.stringify(sortForStableJson(item))) touched.add(item.id);
+      }
+      return Array.from(touched);
+    };
     const prevDel = prev.deletedIds ?? {};
     const nextDeleted = {
       movements: prevDel.movements ?? [],
@@ -888,6 +926,12 @@ export default function Contabilita() {
     if (resolved.fixedExpenses) nextDeleted.fixedExpenses = Array.from(new Set([...nextDeleted.fixedExpenses, ...diffRemoved(prev.fixedExpenses, resolved.fixedExpenses)]));
     if (resolved.salaries) nextDeleted.salaries = Array.from(new Set([...nextDeleted.salaries, ...diffRemoved(prev.salaries ?? [], resolved.salaries)]));
     if (resolved.contacts) nextDeleted.contacts = Array.from(new Set([...nextDeleted.contacts, ...diffRemoved(prev.contacts ?? [], resolved.contacts)]));
+    markRecentlyModified([
+      ...(resolved.movements ? diffTouched(prev.movements, resolved.movements) : []),
+      ...(resolved.fixedExpenses ? diffTouched(prev.fixedExpenses, resolved.fixedExpenses) : []),
+      ...(resolved.salaries ? diffTouched(prev.salaries ?? [], resolved.salaries) : []),
+      ...(resolved.contacts ? diffTouched(prev.contacts ?? [], resolved.contacts) : []),
+    ]);
     next.deletedIds = nextDeleted;
     persistState(next);
     return next;
@@ -2228,11 +2272,11 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_88px_minmax(220px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[88px_minmax(220px,1fr)_44px_28px_96px_28px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-sm text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-0.5 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2250,8 +2294,8 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               </button>
             )}
           </div>
-          <PaymentMethodSelect ariaLabel="Metodo" className="h-8 w-full rounded-md border border-input bg-background px-0 text-center font-mono text-sm" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} />
-          <label aria-label="Pagato" title={isVirtual ? "Voce automatica da Stipendi" : (m.status === "cassa" ? "Pagato" : "Non pagato")} className="flex h-8 w-7 cursor-pointer items-center justify-center rounded-md border border-input bg-background hover:bg-dept-soft/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60">
+          <PaymentMethodSelect ariaLabel="Metodo" className="h-8 w-full rounded-md border border-input bg-background px-0 text-center font-mono text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} />
+          <label aria-label="Pagato" title={isVirtual ? "Voce automatica da Stipendi" : (m.status === "cassa" ? "Pagato" : "Non pagato")} className="flex h-8 w-[26px] cursor-pointer items-center justify-center rounded-md border border-input bg-background hover:bg-dept-soft/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60">
             <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:cursor-default" checked={m.status === "cassa"} onChange={(e) => {
               if (e.target.checked && m.status !== "cassa") {
                 const today = new Date().toISOString().slice(0, 10);
@@ -2261,7 +2305,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               }
             }} />
           </label>
-          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
+          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
           {!isVirtual && (
             <button
               type="button"
@@ -2272,7 +2316,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                 if (!confirm(`Cancellare "${m.description || "(senza voce)"}" del ${m.date}?`)) return;
                 deleteMovementById(m.id);
               }}
-              className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -2339,13 +2383,13 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_74px_minmax(140px,1fr)_44px_28px_96px_28px]" : "grid-cols-[74px_minmax(140px,1fr)_44px_28px_96px_28px]"} gap-1 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[11px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
-        <span className="px-1.5">Voce</span>
+        <span className="px-1">Voce</span>
         <span className="text-center">Met.</span>
         <span className="text-center">Pag.</span>
-        <span className="px-1.5 text-right">Importo</span>
+        <span className="px-1 text-right">Importo</span>
         <span></span>
       </div>
       <div className="max-h-[78vh] min-h-[60vh] space-y-0.5 overflow-auto p-1">
@@ -2373,20 +2417,20 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_88px_minmax(220px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[88px_minmax(220px,1fr)_44px_28px_96px_28px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                   <div className="relative flex h-8 w-full items-stretch min-w-0">
-                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-sm font-semibold">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1 text-xs font-semibold">
                       <span className="truncate">{label}</span>
                     </div>
                   </div>
                   <div className="flex h-8 items-center justify-center rounded-md border border-input bg-background font-mono text-xs text-muted-foreground">×{items.length}</div>
                   <span />
-                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-bold whitespace-nowrap">{eur(total)}</div>
+                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
                   <button
                     type="button"
                     aria-label="Elimina tutto il gruppo"
@@ -2399,7 +2443,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                       setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
                       toast.success(`${ids.size} voci cancellate`);
                     }}
-                    className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

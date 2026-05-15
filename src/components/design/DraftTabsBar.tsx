@@ -484,9 +484,12 @@ export const DraftTabsBar = () => {
   const openSendDialog = () => {
     const active = drafts.find((d) => d.id === activeId);
     if (!active) return;
-    const snap = readLocalState();
-    setSendTitolo(active.name || "Progetto");
-    setSendCliente("");
+    const snap = readLocalState() as any;
+    // In caso di scheda nata da una "revisione" produzione, ripristiniamo titolo + cliente originali
+    const revTitolo = snap?._revisionTitolo || snap?.revision?.titolo || snap?.jobName;
+    const revCliente = snap?._revisionCliente || snap?.revision?.cliente;
+    setSendTitolo((revTitolo as string) || active.name || "Progetto");
+    setSendCliente((revCliente as string) || "");
     setSendImporto(computeDefaultAmount(snap));
     setSendReparto("tappezzeria");
     setSendPriorita("media");

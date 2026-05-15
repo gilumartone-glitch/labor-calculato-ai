@@ -730,7 +730,7 @@ function ManualMagazzinoOrderForm({
                     )}
                   </div>
                   <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
-                  <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
+                  <Input value={l.um} readOnly tabIndex={-1} placeholder="um" className="h-8 text-[12px] bg-muted/40 cursor-not-allowed text-center font-mono" title="Unità di misura impostata dal listino" />
                   <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
                   <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>

@@ -232,9 +232,10 @@ export const CreateCommessaButton = ({
         // Inserisce un sub per ogni reparto in PARALLELO (depends_on=null) cosicché
         // ogni reparto lavori indipendentemente e chiuda il proprio cerchio;
         // l'ordine si chiude quando tutti i sub sono completati.
-        const insertedSubs: { id: string; dept: ProdDept }[] = [];
+        const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
         for (let i = 0; i < depts.length; i++) {
           const d = depts[i];
+          const assignee = deptAssignees[d] || null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -245,11 +246,12 @@ export const CreateCommessaButton = ({
               note: titolo.trim() || null,
               files: [],
               depends_on: null,
-            })
+              assignee_id: assignee,
+            } as any)
             .select("id")
             .single();
           if (eSub) throw eSub;
-          insertedSubs.push({ id: sub.id, dept: d });
+          insertedSubs.push({ id: sub.id, dept: d, assignee });
         }
 
         await logAction({
@@ -257,7 +259,7 @@ export const CreateCommessaButton = ({
           entity_type: "order",
           entity_id: pord.id,
           detail: `Ordine ${prodCode} creato da preventivo per ${clienteName} — ${PRIORITY_LABEL[prodPrio]} (${depts.join(" → ")})`,
-          new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo" },
+          new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo", assignees: deptAssignees },
         });
 
         const writers = await getProduzioneWriters(depts);
@@ -271,6 +273,19 @@ export const CreateCommessaButton = ({
             link: `/produzione/board?order=${pord.id}`,
             is_urgent: prodPrio !== "normale",
           });
+        }
+        // Notifica diretta agli operatori assegnati
+        for (const s of insertedSubs) {
+          if (s.assignee && s.assignee !== user.id) {
+            await notify({
+              userIds: [s.assignee],
+              type: "ordine_creato",
+              message: `Assegnato a te: ${prodCode} · ${DEPT_LABEL[s.dept]} (${clienteName})`,
+              order_id: pord.id,
+              link: `/produzione/board?order=${pord.id}`,
+              is_urgent: prodPrio !== "normale",
+            });
+          }
         }
       } catch (prodErr) {
         // Non blocco la commessa se la creazione produzione fallisce: la commessa è già salvata.

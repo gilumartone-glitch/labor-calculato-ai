@@ -1524,7 +1524,8 @@ function SaleProductSection({
         note: `Vendita ${title} · ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
         files: [],
         depends_on: firstAcquistiId,
-      });
+        assignee_id: d.assignee_id,
+      } as any);
       if (e2) throw e2;
 
       await notify({

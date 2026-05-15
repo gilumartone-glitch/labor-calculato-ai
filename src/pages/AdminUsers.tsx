@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RouteGuard } from "@/components/RouteGuard";
 import { ALL_SETTORI, AppSettore, SETTORE_LABEL } from "@/lib/produzione/types";

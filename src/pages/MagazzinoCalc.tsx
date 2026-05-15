@@ -356,6 +356,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
+  const [chosenOptionKey, setChosenOptionKey] = useState<string | null>(null);
 
   // Dialog "Invia al Flow"
   const [flowOpen, setFlowOpen] = useState(false);

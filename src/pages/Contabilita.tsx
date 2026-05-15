@@ -1288,9 +1288,12 @@ const MovementsTable = ({ movements, setMovements, addMovement, openingCash, set
           <Field label="Metodo"><PaymentMethodSelect className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.paymentMethod ?? ""} onChange={(v) => setMovements((prev) => prev.map((x) => x.id === m.id ? normalizeMovement({ ...x, paymentMethod: v }) : x))} /></Field>
           <Field label="Tipo"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.type} onChange={(e) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, type: e.target.value as MovementType } : x))}><option value="entrata">Entrata</option><option value="uscita">Uscita</option></select></Field>
           <Field label="Stato"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={m.status} onChange={(e) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, status: e.target.value as MovementStatus } : x))}><option value="cassa">Cassa</option><option value="previsto">Competenza</option></select></Field>
-          <Field label="Importo">
+          <Field label={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? "Importo (residuo)" : "Importo"}>
             <div className="flex items-center gap-1">
-              <NumberInput value={m.amount} onChange={(amount) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, amount } : x))} />
+              <NumberInput
+                value={m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount}
+                onChange={(v) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, amount: x.gestitoAcconti ? v + (x.acconto ?? 0) : v } : x))}
+              />
               <AdditionsControl movement={m} onChange={(patch) => setMovements((prev) => prev.map((x) => x.id === m.id ? { ...x, ...patch } : x))} />
             </div>
           </Field>

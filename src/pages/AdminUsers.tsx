@@ -153,9 +153,6 @@ const Inner = () => {
       <header className="border-b-2 border-ink bg-paper">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div>
-            <Link to="/hub" className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-muted-foreground hover:text-ink font-mono">
-              <ArrowLeft className="w-3 h-3" /> Home
-            </Link>
             <h1 className="font-display text-2xl font-semibold mt-1 inline-flex items-center gap-2"><ShieldCheck className="w-5 h-5" /> Gestione utenti</h1>
           </div>
           <button onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-paper rounded-sm text-xs uppercase tracking-wider font-bold hover:bg-primary hover:text-primary-foreground">

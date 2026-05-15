@@ -44,6 +44,7 @@ const App = () => (
       <Sonner />
       <Router>
         <AuthProvider>
+          <FloatingHubButton />
           <Routes>
             <Route path="/" element={<Navigate to="/hub" replace />} />
             <Route path="/preventivi" element={<RouteGuard page="preventivi"><Index /></RouteGuard>} />

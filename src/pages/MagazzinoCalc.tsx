@@ -769,6 +769,49 @@ function ManualMagazzinoOrderForm({
   );
 }
 
+/* ============== Sezione Listino nastri ============== */
+function TapeListSection({ tapes, setTapes }: { tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {
+  const add = () => {
+    const t: TapeRoll = { id: uid(), name: "Nuovo nastro", kind: "danza", rollLength: 33, widthMm: 50, colors: [] };
+    setTapes([...tapes, t]);
+  };
+  const upd = (id: string, patch: Partial<TapeRoll>) => setTapes(tapes.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const del = (id: string) => setTapes(tapes.filter((t) => t.id !== id));
+  return (
+    <div className="border-2 border-ink/15 rounded-sm bg-paper">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between">
+        <div className="font-mono text-[10px] uppercase tracking-widest">Listino nastri ({tapes.length})</div>
+        <Button size="sm" onClick={add} className="h-7 px-2"><Plus className="w-3 h-3 mr-1" />Aggiungi</Button>
+      </div>
+      {tapes.length === 0 ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">Nessun nastro. Aggiungi il primo per iniziare.</div>
+      ) : (
+        <div className="divide-y max-h-[72vh] overflow-y-auto">
+          {tapes.map((t) => (
+            <div key={t.id} className="p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Input value={t.name} onChange={(e) => upd(t.id, { name: e.target.value })} className="h-8 text-[12px] flex-1" placeholder="Nome (es. Nastro danza)" />
+                <select value={t.kind} onChange={(e) => upd(t.id, { kind: e.target.value as TapeKind })} className="h-8 px-2 border border-input rounded-sm bg-background text-[12px]">
+                  <option value="danza">Danza</option>
+                  <option value="biadesivo">Biadesivo</option>
+                  <option value="altro">Altro</option>
+                </select>
+                <button onClick={() => del(t.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <Field label="Lunghezza rotolo (m)"><Input type="number" step="0.1" value={t.rollLength || ""} onChange={(e) => upd(t.id, { rollLength: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <Field label="Larghezza (mm)"><Input type="number" value={t.widthMm ?? ""} onChange={(e) => upd(t.id, { widthMm: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <Field label="Prezzo / rotolo (€)"><Input type="number" step="0.01" value={t.pricePerRoll ?? ""} onChange={(e) => upd(t.id, { pricePerRoll: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                <div className="col-span-full"><ChipsEditor label="Colori disponibili" values={t.colors ?? []} onChange={(colors) => upd(t.id, { colors })} placeholder="es. Nero, Bianco, Trasparente" /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============== Sezione Tappeto danza ============== */
 function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void; tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {
   const { user } = useAuth();

@@ -33,9 +33,6 @@ const Marketing = () => {
       <header className="border-b-2 border-ink bg-paper">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link to="/hub" className="text-xs uppercase tracking-wider text-muted-foreground hover:text-ink inline-flex items-center gap-1">
-              <ArrowLeft className="w-3 h-3" /> Hub
-            </Link>
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-1">// Marketing</div>
               <h1 className="font-display text-2xl font-semibold leading-none flex items-center gap-2"><Megaphone className="w-6 h-6" /> Marketing</h1>

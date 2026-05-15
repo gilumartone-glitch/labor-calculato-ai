@@ -967,7 +967,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
       <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo & nesting</Button>
         <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
-        <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino magazzino</Button>
+        <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino tappeti</Button>
+        <Button size="sm" variant={mode === "nastri" ? "default" : "outline"} onClick={() => setMode("nastri")}>Listino nastri</Button>
       </div>
 
       {mode === "ordine" ? (
@@ -980,10 +981,13 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
             { descrizione: "Nastro biadesivo", um: "rotoli" },
           ]}
           picker={(onPick, onClose) => (
-            <DancePickerDialog rolls={rolls} onPick={onPick} onClose={onClose} />
+            <DancePickerDialog rolls={rolls} tapes={tapes} onPick={onPick} onClose={onClose} />
           )}
         />
-      ) : mode === "calcolo" ? (
+      ) : mode === "nastri" ? (
+        <TapeListSection tapes={tapes} setTapes={setTapes} />
+      ) : null}
+      {mode !== "ordine" && mode !== "nastri" && (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Calcolo & nesting tappeto</div></div>
           <div className="p-4 space-y-4">

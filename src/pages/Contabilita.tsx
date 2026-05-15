@@ -2191,7 +2191,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               }
             }} />
           </label>
-          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-semibold whitespace-nowrap">{eur(m.amount)}</div>
+          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
           {!isVirtual && (
             <button
               type="button"

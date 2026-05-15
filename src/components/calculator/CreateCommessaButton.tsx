@@ -148,6 +148,10 @@ export const CreateCommessaButton = ({
         importo: f.importo || defaultAmount,
         reparto: f.reparto || defaultReparto,
       }));
+      // carica profili (per selettori operatore per reparto)
+      supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+        setProfiles((data ?? []) as any);
+      });
     }
     setOpen(v);
   };

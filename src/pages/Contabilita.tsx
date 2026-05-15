@@ -1715,7 +1715,25 @@ const QuickDateInput = ({
       inputMode="numeric"
       placeholder="gg/mm/aa"
       value={draft}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+        let raw = e.target.value;
+        // Solo cifre e "/"
+        raw = raw.replace(/[^\d/]/g, "");
+        // Auto-inserimento dello slash dopo 2 cifre di giorno o mese
+        // (solo quando si sta aggiungendo testo, non cancellando)
+        if (raw.length > draft.length) {
+          // gg → gg/
+          if (/^\d{2}$/.test(raw)) raw = raw + "/";
+          // gg/mm → gg/mm/
+          else if (/^\d{2}\/\d{2}$/.test(raw)) raw = raw + "/";
+          // se l'utente scrive una 3ª cifra subito dopo 2 di giorno/mese senza /
+          else if (/^\d{3}$/.test(raw)) raw = raw.slice(0, 2) + "/" + raw.slice(2);
+          else if (/^\d{2}\/\d{3}$/.test(raw)) raw = raw.slice(0, 5) + "/" + raw.slice(5);
+        }
+        // Limita lunghezza max gg/mm/aaaa
+        if (raw.length > 10) raw = raw.slice(0, 10);
+        setDraft(raw);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();

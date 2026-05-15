@@ -704,6 +704,37 @@ export default function Contabilita() {
     };
   }, [state]);
 
+  // 2b) Auto-retry: finché il salvataggio è in errore, riprova ogni 15s
+  useEffect(() => {
+    if (saveStatus !== "error") return;
+    const id = setInterval(async () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const serialized = serializeAccountingState(current);
+      if (serialized === lastRemoteRef.current) { setSaveStatus("idle"); return; }
+      try {
+        await supabase.auth.refreshSession();
+      } catch { /* ignore */ }
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData?.user?.id ?? null;
+      if (!uid) return; // serve login utente
+      const { data: written, error } = await supabase
+        .from("contabilita_state")
+        .upsert(
+          [{ key: REMOTE_KEY, data: current as unknown as never, updated_by: uid as unknown as never }],
+          { onConflict: "key" },
+        )
+        .select("key,updated_at");
+      if (!error && written && written.length > 0) {
+        lastRemoteRef.current = serialized;
+        ownSaveUntilRef.current = Date.now() + 2500;
+        setSaveStatus("idle");
+        toast.success("Contabilità ri-sincronizzata sul cloud", { id: "contab-save-error" });
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [saveStatus]);
+
   // 3) Realtime: ricevi modifiche da altri utenti
   useEffect(() => {
     const channel = supabase

@@ -766,13 +766,31 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             <Field label="Note">
               <Textarea value={flowNote} onChange={(e) => setFlowNote(e.target.value)} rows={2} />
             </Field>
+            <div>
+              <Label className="text-[11px] font-mono uppercase tracking-wider">Responsabile magazzino *</Label>
+              {magazzinoUsers.length === 0 ? (
+                <div className="text-[11px] text-destructive mt-1">Nessun utente con settore "magazzino". Assegna il settore in Gestione utenti.</div>
+              ) : (
+                <select
+                  value={flowAssignee}
+                  onChange={(e) => setFlowAssignee(e.target.value)}
+                  className="mt-1 w-full h-9 px-2 border-2 border-ink/20 rounded-sm bg-paper text-sm"
+                >
+                  <option value="">— seleziona —</option>
+                  {magazzinoUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFlowOpen(false)} disabled={flowBusy}>Annulla</Button>
             <Button
-              disabled={flowBusy || !flowCliente.trim()}
+              disabled={flowBusy || !flowCliente.trim() || !flowAssignee}
               onClick={async () => {
                 if (!user) { toast.error("Devi accedere"); return; }
+                if (!flowAssignee) { toast.error("Seleziona il responsabile magazzino"); return; }
                 setFlowBusy(true);
                 try {
                   const code = await nextOrderCode();

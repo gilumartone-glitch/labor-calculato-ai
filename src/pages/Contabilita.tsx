@@ -2401,7 +2401,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
@@ -2414,22 +2414,6 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                     </div>
                   </div>
                   <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
-                  <button
-                    type="button"
-                    aria-label="Elimina tutto il gruppo"
-                    title={`Elimina tutte le ${items.length} voci di "${label}"`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const ids = new Set(items.filter((it) => !it.id.startsWith("__")).map((it) => it.id));
-                      if (ids.size === 0) return;
-                      if (!confirm(`Cancellare tutte le ${ids.size} voci di "${label}"?`)) return;
-                      setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
-                      toast.success(`${ids.size} voci cancellate`);
-                    }}
-                    className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
               </div>
             );

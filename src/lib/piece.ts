@@ -86,19 +86,17 @@ export const pieceHemAllowanceM = (
 ): { addW: number; addH: number } => {
   const ops = catalog?.perimeterOps ?? [];
   if (ops.length === 0) return { addW: 0, addH: 0 };
-  const opCm = new Map<string, number>();
-  for (const o of ops) {
-    const cm = allowanceCmForOpName(o.name);
-    if (cm > 0) opCm.set(o.id, cm);
-  }
-  if (opCm.size === 0) return { addW: 0, addH: 0 };
+  const opById = new Map<string, { name: string }>();
+  for (const o of ops) opById.set(o.id, { name: o.name });
   // sideCm[side] = somma cm allowance sul lato (più lavorazioni si sommano)
-  const sideCm: Record<string, number> = { top: 0, bottom: 0, left: 0, right: 0 };
+  const sideCm: Record<"top" | "bottom" | "left" | "right", number> = { top: 0, bottom: 0, left: 0, right: 0 };
   for (const pl of piece.perimeters ?? []) {
-    const cm = opCm.get(pl.opId);
-    if (!cm) continue;
+    const op = opById.get(pl.opId);
+    if (!op) continue;
     for (const s of pl.sides ?? []) {
-      if (s in sideCm) sideCm[s] += cm;
+      if (s === "top" || s === "bottom" || s === "left" || s === "right") {
+        sideCm[s] += allowanceCmForOpNameOnSide(op.name, s);
+      }
     }
   }
   const addH = (sideCm.top + sideCm.bottom) / 100;

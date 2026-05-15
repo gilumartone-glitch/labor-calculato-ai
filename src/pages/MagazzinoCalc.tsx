@@ -347,9 +347,11 @@ type ManualLine = { id: string; descrizione: string; qty: string; um: string; no
 function ManualMagazzinoOrderForm({
   sourceLabel,
   suggestions,
+  catalogOptions = [],
 }: {
   sourceLabel: string;
   suggestions: { descrizione: string; um: string }[];
+  catalogOptions?: { label: string; um?: string }[];
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();

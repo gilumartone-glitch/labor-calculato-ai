@@ -405,7 +405,7 @@ function DancePickerDialog({ rolls, tapes, onPick, onClose }: {
     const label = kind === "rotolo"
       ? `${base} (rotolo intero ${fmt(r.rollLength)}×${fmt(r.rollWidth)}m)`
       : `${base} (taglio)`;
-    onPick({ label, um: kind === "rotolo" ? "rotoli" : "m" });
+    onPick({ label, um: kind === "rotolo" ? "rt" : "mq" });
   };
 
   const pickTape = (t: TapeRoll, c: string) => {

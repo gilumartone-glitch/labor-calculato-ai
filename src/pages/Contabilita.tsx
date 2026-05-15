@@ -2374,7 +2374,7 @@ const TextInput = ({ value, onCommit, className, ...props }: Omit<React.Componen
   );
 };
 
-const NumberInput = ({ value, onChange, className }: { value: number; onChange: (n: number) => void; className?: string }) => {
+const NumberInput = ({ value, onChange, onCommit, className }: { value: number; onChange: (n: number) => void; onCommit?: (n: number) => void; className?: string }) => {
   // Stato locale per non riformattare il testo durante la digitazione:
   // così caratteri come ".", ",", o gli zeri intermedi non vengono cancellati.
   const [draft, setDraft] = useState<string>(Number.isFinite(value) && value !== 0 ? String(value) : "");
@@ -2396,6 +2396,7 @@ const NumberInput = ({ value, onChange, className }: { value: number; onChange: 
         const n = draft === "" ? 0 : Number(draft.replace(",", ".")) || 0;
         setDraft(n !== 0 ? String(n) : "");
         if (n !== value) onChange(n);
+        onCommit?.(n);
       }}
       onChange={(e) => {
         const raw = e.target.value;

@@ -344,14 +344,15 @@ export default function MagazzinoCalc() {
 /* ============== Form ordine manuale → magazzino (riusabile) ============== */
 type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string };
 
+type PickedItem = { label: string; um: string };
 function ManualMagazzinoOrderForm({
   sourceLabel,
   suggestions,
-  catalogOptions = [],
+  picker,
 }: {
   sourceLabel: string;
   suggestions: { descrizione: string; um: string }[];
-  catalogOptions?: { label: string; um?: string }[];
+  picker?: (onPick: (item: PickedItem) => void, onClose: () => void) => React.ReactNode;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();

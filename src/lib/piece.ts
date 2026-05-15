@@ -43,19 +43,32 @@ export const MARGIN_HEIGHT_CM = 0;
  * lavorazione perimetrale. Match per nome (case-insensitive) sul prefisso.
  * Se più lavorazioni con allowance sono applicate sullo stesso lato, si SOMMANO.
  */
-export const PERIMETER_ALLOWANCE_CM: { match: (name: string) => boolean; cm: number }[] = [
-  { match: (n) => n.startsWith("orl"), cm: 2.5 },                       // Orli / Orlo
+export const PERIMETER_ALLOWANCE_CM: {
+  match: (name: string) => boolean;
+  cm: number;
+  /** Lati su cui l'allowance va effettivamente conteggiata. Default = tutti. */
+  sides?: ("top" | "bottom" | "left" | "right")[];
+}[] = [
+  // Orli: solo sui lati superiore/inferiore (mai sui laterali)
+  { match: (n) => n.startsWith("orl"), cm: 2.5, sides: ["top", "bottom"] },
   { match: (n) => n.startsWith("sacc"), cm: 10 },                       // Sacca
   { match: (n) => n.includes("anell") || n.includes("lacc"), cm: 10 }, // Anelli e laccetti
   { match: (n) => n.startsWith("velcr"), cm: 5 },                       // Velcro
   { match: (n) => n.startsWith("piomb"), cm: 5 },                       // Piombo
 ];
 
-const allowanceCmForOpName = (name: string | undefined | null): number => {
+const allowanceCmForOpNameOnSide = (
+  name: string | undefined | null,
+  side: "top" | "bottom" | "left" | "right",
+): number => {
   const n = String(name || "").trim().toLowerCase();
   if (!n) return 0;
   let total = 0;
-  for (const rule of PERIMETER_ALLOWANCE_CM) if (rule.match(n)) total += rule.cm;
+  for (const rule of PERIMETER_ALLOWANCE_CM) {
+    if (!rule.match(n)) continue;
+    if (rule.sides && !rule.sides.includes(side)) continue;
+    total += rule.cm;
+  }
   return total;
 };
 
@@ -73,19 +86,17 @@ export const pieceHemAllowanceM = (
 ): { addW: number; addH: number } => {
   const ops = catalog?.perimeterOps ?? [];
   if (ops.length === 0) return { addW: 0, addH: 0 };
-  const opCm = new Map<string, number>();
-  for (const o of ops) {
-    const cm = allowanceCmForOpName(o.name);
-    if (cm > 0) opCm.set(o.id, cm);
-  }
-  if (opCm.size === 0) return { addW: 0, addH: 0 };
+  const opById = new Map<string, { name: string }>();
+  for (const o of ops) opById.set(o.id, { name: o.name });
   // sideCm[side] = somma cm allowance sul lato (più lavorazioni si sommano)
-  const sideCm: Record<string, number> = { top: 0, bottom: 0, left: 0, right: 0 };
+  const sideCm: Record<"top" | "bottom" | "left" | "right", number> = { top: 0, bottom: 0, left: 0, right: 0 };
   for (const pl of piece.perimeters ?? []) {
-    const cm = opCm.get(pl.opId);
-    if (!cm) continue;
+    const op = opById.get(pl.opId);
+    if (!op) continue;
     for (const s of pl.sides ?? []) {
-      if (s in sideCm) sideCm[s] += cm;
+      if (s === "top" || s === "bottom" || s === "left" || s === "right") {
+        sideCm[s] += allowanceCmForOpNameOnSide(op.name, s);
+      }
     }
   }
   const addH = (sideCm.top + sideCm.bottom) / 100;
@@ -494,11 +505,17 @@ export const computePieceMaterial = (
 
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
   const natural = planOrientation(variants, pieceWM, pieceHM);
-  // Piano ruotato: il rullo copre la larghezza del pezzo (trattata come "altezza"),
-  // i teli si affiancano sull'altezza del pezzo
-  const rotated = piece.allowRotation
-    ? planOrientation(variants, pieceHM, pieceWM)
-    : null;
+  // Rotazione consentita SOLO se:
+  //  - il pezzo lo permette (allowRotation)
+  //  - c'è un solo pezzo (quantity ≤ 1): più copie identiche non si possono ruotare
+  //    indipendentemente
+  //  - la cucitura non risulta orizzontale: nel piano ruotato i teli si affiancano
+  //    sull'altezza del pezzo, quindi le cuciture diventano orizzontali quando
+  //    ci sono più di 1 telo. Vietato.
+  const pieceQty = Math.max(1, Number(piece.quantity ?? 1) || 1);
+  const rotationAllowed = !!piece.allowRotation && pieceQty === 1;
+  const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM) : null;
+  const rotated = rotatedRaw && rotatedRaw.panels <= 1 ? rotatedRaw : null;
 
   type FullPlan = {
     plan: OrientationPlan;

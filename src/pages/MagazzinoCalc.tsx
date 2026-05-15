@@ -356,6 +356,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
+  const [chosenOptionKey, setChosenOptionKey] = useState<string | null>(null);
 
   // Dialog "Invia al Flow"
   const [flowOpen, setFlowOpen] = useState(false);
@@ -471,7 +472,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       options.push(makeOpt("whole", `${wholeRolls} rotoli interi`, wholeRolls, 0));
     }
 
-    const best = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
+    const cheapest = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
+    const chosen = chosenOptionKey ? options.find((o) => o.key === chosenOptionKey) ?? cheapest : cheapest;
+    const best = chosen;
     const rollsNeeded = best ? best.wholeRolls + (best.cutMeters > 0 ? 1 : 0) : 0;
     const totalCovered = best ? best.purchasedM : 0;
 
@@ -515,13 +518,13 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       surface, bounds: b,
       unitPrice: unit,
       purchasedSqm: best?.purchasedSqm ?? 0, totalPrice: best?.price ?? 0,
-      options, best,
+      options, best, cheapest,
       cutSurcharge, cutStep,
       stripsPerRoll,
       perimeter, tapeJunctions, tapeMeters, tapeRollLen, tapeRolls,
       tapePieces, tapeOversize,
     };
-  }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType]);
+  }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType, chosenOptionKey]);
 
   return (
     <div className="space-y-4">
@@ -580,20 +583,28 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       </div>
                       <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
                         Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                        <span className="block mt-0.5 italic">Clicca un'opzione per selezionarla manualmente.</span>
                       </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
-                          const isBest = o === calc.best;
+                          const isSelected = o === calc.best;
+                          const isCheapest = o === calc.cheapest;
                           const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
                           const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
-                            <div key={i} className={`px-3 py-2.5 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => setChosenOptionKey(o.key)}
+                              className={`w-full text-left px-3 py-2.5 transition-colors ${isSelected ? "bg-dept-soft/40 ring-2 ring-dept ring-inset" : "hover:bg-muted/30"}`}
+                            >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="text-[12px] font-semibold flex items-center gap-2">
                                   {o.label}
-                                  {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                  {isCheapest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                  {isSelected && !isCheapest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm border border-dept text-dept">scelta</span>}
                                 </div>
-                                <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                                <div className={`font-mono text-sm font-bold ${isSelected ? "text-dept" : ""}`}>{eur(o.price)}</div>
                               </div>
                               <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
                                 {o.wholeRolls > 0 && (
@@ -612,7 +623,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                                   <span>totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²</span>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -1290,7 +1301,18 @@ function SaleProductSection({
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const cartStorageKey = `vendite:cart:${categoryKey}:v1`;
+  const [cart, setCart] = useState<CartLine[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(cartStorageKey) : null;
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(cartStorageKey, JSON.stringify(cart)); } catch { /* noop */ }
+  }, [cart, cartStorageKey]);
   const [orderOpen, setOrderOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cliente, setCliente] = useState("");

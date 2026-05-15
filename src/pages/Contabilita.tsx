@@ -2272,11 +2272,11 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-0.5 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}{m.status === "cassa" && !isVirtual ? " ✓" : ""}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2294,17 +2294,6 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               </button>
             )}
           </div>
-          <PaymentMethodSelect ariaLabel="Metodo" className="h-8 w-full rounded-md border border-input bg-background px-0 text-center font-mono text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} />
-          <label aria-label="Pagato" title={isVirtual ? "Voce automatica da Stipendi" : (m.status === "cassa" ? "Pagato" : "Non pagato")} className="flex h-8 w-[26px] cursor-pointer items-center justify-center rounded-md border border-input bg-background hover:bg-dept-soft/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60">
-            <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:cursor-default" checked={m.status === "cassa"} onChange={(e) => {
-              if (e.target.checked && m.status !== "cassa") {
-                const today = new Date().toISOString().slice(0, 10);
-                updateMovement(m.id, { status: "cassa", date: today });
-              } else {
-                updateMovement(m.id, { status: e.target.checked ? "cassa" : "previsto" });
-              }
-            }} />
-          </label>
           <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
           {!isVirtual && (
             <button

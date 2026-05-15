@@ -1027,10 +1027,10 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
         <ManualMagazzinoOrderForm
           sourceLabel="Tappeto danza"
           suggestions={[
-            { descrizione: "Tappeto danza (rotolo intero)", um: "rotoli" },
-            { descrizione: "Tappeto danza (taglio)", um: "m" },
-            { descrizione: "Nastro danza", um: "rotoli" },
-            { descrizione: "Nastro biadesivo", um: "rotoli" },
+            { descrizione: "Tappeto danza (rotolo intero)", um: "rt" },
+            { descrizione: "Tappeto danza (taglio)", um: "mq" },
+            { descrizione: "Nastro danza", um: "rt" },
+            { descrizione: "Nastro biadesivo", um: "rt" },
           ]}
           picker={(onPick, onClose) => (
             <DancePickerDialog rolls={rolls} tapes={tapes} onPick={onPick} onClose={onClose} />

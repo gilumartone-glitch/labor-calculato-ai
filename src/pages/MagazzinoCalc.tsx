@@ -347,9 +347,11 @@ type ManualLine = { id: string; descrizione: string; qty: string; um: string; no
 function ManualMagazzinoOrderForm({
   sourceLabel,
   suggestions,
+  catalogOptions = [],
 }: {
   sourceLabel: string;
   suggestions: { descrizione: string; um: string }[];
+  catalogOptions?: { label: string; um?: string }[];
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -473,13 +475,32 @@ function ManualMagazzinoOrderForm({
             {lines.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">Aggiungi almeno una voce.</div>}
             {lines.map((l) => (
               <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-center">
-                <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
+                {catalogOptions.length > 0 ? (
+                  <Input
+                    list={`cat-${sourceLabel}`}
+                    value={l.descrizione}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const match = catalogOptions.find((o) => o.label === v);
+                      updLine(l.id, match?.um ? { descrizione: v, um: match.um } : { descrizione: v });
+                    }}
+                    placeholder="Scegli dal listino o digita…"
+                    className="h-8 text-[12px]"
+                  />
+                ) : (
+                  <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
+                )}
                 <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
                 <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
                 <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
                 <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
+            {catalogOptions.length > 0 && (
+              <datalist id={`cat-${sourceLabel}`}>
+                {catalogOptions.map((o, i) => <option key={i} value={o.label} />)}
+              </datalist>
+            )}
           </div>
         </div>
 
@@ -717,6 +738,21 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             { descrizione: "Tappeto danza (taglio)", um: "m" },
             { descrizione: "Nastro danza", um: "rotoli" },
             { descrizione: "Nastro biadesivo", um: "rotoli" },
+          ]}
+          catalogOptions={[
+            ...rolls.flatMap((r) => {
+              const base = `Tappeto ${r.name}${r.thicknessMm ? ` ${fmt(r.thicknessMm)}mm` : ""}`;
+              const colors = (r.colors ?? []).length ? r.colors : [""];
+              return colors.flatMap((c) => {
+                const lbl = c ? `${base} · ${c}` : base;
+                return [
+                  { label: `${lbl} (rotolo intero ${fmt(r.rollLength)}×${fmt(r.rollWidth)}m)`, um: "rotoli" },
+                  { label: `${lbl} (taglio)`, um: "m" },
+                ];
+              });
+            }),
+            { label: "Nastro danza (33 m/rotolo)", um: "rotoli" },
+            { label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" },
           ]}
         />
       ) : mode === "calcolo" ? (
@@ -1193,6 +1229,14 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
             { descrizione: "Vernice ignifuga (kg)", um: "kg" },
             { descrizione: "Diluente / additivo", um: "lt" },
           ]}
+          catalogOptions={products.flatMap((p) => {
+            const colors = (p.colors ?? []).length ? p.colors : [""];
+            return colors.flatMap((c) => {
+              const base = `${p.name}${c ? ` · ${c}` : ""}${p.base ? ` · ${p.base}` : ""}`;
+              const cans = (p.cans ?? []).map((can) => ({ label: `${base} — latta ${can.label} kg`, um: "latte" }));
+              return cans.length ? cans : [{ label: base, um: "kg" }];
+            });
+          })}
         />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">

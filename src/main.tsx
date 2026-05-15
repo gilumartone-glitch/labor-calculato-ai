@@ -1,6 +1,42 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
+// Zoom globale con Ctrl + rotellina (e Ctrl +/- / Ctrl 0 per reset).
+// Funziona sia nel browser che dentro Electron, dove di default
+// Ctrl+wheel non zooma.
+if (typeof window !== "undefined") {
+  const ZOOM_KEY = "app:zoom";
+  const MIN = 0.5, MAX = 2.5, STEP = 0.1;
+  const apply = (z: number) => {
+    const clamped = Math.min(MAX, Math.max(MIN, Math.round(z * 100) / 100));
+    document.documentElement.style.setProperty("zoom", String(clamped));
+    try { localStorage.setItem(ZOOM_KEY, String(clamped)); } catch { /* ignore */ }
+    return clamped;
+  };
+  let zoom = 1;
+  try {
+    const saved = parseFloat(localStorage.getItem(ZOOM_KEY) || "1");
+    if (Number.isFinite(saved) && saved > 0) zoom = saved;
+  } catch { /* ignore */ }
+  apply(zoom);
+
+  window.addEventListener(
+    "wheel",
+    (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoom = apply(zoom + (e.deltaY < 0 ? STEP : -STEP));
+    },
+    { passive: false },
+  );
+  window.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoom = apply(zoom + STEP); }
+    else if (e.key === "-" || e.key === "_") { e.preventDefault(); zoom = apply(zoom - STEP); }
+    else if (e.key === "0") { e.preventDefault(); zoom = apply(1); }
+  });
+}
+
 const rootEl = document.getElementById("root");
 
 // Service worker per push notifications + auto-navigate al click

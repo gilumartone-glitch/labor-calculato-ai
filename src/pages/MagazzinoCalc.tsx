@@ -1179,12 +1179,22 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Richiesta cliente & calcolo</Button>
+        <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
         <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino vernici</Button>
       </div>
 
-      {mode === "calcolo" ? (
+      {mode === "ordine" ? (
+        <ManualMagazzinoOrderForm
+          sourceLabel="Vernice ignifuga"
+          suggestions={[
+            { descrizione: "Vernice ignifuga (latta)", um: "latte" },
+            { descrizione: "Vernice ignifuga (kg)", um: "kg" },
+            { descrizione: "Diluente / additivo", um: "lt" },
+          ]}
+        />
+      ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Necessità cliente</div></div>
           <div className="p-4 space-y-4">

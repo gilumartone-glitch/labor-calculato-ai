@@ -43,19 +43,32 @@ export const MARGIN_HEIGHT_CM = 0;
  * lavorazione perimetrale. Match per nome (case-insensitive) sul prefisso.
  * Se più lavorazioni con allowance sono applicate sullo stesso lato, si SOMMANO.
  */
-export const PERIMETER_ALLOWANCE_CM: { match: (name: string) => boolean; cm: number }[] = [
-  { match: (n) => n.startsWith("orl"), cm: 2.5 },                       // Orli / Orlo
+export const PERIMETER_ALLOWANCE_CM: {
+  match: (name: string) => boolean;
+  cm: number;
+  /** Lati su cui l'allowance va effettivamente conteggiata. Default = tutti. */
+  sides?: ("top" | "bottom" | "left" | "right")[];
+}[] = [
+  // Orli: solo sui lati superiore/inferiore (mai sui laterali)
+  { match: (n) => n.startsWith("orl"), cm: 2.5, sides: ["top", "bottom"] },
   { match: (n) => n.startsWith("sacc"), cm: 10 },                       // Sacca
   { match: (n) => n.includes("anell") || n.includes("lacc"), cm: 10 }, // Anelli e laccetti
   { match: (n) => n.startsWith("velcr"), cm: 5 },                       // Velcro
   { match: (n) => n.startsWith("piomb"), cm: 5 },                       // Piombo
 ];
 
-const allowanceCmForOpName = (name: string | undefined | null): number => {
+const allowanceCmForOpNameOnSide = (
+  name: string | undefined | null,
+  side: "top" | "bottom" | "left" | "right",
+): number => {
   const n = String(name || "").trim().toLowerCase();
   if (!n) return 0;
   let total = 0;
-  for (const rule of PERIMETER_ALLOWANCE_CM) if (rule.match(n)) total += rule.cm;
+  for (const rule of PERIMETER_ALLOWANCE_CM) {
+    if (!rule.match(n)) continue;
+    if (rule.sides && !rule.sides.includes(side)) continue;
+    total += rule.cm;
+  }
   return total;
 };
 

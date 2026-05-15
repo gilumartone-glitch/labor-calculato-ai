@@ -656,13 +656,35 @@ export default function Contabilita() {
       if (seq !== saveSeqRef.current) return;
       if (error) {
         console.warn("[contabilita] save remote:", error.message, "uid=", uid);
-        setSaveStatus("error");
-        toast.error(
-          uid
-            ? `Salvataggio cloud non riuscito: ${error.message}. I dati restano solo su questo browser.`
-            : "Sessione scaduta: rifai login per salvare la contabilità sul cloud.",
-          { duration: 8000 },
-        );
+        // Tentativo di refresh sessione + retry una volta
+        let recovered = false;
+        try {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (refreshed?.session) {
+            const retry = await supabase
+              .from("contabilita_state")
+              .upsert(
+                [{ key: REMOTE_KEY, data: state as unknown as never, updated_by: refreshed.session.user.id as unknown as never }],
+                { onConflict: "key" },
+              )
+              .select("key,updated_at");
+            if (!retry.error && retry.data && retry.data.length > 0) {
+              lastRemoteRef.current = serialized;
+              ownSaveUntilRef.current = Date.now() + 2500;
+              setSaveStatus("idle");
+              recovered = true;
+            }
+          }
+        } catch { /* ignore */ }
+        if (!recovered) {
+          setSaveStatus("error");
+          toast.error(
+            uid
+              ? `Salvataggio cloud non riuscito: ${error.message}. Dati salvati su questo browser, riproverò automaticamente.`
+              : "Sessione scaduta: rifai login per salvare la contabilità sul cloud. I dati restano su questo browser.",
+            { duration: 8000, id: "contab-save-error" },
+          );
+        }
       } else if (!written || written.length === 0) {
         // RLS ha filtrato silenziosamente la scrittura: 200 ma 0 righe scritte.
         console.warn("[contabilita] save remote: 0 righe scritte (RLS), uid=", uid);
@@ -681,6 +703,37 @@ export default function Contabilita() {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [state]);
+
+  // 2b) Auto-retry: finché il salvataggio è in errore, riprova ogni 15s
+  useEffect(() => {
+    if (saveStatus !== "error") return;
+    const id = setInterval(async () => {
+      const current = stateRef.current;
+      if (!current) return;
+      const serialized = serializeAccountingState(current);
+      if (serialized === lastRemoteRef.current) { setSaveStatus("idle"); return; }
+      try {
+        await supabase.auth.refreshSession();
+      } catch { /* ignore */ }
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData?.user?.id ?? null;
+      if (!uid) return; // serve login utente
+      const { data: written, error } = await supabase
+        .from("contabilita_state")
+        .upsert(
+          [{ key: REMOTE_KEY, data: current as unknown as never, updated_by: uid as unknown as never }],
+          { onConflict: "key" },
+        )
+        .select("key,updated_at");
+      if (!error && written && written.length > 0) {
+        lastRemoteRef.current = serialized;
+        ownSaveUntilRef.current = Date.now() + 2500;
+        setSaveStatus("idle");
+        toast.success("Contabilità ri-sincronizzata sul cloud", { id: "contab-save-error" });
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [saveStatus]);
 
   // 3) Realtime: ricevi modifiche da altri utenti
   useEffect(() => {
@@ -2560,6 +2613,30 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
     setProcessed(next);
+    // Se sto attivando "elaborati" e il mese è vuoto, precompila i nomi del mese
+    // più recente con dipendenti (cercando a ritroso, anche da dicembre dell'anno scorso).
+    if (v && monthRows.length === 0) {
+      const order: number[] = [];
+      for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
+      const srcMonth = order.find((m) => salaries.some((s) => s.month === m));
+      if (srcMonth !== undefined) {
+        const prefilled: Salary[] = salaries
+          .filter((s) => s.month === srcMonth)
+          .map((s) => ({
+            id: uid(),
+            name: s.name,
+            month: openMonth,
+            totale: s.totale,
+            bonifico: s.bonifico,
+            contanti: s.contanti,
+            sc: s.sc,
+            cassaBanca: s.cassaBanca,
+            cassaContanti: s.cassaContanti,
+          }));
+        setSalaries([...salaries, ...prefilled]);
+        toast.success(`Precompilati ${prefilled.length} dipendenti da ${MONTHS[srcMonth]}`);
+      }
+    }
   };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
   const updatePayDate = (v: string) => {

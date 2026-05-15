@@ -153,6 +153,16 @@
   }
 }
 
+/* Spazio per il pulsante HUB fisso in alto a sinistra (nascosto su /hub e /auth via classe body) */
+body:not(.no-hub-btn) header > div:first-child {
+  padding-left: 110px !important;
+}
+@media (max-width: 768px) {
+  body:not(.no-hub-btn) header > div:first-child {
+    padding-left: 80px !important;
+  }
+}
+
 @layer components {
   .panel {
     @apply bg-card border-2 border-[hsl(var(--ink))] rounded-sm;

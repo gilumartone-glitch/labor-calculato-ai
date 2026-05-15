@@ -104,8 +104,8 @@ const Inner = () => {
   };
 
   const createUser = async () => {
-    if (!nuEmail || !nuPwd || nuPwd.length < 6) {
-      toast.error("Email e password (min 6) obbligatori");
+    if (!nuEmail || !nuPwd || nuPwd.length < 8) {
+      toast.error("Email e password (min 8 caratteri, non comune) obbligatori");
       return;
     }
     setCreating(true);

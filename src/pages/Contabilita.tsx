@@ -449,6 +449,15 @@ const writeLocalState = (next: AccountingState, savedAt = Date.now()) => {
   return serialized;
 };
 
+const readLocalSavedAt = () => {
+  try {
+    const n = Number(localStorage.getItem(LOCAL_SAVED_AT_KEY) || 0);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+};
+
 const persistState = (next: AccountingState, notify = false) => {
   try {
     writeLocalState(next);
@@ -559,7 +568,7 @@ export default function Contabilita() {
     return b.every((item) => ids.has(item.id));
   };
 
-  const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean): AccountingState => {
+  const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean, preferLocalRecords = false): AccountingState => {
     const unionIds = (a?: string[], b?: string[]) => Array.from(new Set([...(a ?? []), ...(b ?? [])]));
     const deletedIds = {
       movements: unionIds(local.deletedIds?.movements, remote.deletedIds?.movements),
@@ -571,7 +580,7 @@ export default function Contabilita() {
     const tFix = new Set(deletedIds.fixedExpenses);
     const tSal = new Set(deletedIds.salaries);
     const tCon = new Set(deletedIds.contacts);
-    const recent = getRecentIds();
+    const recent = preferLocalRecords ? new Set(local.movements.map((m) => m.id)) : getRecentIds();
     return {
     // Campi scalari: durante una modifica locale attiva preferisci il locale
     // per evitare che le date stipendi e altri scalari "si auto-cambino".

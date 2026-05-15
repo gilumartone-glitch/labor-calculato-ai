@@ -33,6 +33,7 @@ import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 
+
 const REPARTO_TO_PROD: Record<CommessaReparto, ProdDept> = {
   tappezzeria: "tappezzeria",
   stampa: "stampa",
@@ -86,6 +87,7 @@ export const CreateCommessaButton = ({
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [profiles, setProfiles] = useState<Array<{ id: string; display_name: string | null; settori: string[] | null }>>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -94,15 +96,17 @@ export const CreateCommessaButton = ({
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
     note: string; warehouseOnly: boolean;
     materialOnlyDepts: ProdDept[];
+    deptAssignees: Record<string, string>;
   };
   const initialForm: FormState = {
     titolo: defaultTitle, cliente: "", prodName: "",
     importo: defaultAmount, reparto: defaultReparto, priorita: "media",
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
+    deptAssignees: {},
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, deptAssignees } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -117,11 +121,20 @@ export const CreateCommessaButton = ({
       ...f,
       materialOnlyDepts: f.materialOnlyDepts.includes(d) ? f.materialOnlyDepts.filter((x) => x !== d) : [...f.materialOnlyDepts, d],
     }));
+  const setDeptAssignee = (d: ProdDept, v: string) =>
+    setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
   const inferredDepts: ProdDept[] = useMemo(
     () => inferProdDeptsFromSnapshot(snapshot as any),
     [snapshot],
   );
+  const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
+  const activeDepts: ProdDept[] = useMemo(() => {
+    const base = inferredDepts.length > 0 ? inferredDepts : [fallbackDept];
+    return base.filter((d) => !materialOnlyDepts.includes(d));
+  }, [inferredDepts, fallbackDept, materialOnlyDepts]);
+  const operatorsForDept = (d: ProdDept) =>
+    profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | { clienteName: string; productionSnapshot: Snapshot }>(null);
@@ -135,6 +148,10 @@ export const CreateCommessaButton = ({
         importo: f.importo || defaultAmount,
         reparto: f.reparto || defaultReparto,
       }));
+      // carica profili (per selettori operatore per reparto)
+      supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+        setProfiles((data ?? []) as any);
+      });
     }
     setOpen(v);
   };
@@ -215,9 +232,10 @@ export const CreateCommessaButton = ({
         // Inserisce un sub per ogni reparto in PARALLELO (depends_on=null) cosicché
         // ogni reparto lavori indipendentemente e chiuda il proprio cerchio;
         // l'ordine si chiude quando tutti i sub sono completati.
-        const insertedSubs: { id: string; dept: ProdDept }[] = [];
+        const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
         for (let i = 0; i < depts.length; i++) {
           const d = depts[i];
+          const assignee = deptAssignees[d] || null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -228,11 +246,12 @@ export const CreateCommessaButton = ({
               note: titolo.trim() || null,
               files: [],
               depends_on: null,
-            })
+              assignee_id: assignee,
+            } as any)
             .select("id")
             .single();
           if (eSub) throw eSub;
-          insertedSubs.push({ id: sub.id, dept: d });
+          insertedSubs.push({ id: sub.id, dept: d, assignee });
         }
 
         await logAction({
@@ -240,7 +259,7 @@ export const CreateCommessaButton = ({
           entity_type: "order",
           entity_id: pord.id,
           detail: `Ordine ${prodCode} creato da preventivo per ${clienteName} — ${PRIORITY_LABEL[prodPrio]} (${depts.join(" → ")})`,
-          new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo" },
+          new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo", assignees: deptAssignees },
         });
 
         const writers = await getProduzioneWriters(depts);
@@ -254,6 +273,19 @@ export const CreateCommessaButton = ({
             link: `/produzione/board?order=${pord.id}`,
             is_urgent: prodPrio !== "normale",
           });
+        }
+        // Notifica diretta agli operatori assegnati
+        for (const s of insertedSubs) {
+          if (s.assignee && s.assignee !== user.id) {
+            await notify({
+              userIds: [s.assignee],
+              type: "ordine_creato",
+              message: `Assegnato a te: ${prodCode} · ${DEPT_LABEL[s.dept]} (${clienteName})`,
+              order_id: pord.id,
+              link: `/produzione/board?order=${pord.id}`,
+              is_urgent: prodPrio !== "normale",
+            });
+          }
         }
       } catch (prodErr) {
         // Non blocco la commessa se la creazione produzione fallisce: la commessa è già salvata.
@@ -508,6 +540,40 @@ export const CreateCommessaButton = ({
           <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
             ✓ Il dettaglio del calcolo verrà salvato come snapshot nella commessa.
           </div>
+
+          {!warehouseOnly && activeDepts.length > 0 && (
+            <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+                Assegna operatore per reparto
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Indica chi, all'interno di ciascun reparto, deve eseguire la lavorazione (facoltativo).
+              </div>
+              <div className="space-y-2 pt-1">
+                {activeDepts.map((d) => {
+                  const ops = operatorsForDept(d);
+                  return (
+                    <div key={d} className="grid grid-cols-3 gap-2 items-center">
+                      <div className="font-mono text-[11px] font-bold uppercase tracking-wider">{DEPT_LABEL[d]}</div>
+                      <select
+                        value={deptAssignees[d] ?? ""}
+                        onChange={(e) => setDeptAssignee(d, e.target.value)}
+                        className="col-span-2 h-9 px-2 border-2 border-input rounded-md bg-background text-sm"
+                      >
+                        <option value="">Operatore (facoltativo)…</option>
+                        {ops.map((o) => (
+                          <option key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</option>
+                        ))}
+                        {ops.length === 0 && (
+                          <option disabled value="__none">Nessun operatore con settore {DEPT_LABEL[d]}</option>
+                        )}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {!warehouseOnly && inferredDepts.length > 0 && (
             <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">

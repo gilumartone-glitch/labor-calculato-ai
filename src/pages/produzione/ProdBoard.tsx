@@ -304,35 +304,35 @@ const ProdBoard = () => {
 
   return (
     <ProdLayout>
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+      <div className="p-3 sm:p-6 space-y-4">
+        <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
+          <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>
-            <h1 className="font-display text-2xl font-semibold">Flow Board</h1>
-            <div className="text-[10px] text-muted-foreground mt-1">
+            <h1 className="font-display text-xl sm:text-2xl font-semibold">Flow Board</h1>
+            <div className="text-[10px] text-muted-foreground mt-1 hidden sm:block">
               Officina · sub-ordini per reparto, materiali, magazzino, bolle. Qui il lavoro viene eseguito.
             </div>
           </div>
           {isCoordinator && (
-            <div className="flex items-center gap-2">
-              <select value={filterDept} onChange={(e) => setFilterDept(e.target.value as ProdDept | "all")} className="h-9 px-2 border-2 border-input rounded-sm text-[11px] uppercase tracking-wider font-bold bg-background">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <select value={filterDept} onChange={(e) => setFilterDept(e.target.value as ProdDept | "all")} className="h-9 px-2 border-2 border-input rounded-sm text-[11px] uppercase tracking-wider font-bold bg-background flex-1 sm:flex-none min-w-0">
                 <option value="all">Tutti i reparti</option>
                 {(Object.keys(DEPT_LABEL) as ProdDept[]).map((d) => <option key={d} value={d}>{DEPT_LABEL[d]}</option>)}
               </select>
-              <Button variant="outline" onClick={() => setLaunchWarehouse(true)} className="gap-2"><PackageCheck className="w-4 h-4" />Solo magazzino</Button>
-              <Button onClick={() => setLaunch(true)} className="gap-2"><Plus className="w-4 h-4" />Lancia</Button>
+              <Button variant="outline" size="sm" onClick={() => setLaunchWarehouse(true)} className="gap-2"><PackageCheck className="w-4 h-4" /><span className="hidden sm:inline">Solo magazzino</span><span className="sm:hidden">Magaz.</span></Button>
+              <Button size="sm" onClick={() => setLaunch(true)} className="gap-2"><Plus className="w-4 h-4" />Lancia</Button>
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
           {stages.map((st) => (
-            <div key={st.key} className="min-w-[280px] w-[280px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">
+            <div key={st.key} className="w-full md:min-w-[280px] md:w-[280px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">
               <div className="px-3 py-2 border-b-2 border-ink/15 flex items-center justify-between">
                 <div className="font-display font-semibold text-sm">{st.label}</div>
                 <span className="font-mono text-[10px] text-muted-foreground">{st.items.length}</span>
               </div>
-              <div className="p-2 space-y-2 min-h-[200px] max-h-[calc(100vh-220px)] overflow-y-auto">
+              <div className="p-2 space-y-2 min-h-[120px] md:min-h-[200px] md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
                 {st.items.length === 0 ? (
                   <div className="text-center text-[10px] text-muted-foreground py-6 font-mono uppercase tracking-wider">Vuoto</div>
                 ) : st.items.map((o) => {

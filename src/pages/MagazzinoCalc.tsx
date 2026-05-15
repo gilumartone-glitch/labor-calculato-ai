@@ -476,35 +476,32 @@ function ManualMagazzinoOrderForm({
           <div className="divide-y">
             {lines.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">Aggiungi almeno una voce.</div>}
             {lines.map((l) => (
-              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-center">
-                {catalogOptions.length > 0 ? (
-                  <Input
-                    list={`cat-${sourceLabel}`}
-                    value={l.descrizione}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const match = catalogOptions.find((o) => o.label === v);
-                      updLine(l.id, match?.um ? { descrizione: v, um: match.um } : { descrizione: v });
-                    }}
-                    placeholder="Scegli dal listino o digita…"
-                    className="h-8 text-[12px]"
-                  />
-                ) : (
+              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
+                <div className="flex flex-col gap-1">
                   <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
-                )}
+                  {picker && (
+                    <button
+                      type="button"
+                      onClick={() => setPickerLineId(l.id)}
+                      className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground hover:text-ink underline self-start"
+                    >
+                      Scegli dal listino…
+                    </button>
+                  )}
+                </div>
                 <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
                 <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
                 <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
-                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
-            {catalogOptions.length > 0 && (
-              <datalist id={`cat-${sourceLabel}`}>
-                {catalogOptions.map((o, i) => <option key={i} value={o.label} />)}
-              </datalist>
-            )}
           </div>
         </div>
+
+        {picker && pickerLineId && picker(
+          (item) => { updLine(pickerLineId, { descrizione: item.label, um: item.um }); setPickerLineId(null); },
+          () => setPickerLineId(null),
+        )}
 
         <Field label="Note ordine"><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note interne / istruzioni" /></Field>
 

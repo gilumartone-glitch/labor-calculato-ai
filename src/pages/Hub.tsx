@@ -61,7 +61,7 @@ const Hub = () => {
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-1">// Officina · Tecnofra</div>
-            <h1 className="font-display text-2xl font-semibold leading-none">Le tue postazioni</h1>
+            <h1 className="font-display text-2xl font-semibold leading-none">Hub</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
@@ -78,7 +78,7 @@ const Hub = () => {
         {visible.length === 0 ? (
           <div className="text-center border-2 border-ink/20 bg-paper p-10 rounded-sm">
             <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-            <h2 className="font-display text-xl font-semibold mb-1">Nessuna postazione abilitata</h2>
+            <h2 className="font-display text-xl font-semibold mb-1">Nessuna sezione abilitata</h2>
             <p className="text-sm text-muted-foreground">Chiedi a un amministratore di assegnarti i permessi.</p>
           </div>
         ) : (

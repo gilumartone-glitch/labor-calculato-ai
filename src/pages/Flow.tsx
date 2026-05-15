@@ -299,10 +299,10 @@ const Flow = () => {
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <Link
               to="/hub"
-              className="inline-flex items-center gap-2 px-2 md:px-3 py-2 text-xs md:text-sm uppercase tracking-widest text-ink hover:bg-ink hover:text-paper border-2 border-ink rounded-sm font-mono font-semibold transition-colors shrink-0"
+              className="inline-flex items-center gap-2 px-3 py-2 text-base uppercase tracking-widest text-ink hover:bg-ink hover:text-paper border-2 border-ink rounded-sm font-mono font-bold transition-colors shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Postazioni</span>
+              <span>Hub</span>
             </Link>
             <span className="text-ink/20 hidden sm:inline">·</span>
             <div className="min-w-0">

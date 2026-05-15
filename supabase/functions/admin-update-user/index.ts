@@ -38,8 +38,12 @@ Deno.serve(async (req) => {
       authPatch.user_metadata = { display_name: display_name.trim() };
     }
     if (Object.keys(authPatch).length > 0) {
-      const { error } = await admin.auth.admin.updateUserById(user_id, authPatch);
-      if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: upd, error } = await admin.auth.admin.updateUserById(user_id, authPatch);
+      if (error) {
+        console.error("updateUserById error", { user_id, authPatch, error });
+        return new Response(JSON.stringify({ error: error.message, details: (error as any).code ?? null, status: (error as any).status ?? null }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      console.log("updateUserById ok", upd?.user?.id);
     }
 
     if (typeof display_name === "string") {

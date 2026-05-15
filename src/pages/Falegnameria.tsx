@@ -411,7 +411,7 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" asChild><Link to="/hub">Home</Link></Button>
+              
               <AdminUsersLink variant="outline" />
               <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
             </div>

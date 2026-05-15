@@ -87,8 +87,7 @@ export const CreateCommessaButton = ({
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const profiles = useProdStore((s) => s.profiles);
-  const refreshProfiles = useProdStore((s) => s.refreshProfiles);
+  const [profiles, setProfiles] = useState<Array<{ id: string; display_name: string | null; settori: string[] | null }>>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 

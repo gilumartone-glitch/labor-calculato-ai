@@ -2227,9 +2227,9 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_74px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[74px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_150px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[150px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs font-mono text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <StepDateInput ariaLabel="Data" showOk={false} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="flex h-8 w-full items-stretch gap-1 min-w-0">
             <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) ? (

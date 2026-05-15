@@ -16,7 +16,7 @@ export const FloatingHubButton = () => {
     <Link
       to="/hub"
       title="Torna all'Hub"
-      className="fixed top-3 right-3 z-[100] inline-flex items-center gap-2 px-4 py-2 rounded-sm uppercase tracking-wider font-bold text-base bg-primary text-primary-foreground border-2 border-ink shadow-[4px_4px_0_0_hsl(var(--ink))] hover:bg-ink hover:text-paper transition-colors"
+      className="fixed bottom-4 right-4 z-[100] inline-flex items-center gap-2 px-4 py-3 rounded-sm uppercase tracking-wider font-bold text-base bg-primary text-primary-foreground border-2 border-ink shadow-[4px_4px_0_0_hsl(var(--ink))] hover:bg-ink hover:text-paper transition-colors"
     >
       <LayoutGrid className="w-4 h-4" />
       <span>Hub</span>

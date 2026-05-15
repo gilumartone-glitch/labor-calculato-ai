@@ -1769,23 +1769,21 @@ const QuickDateInput = ({
       placeholder="gg/mm/aa"
       value={draft}
       onChange={(e) => {
-        const input = e.target.value;
-        const isDeleting = input.length < draft.length;
-        // Estrai solo le cifre, max 8 (gg+mm+aaaa)
-        const digits = input.replace(/\D/g, "").slice(0, 8);
-        let next = "";
-        if (digits.length === 0) {
-          next = "";
-        } else if (digits.length <= 2) {
-          // Mentre cancello lascio solo le cifre senza forzare lo /
-          next = isDeleting ? digits : (digits.length === 2 ? digits + "/" : digits);
-        } else if (digits.length <= 4) {
-          next = digits.slice(0, 2) + "/" + digits.slice(2);
-          if (!isDeleting && digits.length === 4) next += "/";
-        } else {
-          next = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+        let raw = e.target.value.replace(/[^\d/]/g, "");
+        const isDeleting = raw.length < draft.length;
+        // Auto-formattazione SOLO se l'utente sta scrivendo da zero (o incollando)
+        // un blocco di sole cifre: così la modifica puntuale di un singolo
+        // segmento (es. cambiare il giorno in "04/05/26") non viene riformattata.
+        if (!isDeleting && /^\d+$/.test(raw)) {
+          const d = raw.slice(0, 8);
+          if (d.length === 0) raw = "";
+          else if (d.length === 1) raw = d;
+          else if (d.length === 2) raw = d + "/";
+          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2) + (d.length === 4 ? "/" : "");
+          else raw = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
         }
-        setDraft(next);
+        if (raw.length > 10) raw = raw.slice(0, 10);
+        setDraft(raw);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {

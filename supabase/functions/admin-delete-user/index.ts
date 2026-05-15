@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     if (!user_id) {
       return new Response(JSON.stringify({ error: "user_id mancante" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (user_id === userData.user.id) {
+    if (user_id === userId) {
       return new Response(JSON.stringify({ error: "Non puoi eliminare te stesso" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

@@ -157,9 +157,22 @@ const hydrate = (raw: unknown): MagState => {
     priceSell: s?.priceSell != null ? Number(s.priceSell) : undefined,
     note: s?.note,
   })) : [];
+  const tapeRolls: TapeRoll[] = Array.isArray(p.tapeRolls)
+    ? p.tapeRolls.map((t: any) => ({
+        id: t.id ?? uid(),
+        name: String(t.name ?? ""),
+        kind: (["danza", "biadesivo", "altro"] as TapeKind[]).includes(t.kind) ? t.kind : "danza",
+        rollLength: Number(t.rollLength ?? 0),
+        widthMm: t.widthMm != null ? Number(t.widthMm) : undefined,
+        colors: Array.isArray(t.colors) ? t.colors.map(String).filter(Boolean) : [],
+        pricePerRoll: t.pricePerRoll != null ? Number(t.pricePerRoll) : undefined,
+        note: t.note,
+      }))
+    : [];
   return {
     version: 5,
     danceRolls,
+    tapeRolls,
     fireProducts,
     printProducts: hydrateSale(p.printProducts),
     fabricProducts: hydrateSale(p.fabricProducts),

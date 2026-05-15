@@ -1127,7 +1127,7 @@ function DanceNestingCanvas({ points, customPoints, roomW, roomH, rollWidth, dir
 
 /* ============== Sezione Vernice ignifuga ============== */
 function FireSection({ products, setProducts }: { products: FireProduct[]; setProducts: (p: FireProduct[]) => void }) {
-  const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(products[0]?.id ?? "");
   const [needMaterial, setNeedMaterial] = useState("");
   const [needColor, setNeedColor] = useState("");

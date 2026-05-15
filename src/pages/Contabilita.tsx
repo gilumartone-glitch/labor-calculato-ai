@@ -2272,11 +2272,11 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-0.5 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}{m.status === "cassa" && !isVirtual ? " ✓" : ""}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2294,17 +2294,6 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               </button>
             )}
           </div>
-          <PaymentMethodSelect ariaLabel="Metodo" className="h-8 w-full rounded-md border border-input bg-background px-0 text-center font-mono text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} />
-          <label aria-label="Pagato" title={isVirtual ? "Voce automatica da Stipendi" : (m.status === "cassa" ? "Pagato" : "Non pagato")} className="flex h-8 w-[26px] cursor-pointer items-center justify-center rounded-md border border-input bg-background hover:bg-dept-soft/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60">
-            <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:cursor-default" checked={m.status === "cassa"} onChange={(e) => {
-              if (e.target.checked && m.status !== "cassa") {
-                const today = new Date().toISOString().slice(0, 10);
-                updateMovement(m.id, { status: "cassa", date: today });
-              } else {
-                updateMovement(m.id, { status: e.target.checked ? "cassa" : "previsto" });
-              }
-            }} />
-          </label>
           <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
           {!isVirtual && (
             <button
@@ -2339,6 +2328,19 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
             <Field label="Metodo"><PaymentMethodSelect className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
             <Field label="Data"><StepDateInput value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} onConfirm={() => setEditingId(null)} /></Field>
             <Field label="N° Fattura"><TextInput className="h-9 text-xs font-mono" value={m.invoiceNumber ?? ""} placeholder="es. 2026/123" onCommit={(invoiceNumber) => updateMovement(m.id, { invoiceNumber })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setEditingId(null); } }} /></Field>
+            <Field label="Pagato">
+              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                <input type="checkbox" className="h-3.5 w-3.5 cursor-pointer accent-dept" checked={m.status === "cassa"} onChange={(e) => {
+                  if (e.target.checked && m.status !== "cassa") {
+                    const today = new Date().toISOString().slice(0, 10);
+                    updateMovement(m.id, { status: "cassa", date: today });
+                  } else {
+                    updateMovement(m.id, { status: e.target.checked ? "cassa" : "previsto" });
+                  }
+                }} />
+                {m.status === "cassa" ? "Sì (in cassa)" : "No (previsto)"}
+              </label>
+            </Field>
             <Field label="Gestito per Acconti">
               <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
                 <input type="checkbox" checked={!!m.gestitoAcconti} onChange={(e) => updateMovement(m.id, { gestitoAcconti: e.target.checked, acconto: e.target.checked ? m.acconto : undefined })} />
@@ -2383,12 +2385,10 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
         <span className="px-1">Voce</span>
-        <span className="text-center">Met.</span>
-        <span className="text-center">Pag.</span>
         <span className="px-1 text-right">Importo</span>
         <span></span>
       </div>
@@ -2417,19 +2417,18 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                   <div className="relative flex h-8 w-full items-stretch min-w-0">
-                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1 text-xs font-semibold">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-xs font-semibold">
                       <span className="truncate">{label}</span>
+                      <span className="ml-1 shrink-0 font-mono text-[10px] text-muted-foreground">×{items.length}</span>
                     </div>
                   </div>
-                  <div className="flex h-8 items-center justify-center rounded-md border border-input bg-background font-mono text-xs text-muted-foreground">×{items.length}</div>
-                  <span />
                   <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
                   <button
                     type="button"

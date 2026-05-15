@@ -1768,18 +1768,19 @@ const QuickDateInput = ({
       inputMode="numeric"
       placeholder="gg/mm/aa"
       value={draft}
+      onFocus={(e) => { e.currentTarget.select(); }}
       onChange={(e) => {
         let raw = e.target.value.replace(/[^\d/]/g, "");
         const isDeleting = raw.length < draft.length;
-        // Auto-formattazione SOLO se l'utente sta scrivendo da zero (o incollando)
-        // un blocco di sole cifre: così la modifica puntuale di un singolo
-        // segmento (es. cambiare il giorno in "04/05/26") non viene riformattata.
-        if (!isDeleting && /^\d+$/.test(raw)) {
-          const d = raw.slice(0, 8);
+        // Estrai solo cifre per auto-formattazione
+        const digitsOnly = raw.replace(/\D/g, "");
+        // Se l'utente sta inserendo cifre (anche pasting o sostituendo tutto),
+        // riformatta come gg/mm/aa man mano che digita.
+        if (!isDeleting) {
+          const d = digitsOnly.slice(0, 8);
           if (d.length === 0) raw = "";
-          else if (d.length === 1) raw = d;
-          else if (d.length === 2) raw = d + "/";
-          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2) + (d.length === 4 ? "/" : "");
+          else if (d.length <= 2) raw = d;
+          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2);
           else raw = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
         }
         if (raw.length > 10) raw = raw.slice(0, 10);
@@ -2227,9 +2228,9 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_150px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[150px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_110px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[110px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <StepDateInput ariaLabel="Data" showOk={false} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-sm font-mono text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="flex h-8 w-full items-stretch gap-1 min-w-0">
             <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) ? (

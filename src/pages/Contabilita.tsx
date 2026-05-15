@@ -2365,17 +2365,16 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           onClick={() => addInlineMovement(type, status)}
           aria-label={`Aggiungi ${title.toLowerCase()}`}
           title={`Aggiungi ${title.toLowerCase()}`}
-          className="grid h-6 w-6 place-items-center rounded-sm border border-dept bg-background text-dept hover:bg-dept hover:text-dept-foreground transition-colors"
+          className="grid h-8 w-8 place-items-center rounded-md border border-dept bg-background text-dept hover:bg-dept hover:text-dept-foreground transition-colors"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "grid-cols-[92px_minmax(180px,1fr)_88px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
         <span className="px-1">Voce</span>
         <span className="px-1 text-right">Importo</span>
-        <span></span>
       </div>
       <div className="max-h-[78vh] min-h-[60vh] space-y-0.5 overflow-auto p-1">
         {rows.length === 0 ? <p className="p-2 text-xs text-muted-foreground">Nessun movimento</p> : (() => {

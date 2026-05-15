@@ -583,6 +583,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       </div>
                       <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
                         Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                        <span className="block mt-0.5 italic">Clicca un'opzione per selezionarla manualmente.</span>
                       </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {

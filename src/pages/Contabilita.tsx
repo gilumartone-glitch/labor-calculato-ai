@@ -1768,18 +1768,19 @@ const QuickDateInput = ({
       inputMode="numeric"
       placeholder="gg/mm/aa"
       value={draft}
+      onFocus={(e) => { e.currentTarget.select(); }}
       onChange={(e) => {
         let raw = e.target.value.replace(/[^\d/]/g, "");
         const isDeleting = raw.length < draft.length;
-        // Auto-formattazione SOLO se l'utente sta scrivendo da zero (o incollando)
-        // un blocco di sole cifre: così la modifica puntuale di un singolo
-        // segmento (es. cambiare il giorno in "04/05/26") non viene riformattata.
-        if (!isDeleting && /^\d+$/.test(raw)) {
-          const d = raw.slice(0, 8);
+        // Estrai solo cifre per auto-formattazione
+        const digitsOnly = raw.replace(/\D/g, "");
+        // Se l'utente sta inserendo cifre (anche pasting o sostituendo tutto),
+        // riformatta come gg/mm/aa man mano che digita.
+        if (!isDeleting) {
+          const d = digitsOnly.slice(0, 8);
           if (d.length === 0) raw = "";
-          else if (d.length === 1) raw = d;
-          else if (d.length === 2) raw = d + "/";
-          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2) + (d.length === 4 ? "/" : "");
+          else if (d.length <= 2) raw = d;
+          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2);
           else raw = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
         }
         if (raw.length > 10) raw = raw.slice(0, 10);

@@ -341,12 +341,179 @@ export default function MagazzinoCalc() {
   );
 }
 
+/* ============== Form ordine manuale → magazzino (riusabile) ============== */
+type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string };
+
+function ManualMagazzinoOrderForm({
+  sourceLabel,
+  suggestions,
+}: {
+  sourceLabel: string;
+  suggestions: { descrizione: string; um: string }[];
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [cliente, setCliente] = useState("");
+  const [ref, setRef] = useState("");
+  const [note, setNote] = useState("");
+  const [lines, setLines] = useState<ManualLine[]>([
+    { id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" },
+  ]);
+  const [assignee, setAssignee] = useState("");
+  const [users, setUsers] = useState<{ id: string; display_name: string | null }[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })
+      .then(({ data }) => setUsers(data ?? []));
+  }, []);
+
+  const addLine = (preset?: { descrizione: string; um: string }) =>
+    setLines([...lines, { id: uid(), descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+  const updLine = (id: string, patch: Partial<ManualLine>) => setLines(lines.map((l) => l.id === id ? { ...l, ...patch } : l));
+  const rmLine = (id: string) => setLines(lines.filter((l) => l.id !== id));
+
+  const validLines = lines.filter((l) => l.descrizione.trim() && Number(l.qty) > 0);
+
+  const submit = async () => {
+    if (!user) { toast.error("Devi accedere"); return; }
+    if (!cliente.trim()) { toast.error("Inserisci il cliente"); return; }
+    if (validLines.length === 0) { toast.error("Aggiungi almeno una voce"); return; }
+    if (!assignee) { toast.error("Seleziona il responsabile magazzino"); return; }
+    setBusy(true);
+    try {
+      const code = await nextOrderCode();
+      const itemsTxt = validLines.map((l) => `${l.descrizione} — ${l.qty} ${l.um}${l.note ? ` (${l.note})` : ""}`).join(" · ");
+      const fullNote = [note.trim(), itemsTxt].filter(Boolean).join("\n");
+      const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
+        code,
+        cliente: cliente.trim().slice(0, 200),
+        data: new Date().toISOString().slice(0, 10),
+        note: `${sourceLabel} — ${fullNote}`,
+        priorita: "normale",
+        delivery: "spedizione",
+        status: "in_corso",
+        attachments: [],
+        nesting_included: false,
+        created_by: user.id,
+        customer_order_ref: ref.trim() || null,
+        snapshot: {
+          source: `magazzino-ordine-manuale`,
+          sourceLabel,
+          cliente: cliente.trim(),
+          ref: ref.trim(),
+          items: validLines.map((l) => ({ descrizione: l.descrizione, qty: Number(l.qty), um: l.um, note: l.note })),
+          note,
+        } as never,
+      }).select().single();
+      if (e1) throw e1;
+      await supabase.from("production_sub_orders").insert({
+        order_id: pord.id,
+        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
+        dept: "magazzino",
+        ordine: 0,
+        note: itemsTxt,
+        files: [],
+        depends_on: null,
+        assignee_id: assignee,
+      } as any);
+      await notify({
+        userIds: [assignee],
+        type: "magazzino_da_preparare",
+        message: `${sourceLabel} — ${code} · ${cliente.trim()}`,
+        order_id: pord.id,
+        link: "/produzione/preparazione",
+        is_urgent: false,
+      });
+      await logAction({
+        action: "FLOW_LANCIATO",
+        entity_type: "order",
+        entity_id: pord.id,
+        detail: `${sourceLabel} ${code} per ${cliente.trim()} (${itemsTxt})`,
+        new_state: { code, source: "magazzino-ordine-manuale" },
+      });
+      toast.success(`Ordine ${code} creato e inviato al magazzino`, {
+        action: { label: "Apri", onClick: () => navigate(`/produzione/board?order=${pord.id}`) },
+      });
+      setCliente(""); setRef(""); setNote("");
+      setLines([{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }]);
+      setAssignee("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="border-2 border-ink/15 rounded-sm bg-paper">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
+        <PackageCheck className="w-3.5 h-3.5" />
+        <div className="font-mono text-[10px] uppercase tracking-widest">Ordine manuale → magazzino</div>
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="grid md:grid-cols-2 gap-3">
+          <Field label="Cliente *"><Input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nome cliente" /></Field>
+          <Field label="Rif. ordine cliente"><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="es. ORD-123" /></Field>
+        </div>
+
+        <div className="border-2 border-ink/15 rounded-sm bg-background">
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+            <div className="font-mono text-[10px] uppercase tracking-widest">Voci ordine ({lines.length})</div>
+            <div className="flex gap-1 flex-wrap">
+              {suggestions.map((s, i) => (
+                <Button key={i} size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => addLine(s)}>
+                  <Plus className="w-3 h-3 mr-1" />{s.descrizione}
+                </Button>
+              ))}
+              <Button size="sm" className="h-7 text-[11px]" onClick={() => addLine()}>
+                <Plus className="w-3 h-3 mr-1" />Riga vuota
+              </Button>
+            </div>
+          </div>
+          <div className="divide-y">
+            {lines.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">Aggiungi almeno una voce.</div>}
+            {lines.map((l) => (
+              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-center">
+                <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
+                <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
+                <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
+                <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
+                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Field label="Note ordine"><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note interne / istruzioni" /></Field>
+
+        <div>
+          <Label className="text-[11px] font-mono uppercase tracking-wider">Responsabile magazzino *</Label>
+          {users.length === 0 ? (
+            <div className="text-[11px] text-destructive mt-1">Nessun utente con settore "magazzino". Assegna il settore in Gestione utenti.</div>
+          ) : (
+            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="mt-1 w-full h-9 px-2 border-2 border-ink/20 rounded-sm bg-paper text-sm">
+              <option value="">— seleziona —</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>)}
+            </select>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={submit} disabled={busy || !cliente.trim() || validLines.length === 0 || !assignee}>
+            {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PackageCheck className="w-4 h-4 mr-2" />}
+            Crea ordine magazzino
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============== Sezione Tappeto danza ============== */
 function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
-  const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
   const [needThickness, setNeedThickness] = useState<number>(0);
   const [needColor, setNeedColor] = useState<string>("");
@@ -536,12 +703,23 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo & nesting</Button>
+        <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
         <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino magazzino</Button>
       </div>
 
-      {mode === "calcolo" ? (
+      {mode === "ordine" ? (
+        <ManualMagazzinoOrderForm
+          sourceLabel="Tappeto danza"
+          suggestions={[
+            { descrizione: "Tappeto danza (rotolo intero)", um: "rotoli" },
+            { descrizione: "Tappeto danza (taglio)", um: "m" },
+            { descrizione: "Nastro danza", um: "rotoli" },
+            { descrizione: "Nastro biadesivo", um: "rotoli" },
+          ]}
+        />
+      ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Calcolo & nesting tappeto</div></div>
           <div className="p-4 space-y-4">
@@ -949,7 +1127,7 @@ function DanceNestingCanvas({ points, customPoints, roomW, roomH, rollWidth, dir
 
 /* ============== Sezione Vernice ignifuga ============== */
 function FireSection({ products, setProducts }: { products: FireProduct[]; setProducts: (p: FireProduct[]) => void }) {
-  const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(products[0]?.id ?? "");
   const [needMaterial, setNeedMaterial] = useState("");
   const [needColor, setNeedColor] = useState("");
@@ -1001,12 +1179,22 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Richiesta cliente & calcolo</Button>
+        <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
         <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino vernici</Button>
       </div>
 
-      {mode === "calcolo" ? (
+      {mode === "ordine" ? (
+        <ManualMagazzinoOrderForm
+          sourceLabel="Vernice ignifuga"
+          suggestions={[
+            { descrizione: "Vernice ignifuga (latta)", um: "latte" },
+            { descrizione: "Vernice ignifuga (kg)", um: "kg" },
+            { descrizione: "Diluente / additivo", um: "lt" },
+          ]}
+        />
+      ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Necessità cliente</div></div>
           <div className="p-4 space-y-4">

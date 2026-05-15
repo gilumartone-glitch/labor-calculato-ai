@@ -2267,13 +2267,28 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       toast.success(`${newOnes.length} movimenti caricati in ${r.month} (${updated}). Cassa non modificata.`);
     } catch { toast.error("Errore lettura file"); }
   };
-  const renderRow = (m: CashMovement, opts?: { indent?: boolean }) => {
+  const renderRow = (m: CashMovement, opts?: { indent?: boolean; inlinePaid?: boolean }) => {
     const isEditing = editingId === m.id;
     const isVirtual = m.id.startsWith("__");
+    const togglePaid = (checked: boolean) => {
+      if (isVirtual) return;
+      if (checked && m.status !== "cassa") {
+        const today = new Date().toISOString().slice(0, 10);
+        updateMovement(m.id, { status: "cassa", date: today });
+      } else {
+        updateMovement(m.id, { status: checked ? "cassa" : "previsto" });
+      }
+    };
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : opts?.inlinePaid ? "lg:grid-cols-[110px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
+          {opts?.inlinePaid && !selectionMode && (
+            <label className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-1.5 text-[11px] font-medium ${m.status === "cassa" ? "text-dept" : "text-muted-foreground"}`} title="Pagato (sposta in cassa con data odierna)">
+              <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept" checked={m.status === "cassa"} onChange={(e) => togglePaid(e.target.checked)} />
+              {m.status === "cassa" ? "Pagato" : "Pagare"}
+            </label>
+          )}
           <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-sm text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
             <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>

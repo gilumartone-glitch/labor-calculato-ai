@@ -246,9 +246,27 @@ const Inner = () => {
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id} className="border-b border-ink/10 hover:bg-ink/5 align-top">
-                      <td className="px-3 py-2">
-                        <div className="font-semibold">{u.display_name || u.email}</div>
-                        <div className="text-[11px] text-muted-foreground">{u.email}</div>
+                      <td className="px-3 py-2 min-w-[220px]">
+                        <input
+                          className="input-bare w-full text-sm font-semibold"
+                          defaultValue={u.display_name ?? ""}
+                          placeholder="Nome visualizzato"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v !== (u.display_name ?? "")) updateUser(u, { display_name: v });
+                          }}
+                        />
+                        <input
+                          className="input-bare w-full text-[11px] text-muted-foreground mt-1"
+                          defaultValue={u.email}
+                          type="email"
+                          placeholder="email@dominio"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v && v !== u.email) updateUser(u, { email: v });
+                            else e.target.value = u.email;
+                          }}
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-col gap-1">

@@ -2340,7 +2340,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_96px_minmax(140px,1fr)_44px_28px_96px_28px]" : "grid-cols-[96px_minmax(140px,1fr)_44px_28px_96px_28px]"} gap-1 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[11px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_74px_minmax(140px,1fr)_44px_28px_96px_28px]" : "grid-cols-[74px_minmax(140px,1fr)_44px_28px_96px_28px]"} gap-1 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[11px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
         <span className="px-1.5">Voce</span>
@@ -2374,14 +2374,17 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_96px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[96px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-1 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_74px_minmax(140px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[74px_minmax(140px,1fr)_44px_28px_96px_28px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
-                  <div className="flex h-8 min-w-0 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-sm font-semibold">
-                    <span className="truncate">{label}</span>
+                  <div className="flex h-8 w-full items-stretch gap-1 min-w-0">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-sm font-semibold">
+                      <span className="truncate">{label}</span>
+                    </div>
+                    <span className="h-8 w-7 shrink-0" aria-hidden />
                   </div>
                   <div className="flex h-8 items-center justify-center rounded-md border border-input bg-background font-mono text-xs text-muted-foreground">×{items.length}</div>
                   <span />

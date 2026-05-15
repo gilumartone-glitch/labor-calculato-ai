@@ -368,6 +368,14 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [flowTapeMeters, setFlowTapeMeters] = useState<number>(0);
   const [flowTapeRolls, setFlowTapeRolls] = useState<number>(0);
   const [flowNote, setFlowNote] = useState("");
+  const [flowAssignee, setFlowAssignee] = useState<string>("");
+  const [magazzinoUsers, setMagazzinoUsers] = useState<{ id: string; display_name: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!flowOpen) return;
+    supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })
+      .then(({ data }) => setMagazzinoUsers(data ?? []));
+  }, [flowOpen]);
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 
@@ -758,13 +766,31 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             <Field label="Note">
               <Textarea value={flowNote} onChange={(e) => setFlowNote(e.target.value)} rows={2} />
             </Field>
+            <div>
+              <Label className="text-[11px] font-mono uppercase tracking-wider">Responsabile magazzino *</Label>
+              {magazzinoUsers.length === 0 ? (
+                <div className="text-[11px] text-destructive mt-1">Nessun utente con settore "magazzino". Assegna il settore in Gestione utenti.</div>
+              ) : (
+                <select
+                  value={flowAssignee}
+                  onChange={(e) => setFlowAssignee(e.target.value)}
+                  className="mt-1 w-full h-9 px-2 border-2 border-ink/20 rounded-sm bg-paper text-sm"
+                >
+                  <option value="">— seleziona —</option>
+                  {magazzinoUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFlowOpen(false)} disabled={flowBusy}>Annulla</Button>
             <Button
-              disabled={flowBusy || !flowCliente.trim()}
+              disabled={flowBusy || !flowCliente.trim() || !flowAssignee}
               onClick={async () => {
                 if (!user) { toast.error("Devi accedere"); return; }
+                if (!flowAssignee) { toast.error("Seleziona il responsabile magazzino"); return; }
                 setFlowBusy(true);
                 try {
                   const code = await nextOrderCode();
@@ -807,6 +833,15 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                     note,
                     files: [],
                     depends_on: null,
+                    assignee_id: flowAssignee,
+                  } as any);
+                  await notify({
+                    userIds: [flowAssignee],
+                    type: "magazzino_da_preparare",
+                    message: `Tappeto danza — ${code} · ${cliente}`,
+                    order_id: pord.id,
+                    link: "/produzione/preparazione",
+                    is_urgent: false,
                   });
                   await logAction({
                     action: "FLOW_LANCIATO",
@@ -1489,7 +1524,8 @@ function SaleProductSection({
         note: `Vendita ${title} · ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
         files: [],
         depends_on: firstAcquistiId,
-      });
+        assignee_id: d.assignee_id,
+      } as any);
       if (e2) throw e2;
 
       await notify({

@@ -656,13 +656,35 @@ export default function Contabilita() {
       if (seq !== saveSeqRef.current) return;
       if (error) {
         console.warn("[contabilita] save remote:", error.message, "uid=", uid);
-        setSaveStatus("error");
-        toast.error(
-          uid
-            ? `Salvataggio cloud non riuscito: ${error.message}. I dati restano solo su questo browser.`
-            : "Sessione scaduta: rifai login per salvare la contabilità sul cloud.",
-          { duration: 8000 },
-        );
+        // Tentativo di refresh sessione + retry una volta
+        let recovered = false;
+        try {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (refreshed?.session) {
+            const retry = await supabase
+              .from("contabilita_state")
+              .upsert(
+                [{ key: REMOTE_KEY, data: state as unknown as never, updated_by: refreshed.session.user.id as unknown as never }],
+                { onConflict: "key" },
+              )
+              .select("key,updated_at");
+            if (!retry.error && retry.data && retry.data.length > 0) {
+              lastRemoteRef.current = serialized;
+              ownSaveUntilRef.current = Date.now() + 2500;
+              setSaveStatus("idle");
+              recovered = true;
+            }
+          }
+        } catch { /* ignore */ }
+        if (!recovered) {
+          setSaveStatus("error");
+          toast.error(
+            uid
+              ? `Salvataggio cloud non riuscito: ${error.message}. Dati salvati su questo browser, riproverò automaticamente.`
+              : "Sessione scaduta: rifai login per salvare la contabilità sul cloud. I dati restano su questo browser.",
+            { duration: 8000, id: "contab-save-error" },
+          );
+        }
       } else if (!written || written.length === 0) {
         // RLS ha filtrato silenziosamente la scrittura: 200 ma 0 righe scritte.
         console.warn("[contabilita] save remote: 0 righe scritte (RLS), uid=", uid);

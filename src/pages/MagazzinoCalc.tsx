@@ -703,12 +703,23 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo & nesting</Button>
+        <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
         <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino magazzino</Button>
       </div>
 
-      {mode === "calcolo" ? (
+      {mode === "ordine" ? (
+        <ManualMagazzinoOrderForm
+          sourceLabel="Tappeto danza"
+          suggestions={[
+            { descrizione: "Tappeto danza (rotolo intero)", um: "rotoli" },
+            { descrizione: "Tappeto danza (taglio)", um: "m" },
+            { descrizione: "Nastro danza", um: "rotoli" },
+            { descrizione: "Nastro biadesivo", um: "rotoli" },
+          ]}
+        />
+      ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2"><CalcIcon className="w-3.5 h-3.5" /><div className="font-mono text-[10px] uppercase tracking-widest">Calcolo & nesting tappeto</div></div>
           <div className="p-4 space-y-4">

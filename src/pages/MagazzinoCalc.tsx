@@ -586,17 +586,24 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                       </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
-                          const isBest = o === calc.best;
+                          const isSelected = o === calc.best;
+                          const isCheapest = o === calc.cheapest;
                           const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
                           const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
-                            <div key={i} className={`px-3 py-2.5 ${isBest ? "bg-dept-soft/40" : ""}`}>
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => setChosenOptionKey(o.key)}
+                              className={`w-full text-left px-3 py-2.5 transition-colors ${isSelected ? "bg-dept-soft/40 ring-2 ring-dept ring-inset" : "hover:bg-muted/30"}`}
+                            >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="text-[12px] font-semibold flex items-center gap-2">
                                   {o.label}
-                                  {isBest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                  {isCheapest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-dept text-dept-foreground">migliore</span>}
+                                  {isSelected && !isCheapest && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm border border-dept text-dept">scelta</span>}
                                 </div>
-                                <div className={`font-mono text-sm font-bold ${isBest ? "text-dept" : ""}`}>{eur(o.price)}</div>
+                                <div className={`font-mono text-sm font-bold ${isSelected ? "text-dept" : ""}`}>{eur(o.price)}</div>
                               </div>
                               <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
                                 {o.wholeRolls > 0 && (
@@ -615,7 +622,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                                   <span>totale {fmt(o.purchasedM)} m × {fmt(selected.rollWidth)} m = {fmt(o.purchasedSqm)} m²</span>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

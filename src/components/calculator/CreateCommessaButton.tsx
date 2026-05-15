@@ -541,6 +541,40 @@ export const CreateCommessaButton = ({
             ✓ Il dettaglio del calcolo verrà salvato come snapshot nella commessa.
           </div>
 
+          {!warehouseOnly && activeDepts.length > 0 && (
+            <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+                Assegna operatore per reparto
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Indica chi, all'interno di ciascun reparto, deve eseguire la lavorazione (facoltativo).
+              </div>
+              <div className="space-y-2 pt-1">
+                {activeDepts.map((d) => {
+                  const ops = operatorsForDept(d);
+                  return (
+                    <div key={d} className="grid grid-cols-3 gap-2 items-center">
+                      <div className="font-mono text-[11px] font-bold uppercase tracking-wider">{DEPT_LABEL[d]}</div>
+                      <select
+                        value={deptAssignees[d] ?? ""}
+                        onChange={(e) => setDeptAssignee(d, e.target.value)}
+                        className="col-span-2 h-9 px-2 border-2 border-input rounded-md bg-background text-sm"
+                      >
+                        <option value="">Operatore (facoltativo)…</option>
+                        {ops.map((o) => (
+                          <option key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</option>
+                        ))}
+                        {ops.length === 0 && (
+                          <option disabled value="__none">Nessun operatore con settore {DEPT_LABEL[d]}</option>
+                        )}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {!warehouseOnly && inferredDepts.length > 0 && (
             <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">

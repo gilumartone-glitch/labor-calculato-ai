@@ -484,9 +484,12 @@ export const DraftTabsBar = () => {
   const openSendDialog = () => {
     const active = drafts.find((d) => d.id === activeId);
     if (!active) return;
-    const snap = readLocalState();
-    setSendTitolo(active.name || "Progetto");
-    setSendCliente("");
+    const snap = readLocalState() as any;
+    // In caso di scheda nata da una "revisione" produzione, ripristiniamo titolo + cliente originali
+    const revTitolo = snap?._revisionTitolo || snap?.revision?.titolo || snap?.jobName;
+    const revCliente = snap?._revisionCliente || snap?.revision?.cliente;
+    setSendTitolo((revTitolo as string) || active.name || "Progetto");
+    setSendCliente((revCliente as string) || "");
     setSendImporto(computeDefaultAmount(snap));
     setSendReparto("tappezzeria");
     setSendPriorita("media");
@@ -542,10 +545,10 @@ export const DraftTabsBar = () => {
         }).select().single();
         if (e1) throw e1;
         prodId = pord.id;
+        // Subs in PARALLELO: ogni reparto chiude il proprio cerchio in modo indipendente.
         const inserted: { id: string }[] = [];
         for (let i = 0; i < depts.length; i++) {
           const d = depts[i];
-          const prev = inserted[i - 1] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -555,7 +558,7 @@ export const DraftTabsBar = () => {
               ordine: i,
               note: sendTitolo.trim() || null,
               files: [],
-              depends_on: prev?.id ?? null,
+              depends_on: null,
             })
             .select("id")
             .single();

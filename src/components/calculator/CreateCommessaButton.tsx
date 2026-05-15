@@ -212,11 +212,12 @@ export const CreateCommessaButton = ({
         if (e1) throw e1;
         prodId = pord.id;
 
-        // Inserisce un sub per ogni reparto (sequenza lineare con depends_on).
+        // Inserisce un sub per ogni reparto in PARALLELO (depends_on=null) cosicché
+        // ogni reparto lavori indipendentemente e chiuda il proprio cerchio;
+        // l'ordine si chiude quando tutti i sub sono completati.
         const insertedSubs: { id: string; dept: ProdDept }[] = [];
         for (let i = 0; i < depts.length; i++) {
           const d = depts[i];
-          const prev = insertedSubs[i - 1] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -226,7 +227,7 @@ export const CreateCommessaButton = ({
               ordine: i,
               note: titolo.trim() || null,
               files: [],
-              depends_on: prev?.id ?? null,
+              depends_on: null,
             })
             .select("id")
             .single();

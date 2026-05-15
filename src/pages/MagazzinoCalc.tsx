@@ -343,6 +343,8 @@ export default function MagazzinoCalc() {
 
 /* ============== Sezione Tappeto danza ============== */
 function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
   const [mode, setMode] = useState<"calcolo" | "catalogo">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
@@ -354,6 +356,17 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
+
+  // Dialog "Invia al Flow"
+  const [flowOpen, setFlowOpen] = useState(false);
+  const [flowBusy, setFlowBusy] = useState(false);
+  const [flowCliente, setFlowCliente] = useState("");
+  const [flowRef, setFlowRef] = useState("");
+  const [flowTappetoMeters, setFlowTappetoMeters] = useState<number>(0);
+  const [flowTappetoRolls, setFlowTappetoRolls] = useState<number>(0);
+  const [flowTapeMeters, setFlowTapeMeters] = useState<number>(0);
+  const [flowTapeRolls, setFlowTapeRolls] = useState<number>(0);
+  const [flowNote, setFlowNote] = useState("");
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 
@@ -644,12 +657,33 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                         )}
                       </div>
                     </div>
+
+                    {/* Invia al Flow: ordine magazzino con override manuale */}
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setFlowCliente("");
+                          setFlowRef("");
+                          setFlowTappetoMeters(Number((calc.best?.purchasedM ?? 0).toFixed(2)));
+                          setFlowTappetoRolls(calc.best?.wholeRolls ?? 0);
+                          setFlowTapeMeters(Number(calc.tapeMeters.toFixed(2)));
+                          setFlowTapeRolls(calc.tapeRolls);
+                          setFlowNote(`Tappeto ${selected.name}${chosenColor ? ` · ${chosenColor}` : ""} · sala ${fmt(stageW)}×${fmt(stageH)} m`);
+                          setFlowOpen(true);
+                        }}
+                      >
+                        <PackageCheck className="w-4 h-4 mr-2" />
+                        Invia al Flow
+                      </Button>
+                    </div>
                   </>
                 ) : <div className="text-[11px] text-muted-foreground">Inserisci misure sala e caratteristiche prodotto.</div>}
               </>
             )}
           </div>
         </div>
+
       ) : (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
           <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between">
@@ -685,6 +719,108 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
           )}
         </div>
       )}
+
+      <Dialog open={flowOpen} onOpenChange={setFlowOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invia tappeto al Flow (magazzino)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Cliente"><Input value={flowCliente} onChange={(e) => setFlowCliente(e.target.value)} /></Field>
+              <Field label="Rif. ordine cliente"><Input value={flowRef} onChange={(e) => setFlowRef(e.target.value)} placeholder="es. ORD-123" /></Field>
+            </div>
+            <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Tappeto · {selected?.name ?? "—"}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Metri da inviare"><Input type="number" step="0.1" value={flowTappetoMeters || ""} onChange={(e) => setFlowTappetoMeters(Number(e.target.value))} /></Field>
+                <Field label="Rotoli interi"><Input type="number" value={flowTappetoRolls || ""} onChange={(e) => setFlowTappetoRolls(Number(e.target.value))} /></Field>
+              </div>
+            </div>
+            <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Nastro · {tapeType === "danza" ? "danza" : "biadesivo"}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Metri da inviare"><Input type="number" step="0.1" value={flowTapeMeters || ""} onChange={(e) => setFlowTapeMeters(Number(e.target.value))} /></Field>
+                <Field label="Rotoli"><Input type="number" value={flowTapeRolls || ""} onChange={(e) => setFlowTapeRolls(Number(e.target.value))} /></Field>
+              </div>
+            </div>
+            <Field label="Note">
+              <Textarea value={flowNote} onChange={(e) => setFlowNote(e.target.value)} rows={2} />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFlowOpen(false)} disabled={flowBusy}>Annulla</Button>
+            <Button
+              disabled={flowBusy || !flowCliente.trim()}
+              onClick={async () => {
+                if (!user) { toast.error("Devi accedere"); return; }
+                setFlowBusy(true);
+                try {
+                  const code = await nextOrderCode();
+                  const cliente = flowCliente.trim().slice(0, 200);
+                  const items: string[] = [];
+                  if (flowTappetoMeters > 0 || flowTappetoRolls > 0) {
+                    items.push(`Tappeto ${selected?.name ?? ""}${chosenColor ? ` (${chosenColor})` : ""}: ${flowTappetoRolls} rotoli + ${fmt(flowTappetoMeters)} m`);
+                  }
+                  if (flowTapeMeters > 0 || flowTapeRolls > 0) {
+                    items.push(`Nastro ${tapeType}: ${flowTapeRolls} rotoli (${fmt(flowTapeMeters)} m totali)`);
+                  }
+                  const note = [flowNote.trim(), items.join(" · ")].filter(Boolean).join(" — ");
+                  const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
+                    code,
+                    cliente,
+                    data: new Date().toISOString().slice(0, 10),
+                    note: `Tappeto danza — ${note}`,
+                    priorita: "normale",
+                    delivery: "spedizione",
+                    status: "in_corso",
+                    attachments: [],
+                    nesting_included: false,
+                    created_by: user.id,
+                    customer_order_ref: flowRef.trim() || null,
+                    snapshot: {
+                      source: "magazzino-danza",
+                      cliente, ref: flowRef.trim(),
+                      tappeto: { name: selected?.name, color: chosenColor, meters: flowTappetoMeters, rolls: flowTappetoRolls },
+                      nastro: { type: tapeType, meters: flowTapeMeters, rolls: flowTapeRolls },
+                      sala: { w: stageW, h: stageH },
+                      note: flowNote,
+                    } as never,
+                  }).select().single();
+                  if (e1) throw e1;
+                  await supabase.from("production_sub_orders").insert({
+                    order_id: pord.id,
+                    code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
+                    dept: "magazzino",
+                    ordine: 0,
+                    note,
+                    files: [],
+                    depends_on: null,
+                  });
+                  await logAction({
+                    action: "FLOW_LANCIATO",
+                    entity_type: "order",
+                    entity_id: pord.id,
+                    detail: `Tappeto danza ${code} per ${cliente} (${items.join(" · ")})`,
+                    new_state: { code, source: "magazzino-danza" },
+                  });
+                  toast.success(`Ordine ${code} creato e inviato al magazzino`, {
+                    action: { label: "Apri", onClick: () => navigate(`/produzione/board?order=${pord.id}`) },
+                  });
+                  setFlowOpen(false);
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
+                } finally {
+                  setFlowBusy(false);
+                }
+              }}
+            >
+              {flowBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PackageCheck className="w-4 h-4 mr-2" />}
+              Crea ordine magazzino
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

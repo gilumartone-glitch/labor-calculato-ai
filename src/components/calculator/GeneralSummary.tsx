@@ -204,7 +204,7 @@ export const GeneralSummary = ({
                 className="w-14 bg-transparent border-b border-paper/40 text-right font-mono text-sm focus:outline-none focus:border-primary disabled:opacity-30"
               />
               <span className="text-paper/60 text-xs">%</span>
-              <span className="ml-2 w-24 text-right">+{eur(vatAmount)}</span>
+              <span className="ml-2 min-w-[7rem] text-right tabular-nums whitespace-nowrap">+{eur(vatAmount)}</span>
             </div>
           </div>
         </dl>

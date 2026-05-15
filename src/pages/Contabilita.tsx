@@ -2272,11 +2272,11 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     const isVirtual = m.id.startsWith("__");
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
           <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}{m.status === "cassa" && !isVirtual ? " ✓" : ""}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2295,21 +2295,6 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
             )}
           </div>
           <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
-          {!isVirtual && (
-            <button
-              type="button"
-              aria-label="Elimina riga"
-              title="Elimina riga"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!confirm(`Cancellare "${m.description || "(senza voce)"}" del ${m.date}?`)) return;
-                deleteMovementById(m.id);
-              }}
-              className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
         {((isEditing) || (selectionMode && selectedIds.has(m.id))) && !isVirtual && (
           <form className="mt-2 grid gap-2 rounded-sm border border-dept bg-dept-soft/20 p-2 grid-cols-2" onSubmit={(e) => { e.preventDefault(); setEditingId(null); }}>
@@ -2380,17 +2365,16 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           onClick={() => addInlineMovement(type, status)}
           aria-label={`Aggiungi ${title.toLowerCase()}`}
           title={`Aggiungi ${title.toLowerCase()}`}
-          className="grid h-6 w-6 place-items-center rounded-sm border border-dept bg-background text-dept hover:bg-dept hover:text-dept-foreground transition-colors"
+          className="grid h-8 w-8 place-items-center rounded-md border border-dept bg-background text-dept hover:bg-dept hover:text-dept-foreground transition-colors"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "grid-cols-[92px_minmax(180px,1fr)_88px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
         <span className="px-1">Voce</span>
         <span className="px-1 text-right">Importo</span>
-        <span></span>
       </div>
       <div className="max-h-[78vh] min-h-[60vh] space-y-0.5 overflow-auto p-1">
         {rows.length === 0 ? <p className="p-2 text-xs text-muted-foreground">Nessun movimento</p> : (() => {
@@ -2417,7 +2401,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
@@ -2430,22 +2414,6 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                     </div>
                   </div>
                   <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
-                  <button
-                    type="button"
-                    aria-label="Elimina tutto il gruppo"
-                    title={`Elimina tutte le ${items.length} voci di "${label}"`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const ids = new Set(items.filter((it) => !it.id.startsWith("__")).map((it) => it.id));
-                      if (ids.size === 0) return;
-                      if (!confirm(`Cancellare tutte le ${ids.size} voci di "${label}"?`)) return;
-                      setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
-                      toast.success(`${ids.size} voci cancellate`);
-                    }}
-                    className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
               </div>
             );

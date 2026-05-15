@@ -2417,20 +2417,20 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_88px_minmax(220px,1fr)_44px_28px_96px_28px]" : "lg:grid-cols-[88px_minmax(220px,1fr)_44px_28px_96px_28px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                   <div className="relative flex h-8 w-full items-stretch min-w-0">
-                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-sm font-semibold">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1 text-xs font-semibold">
                       <span className="truncate">{label}</span>
                     </div>
                   </div>
                   <div className="flex h-8 items-center justify-center rounded-md border border-input bg-background font-mono text-xs text-muted-foreground">×{items.length}</div>
                   <span />
-                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-bold whitespace-nowrap">{eur(total)}</div>
+                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
                   <button
                     type="button"
                     aria-label="Elimina tutto il gruppo"
@@ -2443,7 +2443,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                       setMovements((prev) => prev.filter((m) => !ids.has(m.id)));
                       toast.success(`${ids.size} voci cancellate`);
                     }}
-                    className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

@@ -2232,7 +2232,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs font-mono text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="flex h-8 w-full items-stretch gap-1 min-w-0">
             <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
-            {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
+            {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) ? (
               <button
                 type="button"
                 aria-label={`Aggiungi "${m.description}" all'anagrafica`}
@@ -2247,6 +2247,8 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
+            ) : (
+              <span aria-hidden className="h-8 w-7 shrink-0" />
             )}
           </div>
           <PaymentMethodSelect ariaLabel="Metodo" className="h-8 w-full rounded-md border border-input bg-background px-0 text-center font-mono text-sm" value={m.paymentMethod ?? ""} onChange={(v) => updateMovement(m.id, { paymentMethod: v })} />

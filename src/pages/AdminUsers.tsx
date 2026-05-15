@@ -258,6 +258,9 @@ const Inner = () => {
                           <button onClick={() => resetPassword(u)} title="Cambia password" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-ink/30 hover:border-ink hover:bg-ink hover:text-paper">
                             <KeyRound className="w-3 h-3" /> Password
                           </button>
+                          <button onClick={() => deleteUser(u)} title="Elimina utente" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive">
+                            <Trash2 className="w-3 h-3" /> Elimina
+                          </button>
                         </div>
                       </td>
                       <td className="px-3 py-2">

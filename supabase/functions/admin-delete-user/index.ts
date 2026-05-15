@@ -17,11 +17,15 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing auth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub as string | undefined;
-    if (claimsErr || !userId) {
+    let userId: string | undefined;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      userId = payload.sub as string | undefined;
+    } catch {
+      userId = undefined;
+    }
+    if (!userId) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const admin = createClient(SUPABASE_URL, SERVICE);

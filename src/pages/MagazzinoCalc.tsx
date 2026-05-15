@@ -462,15 +462,39 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
     const rollsNeeded = best ? best.wholeRolls + (best.cutMeters > 0 ? 1 : 0) : 0;
     const totalCovered = best ? best.purchasedM : 0;
 
-    // Nastro: perimetro sala + giunzioni tra teli (along × (strips - 1))
-    const perimeter = activePoints.reduce((sum, p, i) => {
+    // Nastro: ogni lato del perimetro + ogni giunzione tra teli = pezzo intero
+    // (non si può giuntare nastro: ogni pezzo deve stare in un solo rotolo)
+    const sideLengths: number[] = activePoints.map((p, i) => {
       const n = activePoints[(i + 1) % activePoints.length];
-      return sum + Math.hypot(n.x - p.x, n.y - p.y);
-    }, 0);
-    const tapeJunctions = Math.max(0, strips - 1) * along;
+      return Math.hypot(n.x - p.x, n.y - p.y);
+    });
+    const perimeter = sideLengths.reduce((a, b) => a + b, 0);
+    const junctionCount = Math.max(0, strips - 1);
+    const tapeJunctions = junctionCount * along;
     const tapeMeters = perimeter + tapeJunctions;
     const tapeRollLen = tapeType === "danza" ? 33 : 25;
-    const tapeRolls = tapeMeters > 0 ? Math.ceil(tapeMeters / tapeRollLen) : 0;
+    // Pezzi da tagliare: lati + giunzioni (ognuna lunga `along`)
+    const tapePieces: number[] = [
+      ...sideLengths.filter((s) => s > 0),
+      ...Array(junctionCount).fill(along),
+    ];
+    // First-Fit Decreasing bin packing nei rotoli
+    const sortedPieces = [...tapePieces].sort((a, b) => b - a);
+    const bins: number[] = []; // spazio rimanente per rotolo
+    for (const piece of sortedPieces) {
+      if (piece > tapeRollLen) {
+        // pezzo più lungo del rotolo: serve comunque un rotolo dedicato (lo segnaliamo)
+        bins.push(0);
+        continue;
+      }
+      let placed = false;
+      for (let i = 0; i < bins.length; i++) {
+        if (bins[i] >= piece) { bins[i] -= piece; placed = true; break; }
+      }
+      if (!placed) bins.push(tapeRollLen - piece);
+    }
+    const tapeRolls = bins.length;
+    const tapeOversize = sortedPieces.some((p) => p > tapeRollLen);
 
     return {
       strips, totalLen, along, rollsNeeded,
@@ -482,6 +506,7 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       cutSurcharge, cutStep,
       stripsPerRoll,
       perimeter, tapeJunctions, tapeMeters, tapeRollLen, tapeRolls,
+      tapePieces, tapeOversize,
     };
   }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType]);
 

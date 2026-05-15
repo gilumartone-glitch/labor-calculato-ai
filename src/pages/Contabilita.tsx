@@ -2274,9 +2274,9 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
         <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-xs text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
+          <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-sm text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-xs font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2288,13 +2288,13 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onAddContact(newContact);
                   toast.success(`${m.type === "entrata" ? "Cliente" : "Fornitore"} "${newContact.name}" aggiunto all'anagrafica`);
                 }}
-                className="absolute -top-2 -right-1 z-10 grid h-5 w-5 place-items-center rounded-full border border-dept bg-background text-dept shadow-sm hover:bg-dept hover:text-dept-foreground transition-colors"
+                className="ml-1 grid h-8 w-8 shrink-0 place-items-center rounded-md border border-dept bg-background text-dept hover:bg-dept hover:text-dept-foreground transition-colors"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-4 w-4" />
               </button>
             )}
           </div>
-          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
+          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-sm font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
         </div>
         {((isEditing) || (selectionMode && selectedIds.has(m.id))) && !isVirtual && (
           <form className="mt-2 grid gap-2 rounded-sm border border-dept bg-dept-soft/20 p-2 grid-cols-2" onSubmit={(e) => { e.preventDefault(); setEditingId(null); }}>
@@ -2408,12 +2408,12 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                   <div className="relative flex h-8 w-full items-stretch min-w-0">
-                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-xs font-semibold">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-sm font-semibold">
                       <span className="truncate">{label}</span>
                       <span className="ml-1 shrink-0 font-mono text-[10px] text-muted-foreground">×{items.length}</span>
                     </div>
                   </div>
-                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
+                  <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-sm font-bold whitespace-nowrap">{eur(total)}</div>
                 </div>
               </div>
             );

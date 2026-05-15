@@ -619,7 +619,9 @@ export default function Contabilita() {
         const remoteSerialized = serializeAccountingState(remote);
         const remoteSavedAt = data.updated_at ? new Date(data.updated_at as string).getTime() : 0;
         const local = stateRef.current ?? remote;
-        const merged = mergeRemoteState(local, remote, false);
+        const localSavedAt = readLocalSavedAt();
+        const preferLocalAtStart = localSavedAt > remoteSavedAt + 1000;
+        const merged = mergeRemoteState(local, remote, preferLocalAtStart, preferLocalAtStart);
         const mergedSerialized = serializeAccountingState(merged);
         // Il cloud è la fonte comune: all'avvio non scartare più il remoto solo
         // perché questo browser ha un timestamp locale più recente. Unisci invece
@@ -637,6 +639,19 @@ export default function Contabilita() {
           )
         ) {
           toast.info("Contabilità unificata con le modifiche trovate su questo dispositivo.", { duration: 5000 });
+        }
+        if (preferLocalAtStart && mergedSerialized !== remoteSerialized) {
+          lastRemoteRef.current = remoteSerialized;
+          ownSaveUntilRef.current = Date.now() + 2500;
+          const { data: authData } = await supabase.auth.getUser();
+          const uid = authData?.user?.id ?? null;
+          await supabase
+            .from("contabilita_state")
+            .upsert(
+              [{ key: REMOTE_KEY, data: merged as unknown as never, updated_by: uid as unknown as never }],
+              { onConflict: "key" },
+            );
+          lastRemoteRef.current = mergedSerialized;
         }
       }
       remoteLoadedRef.current = true;

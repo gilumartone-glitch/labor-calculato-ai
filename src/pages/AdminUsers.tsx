@@ -161,6 +161,18 @@ const Inner = () => {
     setUsers((cur) => cur.filter((u) => u.id !== user.id));
   };
 
+  const updateUser = async (user: AdminUser, patch: { email?: string; display_name?: string }) => {
+    const { data, error } = await supabase.functions.invoke("admin-update-user", {
+      body: { user_id: user.id, ...patch },
+    });
+    if (error || (data as any)?.error) {
+      toast.error(((data as any)?.error) || error?.message || "Errore aggiornamento");
+      return;
+    }
+    toast.success("Utente aggiornato");
+    setUsers((cur) => cur.map((x) => x.id === user.id ? { ...x, ...patch } : x));
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b-2 border-ink bg-paper">

@@ -344,14 +344,168 @@ export default function MagazzinoCalc() {
 /* ============== Form ordine manuale → magazzino (riusabile) ============== */
 type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string };
 
+type PickedItem = { label: string; um: string };
+
+/* ============== Picker dialogs (selezione prodotto dal listino) ============== */
+function DancePickerDialog({ rolls, onPick, onClose }: {
+  rolls: DanceRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("");
+  const [thickness, setThickness] = useState<number>(0);
+  const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
+  const allNames = useMemo(() => Array.from(new Set(rolls.map((r) => r.name).filter(Boolean))), [rolls]);
+  const filtered = useMemo(() => rolls.filter((r) => {
+    const nOk = !name || includesLoose(r.name, name);
+    const cOk = !color || (r.colors ?? []).some((c) => includesLoose(c, color));
+    const tOk = !thickness || r.thicknessMm >= thickness;
+    return nOk && cOk && tOk;
+  }), [rolls, name, color, thickness]);
+
+  const pick = (r: DanceRoll, c: string, kind: "rotolo" | "taglio") => {
+    const base = `Tappeto ${r.name}${r.thicknessMm ? ` ${fmt(r.thicknessMm)}mm` : ""}${c ? ` · ${c}` : ""}`;
+    const label = kind === "rotolo"
+      ? `${base} (rotolo intero ${fmt(r.rollLength)}×${fmt(r.rollWidth)}m)`
+      : `${base} (taglio)`;
+    onPick({ label, um: kind === "rotolo" ? "rotoli" : "m" });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Scegli dal listino tappeti danza</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Nome"><SelectWithAdd value={name} onChange={setName} options={allNames} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Colore"><SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Spessore min (mm)"><Input type="number" step="0.1" value={thickness || ""} onChange={(e) => setThickness(Number(e.target.value))} /></Field>
+          </div>
+          <div className="border border-ink/15 rounded-sm divide-y max-h-[50vh] overflow-auto">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-[12px] text-muted-foreground">Nessun tappeto coi filtri.</div>
+            ) : filtered.map((r) => {
+              const colors = (r.colors ?? []).length ? r.colors : [""];
+              return (
+                <div key={r.id} className="p-2.5">
+                  <div className="text-sm font-semibold">{r.name}</div>
+                  <div className="text-[11px] text-muted-foreground mb-2">
+                    spess. {fmt(r.thicknessMm)} mm · rotolo {fmt(r.rollLength)} × {fmt(r.rollWidth)} m
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {colors.map((c, i) => (
+                      <div key={i} className="flex gap-1 items-center border border-ink/10 rounded-sm pl-2">
+                        <span className="text-[11px]">{c || "—"}</span>
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => pick(r, c, "rotolo")}>Rotolo intero</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => pick(r, c, "taglio")}>Al taglio</Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t pt-2 flex flex-wrap gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground self-center">Accessori:</span>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro danza (33 m/rotolo)", um: "rotoli" })}>Nastro danza</Button>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" })}>Nastro biadesivo</Button>
+          </div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FirePickerDialog({ products, onPick, onClose }: {
+  products: FireProduct[]; onPick: (i: PickedItem) => void; onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("");
+  const [material, setMaterial] = useState("");
+  const [klass, setKlass] = useState("");
+  const [base, setBase] = useState("");
+  const allNames = useMemo(() => Array.from(new Set(products.map((p) => p.name).filter(Boolean))), [products]);
+  const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
+  const allMaterials = useMemo(() => Array.from(new Set(products.flatMap((p) => splitTags(p.treatedMaterials)))), [products]);
+  const allClasses = useMemo(() => Array.from(new Set(products.flatMap((p) => (p.classes ?? []).map((c) => c.className).filter(Boolean)))), [products]);
+  const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
+
+  const filtered = useMemo(() => products.filter((p) => {
+    const nOk = !name || includesLoose(p.name, name);
+    const cOk = !color || (p.colors ?? []).some((c) => includesLoose(c, color));
+    const mOk = !material || includesLoose(p.treatedMaterials, material);
+    const kOk = !klass || (p.classes ?? []).some((c) => includesLoose(c.className, klass));
+    const bOk = !base || includesLoose(p.base, base);
+    return nOk && cOk && mOk && kOk && bOk;
+  }), [products, name, color, material, klass, base]);
+
+  const pick = (p: FireProduct, c: string, can?: { label: string; kg: number }) => {
+    const baseLabel = `${p.name}${c ? ` · ${c}` : ""}${p.base ? ` · ${p.base}` : ""}`;
+    if (can) onPick({ label: `${baseLabel} — latta ${can.label} kg`, um: "latte" });
+    else onPick({ label: baseLabel, um: "kg" });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Scegli dal listino vernici ignifughe</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+            <Field label="Nome"><SelectWithAdd value={name} onChange={setName} options={allNames} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Colore"><SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Materiale"><SelectWithAdd value={material} onChange={setMaterial} options={allMaterials} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Classe"><SelectWithAdd value={klass} onChange={setKlass} options={allClasses} placeholder="Tutte" emptyLabel="Tutte" /></Field>
+            <Field label="Base"><SelectWithAdd value={base} onChange={setBase} options={allBases} placeholder="Tutte" emptyLabel="Tutte" /></Field>
+          </div>
+          <div className="border border-ink/15 rounded-sm divide-y max-h-[50vh] overflow-auto">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-[12px] text-muted-foreground">Nessun prodotto coi filtri.</div>
+            ) : filtered.map((p) => {
+              const colors = (p.colors ?? []).length ? p.colors : [""];
+              return (
+                <div key={p.id} className="p-2.5">
+                  <div className="text-sm font-semibold">{p.name}</div>
+                  <div className="text-[11px] text-muted-foreground mb-2">
+                    {p.base}{p.treatedMaterials ? ` · ${p.treatedMaterials}` : ""}
+                    {(p.classes ?? []).length ? ` · ${(p.classes ?? []).map((c) => c.className).join(", ")}` : ""}
+                  </div>
+                  <div className="space-y-1">
+                    {colors.map((c, i) => (
+                      <div key={i} className="flex flex-wrap gap-1 items-center border border-ink/10 rounded-sm pl-2 py-1">
+                        <span className="text-[11px] min-w-[60px]">{c || "—"}</span>
+                        {(p.cans ?? []).length === 0 ? (
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => pick(p, c)}>kg</Button>
+                        ) : (p.cans ?? []).map((can) => (
+                          <Button key={can.id} size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => pick(p, c, can)}>
+                            Latta {can.label} kg
+                          </Button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t pt-2 flex flex-wrap gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground self-center">Accessori:</span>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onPick({ label: "Diluente / additivo", um: "lt" })}>Diluente / additivo</Button>
+          </div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ManualMagazzinoOrderForm({
   sourceLabel,
   suggestions,
-  catalogOptions = [],
+  picker,
 }: {
   sourceLabel: string;
   suggestions: { descrizione: string; um: string }[];
-  catalogOptions?: { label: string; um?: string }[];
+  picker?: (onPick: (item: PickedItem) => void, onClose: () => void) => React.ReactNode;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -364,6 +518,7 @@ function ManualMagazzinoOrderForm({
   const [assignee, setAssignee] = useState("");
   const [users, setUsers] = useState<{ id: string; display_name: string | null }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [pickerLineId, setPickerLineId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })
@@ -474,35 +629,32 @@ function ManualMagazzinoOrderForm({
           <div className="divide-y">
             {lines.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">Aggiungi almeno una voce.</div>}
             {lines.map((l) => (
-              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-center">
-                {catalogOptions.length > 0 ? (
-                  <Input
-                    list={`cat-${sourceLabel}`}
-                    value={l.descrizione}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const match = catalogOptions.find((o) => o.label === v);
-                      updLine(l.id, match?.um ? { descrizione: v, um: match.um } : { descrizione: v });
-                    }}
-                    placeholder="Scegli dal listino o digita…"
-                    className="h-8 text-[12px]"
-                  />
-                ) : (
+              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
+                <div className="flex flex-col gap-1">
                   <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
-                )}
+                  {picker && (
+                    <button
+                      type="button"
+                      onClick={() => setPickerLineId(l.id)}
+                      className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground hover:text-ink underline self-start"
+                    >
+                      Scegli dal listino…
+                    </button>
+                  )}
+                </div>
                 <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
                 <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
                 <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
-                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
-            {catalogOptions.length > 0 && (
-              <datalist id={`cat-${sourceLabel}`}>
-                {catalogOptions.map((o, i) => <option key={i} value={o.label} />)}
-              </datalist>
-            )}
           </div>
         </div>
+
+        {picker && pickerLineId && picker(
+          (item) => { updLine(pickerLineId, { descrizione: item.label, um: item.um }); setPickerLineId(null); },
+          () => setPickerLineId(null),
+        )}
 
         <Field label="Note ordine"><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note interne / istruzioni" /></Field>
 
@@ -739,21 +891,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
             { descrizione: "Nastro danza", um: "rotoli" },
             { descrizione: "Nastro biadesivo", um: "rotoli" },
           ]}
-          catalogOptions={[
-            ...rolls.flatMap((r) => {
-              const base = `Tappeto ${r.name}${r.thicknessMm ? ` ${fmt(r.thicknessMm)}mm` : ""}`;
-              const colors = (r.colors ?? []).length ? r.colors : [""];
-              return colors.flatMap((c) => {
-                const lbl = c ? `${base} · ${c}` : base;
-                return [
-                  { label: `${lbl} (rotolo intero ${fmt(r.rollLength)}×${fmt(r.rollWidth)}m)`, um: "rotoli" },
-                  { label: `${lbl} (taglio)`, um: "m" },
-                ];
-              });
-            }),
-            { label: "Nastro danza (33 m/rotolo)", um: "rotoli" },
-            { label: "Nastro biadesivo (25 m/rotolo)", um: "rotoli" },
-          ]}
+          picker={(onPick, onClose) => (
+            <DancePickerDialog rolls={rolls} onPick={onPick} onClose={onClose} />
+          )}
         />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">
@@ -1229,14 +1369,9 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
             { descrizione: "Vernice ignifuga (kg)", um: "kg" },
             { descrizione: "Diluente / additivo", um: "lt" },
           ]}
-          catalogOptions={products.flatMap((p) => {
-            const colors = (p.colors ?? []).length ? p.colors : [""];
-            return colors.flatMap((c) => {
-              const base = `${p.name}${c ? ` · ${c}` : ""}${p.base ? ` · ${p.base}` : ""}`;
-              const cans = (p.cans ?? []).map((can) => ({ label: `${base} — latta ${can.label} kg`, um: "latte" }));
-              return cans.length ? cans : [{ label: base, um: "kg" }];
-            });
-          })}
+          picker={(onPick, onClose) => (
+            <FirePickerDialog products={products} onPick={onPick} onClose={onClose} />
+          )}
         />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">

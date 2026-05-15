@@ -507,8 +507,6 @@ const Index = () => {
             })}
           </div>
 
-          {/* Link Home (hub postazioni) — spostato a sinistra del cluster */}
-          <HubLink variant="ink" className="shrink-0" />
 
           <NotificationsBell />
 

@@ -525,10 +525,15 @@ function ManualMagazzinoOrderForm({
       .then(({ data }) => setUsers(data ?? []));
   }, []);
 
-  const addLine = (preset?: { descrizione: string; um: string }) =>
-    setLines([...lines, { id: uid(), descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+  const addLine = (preset?: { descrizione: string; um: string }) => {
+    const id = uid();
+    setLines([...lines, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+    return id;
+  };
+  const addAndPick = () => { const id = addLine(); setPickerLineId(id); };
   const updLine = (id: string, patch: Partial<ManualLine>) => setLines(lines.map((l) => l.id === id ? { ...l, ...patch } : l));
   const rmLine = (id: string) => setLines(lines.filter((l) => l.id !== id));
+  const [manualEdit, setManualEdit] = useState<Record<string, boolean>>({});
 
   const validLines = lines.filter((l) => l.descrizione.trim() && Number(l.qty) > 0);
 

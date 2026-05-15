@@ -758,8 +758,17 @@ function ManualMagazzinoOrderForm({
           )}
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={submit} disabled={busy || !cliente.trim() || validLines.length === 0 || !assignee}>
+        <div className="flex flex-col items-end gap-1">
+          {(() => {
+            const missing: string[] = [];
+            if (!cliente.trim()) missing.push("cliente");
+            if (validLines.length === 0) missing.push("almeno una voce con descrizione e quantità > 0");
+            if (!assignee) missing.push("responsabile magazzino");
+            return missing.length > 0 ? (
+              <div className="text-[10px] font-mono text-amber-700">Manca: {missing.join(" · ")}</div>
+            ) : null;
+          })()}
+          <Button onClick={submit} disabled={busy}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PackageCheck className="w-4 h-4 mr-2" />}
             Crea ordine magazzino
           </Button>

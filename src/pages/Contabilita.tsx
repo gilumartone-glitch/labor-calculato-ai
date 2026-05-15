@@ -2417,19 +2417,18 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                   onClick={openDetail}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
                   title={`${items.length} voci raggruppate · clicca per aprire la scheda`}
-                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "lg:grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
+                  className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px_26px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px_26px]"} lg:items-center cursor-pointer hover:bg-dept-soft/30`}
                 >
                   {selectionMode && <span />}
                   <div className="flex h-8 items-center justify-center text-muted-foreground">
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                   <div className="relative flex h-8 w-full items-stretch min-w-0">
-                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1 text-xs font-semibold">
+                    <div className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-dept-soft/40 px-1.5 text-xs font-semibold">
                       <span className="truncate">{label}</span>
+                      <span className="ml-1 shrink-0 font-mono text-[10px] text-muted-foreground">×{items.length}</span>
                     </div>
                   </div>
-                  <div className="flex h-8 items-center justify-center rounded-md border border-input bg-background font-mono text-xs text-muted-foreground">×{items.length}</div>
-                  <span />
                   <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-bold whitespace-nowrap">{eur(total)}</div>
                   <button
                     type="button"

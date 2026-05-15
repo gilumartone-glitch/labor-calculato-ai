@@ -542,10 +542,10 @@ export const DraftTabsBar = () => {
         }).select().single();
         if (e1) throw e1;
         prodId = pord.id;
+        // Subs in PARALLELO: ogni reparto chiude il proprio cerchio in modo indipendente.
         const inserted: { id: string }[] = [];
         for (let i = 0; i < depts.length; i++) {
           const d = depts[i];
-          const prev = inserted[i - 1] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -555,7 +555,7 @@ export const DraftTabsBar = () => {
               ordine: i,
               note: sendTitolo.trim() || null,
               files: [],
-              depends_on: prev?.id ?? null,
+              depends_on: null,
             })
             .select("id")
             .single();

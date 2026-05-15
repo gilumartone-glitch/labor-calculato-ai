@@ -645,13 +645,19 @@ export default function Contabilita() {
           ownSaveUntilRef.current = Date.now() + 2500;
           const { data: authData } = await supabase.auth.getUser();
           const uid = authData?.user?.id ?? null;
-          await supabase
+          const { error: restoreError } = await supabase
             .from("contabilita_state")
             .upsert(
               [{ key: REMOTE_KEY, data: merged as unknown as never, updated_by: uid as unknown as never }],
               { onConflict: "key" },
             );
-          lastRemoteRef.current = mergedSerialized;
+          if (restoreError) {
+            setSaveStatus("error");
+            toast.error("Non riesco a riportare sul cloud le modifiche locali: resta su questa pagina finché non risulta Salvato.", { duration: 10000, id: "contab-save-error" });
+          } else {
+            lastRemoteRef.current = mergedSerialized;
+            setSaveStatus("idle");
+          }
         }
       }
       remoteLoadedRef.current = true;

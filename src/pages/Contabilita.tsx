@@ -907,6 +907,14 @@ export default function Contabilita() {
       for (const item of before) if (!afterIds.has(item.id)) removed.push(item.id);
       return removed;
     };
+    const diffTouched = <T extends { id: string }>(before: T[] = [], after: T[] = []) => {
+      const beforeMap = new Map(before.map((x) => [x.id, JSON.stringify(sortForStableJson(x))]));
+      const touched = new Set<string>(diffRemoved(before, after));
+      for (const item of after) {
+        if (beforeMap.get(item.id) !== JSON.stringify(sortForStableJson(item))) touched.add(item.id);
+      }
+      return Array.from(touched);
+    };
     const prevDel = prev.deletedIds ?? {};
     const nextDeleted = {
       movements: prevDel.movements ?? [],
@@ -918,6 +926,12 @@ export default function Contabilita() {
     if (resolved.fixedExpenses) nextDeleted.fixedExpenses = Array.from(new Set([...nextDeleted.fixedExpenses, ...diffRemoved(prev.fixedExpenses, resolved.fixedExpenses)]));
     if (resolved.salaries) nextDeleted.salaries = Array.from(new Set([...nextDeleted.salaries, ...diffRemoved(prev.salaries ?? [], resolved.salaries)]));
     if (resolved.contacts) nextDeleted.contacts = Array.from(new Set([...nextDeleted.contacts, ...diffRemoved(prev.contacts ?? [], resolved.contacts)]));
+    markRecentlyModified([
+      ...(resolved.movements ? diffTouched(prev.movements, resolved.movements) : []),
+      ...(resolved.fixedExpenses ? diffTouched(prev.fixedExpenses, resolved.fixedExpenses) : []),
+      ...(resolved.salaries ? diffTouched(prev.salaries ?? [], resolved.salaries) : []),
+      ...(resolved.contacts ? diffTouched(prev.contacts ?? [], resolved.contacts) : []),
+    ]);
     next.deletedIds = nextDeleted;
     persistState(next);
     return next;

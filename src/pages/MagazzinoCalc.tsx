@@ -518,13 +518,13 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       surface, bounds: b,
       unitPrice: unit,
       purchasedSqm: best?.purchasedSqm ?? 0, totalPrice: best?.price ?? 0,
-      options, best,
+      options, best, cheapest,
       cutSurcharge, cutStep,
       stripsPerRoll,
       perimeter, tapeJunctions, tapeMeters, tapeRollLen, tapeRolls,
       tapePieces, tapeOversize,
     };
-  }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType]);
+  }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType, chosenOptionKey]);
 
   return (
     <div className="space-y-4">

@@ -117,9 +117,6 @@ const MagazzinoView = () => {
       <header className="border-b-2 border-ink bg-paper">
         <div className="w-full px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link to="/hub" className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-ink">
-              <ArrowLeft className="w-3 h-3" /> Hub
-            </Link>
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Postazione</div>
               <h1 className="font-display text-3xl font-semibold leading-none flex items-center gap-2">

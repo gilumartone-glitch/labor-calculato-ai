@@ -135,9 +135,9 @@ const Inner = () => {
   };
 
   const resetPassword = async (user: AdminUser) => {
-    const pwd = window.prompt(`Nuova password per ${user.email} (min 6 caratteri):`);
+    const pwd = window.prompt(`Nuova password per ${user.email} (min 8 caratteri, non comune):`);
     if (pwd === null) return;
-    if (pwd.length < 6) { toast.error("Password troppo corta"); return; }
+    if (pwd.length < 8) { toast.error("Password troppo corta (min 8)"); return; }
     const { data, error } = await supabase.functions.invoke("admin-set-password", {
       body: { user_id: user.id, password: pwd },
     });
@@ -146,6 +146,19 @@ const Inner = () => {
       return;
     }
     toast.success("Password aggiornata");
+  };
+
+  const deleteUser = async (user: AdminUser) => {
+    if (!window.confirm(`Eliminare definitivamente ${user.display_name || user.email}?\nQuesta azione non è reversibile.`)) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: user.id },
+    });
+    if (error || (data as any)?.error) {
+      toast.error(((data as any)?.error) || error?.message || "Errore eliminazione");
+      return;
+    }
+    toast.success("Utente eliminato");
+    setUsers((cur) => cur.filter((u) => u.id !== user.id));
   };
 
   return (

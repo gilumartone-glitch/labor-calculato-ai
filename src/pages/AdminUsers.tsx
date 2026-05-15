@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RouteGuard } from "@/components/RouteGuard";
 import { ALL_SETTORI, AppSettore, SETTORE_LABEL } from "@/lib/produzione/types";
@@ -104,8 +104,8 @@ const Inner = () => {
   };
 
   const createUser = async () => {
-    if (!nuEmail || !nuPwd || nuPwd.length < 6) {
-      toast.error("Email e password (min 6) obbligatori");
+    if (!nuEmail || !nuPwd || nuPwd.length < 8) {
+      toast.error("Email e password (min 8 caratteri, non comune) obbligatori");
       return;
     }
     setCreating(true);
@@ -135,9 +135,9 @@ const Inner = () => {
   };
 
   const resetPassword = async (user: AdminUser) => {
-    const pwd = window.prompt(`Nuova password per ${user.email} (min 6 caratteri):`);
+    const pwd = window.prompt(`Nuova password per ${user.email} (min 8 caratteri, non comune):`);
     if (pwd === null) return;
-    if (pwd.length < 6) { toast.error("Password troppo corta"); return; }
+    if (pwd.length < 8) { toast.error("Password troppo corta (min 8)"); return; }
     const { data, error } = await supabase.functions.invoke("admin-set-password", {
       body: { user_id: user.id, password: pwd },
     });
@@ -146,6 +146,19 @@ const Inner = () => {
       return;
     }
     toast.success("Password aggiornata");
+  };
+
+  const deleteUser = async (user: AdminUser) => {
+    if (!window.confirm(`Eliminare definitivamente ${user.display_name || user.email}?\nQuesta azione non è reversibile.`)) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: user.id },
+    });
+    if (error || (data as any)?.error) {
+      toast.error(((data as any)?.error) || error?.message || "Errore eliminazione");
+      return;
+    }
+    toast.success("Utente eliminato");
+    setUsers((cur) => cur.filter((u) => u.id !== user.id));
   };
 
   return (
@@ -171,7 +184,7 @@ const Inner = () => {
                 <input className="input-bare w-full text-sm" type="email" value={nuEmail} onChange={(e) => setNuEmail(e.target.value)} />
               </div>
               <div>
-                <label className="label-cap block mb-1">Password (min 6)</label>
+                <label className="label-cap block mb-1">Password (min 8, non comune)</label>
                 <input className="input-bare w-full text-sm" type="text" value={nuPwd} onChange={(e) => setNuPwd(e.target.value)} />
               </div>
               <div>
@@ -244,6 +257,9 @@ const Inner = () => {
                           </button>
                           <button onClick={() => resetPassword(u)} title="Cambia password" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-ink/30 hover:border-ink hover:bg-ink hover:text-paper">
                             <KeyRound className="w-3 h-3" /> Password
+                          </button>
+                          <button onClick={() => deleteUser(u)} title="Elimina utente" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive">
+                            <Trash2 className="w-3 h-3" /> Elimina
                           </button>
                         </div>
                       </td>

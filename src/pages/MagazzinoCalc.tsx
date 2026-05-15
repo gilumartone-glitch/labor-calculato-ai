@@ -1229,6 +1229,14 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
             { descrizione: "Vernice ignifuga (kg)", um: "kg" },
             { descrizione: "Diluente / additivo", um: "lt" },
           ]}
+          catalogOptions={products.flatMap((p) => {
+            const colors = (p.colors ?? []).length ? p.colors : [""];
+            return colors.flatMap((c) => {
+              const base = `${p.name}${c ? ` · ${c}` : ""}${p.base ? ` · ${p.base}` : ""}`;
+              const cans = (p.cans ?? []).map((can) => ({ label: `${base} — latta ${can.label} kg`, um: "latte" }));
+              return cans.length ? cans : [{ label: base, um: "kg" }];
+            });
+          })}
         />
       ) : mode === "calcolo" ? (
         <div className="border-2 border-ink/15 rounded-sm bg-paper">

@@ -82,11 +82,12 @@ type SaleProduct = {
 type MagState = {
   version: 5;
   danceRolls: DanceRoll[];
+  tapeRolls: TapeRoll[];
   fireProducts: FireProduct[];
   printProducts: SaleProduct[];
   fabricProducts: SaleProduct[];
 };
-const initial: MagState = { version: 5, danceRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
+const initial: MagState = { version: 5, danceRolls: [], tapeRolls: [], fireProducts: [], printProducts: [], fabricProducts: [] };
 const MAGAZZINO_LOCAL_KEYS = ["officina:magazzino-calc:v5", "officina:magazzino-calc:v4", "officina:magazzino-calc:v3"];
 
 const hydrate = (raw: unknown): MagState => {

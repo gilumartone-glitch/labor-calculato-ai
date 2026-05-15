@@ -410,7 +410,7 @@ function DancePickerDialog({ rolls, tapes, onPick, onClose }: {
 
   const pickTape = (t: TapeRoll, c: string) => {
     const base = `Nastro ${t.name || t.kind}${t.widthMm ? ` ${t.widthMm}mm` : ""}${c ? ` · ${c}` : ""}`;
-    onPick({ label: `${base} (rotolo ${fmt(t.rollLength)}m)`, um: "rotoli" });
+    onPick({ label: `${base} (rotolo ${fmt(t.rollLength)}m)`, um: "rt" });
   };
 
   return (

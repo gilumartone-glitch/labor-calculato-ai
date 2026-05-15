@@ -368,6 +368,14 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
   const [flowTapeMeters, setFlowTapeMeters] = useState<number>(0);
   const [flowTapeRolls, setFlowTapeRolls] = useState<number>(0);
   const [flowNote, setFlowNote] = useState("");
+  const [flowAssignee, setFlowAssignee] = useState<string>("");
+  const [magazzinoUsers, setMagazzinoUsers] = useState<{ id: string; display_name: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!flowOpen) return;
+    supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })
+      .then(({ data }) => setMagazzinoUsers(data ?? []));
+  }, [flowOpen]);
 
   const allColors = useMemo(() => Array.from(new Set(rolls.flatMap((r) => r.colors ?? []))), [rolls]);
 

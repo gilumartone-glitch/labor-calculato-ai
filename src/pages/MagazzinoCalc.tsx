@@ -770,11 +770,11 @@ function ManualMagazzinoOrderForm({
 }
 
 /* ============== Sezione Tappeto danza ============== */
-function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void }) {
+function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]; setRolls: (r: DanceRoll[]) => void; tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
-  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine" | "nastri">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
   const [needThickness, setNeedThickness] = useState<number>(0);
   const [needColor, setNeedColor] = useState<string>("");

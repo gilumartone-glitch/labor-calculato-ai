@@ -2213,9 +2213,12 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
             <Field label="Causale">
               <ContactAutocompleteInput value={m.description} onChange={(v) => updateMovement(m.id, { description: v })} contacts={contacts} movementType={m.type} onAddContact={onAddContact} autoFocus={!m.description} />
             </Field>
-            <Field label="Importo">
+            <Field label={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? "Importo (residuo)" : "Importo"}>
               <div className="flex items-center gap-1">
-                <NumberInput value={m.amount} onChange={(amount) => updateMovement(m.id, { amount })} />
+                <NumberInput
+                  value={m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount}
+                  onChange={(v) => updateMovement(m.id, { amount: m.gestitoAcconti ? v + (m.acconto ?? 0) : v })}
+                />
                 <AdditionsControl movement={m} onChange={(patch) => updateMovement(m.id, patch)} compact />
               </div>
             </Field>

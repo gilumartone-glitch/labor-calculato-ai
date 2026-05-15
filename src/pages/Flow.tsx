@@ -297,14 +297,6 @@ const Flow = () => {
       <header className="border-b-2 border-ink bg-paper sticky top-0 z-20">
         <div className="container py-3 md:py-4 flex items-center justify-between gap-2 md:gap-4 flex-wrap">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <Link
-              to="/hub"
-              className="inline-flex items-center gap-2 px-3 py-2 text-base uppercase tracking-widest text-ink hover:bg-ink hover:text-paper border-2 border-ink rounded-sm font-mono font-bold transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Hub</span>
-            </Link>
-            <span className="text-ink/20 hidden sm:inline">·</span>
             <div className="min-w-0">
               <div className="font-display text-base md:text-lg font-semibold leading-none truncate">
                 Flow <span className="text-primary">·</span> Panoramica progetti

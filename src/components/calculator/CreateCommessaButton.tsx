@@ -32,7 +32,7 @@ import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/pro
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
-import { useProdStore } from "@/lib/produzione/store";
+
 
 const REPARTO_TO_PROD: Record<CommessaReparto, ProdDept> = {
   tappezzeria: "tappezzeria",

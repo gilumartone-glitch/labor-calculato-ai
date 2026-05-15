@@ -184,7 +184,7 @@ const Inner = () => {
                 <input className="input-bare w-full text-sm" type="email" value={nuEmail} onChange={(e) => setNuEmail(e.target.value)} />
               </div>
               <div>
-                <label className="label-cap block mb-1">Password (min 6)</label>
+                <label className="label-cap block mb-1">Password (min 8, non comune)</label>
                 <input className="input-bare w-full text-sm" type="text" value={nuPwd} onChange={(e) => setNuPwd(e.target.value)} />
               </div>
               <div>

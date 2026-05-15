@@ -1290,7 +1290,18 @@ function SaleProductSection({
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const cartStorageKey = `vendite:cart:${categoryKey}:v1`;
+  const [cart, setCart] = useState<CartLine[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(cartStorageKey) : null;
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(cartStorageKey, JSON.stringify(cart)); } catch { /* noop */ }
+  }, [cart, cartStorageKey]);
   const [orderOpen, setOrderOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cliente, setCliente] = useState("");

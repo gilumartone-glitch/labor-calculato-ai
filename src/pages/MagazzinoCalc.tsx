@@ -833,6 +833,15 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
                     note,
                     files: [],
                     depends_on: null,
+                    assignee_id: flowAssignee,
+                  } as any);
+                  await notify({
+                    userIds: [flowAssignee],
+                    type: "magazzino_da_preparare",
+                    message: `Tappeto danza — ${code} · ${cliente}`,
+                    order_id: pord.id,
+                    link: "/produzione/preparazione",
+                    is_urgent: false,
                   });
                   await logAction({
                     action: "FLOW_LANCIATO",

@@ -472,7 +472,9 @@ function DanceSection({ rolls, setRolls }: { rolls: DanceRoll[]; setRolls: (r: D
       options.push(makeOpt("whole", `${wholeRolls} rotoli interi`, wholeRolls, 0));
     }
 
-    const best = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
+    const cheapest = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
+    const chosen = chosenOptionKey ? options.find((o) => o.key === chosenOptionKey) ?? cheapest : cheapest;
+    const best = chosen;
     const rollsNeeded = best ? best.wholeRolls + (best.cutMeters > 0 ? 1 : 0) : 0;
     const totalCovered = best ? best.purchasedM : 0;
 

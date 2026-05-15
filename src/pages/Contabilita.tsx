@@ -2305,7 +2305,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
               }
             }} />
           </label>
-          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-sm font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
+          <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-xs font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
           {!isVirtual && (
             <button
               type="button"
@@ -2316,7 +2316,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
                 if (!confirm(`Cancellare "${m.description || "(senza voce)"}" del ${m.date}?`)) return;
                 deleteMovementById(m.id);
               }}
-              className="grid h-8 w-7 place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="grid h-8 w-[26px] place-items-center rounded-md border border-input bg-background text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -2383,13 +2383,13 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className={`hidden ${selectionMode ? "grid-cols-[24px_74px_minmax(140px,1fr)_44px_28px_96px_28px]" : "grid-cols-[74px_minmax(140px,1fr)_44px_28px_96px_28px]"} gap-1 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[11px] lg:grid`}>
+      <div className={`hidden ${selectionMode ? "grid-cols-[24px_60px_minmax(86px,1fr)_34px_26px_78px_26px]" : "grid-cols-[60px_minmax(86px,1fr)_34px_26px_78px_26px]"} gap-0 border-b border-border bg-muted/40 px-1 py-1 label-cap text-[10px] lg:grid`}>
         {selectionMode && <span></span>}
         <span className="px-1">Data</span>
-        <span className="px-1.5">Voce</span>
+        <span className="px-1">Voce</span>
         <span className="text-center">Met.</span>
         <span className="text-center">Pag.</span>
-        <span className="px-1.5 text-right">Importo</span>
+        <span className="px-1 text-right">Importo</span>
         <span></span>
       </div>
       <div className="max-h-[78vh] min-h-[60vh] space-y-0.5 overflow-auto p-1">

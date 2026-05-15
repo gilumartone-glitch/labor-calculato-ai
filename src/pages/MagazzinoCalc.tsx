@@ -341,7 +341,12 @@ export default function MagazzinoCalc() {
       {!ready ? (
         <div className="p-10 text-center text-[12px] text-muted-foreground">Caricamento…</div>
       ) : sub === "danza" ? (
-        <DanceSection rolls={state.danceRolls ?? []} setRolls={(danceRolls) => update({ danceRolls })} />
+        <DanceSection
+          rolls={state.danceRolls ?? []}
+          setRolls={(danceRolls) => update({ danceRolls })}
+          tapes={state.tapeRolls ?? []}
+          setTapes={(tapeRolls) => update({ tapeRolls })}
+        />
       ) : sub === "ignifugo" ? (
         <FireSection products={state.fireProducts ?? []} setProducts={(fireProducts) => update({ fireProducts })} />
       ) : sub === "stampa" ? (

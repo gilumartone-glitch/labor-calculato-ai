@@ -621,38 +621,52 @@ function ManualMagazzinoOrderForm({
           <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
             <div className="font-mono text-[10px] uppercase tracking-widest">Voci ordine ({lines.length})</div>
             <div className="flex gap-1 flex-wrap">
-              {suggestions.map((s, i) => (
-                <Button key={i} size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => addLine(s)}>
-                  <Plus className="w-3 h-3 mr-1" />{s.descrizione}
+              {picker && (
+                <Button size="sm" className="h-7 text-[11px]" onClick={addAndPick}>
+                  <Plus className="w-3 h-3 mr-1" />Scegli dal listino
                 </Button>
-              ))}
-              <Button size="sm" className="h-7 text-[11px]" onClick={() => addLine()}>
-                <Plus className="w-3 h-3 mr-1" />Riga vuota
+              )}
+              <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => addLine()}>
+                <Plus className="w-3 h-3 mr-1" />Riga manuale
               </Button>
             </div>
           </div>
           <div className="divide-y">
             {lines.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">Aggiungi almeno una voce.</div>}
-            {lines.map((l) => (
-              <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
-                <div className="flex flex-col gap-1">
-                  <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
-                  {picker && (
-                    <button
-                      type="button"
-                      onClick={() => setPickerLineId(l.id)}
-                      className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground hover:text-ink underline self-start"
-                    >
-                      Scegli dal listino…
-                    </button>
-                  )}
+            {lines.map((l) => {
+              const isManual = manualEdit[l.id] || !picker;
+              return (
+                <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    {isManual ? (
+                      <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPickerLineId(l.id)}
+                        className={`h-8 px-2 text-left text-[12px] border-2 rounded-sm truncate ${l.descrizione ? "border-ink/20 bg-paper" : "border-dashed border-primary/50 text-primary hover:bg-primary/5"}`}
+                        title={l.descrizione || "Scegli dal listino…"}
+                      >
+                        {l.descrizione || "Scegli dal listino…"}
+                      </button>
+                    )}
+                    {picker && (
+                      <button
+                        type="button"
+                        onClick={() => setManualEdit({ ...manualEdit, [l.id]: !isManual })}
+                        className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground hover:text-ink underline self-start"
+                      >
+                        {isManual ? "← Torna al listino" : "✎ Modifica manualmente"}
+                      </button>
+                    )}
+                  </div>
+                  <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
+                  <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
+                  <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
+                  <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
-                <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
-                <Input value={l.um} onChange={(e) => updLine(l.id, { um: e.target.value })} placeholder="um" className="h-8 text-[12px]" />
-                <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
-                <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

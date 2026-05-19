@@ -96,17 +96,19 @@ export const CreateCommessaButton = ({
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
     note: string; warehouseOnly: boolean;
     materialOnlyDepts: ProdDept[];
+    excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
   };
   const initialForm: FormState = {
     titolo: defaultTitle, cliente: "", prodName: "",
     importo: defaultAmount, reparto: defaultReparto, priorita: "media",
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
+    excludedDepts: [],
     deptAssignees: {},
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, deptAssignees } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -121,6 +123,12 @@ export const CreateCommessaButton = ({
       ...f,
       materialOnlyDepts: f.materialOnlyDepts.includes(d) ? f.materialOnlyDepts.filter((x) => x !== d) : [...f.materialOnlyDepts, d],
     }));
+  const toggleExcludedDept = (d: ProdDept) =>
+    setForm((f) => ({
+      ...f,
+      excludedDepts: f.excludedDepts.includes(d) ? f.excludedDepts.filter((x) => x !== d) : [...f.excludedDepts, d],
+      materialOnlyDepts: f.materialOnlyDepts.filter((x) => x !== d),
+    }));
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
@@ -131,8 +139,8 @@ export const CreateCommessaButton = ({
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     const base = inferredDepts.length > 0 ? inferredDepts : [fallbackDept];
-    return base.filter((d) => !materialOnlyDepts.includes(d));
-  }, [inferredDepts, fallbackDept, materialOnlyDepts]);
+    return base.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+  }, [inferredDepts, fallbackDept, materialOnlyDepts, excludedDepts]);
   const operatorsForDept = (d: ProdDept) =>
     profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 

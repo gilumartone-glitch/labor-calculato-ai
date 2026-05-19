@@ -59,7 +59,7 @@ export const GeneralSummary = ({
             Riepilogo generale
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
-            Somma di tutti i reparti, con margine e IVA applicati al totale.
+            Somma di tutti i reparti.
           </p>
         </div>
 

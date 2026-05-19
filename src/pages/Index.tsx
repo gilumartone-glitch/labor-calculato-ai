@@ -126,6 +126,10 @@ const Index = () => {
   const [applyVat, setApplyVat] = useState(false);
   const [customerType, setCustomerType] = useState<CustomerType>("final");
   const [workshopTick, setWorkshopTick] = useState(0);
+  /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare
+   *  un rimontaggio completo dei componenti (input, autocomplete, ...) ed evitare
+   *  che stati locali "rimasti appesi" blocchino la scrittura nei campi. */
+  const [resetNonce, setResetNonce] = useState(0);
 
   // Funzione di post-processing applicata ai cataloghi caricati (default + migrazioni)
   const ensurePresets = (c: Catalog, dept: DepartmentKey): Catalog => {
@@ -302,6 +306,11 @@ const Index = () => {
     setMargin(30);
     setVat(22);
     setApplyVat(false);
+    // Reset "anti-ghost": forza il rimontaggio dei figli per ripulire eventuali
+    // stati locali di input (widthStr, autocomplete, ecc.) e cancella la
+    // serializzazione applicata in modo che il prossimo write parta pulito.
+    lastAppliedRef.current = "";
+    setResetNonce((n) => n + 1);
     toast.success("Preventivo azzerato");
   };
 
@@ -538,7 +547,7 @@ const Index = () => {
       <main className="container py-8 pb-20">
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab}
+            key={`${activeTab}:${resetNonce}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}

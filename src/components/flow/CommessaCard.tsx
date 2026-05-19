@@ -7,6 +7,7 @@ interface Props {
   commessa: Commessa;
   onOpen: () => void;
   onDelete: () => void;
+  canDelete?: boolean;
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -34,7 +35,7 @@ const isOverdue = (iso: string | null, stato: string) => {
   return new Date(iso) < new Date(new Date().toDateString());
 };
 
-export const CommessaCard = ({ commessa, onOpen, onDelete }: Props) => {
+export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: Props) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: commessa.id,
     data: { stato: commessa.stato },
@@ -86,19 +87,22 @@ export const CommessaCard = ({ commessa, onOpen, onDelete }: Props) => {
                 </span>
               )}
             </h4>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                aria-label="Elimina"
-                className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/60 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
+            {canDelete && (
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  aria-label="Elimina (admin)"
+                  title="Elimina (admin)"
+                  className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/60 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           {commessa.cliente && (

@@ -202,6 +202,10 @@ const Flow = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) {
+      toast.error("Solo gli amministratori possono eliminare le lavorazioni");
+      return;
+    }
     if (!window.confirm("Eliminare definitivamente questa card?")) return;
     const { error } = await supabase.from("commesse").delete().eq("id", id);
     if (error) {
@@ -407,6 +411,7 @@ const Flow = () => {
                             commessa={c}
                             onOpen={() => { setDetailCommessa(c); setDetailOpen(true); }}
                             onDelete={() => handleDelete(c.id)}
+                            canDelete={isAdmin}
                           />
                         ))
                       )}
@@ -464,6 +469,7 @@ const Flow = () => {
                         commessa={c}
                         onOpen={() => { setDetailCommessa(c); setDetailOpen(true); }}
                         onDelete={() => handleDelete(c.id)}
+                        canDelete={isAdmin}
                       />
                     ))}
                   </div>

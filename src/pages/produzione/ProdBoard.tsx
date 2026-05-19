@@ -302,6 +302,33 @@ const ProdBoard = () => {
     await refreshOrders();
   };
 
+  /** Elimina ordine + tutte le lavorazioni collegate. Solo admin. */
+  const handleDeleteOrder = async (order: ProdOrder) => {
+    if (!isAdmin) { toast.error("Solo gli admin possono eliminare gli ordini"); return; }
+    if (!window.confirm(`Eliminare definitivamente l'ordine ${order.code} e tutte le sue lavorazioni?\n\nL'azione non è reversibile.`)) return;
+    const subIds = (subsByOrder[order.id] ?? []).map((s) => s.id);
+    try {
+      if (subIds.length > 0) {
+        await supabase.from("production_sub_checklist").delete().in("sub_id", subIds);
+      }
+      await supabase.from("inventory_reservations").delete().eq("order_id", order.id);
+      await supabase.from("prod_notifications").delete().eq("order_id", order.id);
+      await supabase.from("production_sub_orders").delete().eq("order_id", order.id);
+      const { error } = await supabase.from("production_orders").delete().eq("id", order.id);
+      if (error) throw error;
+      await logAction({
+        action: "ORDINE_ELIMINATO",
+        entity_type: "production_order", entity_id: order.id,
+        detail: `${order.code} eliminato da admin`,
+        prev_state: { status: order.status, cliente: order.cliente },
+      });
+      toast.success(`${order.code} eliminato`);
+      await refreshOrders();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Errore eliminazione");
+    }
+  };
+
   return (
     <ProdLayout>
       <div className="p-3 sm:p-6 space-y-4">

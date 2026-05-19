@@ -375,9 +375,22 @@ const ProdBoard = () => {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-mono text-[11px] font-bold">{o.code}</span>
-                        <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
-                          {PRIORITY_LABEL[o.priorita]}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
+                            {PRIORITY_LABEL[o.priorita]}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteOrder(o); }}
+                              title="Elimina ordine (admin)"
+                              aria-label="Elimina ordine (admin)"
+                              className="w-5 h-5 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="text-[12px] font-medium text-ink leading-tight mb-1.5">
                         {o.cliente}

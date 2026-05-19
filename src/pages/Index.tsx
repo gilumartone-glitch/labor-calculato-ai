@@ -8,7 +8,6 @@ import { GeneralSummary } from "@/components/calculator/GeneralSummary";
 import { Catalog, DepartmentKey, DepartmentState, PieceLine } from "@/components/calculator/types";
 import { loadCatalog, saveCatalog, emptyCatalog } from "@/lib/catalog";
 import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
-import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
 import { buildPerimeterOpsForDept, perimeterCost } from "@/lib/perimeter";
 import { pieceTotal, aggregateScrapDeduction } from "@/lib/piece";
 import { buildGhostMaterialsForLab } from "@/lib/ghost-materials";
@@ -113,18 +112,54 @@ const Index = () => {
     setSearchParams(next, { replace: true });
   };
 
-  const [departments, setDepartments] = useState<Record<DepartmentKey, DepartmentState>>(() => ({
-    tappezzeria: initialDept(),
-    stampa: initialDept(),
-    falegnameria: initialDept(),
-  }));
+  /** Carica lo stato iniziale da localStorage STATE_KEY.
+   *  La persistenza per-scheda (e la sync cloud) è gestita da DraftTabsBar,
+   *  che scrive lo snapshot della scheda attiva in localStorage prima del mount
+   *  e ricarica la pagina ad ogni switch. NON usiamo useCloudWorkspace qui
+   *  perché farebbe condividere lo stesso stato fra tutte le schede. */
+  type StoredSnap = {
+    version: number;
+    departments: Record<DepartmentKey, DepartmentState>;
+    jobName: string;
+    quantity: number;
+    margin: number;
+    vat: number;
+    applyVat: boolean;
+    customerType: CustomerType;
+  };
+  const readInitialSnap = (): Partial<StoredSnap> | null => {
+    try {
+      const raw = localStorage.getItem(STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.version !== STATE_VERSION) return null;
+      return parsed;
+    } catch { return null; }
+  };
+  const initialSnap = readInitialSnap();
+  const buildDepts = (raw: any): Record<DepartmentKey, DepartmentState> => {
+    const depRaw = (raw ?? {}) as Partial<Record<DepartmentKey, Partial<DepartmentState>>>;
+    const dep: Record<DepartmentKey, DepartmentState> = {
+      tappezzeria: { ...initialDept(), ...(depRaw.tappezzeria ?? {}) },
+      stampa: { ...initialDept(), ...(depRaw.stampa ?? {}) },
+      falegnameria: { ...initialDept(), ...(depRaw.falegnameria ?? {}) },
+    };
+    (Object.keys(dep) as DepartmentKey[]).forEach((k) => {
+      if (!Array.isArray(dep[k].pieces)) dep[k].pieces = [];
+    });
+    dep.stampa.pieces = dep.stampa.pieces.map((p) => (p.noMargins === true ? p : { ...p, noMargins: true }));
+    return syncMaterialFromLabDimensions(dep);
+  };
 
-  const [jobName, setJobName] = useState("Lavorazione su misura");
-  const [quantity, setQuantity] = useState(1);
-  const [margin, setMargin] = useState(30);
-  const [vat, setVat] = useState(22);
-  const [applyVat, setApplyVat] = useState(false);
-  const [customerType, setCustomerType] = useState<CustomerType>("final");
+  const [departments, setDepartments] = useState<Record<DepartmentKey, DepartmentState>>(() =>
+    buildDepts(initialSnap?.departments),
+  );
+  const [jobName, setJobName] = useState(initialSnap?.jobName ?? "Lavorazione su misura");
+  const [quantity, setQuantity] = useState(typeof initialSnap?.quantity === "number" ? initialSnap.quantity : 1);
+  const [margin, setMargin] = useState(typeof initialSnap?.margin === "number" ? initialSnap.margin : 30);
+  const [vat, setVat] = useState(typeof initialSnap?.vat === "number" ? initialSnap.vat : 22);
+  const [applyVat, setApplyVat] = useState(typeof initialSnap?.applyVat === "boolean" ? initialSnap.applyVat : false);
+  const [customerType, setCustomerType] = useState<CustomerType>(initialSnap?.customerType === "dealer" ? "dealer" : "final");
   const [workshopTick, setWorkshopTick] = useState(0);
   /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare
    *  un rimontaggio completo dei componenti (input, autocomplete, ...) ed evitare
@@ -177,76 +212,17 @@ const Index = () => {
     ensurePresets,
   );
 
-  // Stato del preventivo sincronizzato sul cloud (per-utente) + cache localStorage
-  type CalcSnap = {
-    version: number;
-    departments: Record<DepartmentKey, DepartmentState>;
-    jobName: string;
-    quantity: number;
-    margin: number;
-    vat: number;
-    applyVat: boolean;
-    customerType: CustomerType;
-  };
-  const hydrateCalcSnap = (raw: unknown): CalcSnap | null => {
-    try {
-      const parsed = raw as Partial<CalcSnap> | null;
-      if (!parsed || parsed.version !== STATE_VERSION) return null;
-      const depRaw = (parsed.departments ?? {}) as Partial<Record<DepartmentKey, Partial<DepartmentState>>>;
-      const dep: Record<DepartmentKey, DepartmentState> = {
-        tappezzeria: { ...initialDept(), ...(depRaw.tappezzeria ?? {}) },
-        stampa: { ...initialDept(), ...(depRaw.stampa ?? {}) },
-        falegnameria: { ...initialDept(), ...(depRaw.falegnameria ?? {}) },
-      };
-      (Object.keys(dep) as DepartmentKey[]).forEach((k) => {
-        if (!Array.isArray(dep[k].pieces)) dep[k].pieces = [];
-      });
-      dep.stampa.pieces = dep.stampa.pieces.map((p) => (p.noMargins === true ? p : { ...p, noMargins: true }));
-      return {
-        version: STATE_VERSION,
-        departments: syncMaterialFromLabDimensions(dep),
-        jobName: parsed.jobName ?? "Lavorazione su misura",
-        quantity: typeof parsed.quantity === "number" ? parsed.quantity : 1,
-        margin: typeof parsed.margin === "number" ? parsed.margin : 30,
-        vat: typeof parsed.vat === "number" ? parsed.vat : 22,
-        applyVat: typeof parsed.applyVat === "boolean" ? parsed.applyVat : false,
-        customerType: parsed.customerType === "dealer" ? "dealer" : "final",
-      };
-    } catch {
-      return null;
-    }
-  };
-  const calcCloud = useCloudWorkspace<CalcSnap | null>("calculator_state", null, {
-    localStorageKeys: [STATE_KEY],
-    hydrate: (raw) => hydrateCalcSnap(raw),
-  });
+  // Persistenza dello stato del preventivo in localStorage STATE_KEY.
+  // La scheda attiva (DraftTabsBar) legge questo valore e lo salva su `design_drafts`
+  // (cloud) tramite debounce + interval. Ogni scheda ha così il proprio stato isolato.
   const lastAppliedRef = useRef<string>("");
-  // Quando arriva uno snapshot dal cloud (initial o realtime), idrata lo state locale.
   useEffect(() => {
-    if (!calcCloud.ready || !calcCloud.state) return;
-    const serialized = JSON.stringify(calcCloud.state);
-    if (serialized === lastAppliedRef.current) return;
-    lastAppliedRef.current = serialized;
-    const s = calcCloud.state;
-    setDepartments(s.departments);
-    setJobName(s.jobName);
-    setQuantity(s.quantity);
-    setMargin(s.margin);
-    setVat(s.vat);
-    setApplyVat(s.applyVat);
-    setCustomerType(s.customerType);
-  }, [calcCloud.ready, calcCloud.state]);
-  // Quando lo state locale cambia, lo invio al cloud (che si occupa di debounce + cache localStorage).
-  useEffect(() => {
-    if (!calcCloud.ready) return;
-    const snap: CalcSnap = { version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType };
+    const snap: StoredSnap = { version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType };
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
     lastAppliedRef.current = serialized;
-    calcCloud.setState(snap);
-    // Mantieni anche un backup localStorage per il summary del Riepilogo
     try { localStorage.setItem(STATE_KEY, serialized); } catch { /* ignore */ }
-  }, [calcCloud.ready, departments, jobName, quantity, margin, vat, applyVat, customerType]);
+  }, [departments, jobName, quantity, margin, vat, applyVat, customerType]);
 
   useEffect(() => {
     const refresh = () => setWorkshopTick((v) => v + 1);

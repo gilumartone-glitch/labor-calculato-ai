@@ -8,6 +8,9 @@ interface SelectWithAddProps {
   placeholder?: string;
   allowEmpty?: boolean;
   emptyLabel?: string;
+  /** Se fornita, viene chiamata quando l'utente CREA un nuovo valore col tasto +.
+   *  Utile per applicare lo stesso valore a più righe (es. tutte le varianti). */
+  onAdd?: (v: string) => void;
 }
 
 export const SelectWithAdd = ({
@@ -17,6 +20,7 @@ export const SelectWithAdd = ({
   placeholder = "Seleziona…",
   allowEmpty = true,
   emptyLabel = "—",
+  onAdd,
 }: SelectWithAddProps) => {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -30,7 +34,8 @@ export const SelectWithAdd = ({
       setDraft("");
       return;
     }
-    onChange(v);
+    if (onAdd) onAdd(v);
+    else onChange(v);
     setDraft("");
     setAdding(false);
   };

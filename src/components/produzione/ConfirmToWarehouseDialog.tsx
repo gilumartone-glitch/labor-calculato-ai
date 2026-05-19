@@ -64,6 +64,17 @@ export const ConfirmToWarehouseDialog = ({
   // map: material key -> supplier name
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
 
+  // Fix Radix Dialog pointer-events leak: quando un dialog si chiude e subito
+  // se ne apre un altro (es. SendDialog → questo) `pointer-events: none`
+  // resta sul body bloccando click successivi (anche il bottone Reset).
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      if (open) document.body.style.pointerEvents = "";
+      else document.body.style.pointerEvents = "";
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     setRef(defaultRef);

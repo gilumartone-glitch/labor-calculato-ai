@@ -222,7 +222,10 @@ const Index = () => {
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
     lastAppliedRef.current = serialized;
-    try { localStorage.setItem(STATE_KEY, serialized); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(STATE_KEY, serialized);
+      window.dispatchEvent(new Event("officina:draft-state-changed"));
+    } catch { /* ignore */ }
   }, [departments, jobName, quantity, margin, vat, applyVat, customerType]);
 
   useEffect(() => {

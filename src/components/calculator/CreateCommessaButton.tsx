@@ -665,7 +665,7 @@ export const CreateCommessaButton = ({
     <ConfirmToWarehouseDialog
       open={confirmOpen}
       onOpenChange={(v) => { setConfirmOpen(v); if (!v) setPendingPayload(null); }}
-      title="Solo magazzino — dettagli ordine"
+      title={pendingPayload?.mode === "warehouse" ? "Solo magazzino — dettagli ordine" : "Verifica materiali prima di lanciare in produzione"}
       materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
       defaultProductionName={prodName}
       onConfirm={onWarehouseConfirm}

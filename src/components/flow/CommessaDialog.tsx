@@ -138,11 +138,11 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-cap block mb-1">Cliente</label>
-              <input
-                type="text"
+              <ContactSelect
                 value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                className="input-bare w-full text-sm"
+                onChange={setCliente}
+                type="cliente"
+                size="sm"
               />
             </div>
             <div>

@@ -306,6 +306,11 @@ const Index = () => {
     setMargin(30);
     setVat(22);
     setApplyVat(false);
+    // Reset "anti-ghost": forza il rimontaggio dei figli per ripulire eventuali
+    // stati locali di input (widthStr, autocomplete, ecc.) e cancella la
+    // serializzazione applicata in modo che il prossimo write parta pulito.
+    lastAppliedRef.current = "";
+    setResetNonce((n) => n + 1);
     toast.success("Preventivo azzerato");
   };
 

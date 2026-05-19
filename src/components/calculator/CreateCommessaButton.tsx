@@ -145,7 +145,12 @@ export const CreateCommessaButton = ({
     profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<null | { clienteName: string; productionSnapshot: Snapshot }>(null);
+  const [pendingPayload, setPendingPayload] = useState<null | {
+    mode: "warehouse" | "normal";
+    clienteName: string;
+    productionSnapshot: Snapshot;
+    depts?: ProdDept[];
+  }>(null);
 
   // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
@@ -214,123 +219,28 @@ export const CreateCommessaButton = ({
       // Se senza lavorazione: chiedo dati magazzino e creo solo l'ordine magazzino, niente sub di reparto
       if (warehouseOnly) {
         const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-        setPendingPayload({ clienteName, productionSnapshot });
+        setPendingPayload({ mode: "warehouse", clienteName, productionSnapshot });
         setConfirmOpen(true);
         // teniamo open il dialog principale per riaprire in caso di annullo
         setSaving(false);
         return;
       }
 
-      // 2) Production order + sub-ordine per il reparto
-      let prodCode: string | null = null;
-      let prodId: string | null = null;
-      try {
-        prodCode = await nextOrderCode();
-        const prodPrio = PRIO_TO_PROD[priorita];
-        const fallbackDept = REPARTO_TO_PROD[reparto];
-        // Determina i reparti reali dai pezzi dello snapshot (es. stampa+taglio).
-        const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
-        const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
-        // Filtra fuori i reparti esclusi dall'utente e quelli contrassegnati come "solo materiale".
-        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
-        if (depts.length === 0) {
-          toast.error("Seleziona almeno un reparto da lanciare");
-          setSaving(false);
-          return;
-        }
-        const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-        const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
-          code: prodCode,
-          cliente: clienteName,
-          data: scadenza || new Date().toISOString().slice(0, 10),
-          note: [titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null,
-          priorita: prodPrio,
-          delivery: "spedizione",
-          status: "in_corso",
-          attachments: [],
-          nesting_included: false,
-          created_by: user.id,
-          snapshot: productionSnapshot as never,
-          production_name: prodName.trim() || null,
-        } as any).select().single();
-        if (e1) throw e1;
-        prodId = pord.id;
-
-        // Inserisce un sub per ogni reparto in PARALLELO (depends_on=null) cosicché
-        // ogni reparto lavori indipendentemente e chiuda il proprio cerchio;
-        // l'ordine si chiude quando tutti i sub sono completati.
-        const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
-        for (let i = 0; i < depts.length; i++) {
-          const d = depts[i];
-          const assignee = deptAssignees[d] || null;
-          const { data: sub, error: eSub } = await supabase
-            .from("production_sub_orders")
-            .insert({
-              order_id: pord.id,
-              code: subCode(prodCode, SUB_DEPT_SUFFIX[d], i + 1),
-              dept: d,
-              ordine: i,
-              note: titolo.trim() || null,
-              files: [],
-              depends_on: null,
-              assignee_id: assignee,
-            } as any)
-            .select("id")
-            .single();
-          if (eSub) throw eSub;
-          insertedSubs.push({ id: sub.id, dept: d, assignee });
-        }
-
-        await logAction({
-          action: "FLOW_LANCIATO",
-          entity_type: "order",
-          entity_id: pord.id,
-          detail: `Ordine ${prodCode} creato da preventivo per ${clienteName} — ${PRIORITY_LABEL[prodPrio]} (${depts.join(" → ")})`,
-          new_state: { code: prodCode, depts, priorita: prodPrio, from: "preventivo", assignees: deptAssignees },
-        });
-
-        const writers = await getProduzioneWriters(depts);
-        const targets = writers.filter((u) => u !== user.id);
-        if (targets.length > 0) {
-          await notify({
-            userIds: targets,
-            type: "ordine_creato",
-            message: `Nuovo ordine ${prodCode} per ${clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
-            order_id: pord.id,
-            link: `/produzione/board?order=${pord.id}`,
-            is_urgent: prodPrio !== "normale",
-          });
-        }
-        // Notifica diretta agli operatori assegnati
-        for (const s of insertedSubs) {
-          if (s.assignee && s.assignee !== user.id) {
-            await notify({
-              userIds: [s.assignee],
-              type: "ordine_creato",
-              message: `Assegnato a te: ${prodCode} · ${DEPT_LABEL[s.dept]} (${clienteName})`,
-              order_id: pord.id,
-              link: `/produzione/board?order=${pord.id}`,
-              is_urgent: prodPrio !== "normale",
-            });
-          }
-        }
-      } catch (prodErr) {
-        // Non blocco la commessa se la creazione produzione fallisce: la commessa è già salvata.
-        console.error("Errore creazione production order:", prodErr);
-        toast.warning("Commessa creata, ma l'ordine di Produzione non è stato lanciato. Riprova dal modulo Produzione.");
+      // Flusso normale: prepara reparti e apri la verifica materiali (acquisti propedeutici alla lavorazione)
+      const fallbackDept = REPARTO_TO_PROD[reparto];
+      const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
+      const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
+      const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+      if (depts.length === 0) {
+        toast.error("Seleziona almeno un reparto da lanciare");
+        setSaving(false);
+        return;
       }
-
-      toast.success(prodCode ? `Commessa + Ordine ${prodCode} creati` : "Commessa creata nel Flow", {
-        description: prodCode ? `In Flow (Preventivo) e in Produzione (In corso).` : `"${titolo}" è ora in colonna Preventivo.`,
-        action: {
-          label: prodId ? "Apri Produzione" : "Apri Flow",
-          onClick: () => navigate(prodId ? `/produzione/board?order=${prodId}` : "/flow"),
-        },
-      });
-      setOpen(false);
-      // Reset campi e cancella la persistenza
-      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
-      clearForm();
+      const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
+      setPendingPayload({ mode: "normal", clienteName, productionSnapshot, depts });
+      setConfirmOpen(true);
+      setSaving(false);
+      return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";
       toast.error("Errore creazione commessa", { description: msg });
@@ -345,28 +255,33 @@ export const CreateCommessaButton = ({
     try {
       const code = await nextOrderCode();
       const prodPrio = PRIO_TO_PROD[priorita];
+      const isWarehouse = pendingPayload.mode === "warehouse";
+      const orderNote = isWarehouse
+        ? `Senza lavorazione — da preventivo: ${titolo.trim()}`
+        : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
+
       const { data: pord, error: e1 } = await supabase
         .from("production_orders")
         .insert({
           code,
           cliente: pendingPayload.clienteName,
           data: scadenza || new Date().toISOString().slice(0, 10),
-          note: `Senza lavorazione — da preventivo: ${titolo.trim()}`,
+          note: orderNote,
           priorita: prodPrio,
-          delivery: "corriere",
+          delivery: isWarehouse ? "corriere" : "spedizione",
           status: "in_corso",
           attachments: [],
           nesting_included: false,
           created_by: user.id,
           snapshot: pendingPayload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
-          production_name: d.production_name || null,
+          production_name: d.production_name || prodName.trim() || null,
         } as any)
         .select()
         .single();
       if (e1) throw e1;
 
-      // acquisti subs (one per missing material)
+      // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
       let firstAcquistiId: string | null = null;
       if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
         const acquistiRows = d.missing.map((m, i) => ({
@@ -395,37 +310,105 @@ export const CreateCommessaButton = ({
         });
       }
 
-      const { error: e2 } = await supabase.from("production_sub_orders").insert({
-        order_id: pord.id,
-        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-        dept: "magazzino",
-        ordine: (d.missing?.length ?? 0),
-        note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
-        files: [],
-        depends_on: firstAcquistiId,
-      });
-      if (e2) throw e2;
+      const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
 
-      await notify({
-        userIds: [d.assignee_id],
-        type: "magazzino_da_preparare",
-        message: d.missing?.length
-          ? `In attesa acquisti — ${code} · ${pendingPayload.clienteName} (${d.missing.length} materiali)`
-          : `Da preparare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
-        order_id: pord.id,
-        link: "/produzione/preparazione",
-        is_urgent: prodPrio !== "normale",
-      });
+      if (isWarehouse) {
+        // Solo magazzino: un unico sub magazzino dipendente dagli acquisti
+        const baseOrdine = d.missing?.length ?? 0;
+        const { data: magSub, error: e2 } = await supabase.from("production_sub_orders").insert({
+          order_id: pord.id,
+          code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
+          dept: "magazzino",
+          ordine: baseOrdine,
+          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
+          files: [],
+          depends_on: firstAcquistiId,
+          assignee_id: d.assignee_id || null,
+        } as any).select("id").single();
+        if (e2) throw e2;
+        if (d.assignee_id) insertedSubs.push({ id: magSub.id, dept: "magazzino", assignee: d.assignee_id });
+
+        await notify({
+          userIds: [d.assignee_id],
+          type: "magazzino_da_preparare",
+          message: d.missing?.length
+            ? `In attesa acquisti — ${code} · ${pendingPayload.clienteName} (${d.missing.length} materiali)`
+            : `Da preparare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
+          order_id: pord.id,
+          link: "/produzione/preparazione",
+          is_urgent: prodPrio !== "normale",
+        });
+      } else {
+        // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
+        const depts = pendingPayload.depts ?? [];
+        const baseOrdine = d.missing?.length ?? 0;
+        for (let i = 0; i < depts.length; i++) {
+          const dept = depts[i];
+          const assignee = deptAssignees[dept] || null;
+          const { data: sub, error: eSub } = await supabase
+            .from("production_sub_orders")
+            .insert({
+              order_id: pord.id,
+              code: subCode(code, SUB_DEPT_SUFFIX[dept], i + 1),
+              dept,
+              ordine: baseOrdine + i,
+              note: titolo.trim() || null,
+              files: [],
+              depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
+              assignee_id: assignee,
+            } as any)
+            .select("id")
+            .single();
+          if (eSub) throw eSub;
+          insertedSubs.push({ id: sub.id, dept, assignee });
+        }
+
+        const writers = await getProduzioneWriters(depts);
+        const targets = writers.filter((u) => u !== user.id);
+        if (targets.length > 0) {
+          await notify({
+            userIds: targets,
+            type: "ordine_creato",
+            message: d.missing?.length
+              ? `Nuovo ordine ${code} per ${pendingPayload.clienteName} — in attesa acquisti (${d.missing.length})`
+              : `Nuovo ordine ${code} per ${pendingPayload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
+            order_id: pord.id,
+            link: `/produzione/board?order=${pord.id}`,
+            is_urgent: prodPrio !== "normale",
+          });
+        }
+        for (const s of insertedSubs) {
+          if (s.assignee && s.assignee !== user.id) {
+            await notify({
+              userIds: [s.assignee],
+              type: "ordine_creato",
+              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${pendingPayload.clienteName})`,
+              order_id: pord.id,
+              link: `/produzione/board?order=${pord.id}`,
+              is_urgent: prodPrio !== "normale",
+            });
+          }
+        }
+      }
 
       await logAction({
         action: "FLOW_LANCIATO",
         entity_type: "order",
         entity_id: pord.id,
-        detail: `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`,
-        new_state: { code, warehouseOnly: true, customer_order_ref: d.customer_order_ref, assignee_id: d.assignee_id },
+        detail: isWarehouse
+          ? `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`
+          : `Ordine ${code} per ${pendingPayload.clienteName} — ${(pendingPayload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
+        new_state: {
+          code, warehouseOnly: isWarehouse,
+          customer_order_ref: d.customer_order_ref,
+          depts: pendingPayload.depts ?? [],
+          missing_count: d.missing?.length ?? 0,
+        },
       });
 
-      toast.success(`Ordine ${code} creato e inviato al magazzino`);
+      toast.success(isWarehouse
+        ? `Ordine ${code} creato e inviato al magazzino`
+        : `Commessa + Ordine ${code} creati${d.missing?.length ? " — in attesa acquisti" : ""}`);
       setConfirmOpen(false);
       setOpen(false);
       setPendingPayload(null);
@@ -682,7 +665,7 @@ export const CreateCommessaButton = ({
     <ConfirmToWarehouseDialog
       open={confirmOpen}
       onOpenChange={(v) => { setConfirmOpen(v); if (!v) setPendingPayload(null); }}
-      title="Solo magazzino — dettagli ordine"
+      title={pendingPayload?.mode === "warehouse" ? "Solo magazzino — dettagli ordine" : "Verifica materiali prima di lanciare in produzione"}
       materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
       defaultProductionName={prodName}
       onConfirm={onWarehouseConfirm}

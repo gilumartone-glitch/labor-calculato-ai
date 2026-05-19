@@ -266,9 +266,11 @@ export const DraftTabsBar = () => {
     };
     // Salva su cambi localStorage interni alla pagina e su cambio tab
     window.addEventListener("storage", onUpdate);
+    window.addEventListener("officina:draft-state-changed", onUpdate);
     const interval = window.setInterval(onUpdate, 4000); // safety net
     return () => {
       window.removeEventListener("storage", onUpdate);
+      window.removeEventListener("officina:draft-state-changed", onUpdate);
       window.clearInterval(interval);
       if (timer) window.clearTimeout(timer);
     };

@@ -35,7 +35,7 @@ const isOverdue = (iso: string | null, stato: string) => {
   return new Date(iso) < new Date(new Date().toDateString());
 };
 
-export const CommessaCard = ({ commessa, onOpen, onDelete }: Props) => {
+export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: Props) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: commessa.id,
     data: { stato: commessa.stato },

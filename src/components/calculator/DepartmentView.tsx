@@ -221,20 +221,23 @@ export const DepartmentView = ({
   };
 
   const addPiece = () => {
-    const firstName = catalog.materials.find((m) => m.name.trim())?.name ?? "";
-    const variantsForProduct = catalog.materials.filter((m) => m.name === firstName);
+    // Nel Laboratorio (stampa) non pre-compilare il prodotto: il listino è lungo
+    // e il default cadeva sempre su MDF (prima voce). Meglio lasciare vuoto.
+    const autoFill = deptKey !== "stampa";
+    const firstName = autoFill ? (catalog.materials.find((m) => m.name.trim())?.name ?? "") : "";
+    const variantsForProduct = autoFill ? catalog.materials.filter((m) => m.name === firstName) : [];
     const pickFirst = (values: (string | undefined)[], allowEmpty = false) => {
       const cleaned = values.map((v) => v ?? "");
       const preferred = cleaned.find((v) => v.trim());
       return preferred ?? (allowEmpty ? cleaned[0] ?? "" : "");
     };
-    const firstColor = pickFirst(variantsForProduct.map((m) => m.color));
+    const firstColor = autoFill ? pickFirst(variantsForProduct.map((m) => m.color)) : "";
     const variantsForColor = variantsForProduct.filter((m) => !firstColor || m.color === firstColor);
-    const firstFireproof = pickFirst(variantsForColor.map((m) => m.fireproof), true);
+    const firstFireproof = autoFill ? pickFirst(variantsForColor.map((m) => m.fireproof), true) : "";
     const variantsForFireproof = variantsForColor.filter((m) => !firstFireproof || m.fireproof === firstFireproof);
-    const firstThickness = pickFirst(variantsForFireproof.map((m) => m.thickness));
+    const firstThickness = autoFill ? pickFirst(variantsForFireproof.map((m) => m.thickness)) : "";
     const variantsForThickness = variantsForFireproof.filter((m) => !firstThickness || (m.thickness ?? "") === firstThickness);
-    const firstFinish = pickFirst(variantsForThickness.map((m) => m.finish));
+    const firstFinish = autoFill ? pickFirst(variantsForThickness.map((m) => m.finish)) : "";
     const newLine: PieceLine = {
       id: uid(),
       productName: firstName,

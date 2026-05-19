@@ -778,6 +778,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                       <SelectWithAdd
                         value={v.color}
                         onChange={(val) => updateVariant(v.id, { color: val })}
+                        onAdd={(val) => setAllVariants({ color: val })}
                         options={sColors}
                         placeholder="Colore"
                       />

@@ -132,6 +132,14 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
       variants: f.variants.map((v) => (v.id === id ? { ...v, ...patch } : v)),
     }));
 
+  /** Applica un valore a TUTTE le varianti del prodotto (usato dal tasto +
+   *  per propagare colore/finitura/ignifugo creati al volo). */
+  const setAllVariants = (patch: Partial<Variant>) =>
+    setForm((f) => ({
+      ...f,
+      variants: f.variants.map((v) => ({ ...v, ...patch })),
+    }));
+
   const addVariantRow = () =>
     setForm((f) => ({ ...f, variants: [...f.variants, newVariant()] }));
 

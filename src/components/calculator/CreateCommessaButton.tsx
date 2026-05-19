@@ -217,8 +217,13 @@ export const CreateCommessaButton = ({
         // Determina i reparti reali dai pezzi dello snapshot (es. stampa+taglio).
         const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
         const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
-        // Filtra fuori i reparti contrassegnati come "solo materiale" (no lavorazione, solo magazzino).
-        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d));
+        // Filtra fuori i reparti esclusi dall'utente e quelli contrassegnati come "solo materiale".
+        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+        if (depts.length === 0) {
+          toast.error("Seleziona almeno un reparto da lanciare");
+          setSaving(false);
+          return;
+        }
         const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
         const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
           code: prodCode,

@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/select";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
+import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
+import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 
 /**
  * Tab persistenti cloud per la sezione Progettazione.
@@ -158,6 +160,18 @@ export const DraftTabsBar = () => {
   const [sendPriorita, setSendPriorita] = useState<CommessaPriorita>("media");
   const [sendScadenza, setSendScadenza] = useState("");
   const sendBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Confirm-to-warehouse dialog (verifica materiali / acquisti propedeutici)
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<null | {
+    clienteName: string;
+    productionSnapshot: Record<string, unknown>;
+    depts: ProdDept[];
+    prodPrio: ProdPriority;
+    titolo: string;
+    scadenza: string;
+    inferredFound: boolean;
+  }>(null);
 
   // History dialog
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -523,82 +537,131 @@ export const DraftTabsBar = () => {
       });
       if (error) throw error;
 
-      // 2) Production order (best-effort)
-      let prodCode: string | null = null;
-      let prodId: string | null = null;
-      try {
-        prodCode = await nextOrderCode();
-        const prodPrio = PRIO_TO_PROD[sendPriorita];
-        const fallbackDept = REPARTO_TO_PROD[sendReparto];
-        const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
-        const depts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
-        const clienteName = (sendCliente.trim() || sendTitolo.trim()).slice(0, 200);
-        const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
-          code: prodCode,
-          cliente: clienteName,
-          data: sendScadenza || new Date().toISOString().slice(0, 10),
-          note: `Da progettazione: ${sendTitolo.trim()}`,
-          priorita: prodPrio,
-          delivery: "spedizione",
-          status: "in_corso",
-          attachments: [],
-          nesting_included: inferred.length > 0,
-          created_by: user.id,
-          snapshot: productionSnapshot as never,
-        }).select().single();
-        if (e1) throw e1;
-        prodId = pord.id;
-        // Subs in PARALLELO: ogni reparto chiude il proprio cerchio in modo indipendente.
-        const inserted: { id: string }[] = [];
-        for (let i = 0; i < depts.length; i++) {
-          const d = depts[i];
-          const { data: sub, error: eSub } = await supabase
-            .from("production_sub_orders")
-            .insert({
-              order_id: pord.id,
-              code: subCode(prodCode, SUB_DEPT_SUFFIX[d], i + 1),
-              dept: d,
-              ordine: i,
-              note: sendTitolo.trim() || null,
-              files: [],
-              depends_on: null,
-            })
-            .select("id")
-            .single();
-          if (eSub) throw eSub;
-          inserted.push({ id: sub.id });
-        }
-        await logAction({
-          action: "FLOW_LANCIATO",
-          entity_type: "order",
-          entity_id: pord.id,
-          detail: `Ordine ${prodCode} da Progettazione per ${clienteName} (${depts.join(" → ")})`,
-          new_state: { code: prodCode, depts, priorita: prodPrio, from: "progettazione" },
+      // 2) Prepara payload e apri il dialog di verifica materiali (acquisti propedeutici)
+      const prodPrio = PRIO_TO_PROD[sendPriorita];
+      const fallbackDept = REPARTO_TO_PROD[sendReparto];
+      const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
+      const depts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
+      const clienteName = (sendCliente.trim() || sendTitolo.trim()).slice(0, 200);
+      setPendingPayload({
+        clienteName,
+        productionSnapshot,
+        depts,
+        prodPrio,
+        titolo: sendTitolo.trim(),
+        scadenza: sendScadenza,
+        inferredFound: inferred.length > 0,
+      });
+      setConfirmOpen(true);
+      setSendOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Errore";
+      toast.error("Errore invio: " + msg);
+    } finally {
+      setSendBusy(false);
+    }
+  };
+
+  const onWarehouseConfirm = async (d: WarehouseConfirmData) => {
+    if (!user || !activeId || !pendingPayload) return;
+    setSendBusy(true);
+    let prodCode: string | null = null;
+    let prodId: string | null = null;
+    try {
+      prodCode = await nextOrderCode();
+      const { clienteName, productionSnapshot, depts, prodPrio, titolo, scadenza, inferredFound } = pendingPayload;
+      const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
+        code: prodCode,
+        cliente: clienteName,
+        data: scadenza || new Date().toISOString().slice(0, 10),
+        note: `Da progettazione: ${titolo}`,
+        priorita: prodPrio,
+        delivery: "spedizione",
+        status: "in_corso",
+        attachments: [],
+        nesting_included: inferredFound,
+        created_by: user.id,
+        snapshot: productionSnapshot as never,
+        customer_order_ref: d.customer_order_ref,
+        production_name: d.production_name || null,
+      } as any).select().single();
+      if (e1) throw e1;
+      prodId = pord.id;
+
+      // Acquisti subs (propedeutici)
+      let firstAcquistiId: string | null = null;
+      if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
+        const acquistiRows = d.missing.map((m, i) => ({
+          order_id: pord.id,
+          code: subCode(prodCode!, SUB_DEPT_SUFFIX["acquisti"], i + 1),
+          dept: "acquisti" as const,
+          ordine: i,
+          note: `Da ordinare: ${m.label}${m.detail ? " · " + m.detail : ""} (rif. ${d.customer_order_ref})`,
+          supplier_name: m.supplier_name || null,
+          files: [],
+        }));
+        const { data: acquistiSubs, error: ea } = await supabase
+          .from("production_sub_orders")
+          .insert(acquistiRows as any)
+          .select("id");
+        if (ea) throw ea;
+        firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
+
+        await notify({
+          userIds: [d.acquisti_assignee_id],
+          type: "magazzino_da_preparare",
+          message: `Acquisti — ${prodCode}: ${d.missing.length} materiale/i da ordinare per ${clienteName}`,
+          order_id: pord.id,
+          link: "/produzione/acquisti",
+          is_urgent: prodPrio !== "normale",
         });
-        const writers = await getProduzioneWriters();
-        const targets = writers.filter((u) => u !== user.id);
-        if (targets.length > 0) {
-          await notify({
-            userIds: targets,
-            type: "ordine_creato",
-            message: `Nuovo ordine ${prodCode} per ${clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
-            order_id: pord.id,
-            link: `/produzione/board?order=${pord.id}`,
-            is_urgent: prodPrio !== "normale",
-          });
-        }
-      } catch (prodErr) {
-        console.error("Errore production order:", prodErr);
-        toast.warning("Commessa nel Flow creata, ma ordine Produzione fallito.");
       }
 
-      // 3) Reset UI: chiude la tab corrente
+      // Sub di reparto: bloccati finché acquisti non arrivati
+      const baseOrdine = d.missing?.length ?? 0;
+      for (let i = 0; i < depts.length; i++) {
+        const dept = depts[i];
+        const { error: eSub } = await supabase.from("production_sub_orders").insert({
+          order_id: pord.id,
+          code: subCode(prodCode, SUB_DEPT_SUFFIX[dept], i + 1),
+          dept,
+          ordine: baseOrdine + i,
+          note: titolo || null,
+          files: [],
+          depends_on: firstAcquistiId,
+        } as any);
+        if (eSub) throw eSub;
+      }
+
+      await logAction({
+        action: "FLOW_LANCIATO",
+        entity_type: "order",
+        entity_id: pord.id,
+        detail: `Ordine ${prodCode} da Progettazione per ${clienteName} (${depts.join(" → ")}) — rif. ${d.customer_order_ref}`,
+        new_state: { code: prodCode, depts, priorita: prodPrio, from: "progettazione", customer_order_ref: d.customer_order_ref, missing_count: d.missing?.length ?? 0 },
+      });
+
+      const writers = await getProduzioneWriters(depts);
+      const targets = writers.filter((u) => u !== user.id);
+      if (targets.length > 0) {
+        await notify({
+          userIds: targets,
+          type: "ordine_creato",
+          message: d.missing?.length
+            ? `Nuovo ordine ${prodCode} per ${clienteName} — in attesa acquisti (${d.missing.length})`
+            : `Nuovo ordine ${prodCode} per ${clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
+          order_id: pord.id,
+          link: `/produzione/board?order=${pord.id}`,
+          is_urgent: prodPrio !== "normale",
+        });
+      }
+
+      // Reset UI: chiude la tab corrente
       await supabase.from("design_drafts").delete().eq("id", activeId);
-      const remaining = drafts.filter((d) => d.id !== activeId);
+      const remaining = drafts.filter((dr) => dr.id !== activeId);
       writeLocalState({});
 
       if (remaining.length === 0) {
-        // Crea nuova tab vuota
         const { data: created } = await supabase
           .from("design_drafts")
           .insert({ user_id: user.id, name: "Progetto 1", snapshot: {} as never, ordine: 0, active: true })
@@ -618,21 +681,20 @@ export const DraftTabsBar = () => {
         writeLocalState(next.snapshot ?? {});
       }
 
-      toast.success(prodCode ? `Inviato al Flow + Produzione ${prodCode}` : "Inviato al Flow", {
-        action: {
-          label: prodId ? "Apri Produzione" : "Apri Flow",
-          onClick: () => navigate(prodId ? `/produzione/board?order=${prodId}` : "/flow"),
-        },
+      toast.success(`Inviato al Flow + Produzione ${prodCode}${d.missing?.length ? " — in attesa acquisti" : ""}`, {
+        action: { label: "Apri Produzione", onClick: () => navigate(`/produzione/board?order=${prodId}`) },
       });
-      setSendOpen(false);
+      setConfirmOpen(false);
+      setPendingPayload(null);
       window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore";
-      toast.error("Errore invio: " + msg);
+      toast.error("Errore creazione ordine: " + msg);
     } finally {
       setSendBusy(false);
     }
   };
+
 
   // Conferma con Invio nel dialog
   const onDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -862,6 +924,17 @@ export const DraftTabsBar = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmToWarehouseDialog
+        open={confirmOpen}
+        onOpenChange={(v) => { setConfirmOpen(v); if (!v) setPendingPayload(null); }}
+        title="Verifica materiali prima di lanciare in produzione"
+        defaultRef={pendingPayload?.titolo ?? ""}
+        defaultProductionName={pendingPayload?.titolo ?? ""}
+        materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
+        onConfirm={onWarehouseConfirm}
+        saving={sendBusy}
+      />
     </>
   );
 };

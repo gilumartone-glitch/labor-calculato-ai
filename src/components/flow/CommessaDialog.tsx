@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Commessa, CommessaPriorita, CommessaReparto, CommessaStato, CommessaTipo, Profile, REPARTI, STATI } from "./types";
+import { ContactSelect } from "@/components/produzione/ContactSelect";
 
 interface Props {
   open: boolean;

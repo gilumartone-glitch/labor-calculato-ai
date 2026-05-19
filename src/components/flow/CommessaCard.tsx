@@ -7,6 +7,7 @@ interface Props {
   commessa: Commessa;
   onOpen: () => void;
   onDelete: () => void;
+  canDelete?: boolean;
 }
 
 const PRIORITY_STYLES: Record<string, string> = {

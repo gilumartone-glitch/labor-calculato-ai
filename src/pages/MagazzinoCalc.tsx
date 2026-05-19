@@ -1893,17 +1893,27 @@ function SaleProductSection({
     () => materials.filter((m: any) => m.name === productName),
     [materials, productName],
   );
-  const heights = useMemo(
-    () => Array.from(new Set(variantsByName.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+  const colors = useMemo(
+    () => Array.from(new Set(variantsByName.map((m: any) => String(m.color || "")).filter(Boolean))).sort(),
     [variantsByName],
   );
   useEffect(() => {
-    // se cambia prodotto, resetta filtro altezza
+    if (colorFilter && !colors.includes(colorFilter)) setColorFilter("");
+  }, [colors, colorFilter]);
+  const variantsByColor = useMemo(
+    () => colorFilter ? variantsByName.filter((m: any) => String(m.color || "") === colorFilter) : variantsByName,
+    [variantsByName, colorFilter],
+  );
+  const heights = useMemo(
+    () => Array.from(new Set(variantsByColor.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+    [variantsByColor],
+  );
+  useEffect(() => {
     if (heightFilter && !heights.includes(heightFilter)) setHeightFilter("");
   }, [heights, heightFilter]);
   const variants = useMemo(
-    () => heightFilter ? variantsByName.filter((m: any) => String(m.height || "") === heightFilter) : variantsByName,
-    [variantsByName, heightFilter],
+    () => heightFilter ? variantsByColor.filter((m: any) => String(m.height || "") === heightFilter) : variantsByColor,
+    [variantsByColor, heightFilter],
   );
   useEffect(() => {
     if (!variants.find((v: any) => v.id === variantId)) {

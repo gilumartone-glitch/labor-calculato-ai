@@ -627,7 +627,7 @@ export const CreateCommessaButton = ({
                 Spunta i reparti per cui NON serve la lavorazione: il materiale verrà gestito direttamente dal magazzino.
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
-                {inferredDepts.map((d) => {
+                {inferredDepts.filter((d) => !excludedDepts.includes(d)).map((d) => {
                   const on = materialOnlyDepts.includes(d);
                   return (
                     <button

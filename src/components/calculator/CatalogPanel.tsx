@@ -176,15 +176,7 @@ export const CatalogPanel = ({
         }}
       />
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-ink text-paper rounded-sm text-xs uppercase tracking-wider font-semibold hover:bg-primary transition-colors"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          {hasData ? "Sostituisci listino" : "Carica .xlsx / .csv / .xml"}
-        </button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <CatalogEditor
           catalog={catalog}
           onCatalogChange={onCatalogChange}
@@ -196,7 +188,17 @@ export const CatalogPanel = ({
           onCatalogChange={onCatalogChange}
           deptLabel={deptLabel}
         />
-        {hasData && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] bg-ink text-paper rounded-sm text-sm uppercase tracking-wider font-semibold hover:bg-primary transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Carica un file
+        </button>
+      </div>
+      {hasData && (
+        <div className="mt-2 flex justify-end">
           <button
             type="button"
             onClick={() => {
@@ -212,12 +214,13 @@ export const CatalogPanel = ({
               toast.success("Listino svuotato");
             }}
             aria-label="Svuota listino"
-            className="w-9 h-9 grid place-items-center border border-ink/30 rounded-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] border border-ink/30 rounded-sm text-xs uppercase tracking-wider font-semibold hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
+            Svuota
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {showImportLocal && (
         <button

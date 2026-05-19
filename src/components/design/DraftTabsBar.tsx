@@ -128,7 +128,9 @@ const writeLocalState = (snap: Record<string, unknown>) => {
     } else {
       localStorage.removeItem(STATE_KEY);
     }
-    window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
+    const event = () => window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
+    event();
+    window.setTimeout(event, 0);
   } catch {
     /* ignore */
   }

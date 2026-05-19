@@ -255,28 +255,33 @@ export const CreateCommessaButton = ({
     try {
       const code = await nextOrderCode();
       const prodPrio = PRIO_TO_PROD[priorita];
+      const isWarehouse = pendingPayload.mode === "warehouse";
+      const orderNote = isWarehouse
+        ? `Senza lavorazione — da preventivo: ${titolo.trim()}`
+        : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
+
       const { data: pord, error: e1 } = await supabase
         .from("production_orders")
         .insert({
           code,
           cliente: pendingPayload.clienteName,
           data: scadenza || new Date().toISOString().slice(0, 10),
-          note: `Senza lavorazione — da preventivo: ${titolo.trim()}`,
+          note: orderNote,
           priorita: prodPrio,
-          delivery: "corriere",
+          delivery: isWarehouse ? "corriere" : "spedizione",
           status: "in_corso",
           attachments: [],
           nesting_included: false,
           created_by: user.id,
           snapshot: pendingPayload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
-          production_name: d.production_name || null,
+          production_name: d.production_name || prodName.trim() || null,
         } as any)
         .select()
         .single();
       if (e1) throw e1;
 
-      // acquisti subs (one per missing material)
+      // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
       let firstAcquistiId: string | null = null;
       if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
         const acquistiRows = d.missing.map((m, i) => ({
@@ -305,37 +310,105 @@ export const CreateCommessaButton = ({
         });
       }
 
-      const { error: e2 } = await supabase.from("production_sub_orders").insert({
-        order_id: pord.id,
-        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-        dept: "magazzino",
-        ordine: (d.missing?.length ?? 0),
-        note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
-        files: [],
-        depends_on: firstAcquistiId,
-      });
-      if (e2) throw e2;
+      const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
 
-      await notify({
-        userIds: [d.assignee_id],
-        type: "magazzino_da_preparare",
-        message: d.missing?.length
-          ? `In attesa acquisti — ${code} · ${pendingPayload.clienteName} (${d.missing.length} materiali)`
-          : `Da preparare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
-        order_id: pord.id,
-        link: "/produzione/preparazione",
-        is_urgent: prodPrio !== "normale",
-      });
+      if (isWarehouse) {
+        // Solo magazzino: un unico sub magazzino dipendente dagli acquisti
+        const baseOrdine = d.missing?.length ?? 0;
+        const { data: magSub, error: e2 } = await supabase.from("production_sub_orders").insert({
+          order_id: pord.id,
+          code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
+          dept: "magazzino",
+          ordine: baseOrdine,
+          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
+          files: [],
+          depends_on: firstAcquistiId,
+          assignee_id: d.assignee_id || null,
+        } as any).select("id").single();
+        if (e2) throw e2;
+        if (d.assignee_id) insertedSubs.push({ id: magSub.id, dept: "magazzino", assignee: d.assignee_id });
+
+        await notify({
+          userIds: [d.assignee_id],
+          type: "magazzino_da_preparare",
+          message: d.missing?.length
+            ? `In attesa acquisti — ${code} · ${pendingPayload.clienteName} (${d.missing.length} materiali)`
+            : `Da preparare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
+          order_id: pord.id,
+          link: "/produzione/preparazione",
+          is_urgent: prodPrio !== "normale",
+        });
+      } else {
+        // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
+        const depts = pendingPayload.depts ?? [];
+        const baseOrdine = d.missing?.length ?? 0;
+        for (let i = 0; i < depts.length; i++) {
+          const dept = depts[i];
+          const assignee = deptAssignees[dept] || null;
+          const { data: sub, error: eSub } = await supabase
+            .from("production_sub_orders")
+            .insert({
+              order_id: pord.id,
+              code: subCode(code, SUB_DEPT_SUFFIX[dept], i + 1),
+              dept,
+              ordine: baseOrdine + i,
+              note: titolo.trim() || null,
+              files: [],
+              depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
+              assignee_id: assignee,
+            } as any)
+            .select("id")
+            .single();
+          if (eSub) throw eSub;
+          insertedSubs.push({ id: sub.id, dept, assignee });
+        }
+
+        const writers = await getProduzioneWriters(depts);
+        const targets = writers.filter((u) => u !== user.id);
+        if (targets.length > 0) {
+          await notify({
+            userIds: targets,
+            type: "ordine_creato",
+            message: d.missing?.length
+              ? `Nuovo ordine ${code} per ${pendingPayload.clienteName} — in attesa acquisti (${d.missing.length})`
+              : `Nuovo ordine ${code} per ${pendingPayload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
+            order_id: pord.id,
+            link: `/produzione/board?order=${pord.id}`,
+            is_urgent: prodPrio !== "normale",
+          });
+        }
+        for (const s of insertedSubs) {
+          if (s.assignee && s.assignee !== user.id) {
+            await notify({
+              userIds: [s.assignee],
+              type: "ordine_creato",
+              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${pendingPayload.clienteName})`,
+              order_id: pord.id,
+              link: `/produzione/board?order=${pord.id}`,
+              is_urgent: prodPrio !== "normale",
+            });
+          }
+        }
+      }
 
       await logAction({
         action: "FLOW_LANCIATO",
         entity_type: "order",
         entity_id: pord.id,
-        detail: `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`,
-        new_state: { code, warehouseOnly: true, customer_order_ref: d.customer_order_ref, assignee_id: d.assignee_id },
+        detail: isWarehouse
+          ? `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`
+          : `Ordine ${code} per ${pendingPayload.clienteName} — ${(pendingPayload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
+        new_state: {
+          code, warehouseOnly: isWarehouse,
+          customer_order_ref: d.customer_order_ref,
+          depts: pendingPayload.depts ?? [],
+          missing_count: d.missing?.length ?? 0,
+        },
       });
 
-      toast.success(`Ordine ${code} creato e inviato al magazzino`);
+      toast.success(isWarehouse
+        ? `Ordine ${code} creato e inviato al magazzino`
+        : `Commessa + Ordine ${code} creati${d.missing?.length ? " — in attesa acquisti" : ""}`);
       setConfirmOpen(false);
       setOpen(false);
       setPendingPayload(null);

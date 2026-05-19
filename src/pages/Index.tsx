@@ -126,6 +126,10 @@ const Index = () => {
   const [applyVat, setApplyVat] = useState(false);
   const [customerType, setCustomerType] = useState<CustomerType>("final");
   const [workshopTick, setWorkshopTick] = useState(0);
+  /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare
+   *  un rimontaggio completo dei componenti (input, autocomplete, ...) ed evitare
+   *  che stati locali "rimasti appesi" blocchino la scrittura nei campi. */
+  const [resetNonce, setResetNonce] = useState(0);
 
   // Funzione di post-processing applicata ai cataloghi caricati (default + migrazioni)
   const ensurePresets = (c: Catalog, dept: DepartmentKey): Catalog => {

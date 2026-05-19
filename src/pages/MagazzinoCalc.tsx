@@ -2126,6 +2126,18 @@ function SaleProductSection({
                     {productNames.map((n) => <option key={n as string} value={n as string}>{n as string}</option>)}
                   </select>
                 </Field>
+                {colors.length > 0 && (
+                  <Field label="Colore">
+                    <select
+                      value={colorFilter}
+                      onChange={(e) => { setColorFilter(e.target.value); setHeightFilter(""); setVariantId(""); }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Tutti</option>
+                      {colors.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </Field>
+                )}
                 {heights.length > 0 && (
                   <Field label="Altezza">
                     <select

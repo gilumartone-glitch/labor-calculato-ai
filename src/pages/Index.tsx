@@ -127,18 +127,45 @@ const Index = () => {
     applyVat: boolean;
     customerType: CustomerType;
   };
+  /** Normalizza qualsiasi snapshot (calcolatrice o produzione/revisione) nel formato
+   *  StoredSnap. In particolare:
+   *  - se è uno snapshot "produzione" (con `designState`), preferisce quello
+   *  - se mancano `version`/campi, completa con default invece di scartare tutto
+   *    (così le bozze tornate in revisione non spariscono solo per un version bump). */
+  const normalizeSnap = (raw: any): Partial<StoredSnap> | null => {
+    if (!raw || typeof raw !== "object") return null;
+    // Snapshot produzione: preferisci designState che è in formato calcolatrice
+    if (raw.designState && typeof raw.designState === "object") {
+      const merged = { ...raw.designState };
+      // Conserva jobName/customerType/etc. di livello superiore se mancanti
+      for (const k of ["jobName", "quantity", "margin", "vat", "applyVat", "customerType"] as const) {
+        if (merged[k] == null && raw[k] != null) merged[k] = raw[k];
+      }
+      return merged;
+    }
+    return raw;
+  };
   const readInitialSnap = (): Partial<StoredSnap> | null => {
     try {
       const raw = localStorage.getItem(STATE_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.version !== STATE_VERSION) return null;
-      return parsed;
+      return normalizeSnap(JSON.parse(raw));
     } catch { return null; }
   };
   const initialSnap = readInitialSnap();
   const buildDepts = (raw: any): Record<DepartmentKey, DepartmentState> => {
-    const depRaw = (raw ?? {}) as Partial<Record<DepartmentKey, Partial<DepartmentState>>>;
+    let depRaw: Partial<Record<DepartmentKey, Partial<DepartmentState>>> = {};
+    if (Array.isArray(raw)) {
+      // Formato produzione: array di { key, state, ... }
+      for (const entry of raw) {
+        const k = entry?.key as DepartmentKey | undefined;
+        if (k && (k === "tappezzeria" || k === "stampa" || k === "falegnameria") && entry?.state) {
+          depRaw[k] = entry.state;
+        }
+      }
+    } else if (raw && typeof raw === "object") {
+      depRaw = raw;
+    }
     const dep: Record<DepartmentKey, DepartmentState> = {
       tappezzeria: { ...initialDept(), ...(depRaw.tappezzeria ?? {}) },
       stampa: { ...initialDept(), ...(depRaw.stampa ?? {}) },

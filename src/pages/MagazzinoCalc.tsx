@@ -2120,7 +2120,7 @@ function SaleProductSection({
                 <Field label="Prodotto">
                   <select
                     value={productName}
-                    onChange={(e) => { setProductName(e.target.value); setHeightFilter(""); setVariantId(""); }}
+                    onChange={(e) => { setProductName(e.target.value); setColorFilter(""); setHeightFilter(""); setVariantId(""); }}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {productNames.map((n) => <option key={n as string} value={n as string}>{n as string}</option>)}

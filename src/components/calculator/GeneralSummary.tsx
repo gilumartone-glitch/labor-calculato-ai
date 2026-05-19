@@ -44,10 +44,10 @@ export const GeneralSummary = ({
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
   const cost = departments.reduce((s, d) => s + d.totals.total, 0);
-  const marginAmount = cost * (margin / 100);
-  const net = cost + marginAmount;
-  const vatAmount = applyVat ? net * (vat / 100) : 0;
-  const total = net + vatAmount;
+  const marginAmount = 0;
+  const net = cost;
+  const vatAmount = 0;
+  const total = cost;
   const perPiece = quantity > 0 ? total / quantity : total;
 
   return (

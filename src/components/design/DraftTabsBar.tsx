@@ -413,7 +413,11 @@ export const DraftTabsBar = () => {
         .eq("id", activeId);
     }
     const ordine = drafts.length;
-    const name = `Progetto ${ordine + 1}`;
+    const maxProjectNumber = drafts.reduce((max, d) => {
+      const match = d.name.match(/^Progetto\s+(\d+)$/i);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    const name = `Progetto ${maxProjectNumber + 1}`;
     const { data, error } = await supabase
       .from("design_drafts")
       .insert({ user_id: user.id, name, snapshot: {} as never, ordine, active: true })

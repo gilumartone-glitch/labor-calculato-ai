@@ -128,6 +128,7 @@ const writeLocalState = (snap: Record<string, unknown>) => {
     } else {
       localStorage.removeItem(STATE_KEY);
     }
+    window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
   } catch {
     /* ignore */
   }
@@ -269,11 +270,7 @@ export const DraftTabsBar = () => {
     return () => {
       window.removeEventListener("storage", onUpdate);
       window.clearInterval(interval);
-      if (timer) {
-        window.clearTimeout(timer);
-        // Persistenza finale
-        void persist();
-      }
+      if (timer) window.clearTimeout(timer);
     };
   }, [activeId, user]);
 

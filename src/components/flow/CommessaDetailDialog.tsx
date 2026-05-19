@@ -524,7 +524,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                   }}
                   disabled={busy}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-destructive/40 bg-destructive/5 text-destructive rounded-sm text-[10px] uppercase tracking-wider font-bold hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-40"
-                  title={isAdmin ? "Elimina (admin)" : "Elimina commessa"}
+                  title="Elimina (admin)"
                 >
                   <Trash2 className="w-3 h-3" />
                   Elimina

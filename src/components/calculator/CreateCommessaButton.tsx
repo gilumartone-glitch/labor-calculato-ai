@@ -96,17 +96,19 @@ export const CreateCommessaButton = ({
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
     note: string; warehouseOnly: boolean;
     materialOnlyDepts: ProdDept[];
+    excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
   };
   const initialForm: FormState = {
     titolo: defaultTitle, cliente: "", prodName: "",
     importo: defaultAmount, reparto: defaultReparto, priorita: "media",
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
+    excludedDepts: [],
     deptAssignees: {},
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, deptAssignees } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -121,6 +123,12 @@ export const CreateCommessaButton = ({
       ...f,
       materialOnlyDepts: f.materialOnlyDepts.includes(d) ? f.materialOnlyDepts.filter((x) => x !== d) : [...f.materialOnlyDepts, d],
     }));
+  const toggleExcludedDept = (d: ProdDept) =>
+    setForm((f) => ({
+      ...f,
+      excludedDepts: f.excludedDepts.includes(d) ? f.excludedDepts.filter((x) => x !== d) : [...f.excludedDepts, d],
+      materialOnlyDepts: f.materialOnlyDepts.filter((x) => x !== d),
+    }));
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
@@ -131,8 +139,8 @@ export const CreateCommessaButton = ({
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     const base = inferredDepts.length > 0 ? inferredDepts : [fallbackDept];
-    return base.filter((d) => !materialOnlyDepts.includes(d));
-  }, [inferredDepts, fallbackDept, materialOnlyDepts]);
+    return base.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+  }, [inferredDepts, fallbackDept, materialOnlyDepts, excludedDepts]);
   const operatorsForDept = (d: ProdDept) =>
     profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 
@@ -209,8 +217,13 @@ export const CreateCommessaButton = ({
         // Determina i reparti reali dai pezzi dello snapshot (es. stampa+taglio).
         const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
         const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
-        // Filtra fuori i reparti contrassegnati come "solo materiale" (no lavorazione, solo magazzino).
-        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d));
+        // Filtra fuori i reparti esclusi dall'utente e quelli contrassegnati come "solo materiale".
+        const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+        if (depts.length === 0) {
+          toast.error("Seleziona almeno un reparto da lanciare");
+          setSaving(false);
+          return;
+        }
         const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
         const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
           code: prodCode,
@@ -575,6 +588,36 @@ export const CreateCommessaButton = ({
             </div>
           )}
 
+          {!warehouseOnly && inferredDepts.length > 1 && (
+            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+                Reparti da lanciare in Flow
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Tutti i reparti rilevati sono attivi. Clicca per escludere quelli che NON vuoi lanciare ora.
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {inferredDepts.map((d) => {
+                  const excluded = excludedDepts.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleExcludedDept(d)}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
+                        excluded
+                          ? "border-ink/20 text-ink/40 line-through bg-muted"
+                          : "bg-primary text-primary-foreground border-primary"
+                      }`}
+                    >
+                      {DEPT_LABEL[d]} {excluded ? "· escluso" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {!warehouseOnly && inferredDepts.length > 0 && (
             <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
@@ -584,7 +627,7 @@ export const CreateCommessaButton = ({
                 Spunta i reparti per cui NON serve la lavorazione: il materiale verrà gestito direttamente dal magazzino.
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
-                {inferredDepts.map((d) => {
+                {inferredDepts.filter((d) => !excludedDepts.includes(d)).map((d) => {
                   const on = materialOnlyDepts.includes(d);
                   return (
                     <button

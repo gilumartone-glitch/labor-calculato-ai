@@ -161,6 +161,18 @@ export const DraftTabsBar = () => {
   const [sendScadenza, setSendScadenza] = useState("");
   const sendBtnRef = useRef<HTMLButtonElement>(null);
 
+  // Confirm-to-warehouse dialog (verifica materiali / acquisti propedeutici)
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<null | {
+    clienteName: string;
+    productionSnapshot: Record<string, unknown>;
+    depts: ProdDept[];
+    prodPrio: ProdPriority;
+    titolo: string;
+    scadenza: string;
+    inferredFound: boolean;
+  }>(null);
+
   // History dialog
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);

@@ -176,7 +176,21 @@ export const CreateCommessaButton = ({
     }
     setSaving(true);
     try {
-      const designState = readDesignState();
+      const designStateRaw = readDesignState();
+      // Se il lancio parte da un singolo reparto, NON includere lo stato
+      // degli altri reparti nello snapshot (altrimenti la commessa porta in
+      // Flow anche lavorazioni di altri reparti).
+      const designState: Record<string, unknown> =
+        (snapshot as any)?.source === "department" && (snapshot as any)?.deptKey
+          ? (() => {
+              const k = (snapshot as any).deptKey as string;
+              const only: Record<string, unknown> = {};
+              if (designStateRaw && (designStateRaw as any)[k] !== undefined) {
+                (only as any)[k] = (designStateRaw as any)[k];
+              }
+              return only;
+            })()
+          : designStateRaw;
       const productionSnapshot: Snapshot = Object.keys(designState).length > 0
         ? { ...snapshot, designState }
         : snapshot;

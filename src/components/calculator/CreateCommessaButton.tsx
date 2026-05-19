@@ -588,6 +588,36 @@ export const CreateCommessaButton = ({
             </div>
           )}
 
+          {!warehouseOnly && inferredDepts.length > 1 && (
+            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+                Reparti da lanciare in Flow
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Tutti i reparti rilevati sono attivi. Clicca per escludere quelli che NON vuoi lanciare ora.
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {inferredDepts.map((d) => {
+                  const excluded = excludedDepts.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleExcludedDept(d)}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
+                        excluded
+                          ? "border-ink/20 text-ink/40 line-through bg-muted"
+                          : "bg-primary text-primary-foreground border-primary"
+                      }`}
+                    >
+                      {DEPT_LABEL[d]} {excluded ? "· escluso" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {!warehouseOnly && inferredDepts.length > 0 && (
             <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">

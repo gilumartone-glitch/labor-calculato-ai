@@ -411,6 +411,7 @@ const Flow = () => {
                             commessa={c}
                             onOpen={() => { setDetailCommessa(c); setDetailOpen(true); }}
                             onDelete={() => handleDelete(c.id)}
+                            canDelete={isAdmin}
                           />
                         ))
                       )}

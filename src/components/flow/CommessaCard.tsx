@@ -87,19 +87,22 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
                 </span>
               )}
             </h4>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                aria-label="Elimina"
-                className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/60 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
+            {canDelete && (
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  aria-label="Elimina (admin)"
+                  title="Elimina (admin)"
+                  className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/60 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           {commessa.cliente && (

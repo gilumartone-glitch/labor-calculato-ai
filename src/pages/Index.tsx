@@ -161,6 +161,7 @@ const Index = () => {
   const [applyVat, setApplyVat] = useState(typeof initialSnap?.applyVat === "boolean" ? initialSnap.applyVat : false);
   const [customerType, setCustomerType] = useState<CustomerType>(initialSnap?.customerType === "dealer" ? "dealer" : "final");
   const [workshopTick, setWorkshopTick] = useState(0);
+  const [draftReloadNonce, setDraftReloadNonce] = useState(0);
   /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare
    *  un rimontaggio completo dei componenti (input, autocomplete, ...) ed evitare
    *  che stati locali "rimasti appesi" blocchino la scrittura nei campi. */
@@ -221,7 +222,10 @@ const Index = () => {
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
     lastAppliedRef.current = serialized;
-    try { localStorage.setItem(STATE_KEY, serialized); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(STATE_KEY, serialized);
+      window.dispatchEvent(new Event("officina:draft-state-changed"));
+    } catch { /* ignore */ }
   }, [departments, jobName, quantity, margin, vat, applyVat, customerType]);
 
   useEffect(() => {
@@ -250,6 +254,34 @@ const Index = () => {
     };
     setDepartments((prev) => syncMaterialFromLabDimensions({ ...prev, [key]: cleaned }));
   };
+
+  useEffect(() => {
+    const applyLoadedDraft = (event: Event) => {
+      const nextSnap = (event as CustomEvent<Partial<StoredSnap>>).detail ?? {};
+      const nextDepartments = buildDepts(nextSnap.departments);
+      setDepartments(nextDepartments);
+      setJobName(nextSnap.jobName ?? "Lavorazione su misura");
+      setQuantity(typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1);
+      setMargin(typeof nextSnap.margin === "number" ? nextSnap.margin : 30);
+      setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);
+      setApplyVat(typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false);
+      setCustomerType(nextSnap.customerType === "dealer" ? "dealer" : "final");
+      lastAppliedRef.current = JSON.stringify({
+        version: STATE_VERSION,
+        departments: nextDepartments,
+        jobName: nextSnap.jobName ?? "Lavorazione su misura",
+        quantity: typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1,
+        margin: typeof nextSnap.margin === "number" ? nextSnap.margin : 30,
+        vat: typeof nextSnap.vat === "number" ? nextSnap.vat : 22,
+        applyVat: typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false,
+        customerType: nextSnap.customerType === "dealer" ? "dealer" : "final",
+      });
+      setDraftReloadNonce((n) => n + 1);
+    };
+    window.addEventListener("officina:draft-state-loaded", applyLoadedDraft);
+    return () => window.removeEventListener("officina:draft-state-loaded", applyLoadedDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Reset totale del preventivo: azzera tutti i reparti, riporta i parametri ai default
    *  e cancella lo stato persistito su localStorage. NON tocca i listini. */
@@ -523,7 +555,7 @@ const Index = () => {
       <main className="container py-8 pb-20">
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${activeTab}:${resetNonce}`}
+            key={`${activeTab}:${resetNonce}:${draftReloadNonce}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}

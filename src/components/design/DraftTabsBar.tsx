@@ -128,6 +128,9 @@ const writeLocalState = (snap: Record<string, unknown>) => {
     } else {
       localStorage.removeItem(STATE_KEY);
     }
+    const event = () => window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
+    event();
+    window.setTimeout(event, 0);
   } catch {
     /* ignore */
   }
@@ -265,15 +268,11 @@ export const DraftTabsBar = () => {
     };
     // Salva su cambi localStorage interni alla pagina e su cambio tab
     window.addEventListener("storage", onUpdate);
-    const interval = window.setInterval(onUpdate, 4000); // safety net
+    window.addEventListener("officina:draft-state-changed", onUpdate);
     return () => {
       window.removeEventListener("storage", onUpdate);
-      window.clearInterval(interval);
-      if (timer) {
-        window.clearTimeout(timer);
-        // Persistenza finale
-        void persist();
-      }
+      window.removeEventListener("officina:draft-state-changed", onUpdate);
+      if (timer) window.clearTimeout(timer);
     };
   }, [activeId, user]);
 
@@ -414,7 +413,11 @@ export const DraftTabsBar = () => {
         .eq("id", activeId);
     }
     const ordine = drafts.length;
-    const name = `Progetto ${ordine + 1}`;
+    const maxProjectNumber = drafts.reduce((max, d) => {
+      const match = d.name.match(/^Progetto\s+(\d+)$/i);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    const name = `Progetto ${maxProjectNumber + 1}`;
     const { data, error } = await supabase
       .from("design_drafts")
       .insert({ user_id: user.id, name, snapshot: {} as never, ordine, active: true })

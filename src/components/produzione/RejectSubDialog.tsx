@@ -23,7 +23,13 @@ export const RejectSubDialog = ({ open, onOpenChange, sub, order, onConfirm }: P
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setScope("order"); setReason(""); setBusy(false); }
+    if (open) {
+      setScope("order"); setReason(""); setBusy(false);
+      // Fix Radix bug: quando un altro Dialog si chiude appena prima, lascia
+      // pointer-events:none sul <body> e blocca la digitazione qui.
+      const id = window.setTimeout(() => { document.body.style.pointerEvents = ""; }, 0);
+      return () => window.clearTimeout(id);
+    }
   }, [open]);
 
   if (!sub || !order) return null;

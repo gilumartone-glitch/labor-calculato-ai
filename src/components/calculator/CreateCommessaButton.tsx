@@ -145,7 +145,12 @@ export const CreateCommessaButton = ({
     profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<null | { clienteName: string; productionSnapshot: Snapshot }>(null);
+  const [pendingPayload, setPendingPayload] = useState<null | {
+    mode: "warehouse" | "normal";
+    clienteName: string;
+    productionSnapshot: Snapshot;
+    depts?: ProdDept[];
+  }>(null);
 
   // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {

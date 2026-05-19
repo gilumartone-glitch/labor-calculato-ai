@@ -924,6 +924,17 @@ export const DraftTabsBar = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmToWarehouseDialog
+        open={confirmOpen}
+        onOpenChange={(v) => { setConfirmOpen(v); if (!v) setPendingPayload(null); }}
+        title="Verifica materiali prima di lanciare in produzione"
+        defaultRef={pendingPayload?.titolo ?? ""}
+        defaultProductionName={pendingPayload?.titolo ?? ""}
+        materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
+        onConfirm={onWarehouseConfirm}
+        saving={sendBusy}
+      />
     </>
   );
 };

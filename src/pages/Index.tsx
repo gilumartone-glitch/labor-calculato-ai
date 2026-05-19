@@ -284,7 +284,8 @@ const Index = () => {
 
   useEffect(() => {
     const applyLoadedDraft = (event: Event) => {
-      const nextSnap = (event as CustomEvent<Partial<StoredSnap>>).detail ?? {};
+      const rawSnap = (event as CustomEvent<any>).detail ?? {};
+      const nextSnap = (normalizeSnap(rawSnap) ?? {}) as Partial<StoredSnap>;
       const nextDepartments = buildDepts(nextSnap.departments);
       setDepartments(nextDepartments);
       setJobName(nextSnap.jobName ?? "Lavorazione su misura");

@@ -161,52 +161,6 @@ export const GeneralSummary = ({
             </div>
           ))}
           <div className="h-px bg-paper/20 my-3" />
-          <div className="flex justify-between font-semibold text-base">
-            <dt>Costo</dt>
-            <dd className="tabular-nums">{eur(cost)}</dd>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <label className="text-paper/70 text-xs uppercase tracking-wider">Margine</label>
-            <div className="flex items-baseline gap-1">
-              <input
-                type="number"
-                value={margin === 0 ? "" : margin}
-                onChange={(e) => setMargin(parseFloat(e.target.value) || 0)}
-                className="w-14 bg-transparent border-b border-paper/40 text-right font-mono text-sm focus:outline-none focus:border-primary"
-              />
-              <span className="text-paper/60 text-xs">%</span>
-              <span className="ml-2 min-w-[7rem] text-right tabular-nums whitespace-nowrap">+{eur(marginAmount)}</span>
-            </div>
-          </div>
-
-          <div className="flex justify-between font-semibold text-base">
-            <dt>Imponibile</dt>
-            <dd className="tabular-nums">{eur(net)}</dd>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <label className="flex items-center gap-2 text-paper/70 text-xs uppercase tracking-wider cursor-pointer">
-              <input
-                type="checkbox"
-                checked={applyVat}
-                onChange={(e) => setApplyVat(e.target.checked)}
-                className="accent-primary"
-              />
-              IVA
-            </label>
-            <div className="flex items-baseline gap-1">
-              <input
-                type="number"
-                value={vat === 0 ? "" : vat}
-                onChange={(e) => setVat(parseFloat(e.target.value) || 0)}
-                disabled={!applyVat}
-                className="w-14 bg-transparent border-b border-paper/40 text-right font-mono text-sm focus:outline-none focus:border-primary disabled:opacity-30"
-              />
-              <span className="text-paper/60 text-xs">%</span>
-              <span className="ml-2 min-w-[7rem] text-right tabular-nums whitespace-nowrap">+{eur(vatAmount)}</span>
-            </div>
-          </div>
         </dl>
 
         <div className="rule-line my-6 opacity-40" />
@@ -218,7 +172,7 @@ export const GeneralSummary = ({
           transition={{ duration: 0.2 }}
         >
           <div className="text-paper/60 text-[10px] uppercase tracking-[0.2em] mb-2">
-            Totale {applyVat ? "IVA inclusa" : "imponibile"}
+            Totale
           </div>
           <div className="font-display text-5xl md:text-6xl font-semibold text-primary tabular-nums leading-none break-all">
             {eur(total)}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck } from "lucide-react";
+import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { LaunchOrderDialog } from "@/components/produzione/LaunchOrderDialog";
@@ -302,6 +302,33 @@ const ProdBoard = () => {
     await refreshOrders();
   };
 
+  /** Elimina ordine + tutte le lavorazioni collegate. Solo admin. */
+  const handleDeleteOrder = async (order: ProdOrder) => {
+    if (!isAdmin) { toast.error("Solo gli admin possono eliminare gli ordini"); return; }
+    if (!window.confirm(`Eliminare definitivamente l'ordine ${order.code} e tutte le sue lavorazioni?\n\nL'azione non è reversibile.`)) return;
+    const subIds = (subsByOrder[order.id] ?? []).map((s) => s.id);
+    try {
+      if (subIds.length > 0) {
+        await supabase.from("production_sub_checklist").delete().in("sub_id", subIds);
+      }
+      await supabase.from("inventory_reservations").delete().eq("order_id", order.id);
+      await supabase.from("prod_notifications").delete().eq("order_id", order.id);
+      await supabase.from("production_sub_orders").delete().eq("order_id", order.id);
+      const { error } = await supabase.from("production_orders").delete().eq("id", order.id);
+      if (error) throw error;
+      await logAction({
+        action: "ORDINE_ELIMINATO",
+        entity_type: "production_order", entity_id: order.id,
+        detail: `${order.code} eliminato da admin`,
+        prev_state: { status: order.status, cliente: order.cliente },
+      });
+      toast.success(`${order.code} eliminato`);
+      await refreshOrders();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Errore eliminazione");
+    }
+  };
+
   return (
     <ProdLayout>
       <div className="p-3 sm:p-6 space-y-4">
@@ -348,9 +375,22 @@ const ProdBoard = () => {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-mono text-[11px] font-bold">{o.code}</span>
-                        <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
-                          {PRIORITY_LABEL[o.priorita]}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
+                            {PRIORITY_LABEL[o.priorita]}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteOrder(o); }}
+                              title="Elimina ordine (admin)"
+                              aria-label="Elimina ordine (admin)"
+                              className="w-5 h-5 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="text-[12px] font-medium text-ink leading-tight mb-1.5">
                         {o.cliente}

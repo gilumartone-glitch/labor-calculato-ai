@@ -1843,6 +1843,7 @@ function SaleProductSection({
   const [catalog, setCatalog] = useState<{ materials: any[]; markupPct?: number } | null>(null);
   const [loadingCat, setLoadingCat] = useState(true);
   const [productName, setProductName] = useState("");
+  const [colorFilter, setColorFilter] = useState<string>("");
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
@@ -1892,17 +1893,27 @@ function SaleProductSection({
     () => materials.filter((m: any) => m.name === productName),
     [materials, productName],
   );
-  const heights = useMemo(
-    () => Array.from(new Set(variantsByName.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+  const colors = useMemo(
+    () => Array.from(new Set(variantsByName.map((m: any) => String(m.color || "")).filter(Boolean))).sort(),
     [variantsByName],
   );
   useEffect(() => {
-    // se cambia prodotto, resetta filtro altezza
+    if (colorFilter && !colors.includes(colorFilter)) setColorFilter("");
+  }, [colors, colorFilter]);
+  const variantsByColor = useMemo(
+    () => colorFilter ? variantsByName.filter((m: any) => String(m.color || "") === colorFilter) : variantsByName,
+    [variantsByName, colorFilter],
+  );
+  const heights = useMemo(
+    () => Array.from(new Set(variantsByColor.map((m: any) => String(m.height || "")).filter(Boolean))).sort(),
+    [variantsByColor],
+  );
+  useEffect(() => {
     if (heightFilter && !heights.includes(heightFilter)) setHeightFilter("");
   }, [heights, heightFilter]);
   const variants = useMemo(
-    () => heightFilter ? variantsByName.filter((m: any) => String(m.height || "") === heightFilter) : variantsByName,
-    [variantsByName, heightFilter],
+    () => heightFilter ? variantsByColor.filter((m: any) => String(m.height || "") === heightFilter) : variantsByColor,
+    [variantsByColor, heightFilter],
   );
   useEffect(() => {
     if (!variants.find((v: any) => v.id === variantId)) {
@@ -2109,12 +2120,24 @@ function SaleProductSection({
                 <Field label="Prodotto">
                   <select
                     value={productName}
-                    onChange={(e) => { setProductName(e.target.value); setHeightFilter(""); setVariantId(""); }}
+                    onChange={(e) => { setProductName(e.target.value); setColorFilter(""); setHeightFilter(""); setVariantId(""); }}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     {productNames.map((n) => <option key={n as string} value={n as string}>{n as string}</option>)}
                   </select>
                 </Field>
+                {colors.length > 0 && (
+                  <Field label="Colore">
+                    <select
+                      value={colorFilter}
+                      onChange={(e) => { setColorFilter(e.target.value); setHeightFilter(""); setVariantId(""); }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Tutti</option>
+                      {colors.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </Field>
+                )}
                 {heights.length > 0 && (
                   <Field label="Altezza">
                     <select

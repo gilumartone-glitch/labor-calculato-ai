@@ -223,10 +223,10 @@ export const PerimeterCatalogEditor = ({ catalog, onCatalogChange, deptLabel }: 
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center justify-center gap-2 px-3 py-2 border-2 border-ink rounded-sm text-xs uppercase tracking-wider font-semibold hover:bg-ink hover:text-paper transition-colors"
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] border-2 border-ink rounded-sm text-sm uppercase tracking-wider font-semibold hover:bg-ink hover:text-paper transition-colors"
         >
-          <Settings2 className="w-3.5 h-3.5" />
-          Listino lavorazioni
+          <Settings2 className="w-4 h-4" />
+          Listino Lavorazioni
         </button>
       </DialogTrigger>
 

@@ -503,7 +503,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 <Pencil className="w-3 h-3" />
                 Modifica
               </button>
-              {(isAdmin || (user && commessa.created_by === user.id)) && (
+              {isAdmin && (
                 <button
                   type="button"
                   onClick={async () => {

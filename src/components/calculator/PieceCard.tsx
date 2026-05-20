@@ -295,8 +295,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   const initialScrapAreaM2 = mat.initialScrapSellCost > 0 ? 1.5 * mat.rollWidthM : 0;
   const materialEffectiveAreaM2 = mat.feasible ? mat.pieceWidthM * mat.pieceHeightM : areaM2;
   const totalSingle = workingMaterial + workSubtotal + leftoverScrap;
-  const total = totalSingle * qty + scrapSell;
-  const materialsSubtotalDisplay = workingMaterial * qty + scrapSell;
+  const total = totalSingle * qty + scrapSell + (extraSurcharge || 0);
+  const materialsSubtotalDisplay = workingMaterial * qty + scrapSell + (extraSurcharge || 0);
   const worksSubtotalDisplay = (workSubtotal + leftoverScrap) * qty;
 
   // Disegno: lati colorati dai perimetri applicati

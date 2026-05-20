@@ -676,6 +676,8 @@ export const DepartmentView = ({
                   labCatalog={labCatalog}
                   labPieces={labPieces}
                   scrapDeducted={scrapDeducted}
+                  extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
+                  extraSurchargeLabel="Sfrido lastre"
                   onChange={(line) =>
                     setState({
                       ...state,

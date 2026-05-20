@@ -899,12 +899,21 @@ export const pieceLeftoverScrapSellCost = (
   if (piece.materialFromLab) return 0;
   const b = computePieceMaterial(piece, catalog, customer);
   if (!b.feasible || !b.material) return 0;
-  const rollW = b.rollWidthM;
-  const leftoverM2 = pieceLeftoverScrapAreaM2(piece, catalog, customer);
-  if (leftoverM2 <= 0 || rollW <= 0) return 0;
-  // Prezzo: SEMPRE €/mq d'acquisto × 1,3 (margine fisso per lo sfrido di lavorazione,
-  // indipendente dal moltiplicatore cliente).
   const m = b.material;
+  const format = m.format ?? "rotolo";
+  const leftoverM2 = pieceLeftoverScrapAreaM2(piece, catalog, customer);
+  if (leftoverM2 <= 0) return 0;
+
+  // LASTRA: addebita il prezzo della lastra INTERA. La quota "pezzo" è già conteggiata
+  // nel materialCost; qui aggiungo la fetta mancante (lastra − pezzo) allo stesso €/mq
+  // di vendita, così la somma equivale al prezzo di tutta la lastra.
+  if (format === "lastra") {
+    return leftoverM2 * b.unitCost;
+  }
+
+  // ROTOLO: sfrido lavorazione al markup fisso 1,30 sul prezzo d'acquisto.
+  const rollW = b.rollWidthM;
+  if (rollW <= 0) return 0;
   const purchase =
     typeof m.costPrice === "number"
       ? m.costPrice
@@ -914,6 +923,23 @@ export const pieceLeftoverScrapSellCost = (
   const priceUnit = materialPriceUnit(m);
   const purchasePerSqm = priceUnit === "mq" ? purchase : purchase / rollW;
   return leftoverM2 * purchasePerSqm * 1.3;
+};
+
+/** Dimensioni lastra (m) lette dal catalogo, applicando eventuale rotazione richiesta. */
+const sheetDimsM = (m: CatalogMaterial, rotated?: boolean): { w: number; h: number } | null => {
+  const parseDim = (val: unknown, unit?: string): number => {
+    if (val === undefined || val === null || val === "") return 0;
+    const n = parseFloat(String(val).replace(",", "."));
+    if (!isFinite(n) || n <= 0) return 0;
+    const u: DimUnit = (["mm", "cm", "m"] as const).includes(unit as DimUnit)
+      ? (unit as DimUnit)
+      : "cm";
+    return convertLength(n, u, "m");
+  };
+  const w = parseDim(m.baseWidth, m.dimUnit);
+  const h = parseDim(m.height, m.heightUnit ?? m.dimUnit);
+  if (w <= 0 || h <= 0) return null;
+  return rotated ? { w: h, h: w } : { w, h };
 };
 
 /** Area in m² dello sfrido di lavorazione (telo non sfruttato a pieno). */
@@ -926,11 +952,20 @@ export const pieceLeftoverScrapAreaM2 = (
   if (piece.materialFromLab) return 0;
   const b = computePieceMaterial(piece, catalog, customer);
   if (!b.feasible || !b.material) return 0;
+  const format = b.material.format ?? "rotolo";
+
+  // LASTRA: scarto = area lastra intera − area pezzo.
+  if (format === "lastra") {
+    const sheet = sheetDimsM(b.material, piece.rotateSheet);
+    if (!sheet) return 0;
+    const sheetArea = sheet.w * sheet.h;
+    const usedArea = b.pieceWidthM * b.pieceHeightM;
+    const leftover = sheetArea - usedArea;
+    return leftover > 0 ? leftover : 0;
+  }
+
+  // ROTOLO: area teli − area effettiva del pezzo posato sui teli.
   const rollW = b.rollWidthM;
-  // Area teli (panels × largh.rotolo × lunghezza telo) − area effettiva del pezzo
-  // posato sui teli (largh.pezzo × lunghezza telo). NON sottraggo l'area "stretta"
-  // pieceWidth × pieceHeight perché questo conteggia anche il lato lungo: lo scarto
-  // reale è solo la fetta di telo NON coperta dalla larghezza del pezzo.
   const teliAreaM2 = b.panels * rollW * b.panelLengthM;
   const usedAreaM2 = b.pieceWidthM * b.panelLengthM;
   const leftoverM2 = teliAreaM2 - usedAreaM2;

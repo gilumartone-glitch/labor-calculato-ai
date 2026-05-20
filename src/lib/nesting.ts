@@ -338,7 +338,8 @@ const explodePieces = (
     // con cuciture verticali (destra↔sinistra), mai sopra/sotto.
     const shape = p.shape ?? "rect";
     const isRect = shape === "rect";
-    if (materialFormat === "rotolo" && isRect && rollWidthM > 0) {
+    const allowSplit = p.allowSplit !== false;
+    if (materialFormat === "rotolo" && isRect && rollWidthM > 0 && allowSplit) {
       type Orientation = {
         crossM: number;
         alongM: number;
@@ -436,7 +437,8 @@ const explodePieces = (
       materialFormat === "lastra" &&
       isRect &&
       rollWidthM > 0 &&
-      sheetHeightM > 0
+      sheetHeightM > 0 &&
+      allowSplit
     ) {
       const fitsAsIs = w <= rollWidthM + 1e-6 && h <= sheetHeightM + 1e-6;
       const fitsRotated =

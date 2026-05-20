@@ -1787,6 +1787,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
         <div>
           <div className="label-cap mb-0.5">Subtot. materiali {qty > 1 ? `× ${qty}` : ""}</div>
           <div className="font-mono text-sm font-semibold tabular-nums">{eur(materialsSubtotalDisplay)}</div>
+          {extraSurcharge > 0 && (
+            <div className="font-mono text-[9px] text-muted-foreground">
+              di cui {extraSurchargeLabel.toLowerCase()} {eur(extraSurcharge)}
+            </div>
+          )}
         </div>
         <div>
           <div className="label-cap mb-0.5">Subtot. lavorazioni {qty > 1 ? `× ${qty}` : ""}</div>

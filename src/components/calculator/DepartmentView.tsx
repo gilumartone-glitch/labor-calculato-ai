@@ -63,6 +63,31 @@ export const DepartmentView = ({
     (s, m) => s + m.quantity * m.unitCost, 0
   );
   const pieces = state.pieces ?? [];
+
+  // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
+  // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
+  // Tappezzeria salta lo sfrido iniziale (coerente con la card pezzo).
+  const nestingCatalog =
+    deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog;
+  const nestingGroups = computeNesting(pieces, nestingCatalog, customerType);
+  const chargeNestingScrap = state.nestingState?.chargeNestingScrap ?? {};
+  // Solo gruppi LASTRA: lo sfrido per-lastra ha senso lì (per il rotolo c'è già
+  // lo sfrido iniziale 1,5 m e l'opzione per-pezzo).
+  const lastraGroups = nestingGroups.filter((g) => g.format === "lastra");
+  /** Per ogni gruppo lastra: costo extra dello sfrido addebitato (€). */
+  const nestingScrapExtraByGroup: Record<string, number> = {};
+  for (const g of lastraGroups) {
+    if (!chargeNestingScrap[g.key]) continue;
+    const leftoverM2 = Math.max(0, g.totalAreaM2 - g.usedAreaM2);
+    const sellPerSqm =
+      g.totalAreaM2 > 0 ? g.materialCostOptimized / g.totalAreaM2 : 0;
+    nestingScrapExtraByGroup[g.key] = leftoverM2 * sellPerSqm;
+  }
+  const nestingScrapExtra = Object.values(nestingScrapExtraByGroup).reduce(
+    (s, v) => s + v,
+    0,
+  );
+
   const piecesBaseTotal =
     pieces.reduce(
       (s, p) => s + pieceTotal(p, matCat(p), customerType),
@@ -73,7 +98,9 @@ export const DepartmentView = ({
       pieces,
       (p) => matCat(p),
       () => customerType,
-    );
+    ) +
+    // Sfrido nesting addebitato (per gruppo lastra flaggato).
+    nestingScrapExtra;
   const isStampa = deptKey === "stampa";
   const transportsTotal = (state.transports ?? []).reduce((s, t) => s + t.quantity * t.unitCost, 0);
   // Nel reparto Laboratorio (stampa) il "Totale lavorazioni" include già il

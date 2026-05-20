@@ -22,6 +22,7 @@ import {
   pieceMaterialTotal,
   pieceWorkBreakdown,
 } from "@/lib/piece";
+import { computeNesting } from "@/lib/nesting";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { CustomerType, CUSTOMER_LABEL, priceMultiplier } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";

@@ -419,8 +419,82 @@ export const DepartmentView = ({
               {workBreakdown.scrap > 0 && (
                 <SummaryStat label="Scarto" value={workBreakdown.scrap} />
               )}
+              {nestingScrapExtra > 0 && (
+                <SummaryStat label="Sfrido lastre" value={nestingScrapExtra} />
+              )}
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
+
+            {/* Lastre per materiale + checkbox "Addebita sfrido" */}
+            {lastraGroups.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-ink/10">
+                <div className="label-cap mb-2">Lastre per materiale</div>
+                <div className="space-y-1.5">
+                  {lastraGroups.map((g) => {
+                    const sheets = g.sheetsNeeded ?? 0;
+                    const leftoverM2 = Math.max(0, g.totalAreaM2 - g.usedAreaM2);
+                    const sellPerSqm =
+                      g.totalAreaM2 > 0
+                        ? g.materialCostOptimized / g.totalAreaM2
+                        : 0;
+                    const extra = leftoverM2 * sellPerSqm;
+                    const checked = !!chargeNestingScrap[g.key];
+                    const dim =
+                      g.sheetWidthM && g.sheetHeightM
+                        ? ` · ${Math.round(g.sheetWidthM * 100)}×${Math.round(
+                            g.sheetHeightM * 100,
+                          )} cm`
+                        : "";
+                    return (
+                      <div
+                        key={g.key}
+                        className="flex items-center justify-between gap-3 p-2 border border-ink/15 rounded-sm bg-paper font-mono text-[11px]"
+                      >
+                        <div className="flex-1 min-w-0 truncate">
+                          <span className="font-semibold">{g.label}</span>
+                          <span className="text-muted-foreground">{dim}</span>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="tabular-nums">
+                            <strong>{sheets}</strong>{" "}
+                            <span className="text-muted-foreground">lastre</span>
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            sfrido {leftoverM2.toFixed(2)} m²
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {eur(extra)}
+                          </span>
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setState({
+                                  ...state,
+                                  nestingState: {
+                                    ...(state.nestingState ?? {}),
+                                    chargeNestingScrap: {
+                                      ...(state.nestingState
+                                        ?.chargeNestingScrap ?? {}),
+                                      [g.key]: e.target.checked,
+                                    },
+                                  },
+                                })
+                              }
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="uppercase tracking-wider text-[10px]">
+                              Addebita sfrido
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {perPieceTotals.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
                 <div className="label-cap mb-2">Prezzo per lavorazione</div>

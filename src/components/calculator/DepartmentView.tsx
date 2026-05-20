@@ -88,6 +88,40 @@ export const DepartmentView = ({
     0,
   );
 
+  // Distribuzione dello sfrido nesting (per gruppo lastra flaggato) sui pezzi
+  // del gruppo, in proporzione all'area lavorata (m² × qty). Mappa pieceId → €.
+  const nestingScrapByPieceId: Record<string, number> = {};
+  {
+    const toM = (v: number, u: PieceLine["dimUnit"]) =>
+      u === "mm" ? v / 1000 : u === "cm" ? v / 100 : v;
+    const areaOf = (p: PieceLine) => {
+      const w = toM(Number(p.width) || 0, p.dimUnit);
+      const h = toM(Number(p.height) || 0, p.dimUnit);
+      const wb = toM(Number(p.widthBottom) || 0, p.dimUnit);
+      const a = p.shape === "trapezoid" && wb > 0 ? ((w + wb) / 2) * h : w * h;
+      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+      return a * qty;
+    };
+    for (const g of lastraGroups) {
+      const extra = nestingScrapExtraByGroup[g.key] ?? 0;
+      if (extra <= 0) continue;
+      const gPieces = (g as any).pieces as PieceLine[] | undefined;
+      const groupPieces = gPieces && gPieces.length > 0 ? gPieces : [];
+      const weights = groupPieces.map((p) => ({ id: p.id, w: areaOf(p) }));
+      const tot = weights.reduce((s, x) => s + x.w, 0);
+      if (tot > 0) {
+        for (const { id, w } of weights) {
+          nestingScrapByPieceId[id] = (nestingScrapByPieceId[id] ?? 0) + extra * (w / tot);
+        }
+      } else if (weights.length > 0) {
+        const share = extra / weights.length;
+        for (const { id } of weights) {
+          nestingScrapByPieceId[id] = (nestingScrapByPieceId[id] ?? 0) + share;
+        }
+      }
+    }
+  }
+
   const piecesBaseTotal =
     pieces.reduce(
       (s, p) => s + pieceTotal(p, matCat(p), customerType),

@@ -220,6 +220,11 @@ export type PieceLine = {
   customWorks?: { id: string; name: string; price: number }[];
   /** Permetti al sistema di ruotare il tessuto (scambiando trama/ordito) per risparmiare */
   allowRotation?: boolean;
+  /** Se true (default), il sistema può spezzare il pezzo in più pannelli
+   *  affiancati (con cuciture verticali su rotolo, o lastre giuntate). Se
+   *  false, il pezzo DEVE entrare interamente nelle misure della
+   *  lastra/rullo: se non entra, finisce tra i non piazzati e va segnalato. */
+  allowSplit?: boolean;
   /** Forza il calcolo anche se il pezzo non entra nel formato della variante scelta. */
   bypassFitCheck?: boolean;
   /** Se true, NON aggiunge i margini di lavorazione (+10cm × +20cm) al calcolo.

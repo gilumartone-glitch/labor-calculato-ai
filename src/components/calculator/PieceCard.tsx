@@ -863,19 +863,19 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <label className="label-cap block mb-1">Dividi pannello</label>
             <button
               type="button"
-              onClick={() => onChange({ ...line, allowSplit: line.allowSplit === false })}
+              onClick={() => onChange({ ...line, allowSplit: line.allowSplit !== true })}
               className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 border-2 rounded-sm text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                line.allowSplit !== false
+                line.allowSplit === true
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-ink/40 text-ink/60 hover:border-ink hover:text-ink"
               }`}
-              title="Se attivo il sistema può spezzare il pezzo in più pannelli affiancati (con cucitura/giuntura). Se disattivo, il pezzo deve entrare interamente nella misura della lastra/rullo, altrimenti viene segnalato come non piazzabile."
+              title="Se attivo il sistema può spezzare il pezzo in più pannelli affiancati (con cucitura/giuntura). Se disattivo (default), il pezzo deve entrare interamente nella misura della lastra/rullo, altrimenti viene segnalato come non piazzabile."
             >
               <Scissors className="w-3.5 h-3.5" />
-              {line.allowSplit !== false ? "Divisibile" : "Indivisibile"}
+              {line.allowSplit === true ? "Divisibile" : "Indivisibile"}
             </button>
             <div className="mt-1 font-mono text-[10px] text-muted-foreground">
-              {line.allowSplit !== false
+              {line.allowSplit === true
                 ? "Il sistema può spezzare il pezzo in più pannelli."
                 : "Il pezzo deve entrare intero: se non sta nella lastra/rullo viene segnalato come non piazzabile."}
             </div>

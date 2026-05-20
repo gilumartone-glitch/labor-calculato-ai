@@ -75,6 +75,7 @@ const makePiece = (overrides: Partial<PieceLine> = {}): PieceLine => ({
   noMargins: true,
   chargeScrap: true,
   allowRotation: true,
+  allowSplit: true,
   ...overrides,
 });
 

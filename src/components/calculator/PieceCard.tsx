@@ -984,19 +984,36 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <label className="label-cap block mb-1">
               Variante listino · {variantOptions[0]?.format === "lastra" ? "formato (B × H)" : "altezza"}
             </label>
-            <select
-              value={line.variantId ?? (mat.material?.id ?? "")}
-              onChange={(e) => onChange({ ...line, variantId: e.target.value || null })}
-              disabled={variantOptions.length === 0}
-              className="input-bare w-full text-sm bg-paper disabled:opacity-50"
-            >
-              <option value="">— automatica (più conveniente) —</option>
-              {variantOptions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {variantLabel(v)}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-1.5">
+              <select
+                value={line.variantId ?? (mat.material?.id ?? "")}
+                onChange={(e) => onChange({ ...line, variantId: e.target.value || null })}
+                disabled={variantOptions.length === 0}
+                className="input-bare flex-1 text-sm bg-paper disabled:opacity-50"
+              >
+                <option value="">— automatica (più conveniente) —</option>
+                {variantOptions.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {variantLabel(v)}{line.rotateSheet && v.format === "lastra" ? " ↻" : ""}
+                  </option>
+                ))}
+              </select>
+              {(activeVariant?.format === "lastra" || variantOptions[0]?.format === "lastra") && (
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...line, rotateSheet: !line.rotateSheet })}
+                  title="Ruota la lastra del listino scambiando base ↔ altezza (es. 305×122 → 122×305). Il nesting userà le nuove misure."
+                  className={`shrink-0 inline-flex items-center justify-center gap-1 px-2.5 border-2 rounded-sm text-[10px] uppercase tracking-wider font-bold transition-colors ${
+                    line.rotateSheet
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-ink/40 text-ink/60 hover:border-ink hover:text-ink"
+                  }`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {line.rotateSheet ? "Ruotata" : "Ruota"}
+                </button>
+              )}
+            </div>
             {!fitCheck.fits && (
               <div className={`mt-1.5 px-2 py-1.5 border rounded-sm text-[10px] ${
                 line.bypassFitCheck

@@ -105,8 +105,8 @@ export const DepartmentView = ({
     for (const g of lastraGroups) {
       const extra = nestingScrapExtraByGroup[g.key] ?? 0;
       if (extra <= 0) continue;
-      const gPieces = (g as any).pieces as PieceLine[] | undefined;
-      const groupPieces = gPieces && gPieces.length > 0 ? gPieces : [];
+      const gPieces = piecesOfGroup(pieces, g.key);
+      const groupPieces = gPieces;
       const weights = groupPieces.map((p) => ({ id: p.id, w: areaOf(p) }));
       const tot = weights.reduce((s, x) => s + x.w, 0);
       if (tot > 0) {

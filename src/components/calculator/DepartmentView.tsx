@@ -455,9 +455,6 @@ export const DepartmentView = ({
               {workBreakdown.scrap > 0 && (
                 <SummaryStat label="Scarto" value={workBreakdown.scrap} />
               )}
-              {nestingScrapExtra > 0 && (
-                <SummaryStat label="Sfrido lastre" value={nestingScrapExtra} />
-              )}
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
 

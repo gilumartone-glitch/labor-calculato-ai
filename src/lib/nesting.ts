@@ -823,16 +823,24 @@ const computeGroup = (
   };
 
   if (!picked) return empty;
-  const rollWidthM = picked.heightM;
+  // Rotazione della lastra (scambia base ↔ altezza del foglio).
+  // Per coerenza nel gruppo prendo il flag dal primo pezzo.
+  const sheetRotated = !!pieces[0]?.rotateSheet && (picked.material.format === "lastra");
 
   // Pre-calcolo sheetH per format=lastra (serve allo split nelle lastre)
   const fmt0 = picked.material.format ?? "rotolo";
   let preSheetH = 0;
+  let preRollWidthM = picked.heightM;
   if (fmt0 === "lastra") {
     const u = (picked.material.dimUnit || picked.material.heightUnit || "cm") as DimUnit;
     const sheetHRaw = parseFloat(String(picked.material.height || "0").replace(",", "."));
-    preSheetH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
+    const sheetWRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
+    const baseW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : picked.heightM;
+    const baseH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : picked.heightM;
+    preRollWidthM = sheetRotated ? baseH : baseW;
+    preSheetH = sheetRotated ? baseW : baseH;
   }
+  const rollWidthM = preRollWidthM;
   // Esplodo per quantity
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,

@@ -536,19 +536,15 @@ export const DepartmentView = ({
                 <div className="label-cap mb-2">Prezzo per lavorazione</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {perPieceTotals.map(
-                    ({ piece, qty, material, initialScrap, leftoverScrap, work, total }, i) => {
+                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total }, i) => {
                       const name = piece.productName?.trim() || `Pezzo ${i + 1}`;
-                      // "Sfrido" mostra solo lo sfrido iniziale rotolo (1,5 m).
-                      // Lo sfrido di lavorazione (leftover dei teli) è una lavorazione
-                      // ed è già incluso in work.total → riga "Lavorazione".
                       const sfrido = initialScrap;
-                      // "Lavorazione" = somma di tutte le voci di lavoro ESCLUSO lo scarto,
-                      // che mostriamo come riga separata (work.scrap = leftoverScrap × qty).
                       const scarto = work.scrap;
                       const lavorazione = work.total - scarto;
                       const rows: { label: string; value: number }[] = [
                         { label: "Materiale", value: material },
                         { label: "Sfrido iniziale", value: sfrido },
+                        { label: "Sfrido lastre", value: nestingScrap },
                         { label: "Lavorazione", value: lavorazione },
                         { label: "Scarto", value: scarto },
                       ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);

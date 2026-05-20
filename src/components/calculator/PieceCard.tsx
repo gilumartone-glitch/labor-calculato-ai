@@ -216,14 +216,19 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
     const pieceHM = mat.pieceHeightM;
     const heightM = convertLength(parseFloat(String(activeVariant.height).replace(",", ".")) || 0, u, "m");
     if (activeVariant.format === "lastra") {
-      const baseM = convertLength(parseFloat(String(activeVariant.baseWidth || "0").replace(",", ".")) || 0, u, "m");
-      if (baseM <= 0 || heightM <= 0) return { fits: true, msg: "" };
-      const fitsNormal = pieceWM <= baseM && pieceHM <= heightM;
-      const fitsRot = !!line.allowRotation && pieceHM <= baseM && pieceWM <= heightM;
+      const baseRaw = convertLength(parseFloat(String(activeVariant.baseWidth || "0").replace(",", ".")) || 0, u, "m");
+      const heightRaw = heightM;
+      const baseM = line.rotateSheet ? heightRaw : baseRaw;
+      const sheetHM = line.rotateSheet ? baseRaw : heightRaw;
+      if (baseM <= 0 || sheetHM <= 0) return { fits: true, msg: "" };
+      const fitsNormal = pieceWM <= baseM && pieceHM <= sheetHM;
+      const fitsRot = !!line.allowRotation && pieceHM <= baseM && pieceWM <= sheetHM;
       if (fitsNormal || fitsRot) return { fits: true, msg: "" };
+      const dispW = line.rotateSheet ? activeVariant.height : activeVariant.baseWidth;
+      const dispH = line.rotateSheet ? activeVariant.baseWidth : activeVariant.height;
       return {
         fits: false,
-        msg: `Il pezzo (${fmtM(pieceWM)} × ${fmtM(pieceHM)} m con margini) non entra nel formato lastra ${activeVariant.baseWidth} × ${activeVariant.height} ${u}`,
+        msg: `Il pezzo (${fmtM(pieceWM)} × ${fmtM(pieceHM)} m con margini) non entra nel formato lastra ${dispW} × ${dispH} ${u}${line.rotateSheet ? " (lastra ruotata)" : ""}`,
       };
     }
     if (activeVariant.format === "rotolo") {
@@ -237,7 +242,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
       };
     }
     return { fits: true, msg: "" };
-  }, [activeVariant, mat.pieceWidthM, mat.pieceHeightM, line.allowRotation]);
+  }, [activeVariant, mat.pieceWidthM, mat.pieceHeightM, line.allowRotation, line.rotateSheet]);
 
   const perimetersTotal = useMemo(
     () => piecePerimetersTotal(line, catalog, customerType),

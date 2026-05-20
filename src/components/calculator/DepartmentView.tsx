@@ -235,13 +235,15 @@ export const DepartmentView = ({
           initialScrap = b.initialScrapFull;
         }
       }
-      const total = b.material + initialScrap + b.wb.total;
+      const nestingScrap = nestingScrapByPieceId[b.piece.id] ?? 0;
+      const total = b.material + initialScrap + b.wb.total + nestingScrap;
       return {
         piece: b.piece,
         qty: b.qty,
         material: b.material,
         initialScrap,
         leftoverScrap: b.leftoverScrap,
+        nestingScrap,
         work: b.wb,
         total,
       };

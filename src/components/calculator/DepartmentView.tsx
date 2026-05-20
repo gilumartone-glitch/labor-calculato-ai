@@ -22,7 +22,7 @@ import {
   pieceMaterialTotal,
   pieceWorkBreakdown,
 } from "@/lib/piece";
-import { computeNesting } from "@/lib/nesting";
+import { computeNesting, piecesOfGroup } from "@/lib/nesting";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { CustomerType, CUSTOMER_LABEL, priceMultiplier } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
@@ -87,6 +87,40 @@ export const DepartmentView = ({
     (s, v) => s + v,
     0,
   );
+
+  // Distribuzione dello sfrido nesting (per gruppo lastra flaggato) sui pezzi
+  // del gruppo, in proporzione all'area lavorata (m² × qty). Mappa pieceId → €.
+  const nestingScrapByPieceId: Record<string, number> = {};
+  {
+    const toM = (v: number, u: PieceLine["dimUnit"]) =>
+      u === "mm" ? v / 1000 : u === "cm" ? v / 100 : v;
+    const areaOf = (p: PieceLine) => {
+      const w = toM(Number(p.width) || 0, p.dimUnit);
+      const h = toM(Number(p.height) || 0, p.dimUnit);
+      const wb = toM(Number(p.widthBottom) || 0, p.dimUnit);
+      const a = p.shape === "trapezoid" && wb > 0 ? ((w + wb) / 2) * h : w * h;
+      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+      return a * qty;
+    };
+    for (const g of lastraGroups) {
+      const extra = nestingScrapExtraByGroup[g.key] ?? 0;
+      if (extra <= 0) continue;
+      const gPieces = piecesOfGroup(pieces, g.key);
+      const groupPieces = gPieces;
+      const weights = groupPieces.map((p) => ({ id: p.id, w: areaOf(p) }));
+      const tot = weights.reduce((s, x) => s + x.w, 0);
+      if (tot > 0) {
+        for (const { id, w } of weights) {
+          nestingScrapByPieceId[id] = (nestingScrapByPieceId[id] ?? 0) + extra * (w / tot);
+        }
+      } else if (weights.length > 0) {
+        const share = extra / weights.length;
+        for (const { id } of weights) {
+          nestingScrapByPieceId[id] = (nestingScrapByPieceId[id] ?? 0) + share;
+        }
+      }
+    }
+  }
 
   const piecesBaseTotal =
     pieces.reduce(
@@ -201,13 +235,15 @@ export const DepartmentView = ({
           initialScrap = b.initialScrapFull;
         }
       }
-      const total = b.material + initialScrap + b.wb.total;
+      const nestingScrap = nestingScrapByPieceId[b.piece.id] ?? 0;
+      const total = b.material + initialScrap + b.wb.total + nestingScrap;
       return {
         piece: b.piece,
         qty: b.qty,
         material: b.material,
         initialScrap,
         leftoverScrap: b.leftoverScrap,
+        nestingScrap,
         work: b.wb,
         total,
       };
@@ -419,9 +455,6 @@ export const DepartmentView = ({
               {workBreakdown.scrap > 0 && (
                 <SummaryStat label="Scarto" value={workBreakdown.scrap} />
               )}
-              {nestingScrapExtra > 0 && (
-                <SummaryStat label="Sfrido lastre" value={nestingScrapExtra} />
-              )}
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
 
@@ -500,19 +533,15 @@ export const DepartmentView = ({
                 <div className="label-cap mb-2">Prezzo per lavorazione</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {perPieceTotals.map(
-                    ({ piece, qty, material, initialScrap, leftoverScrap, work, total }, i) => {
+                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total }, i) => {
                       const name = piece.productName?.trim() || `Pezzo ${i + 1}`;
-                      // "Sfrido" mostra solo lo sfrido iniziale rotolo (1,5 m).
-                      // Lo sfrido di lavorazione (leftover dei teli) è una lavorazione
-                      // ed è già incluso in work.total → riga "Lavorazione".
                       const sfrido = initialScrap;
-                      // "Lavorazione" = somma di tutte le voci di lavoro ESCLUSO lo scarto,
-                      // che mostriamo come riga separata (work.scrap = leftoverScrap × qty).
                       const scarto = work.scrap;
                       const lavorazione = work.total - scarto;
                       const rows: { label: string; value: number }[] = [
                         { label: "Materiale", value: material },
                         { label: "Sfrido iniziale", value: sfrido },
+                        { label: "Sfrido lastre", value: nestingScrap },
                         { label: "Lavorazione", value: lavorazione },
                         { label: "Scarto", value: scarto },
                       ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
@@ -647,6 +676,8 @@ export const DepartmentView = ({
                   labCatalog={labCatalog}
                   labPieces={labPieces}
                   scrapDeducted={scrapDeducted}
+                  extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
+                  extraSurchargeLabel="Sfrido lastre"
                   onChange={(line) =>
                     setState({
                       ...state,

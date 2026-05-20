@@ -37,6 +37,11 @@ interface Props {
    *  lo sta già conteggiando. Serve a far quadrare la somma delle card con il
    *  totale del reparto (sfrido contato una sola volta per materiale). */
   scrapDeducted?: boolean;
+  /** Costo extra (€) ripartito su questo pezzo, es. sfrido nesting distribuito
+   *  proporzionalmente quando l'utente flagga "Addebita sfrido" per il gruppo
+   *  materiale. Viene sommato al totale del pezzo e mostrato come riga separata. */
+  extraSurcharge?: number;
+  extraSurchargeLabel?: string;
   onChange: (line: PieceLine) => void;
   onRemove: () => void;
 }
@@ -53,7 +58,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const materialLockedToLab = !isStampa && !!line.materialFromLab;
   // Stato locale di stringa per i campi dimensionali: permette di digitare
@@ -290,8 +295,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   const initialScrapAreaM2 = mat.initialScrapSellCost > 0 ? 1.5 * mat.rollWidthM : 0;
   const materialEffectiveAreaM2 = mat.feasible ? mat.pieceWidthM * mat.pieceHeightM : areaM2;
   const totalSingle = workingMaterial + workSubtotal + leftoverScrap;
-  const total = totalSingle * qty + scrapSell;
-  const materialsSubtotalDisplay = workingMaterial * qty + scrapSell;
+  const total = totalSingle * qty + scrapSell + (extraSurcharge || 0);
+  const materialsSubtotalDisplay = workingMaterial * qty + scrapSell + (extraSurcharge || 0);
   const worksSubtotalDisplay = (workSubtotal + leftoverScrap) * qty;
 
   // Disegno: lati colorati dai perimetri applicati
@@ -1782,6 +1787,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
         <div>
           <div className="label-cap mb-0.5">Subtot. materiali {qty > 1 ? `× ${qty}` : ""}</div>
           <div className="font-mono text-sm font-semibold tabular-nums">{eur(materialsSubtotalDisplay)}</div>
+          {extraSurcharge > 0 && (
+            <div className="font-mono text-[9px] text-muted-foreground">
+              di cui {extraSurchargeLabel.toLowerCase()} {eur(extraSurcharge)}
+            </div>
+          )}
         </div>
         <div>
           <div className="label-cap mb-0.5">Subtot. lavorazioni {qty > 1 ? `× ${qty}` : ""}</div>

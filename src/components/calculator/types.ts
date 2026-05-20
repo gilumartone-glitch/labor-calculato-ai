@@ -276,6 +276,9 @@ export type DepartmentState = {
   nestingState?: {
     overrides?: Record<string, any | null>;
     mixedBins?: Record<string, any[] | null>;
+    /** Per gruppo materiale (key del nesting): se true, addebita lo sfrido di
+     *  ogni lastra del gruppo al cliente (area lastre − area pezzi). */
+    chargeNestingScrap?: Record<string, boolean>;
   };
 };
 

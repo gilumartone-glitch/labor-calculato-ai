@@ -37,6 +37,11 @@ interface Props {
    *  lo sta già conteggiando. Serve a far quadrare la somma delle card con il
    *  totale del reparto (sfrido contato una sola volta per materiale). */
   scrapDeducted?: boolean;
+  /** Costo extra (€) ripartito su questo pezzo, es. sfrido nesting distribuito
+   *  proporzionalmente quando l'utente flagga "Addebita sfrido" per il gruppo
+   *  materiale. Viene sommato al totale del pezzo e mostrato come riga separata. */
+  extraSurcharge?: number;
+  extraSurchargeLabel?: string;
   onChange: (line: PieceLine) => void;
   onRemove: () => void;
 }

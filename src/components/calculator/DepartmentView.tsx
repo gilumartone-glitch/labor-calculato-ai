@@ -22,6 +22,7 @@ import {
   pieceMaterialTotal,
   pieceWorkBreakdown,
 } from "@/lib/piece";
+import { computeNesting } from "@/lib/nesting";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { CustomerType, CUSTOMER_LABEL, priceMultiplier } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
@@ -62,6 +63,31 @@ export const DepartmentView = ({
     (s, m) => s + m.quantity * m.unitCost, 0
   );
   const pieces = state.pieces ?? [];
+
+  // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
+  // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
+  // Tappezzeria salta lo sfrido iniziale (coerente con la card pezzo).
+  const nestingCatalog =
+    deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog;
+  const nestingGroups = computeNesting(pieces, nestingCatalog, customerType);
+  const chargeNestingScrap = state.nestingState?.chargeNestingScrap ?? {};
+  // Solo gruppi LASTRA: lo sfrido per-lastra ha senso lì (per il rotolo c'è già
+  // lo sfrido iniziale 1,5 m e l'opzione per-pezzo).
+  const lastraGroups = nestingGroups.filter((g) => g.format === "lastra");
+  /** Per ogni gruppo lastra: costo extra dello sfrido addebitato (€). */
+  const nestingScrapExtraByGroup: Record<string, number> = {};
+  for (const g of lastraGroups) {
+    if (!chargeNestingScrap[g.key]) continue;
+    const leftoverM2 = Math.max(0, g.totalAreaM2 - g.usedAreaM2);
+    const sellPerSqm =
+      g.totalAreaM2 > 0 ? g.materialCostOptimized / g.totalAreaM2 : 0;
+    nestingScrapExtraByGroup[g.key] = leftoverM2 * sellPerSqm;
+  }
+  const nestingScrapExtra = Object.values(nestingScrapExtraByGroup).reduce(
+    (s, v) => s + v,
+    0,
+  );
+
   const piecesBaseTotal =
     pieces.reduce(
       (s, p) => s + pieceTotal(p, matCat(p), customerType),
@@ -72,7 +98,9 @@ export const DepartmentView = ({
       pieces,
       (p) => matCat(p),
       () => customerType,
-    );
+    ) +
+    // Sfrido nesting addebitato (per gruppo lastra flaggato).
+    nestingScrapExtra;
   const isStampa = deptKey === "stampa";
   const transportsTotal = (state.transports ?? []).reduce((s, t) => s + t.quantity * t.unitCost, 0);
   // Nel reparto Laboratorio (stampa) il "Totale lavorazioni" include già il
@@ -391,8 +419,82 @@ export const DepartmentView = ({
               {workBreakdown.scrap > 0 && (
                 <SummaryStat label="Scarto" value={workBreakdown.scrap} />
               )}
+              {nestingScrapExtra > 0 && (
+                <SummaryStat label="Sfrido lastre" value={nestingScrapExtra} />
+              )}
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
+
+            {/* Lastre per materiale + checkbox "Addebita sfrido" */}
+            {lastraGroups.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-ink/10">
+                <div className="label-cap mb-2">Lastre per materiale</div>
+                <div className="space-y-1.5">
+                  {lastraGroups.map((g) => {
+                    const sheets = g.sheetsNeeded ?? 0;
+                    const leftoverM2 = Math.max(0, g.totalAreaM2 - g.usedAreaM2);
+                    const sellPerSqm =
+                      g.totalAreaM2 > 0
+                        ? g.materialCostOptimized / g.totalAreaM2
+                        : 0;
+                    const extra = leftoverM2 * sellPerSqm;
+                    const checked = !!chargeNestingScrap[g.key];
+                    const dim =
+                      g.sheetWidthM && g.sheetHeightM
+                        ? ` · ${Math.round(g.sheetWidthM * 100)}×${Math.round(
+                            g.sheetHeightM * 100,
+                          )} cm`
+                        : "";
+                    return (
+                      <div
+                        key={g.key}
+                        className="flex items-center justify-between gap-3 p-2 border border-ink/15 rounded-sm bg-paper font-mono text-[11px]"
+                      >
+                        <div className="flex-1 min-w-0 truncate">
+                          <span className="font-semibold">{g.label}</span>
+                          <span className="text-muted-foreground">{dim}</span>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="tabular-nums">
+                            <strong>{sheets}</strong>{" "}
+                            <span className="text-muted-foreground">lastre</span>
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            sfrido {leftoverM2.toFixed(2)} m²
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {eur(extra)}
+                          </span>
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setState({
+                                  ...state,
+                                  nestingState: {
+                                    ...(state.nestingState ?? {}),
+                                    chargeNestingScrap: {
+                                      ...(state.nestingState
+                                        ?.chargeNestingScrap ?? {}),
+                                      [g.key]: e.target.checked,
+                                    },
+                                  },
+                                })
+                              }
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="uppercase tracking-wider text-[10px]">
+                              Addebita sfrido
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {perPieceTotals.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
                 <div className="label-cap mb-2">Prezzo per lavorazione</div>

@@ -338,7 +338,7 @@ const explodePieces = (
     // con cuciture verticali (destra↔sinistra), mai sopra/sotto.
     const shape = p.shape ?? "rect";
     const isRect = shape === "rect";
-    const allowSplit = p.allowSplit !== false;
+    const allowSplit = p.allowSplit === true;
     if (materialFormat === "rotolo" && isRect && rollWidthM > 0 && allowSplit) {
       type Orientation = {
         crossM: number;
@@ -823,16 +823,24 @@ const computeGroup = (
   };
 
   if (!picked) return empty;
-  const rollWidthM = picked.heightM;
+  // Rotazione della lastra (scambia base ↔ altezza del foglio).
+  // Per coerenza nel gruppo prendo il flag dal primo pezzo.
+  const sheetRotated = !!pieces[0]?.rotateSheet && (picked.material.format === "lastra");
 
   // Pre-calcolo sheetH per format=lastra (serve allo split nelle lastre)
   const fmt0 = picked.material.format ?? "rotolo";
   let preSheetH = 0;
+  let preRollWidthM = picked.heightM;
   if (fmt0 === "lastra") {
     const u = (picked.material.dimUnit || picked.material.heightUnit || "cm") as DimUnit;
     const sheetHRaw = parseFloat(String(picked.material.height || "0").replace(",", "."));
-    preSheetH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
+    const sheetWRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
+    const baseW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : picked.heightM;
+    const baseH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : picked.heightM;
+    preRollWidthM = sheetRotated ? baseH : baseW;
+    preSheetH = sheetRotated ? baseW : baseH;
   }
+  const rollWidthM = preRollWidthM;
   // Esplodo per quantity
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,
@@ -864,8 +872,11 @@ const computeGroup = (
     const sheetWRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
     // rollWidthM (=picked.heightM) è ricavato dal campo "height" della variante. Per le
     // lastre interpretiamo: larghezza foglio = baseWidth, altezza foglio = height.
-    const sheetW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : rollWidthM;
-    const sheetH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
+    // Se sheetRotated, base e altezza vengono scambiate.
+    const baseW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : rollWidthM;
+    const baseH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
+    const sheetW = sheetRotated ? baseH : baseW;
+    const sheetH = sheetRotated ? baseW : baseH;
     sheetHeightAuto = sheetH;
     const packed = multiSheetPack(units, sheetW, sheetH);
     items = packed.items;
@@ -885,8 +896,11 @@ const computeGroup = (
     format === "lastra"
       ? (() => {
           const u = (picked.material.dimUnit || picked.material.heightUnit || "cm") as DimUnit;
-          const w = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
-          return w > 0 ? w * factorOf(u) : rollWidthM;
+          const wRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
+          const hRaw = parseFloat(String(picked.material.height || "0").replace(",", "."));
+          const w = wRaw > 0 ? wRaw * factorOf(u) : rollWidthM;
+          const h = hRaw > 0 ? hRaw * factorOf(u) : rollWidthM;
+          return sheetRotated ? h : w;
         })()
       : rollWidthM;
   const totalAreaM2 = surfaceWidthM * totalLengthM;

@@ -216,14 +216,19 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
     const pieceHM = mat.pieceHeightM;
     const heightM = convertLength(parseFloat(String(activeVariant.height).replace(",", ".")) || 0, u, "m");
     if (activeVariant.format === "lastra") {
-      const baseM = convertLength(parseFloat(String(activeVariant.baseWidth || "0").replace(",", ".")) || 0, u, "m");
-      if (baseM <= 0 || heightM <= 0) return { fits: true, msg: "" };
-      const fitsNormal = pieceWM <= baseM && pieceHM <= heightM;
-      const fitsRot = !!line.allowRotation && pieceHM <= baseM && pieceWM <= heightM;
+      const baseRaw = convertLength(parseFloat(String(activeVariant.baseWidth || "0").replace(",", ".")) || 0, u, "m");
+      const heightRaw = heightM;
+      const baseM = line.rotateSheet ? heightRaw : baseRaw;
+      const sheetHM = line.rotateSheet ? baseRaw : heightRaw;
+      if (baseM <= 0 || sheetHM <= 0) return { fits: true, msg: "" };
+      const fitsNormal = pieceWM <= baseM && pieceHM <= sheetHM;
+      const fitsRot = !!line.allowRotation && pieceHM <= baseM && pieceWM <= sheetHM;
       if (fitsNormal || fitsRot) return { fits: true, msg: "" };
+      const dispW = line.rotateSheet ? activeVariant.height : activeVariant.baseWidth;
+      const dispH = line.rotateSheet ? activeVariant.baseWidth : activeVariant.height;
       return {
         fits: false,
-        msg: `Il pezzo (${fmtM(pieceWM)} × ${fmtM(pieceHM)} m con margini) non entra nel formato lastra ${activeVariant.baseWidth} × ${activeVariant.height} ${u}`,
+        msg: `Il pezzo (${fmtM(pieceWM)} × ${fmtM(pieceHM)} m con margini) non entra nel formato lastra ${dispW} × ${dispH} ${u}${line.rotateSheet ? " (lastra ruotata)" : ""}`,
       };
     }
     if (activeVariant.format === "rotolo") {
@@ -237,7 +242,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
       };
     }
     return { fits: true, msg: "" };
-  }, [activeVariant, mat.pieceWidthM, mat.pieceHeightM, line.allowRotation]);
+  }, [activeVariant, mat.pieceWidthM, mat.pieceHeightM, line.allowRotation, line.rotateSheet]);
 
   const perimetersTotal = useMemo(
     () => piecePerimetersTotal(line, catalog, customerType),
@@ -858,19 +863,19 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <label className="label-cap block mb-1">Dividi pannello</label>
             <button
               type="button"
-              onClick={() => onChange({ ...line, allowSplit: line.allowSplit === false })}
+              onClick={() => onChange({ ...line, allowSplit: line.allowSplit !== true })}
               className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 border-2 rounded-sm text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                line.allowSplit !== false
+                line.allowSplit === true
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-ink/40 text-ink/60 hover:border-ink hover:text-ink"
               }`}
-              title="Se attivo il sistema può spezzare il pezzo in più pannelli affiancati (con cucitura/giuntura). Se disattivo, il pezzo deve entrare interamente nella misura della lastra/rullo, altrimenti viene segnalato come non piazzabile."
+              title="Se attivo il sistema può spezzare il pezzo in più pannelli affiancati (con cucitura/giuntura). Se disattivo (default), il pezzo deve entrare interamente nella misura della lastra/rullo, altrimenti viene segnalato come non piazzabile."
             >
               <Scissors className="w-3.5 h-3.5" />
-              {line.allowSplit !== false ? "Divisibile" : "Indivisibile"}
+              {line.allowSplit === true ? "Divisibile" : "Indivisibile"}
             </button>
             <div className="mt-1 font-mono text-[10px] text-muted-foreground">
-              {line.allowSplit !== false
+              {line.allowSplit === true
                 ? "Il sistema può spezzare il pezzo in più pannelli."
                 : "Il pezzo deve entrare intero: se non sta nella lastra/rullo viene segnalato come non piazzabile."}
             </div>
@@ -979,19 +984,36 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <label className="label-cap block mb-1">
               Variante listino · {variantOptions[0]?.format === "lastra" ? "formato (B × H)" : "altezza"}
             </label>
-            <select
-              value={line.variantId ?? (mat.material?.id ?? "")}
-              onChange={(e) => onChange({ ...line, variantId: e.target.value || null })}
-              disabled={variantOptions.length === 0}
-              className="input-bare w-full text-sm bg-paper disabled:opacity-50"
-            >
-              <option value="">— automatica (più conveniente) —</option>
-              {variantOptions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {variantLabel(v)}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-1.5">
+              <select
+                value={line.variantId ?? (mat.material?.id ?? "")}
+                onChange={(e) => onChange({ ...line, variantId: e.target.value || null })}
+                disabled={variantOptions.length === 0}
+                className="input-bare flex-1 text-sm bg-paper disabled:opacity-50"
+              >
+                <option value="">— automatica (più conveniente) —</option>
+                {variantOptions.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {variantLabel(v)}{line.rotateSheet && v.format === "lastra" ? " ↻" : ""}
+                  </option>
+                ))}
+              </select>
+              {(activeVariant?.format === "lastra" || variantOptions[0]?.format === "lastra") && (
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...line, rotateSheet: !line.rotateSheet })}
+                  title="Ruota la lastra del listino scambiando base ↔ altezza (es. 305×122 → 122×305). Il nesting userà le nuove misure."
+                  className={`shrink-0 inline-flex items-center justify-center gap-1 px-2.5 border-2 rounded-sm text-[10px] uppercase tracking-wider font-bold transition-colors ${
+                    line.rotateSheet
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-ink/40 text-ink/60 hover:border-ink hover:text-ink"
+                  }`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {line.rotateSheet ? "Ruotata" : "Ruota"}
+                </button>
+              )}
+            </div>
             {!fitCheck.fits && (
               <div className={`mt-1.5 px-2 py-1.5 border rounded-sm text-[10px] ${
                 line.bypassFitCheck

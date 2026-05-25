@@ -72,14 +72,134 @@ export const SocialPanel = () => {
       img.src = src;
     });
 
-  // Brand colors: primary turquoise 0,163,172 (#00A3AC), secondary black, tertiary white
-  const composeBrandedImage = async (bgUrl: string, productImgUrl: string, productName: string, mode: "scene" | "clean"): Promise<string> => {
+  // Brand colors: primary turquoise #00A3AC, secondary black, tertiary white
+  type ComposeOpts = {
+    bgUrl: string;
+    productImgUrl: string;
+    productName: string;
+    mode: "scene" | "clean" | "editorial";
+    headline?: string;
+    headlineAccent?: string;
+    subtitle?: string;
+    cta?: string;
+  };
+
+  const composeBrandedImage = async (opts: ComposeOpts): Promise<string> => {
+    const { bgUrl, productImgUrl, productName, mode } = opts;
     const SIZE = 1080;
     const canvas = document.createElement("canvas");
     canvas.width = SIZE; canvas.height = SIZE;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas non disponibile");
 
+    // ===== EDITORIAL (Tecnofra Facebook style) =====
+    if (mode === "editorial") {
+      // 1) background = product photo darkened + blurred
+      try {
+        const bg = await loadImg(productImgUrl);
+        const ratio = Math.max(SIZE / bg.width, SIZE / bg.height);
+        const w = bg.width * ratio, h = bg.height * ratio;
+        ctx.filter = "blur(2px) brightness(0.55) saturate(0.9)";
+        ctx.drawImage(bg, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+        ctx.filter = "none";
+      } catch {
+        ctx.fillStyle = "#1a2329"; ctx.fillRect(0, 0, SIZE, SIZE);
+      }
+      const gr = ctx.createLinearGradient(0, 0, 0, SIZE);
+      gr.addColorStop(0, "rgba(10,18,22,0.85)");
+      gr.addColorStop(0.5, "rgba(10,18,22,0.25)");
+      gr.addColorStop(1, "rgba(10,18,22,0.85)");
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, SIZE, SIZE);
+
+      // 2) sharp product photo centered
+      try {
+        const prod = await loadImg(productImgUrl);
+        const targetBox = SIZE * 0.55;
+        const r = Math.min(targetBox / prod.width, targetBox / prod.height);
+        const pw = prod.width * r, ph = prod.height * r;
+        const px = (SIZE - pw) / 2;
+        const py = SIZE * 0.42;
+        ctx.drawImage(prod, px, py, pw, ph);
+      } catch (e) { console.warn("product img fail", e); }
+
+      // 3) HEADLINE (bold condensed, accent word turquoise)
+      const headlineText = (opts.headline || productName).toUpperCase();
+      const accent = (opts.headlineAccent || "").toUpperCase().trim();
+      ctx.textBaseline = "top";
+      ctx.font = '900 96px "Impact", "Oswald", "Arial Narrow", sans-serif';
+      const words = headlineText.split(" ");
+      const maxW = SIZE - 100;
+      const lines: string[] = [];
+      let line = "";
+      for (const w of words) {
+        const test = line ? line + " " + w : w;
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
+      }
+      if (line) lines.push(line);
+      const startY = 60;
+      const lineH = 96;
+      lines.slice(0, 3).forEach((l, i) => {
+        const totalW = ctx.measureText(l).width;
+        let x = (SIZE - totalW) / 2;
+        const y = startY + i * lineH;
+        const lw = l.split(" ");
+        for (let k = 0; k < lw.length; k++) {
+          const w = lw[k];
+          const segW = ctx.measureText(w).width;
+          const spaceW = k < lw.length - 1 ? ctx.measureText(" ").width : 0;
+          ctx.fillStyle = accent && w === accent ? "#00C8D1" : "#FFFFFF";
+          ctx.shadowColor = "rgba(0,0,0,0.6)";
+          ctx.shadowBlur = 12;
+          ctx.fillText(w, x, y);
+          ctx.shadowBlur = 0;
+          x += segW + spaceW;
+        }
+      });
+
+      // 4) SUBTITLE italic
+      const sub = opts.subtitle || "";
+      if (sub) {
+        ctx.font = 'italic 500 52px "Georgia", "Times New Roman", serif';
+        ctx.fillStyle = "#FFFFFF";
+        ctx.shadowColor = "rgba(0,0,0,0.55)";
+        ctx.shadowBlur = 10;
+        const sw = ctx.measureText(sub).width;
+        const subY = startY + lines.slice(0, 3).length * lineH + 8;
+        ctx.fillText(sub, (SIZE - sw) / 2, subY);
+        ctx.shadowBlur = 0;
+      }
+
+      // 5) Bottom black bar with CTA + logo
+      const BAR_H = 130;
+      ctx.fillStyle = "#0A1216"; ctx.fillRect(0, SIZE - BAR_H, SIZE, BAR_H);
+      ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - BAR_H, SIZE, 3);
+
+      ctx.font = '600 32px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = "#00C8D1";
+      ctx.fillText("🔧", 50, SIZE - BAR_H + 46);
+
+      let ctaText = (opts.cta || "CONSULENZA GRATUITA").toUpperCase();
+      ctx.font = '800 26px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = "#FFFFFF";
+      const maxCtaW = SIZE - 380;
+      while (ctx.measureText(ctaText).width > maxCtaW && ctaText.length > 8) ctaText = ctaText.slice(0, -2);
+      ctx.fillText(ctaText, 110, SIZE - BAR_H + 52);
+
+      try {
+        const logo = await loadImg("/tecnofra-logo.ico");
+        const lh = 70;
+        const lw = (logo.width / logo.height) * lh;
+        ctx.drawImage(logo, SIZE - lw - 40, SIZE - BAR_H + (BAR_H - lh) / 2, lw, lh);
+      } catch {
+        ctx.font = '900 32px "Impact", sans-serif';
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText("TECNOFRA", SIZE - 220, SIZE - BAR_H + 50);
+      }
+
+      return canvas.toDataURL("image/png");
+    }
+
+    // ===== SCENE / CLEAN =====
     if (mode === "scene") {
       try {
         const bg = await loadImg(bgUrl);
@@ -90,25 +210,17 @@ export const SocialPanel = () => {
         ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, SIZE, SIZE);
       }
     } else {
-      // CLEAN: white bg with diagonal turquoise stripes top-right + black footer band
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, SIZE, SIZE);
-      // diagonal turquoise stripes in top-right corner
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, SIZE, SIZE);
       ctx.save();
       ctx.fillStyle = "#00A3AC";
       ctx.translate(SIZE, 0);
       ctx.rotate(Math.PI / 4);
       for (let i = 0; i < 6; i++) ctx.fillRect(-200 + i * 60, -300, 24, 600);
       ctx.restore();
-      // black bottom band
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, SIZE - 260, SIZE, 260);
-      // turquoise top divider on band
-      ctx.fillStyle = "#00A3AC";
-      ctx.fillRect(0, SIZE - 264, SIZE, 4);
+      ctx.fillStyle = "#000000"; ctx.fillRect(0, SIZE - 260, SIZE, 260);
+      ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - 264, SIZE, 4);
     }
 
-    // product photo (original, untouched)
     try {
       const prod = await loadImg(productImgUrl);
       const targetBox = SIZE * (mode === "clean" ? 0.58 : 0.62);
@@ -125,7 +237,6 @@ export const SocialPanel = () => {
       ctx.drawImage(prod, px, py, pw, ph);
     } catch (e) { console.warn("product image fail", e); }
 
-    // logo top-left
     try {
       const logo = await loadImg("/tecnofra-logo.ico");
       const lh = mode === "clean" ? 80 : 72;
@@ -138,7 +249,6 @@ export const SocialPanel = () => {
       ctx.fillText("TECNOFRA", 48, 60);
     }
 
-    // bottom: product name
     if (mode === "scene") {
       const grad = ctx.createLinearGradient(0, SIZE - 320, 0, SIZE);
       grad.addColorStop(0, "rgba(0,0,0,0)");

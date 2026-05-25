@@ -53,6 +53,75 @@ export const SocialPanel = () => {
 
   useEffect(() => { loadProducts(); }, []);
 
+  const composeBrandedImage = (baseUrl: string, productName: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const SIZE = 1080;
+      const canvas = document.createElement("canvas");
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas non disponibile"));
+
+      const base = new Image();
+      base.crossOrigin = "anonymous";
+      base.onload = () => {
+        // background
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        // cover the canvas with base image
+        const ratio = Math.max(SIZE / base.width, SIZE / base.height);
+        const w = base.width * ratio;
+        const h = base.height * ratio;
+        ctx.drawImage(base, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+
+        // top-left brand chip
+        ctx.fillStyle = "#00A3AC";
+        ctx.fillRect(40, 40, 220, 56);
+        ctx.fillStyle = "#000000";
+        ctx.font = "700 26px Inter, system-ui, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.fillText("TECNOFRA", 60, 70);
+
+        // bottom gradient for readability
+        const grad = ctx.createLinearGradient(0, SIZE - 360, 0, SIZE);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(1, "rgba(0,0,0,0.92)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, SIZE - 360, SIZE, 360);
+
+        // turquoise accent bar
+        ctx.fillStyle = "#00A3AC";
+        ctx.fillRect(50, SIZE - 180, 80, 6);
+
+        // product name wrapping
+        const drawWrapped = (text: string, x: number, y: number, maxW: number, lineH: number, maxLines: number) => {
+          const words = text.toUpperCase().split(" ");
+          let line = "";
+          const lines: string[] = [];
+          for (const w of words) {
+            const test = line ? line + " " + w : w;
+            if (ctx.measureText(test).width > maxW && line) {
+              lines.push(line);
+              line = w;
+            } else line = test;
+          }
+          if (line) lines.push(line);
+          const shown = lines.slice(0, maxLines);
+          if (lines.length > maxLines) shown[maxLines - 1] = shown[maxLines - 1].replace(/.{0,3}$/, "…");
+          shown.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
+        };
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.textBaseline = "top";
+        ctx.font = "800 56px Inter, system-ui, sans-serif";
+        drawWrapped(productName, 50, SIZE - 160, SIZE - 100, 64, 3);
+
+        resolve(canvas.toDataURL("image/png"));
+      };
+      base.onerror = () => reject(new Error("Impossibile caricare l'immagine generata"));
+      base.src = baseUrl;
+    });
+
   const generate = async (mode: "caption" | "image" | "all") => {
     if (!selected) return toast.error("Seleziona un prodotto");
     setGenerating(mode);
@@ -67,7 +136,14 @@ export const SocialPanel = () => {
         setHashtags(data.hashtags || []);
       }
       if (mode !== "caption" && data.imageDataUrl) {
-        setImageDataUrl(data.imageDataUrl);
+        try {
+          const branded = await composeBrandedImage(data.imageDataUrl, selected.name);
+          setImageDataUrl(branded);
+        } catch (err: any) {
+          console.error(err);
+          setImageDataUrl(data.imageDataUrl);
+          toast.warning("Immagine generata ma overlay brand non applicato");
+        }
       }
       toast.success("Generato");
     } catch (e: any) {

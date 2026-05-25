@@ -115,10 +115,20 @@ Deno.serve(async (req) => {
 
   try {
     const PAGE_ID = Deno.env.get('META_PAGE_ID');
-    const TOKEN = Deno.env.get('META_PAGE_ACCESS_TOKEN');
+    const CONFIGURED_TOKEN = Deno.env.get('META_PAGE_ACCESS_TOKEN');
     const IG_ID = Deno.env.get('META_IG_BUSINESS_ID');
-    if (!PAGE_ID || !TOKEN || !IG_ID) {
+    if (!PAGE_ID || !CONFIGURED_TOKEN || !IG_ID) {
       return jsonResponse({ error: 'Configurare i secret META_PAGE_ID, META_PAGE_ACCESS_TOKEN, META_IG_BUSINESS_ID' }, 400);
+    }
+
+    const { token: TOKEN, tokenSource, page } = await resolvePageAccessToken(PAGE_ID, CONFIGURED_TOKEN);
+    const linkedIgId = page?.instagram_business_account?.id ? String(page.instagram_business_account.id) : '';
+    const effectiveIgId = linkedIgId || IG_ID;
+    if (IG_ID && linkedIgId && String(IG_ID) !== linkedIgId) {
+      console.warn('META_IG_BUSINESS_ID diverso dall’account Instagram collegato alla pagina; uso account collegato alla pagina', {
+        configuredIgId: IG_ID,
+        linkedIgId,
+      });
     }
 
     const { slides, caption, targets = ['facebook', 'instagram'] } = await req.json() as {
@@ -170,20 +180,20 @@ Deno.serve(async (req) => {
     // 3) Instagram
     if (targets.includes('instagram')) {
       if (publicUrls.length === 1) {
-        const c = await metaPost(`/${IG_ID}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
-        results.instagram = await metaPost(`/${IG_ID}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
+        const c = await metaPost(`/${effectiveIgId}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
+        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
       } else {
         const children: string[] = [];
         for (const u of publicUrls) {
-          const c = await metaPost(`/${IG_ID}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
+          const c = await metaPost(`/${effectiveIgId}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
           children.push(c.id);
         }
-        const carousel = await metaPost(`/${IG_ID}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
-        results.instagram = await metaPost(`/${IG_ID}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
+        const carousel = await metaPost(`/${effectiveIgId}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
+        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
       }
     }
 
-    return jsonResponse({ ok: true, urls: publicUrls, results });
+    return jsonResponse({ ok: true, urls: publicUrls, results, meta: { tokenSource, instagramId: effectiveIgId } });
   } catch (e) {
     if (e instanceof MetaApiError) return jsonResponse(friendlyMetaError(e));
     return jsonResponse({ error: String(e instanceof Error ? e.message : e) }, 500);

@@ -100,6 +100,15 @@ const friendlyMetaError = (error: MetaApiError) => {
       meta: { step: error.step, code: meta.code, type: meta.type, fbtrace_id: meta.fbtrace_id },
     };
   }
+  if (meta?.code === 200 && message.includes('pages_manage_posts')) {
+    return {
+      ok: false,
+      code: 'META_FACEBOOK_PERMISSION_UNAVAILABLE',
+      error: 'Facebook non autorizzato: i permessi pages_read_engagement e pages_manage_posts non sono disponibili per questo token/app Meta.',
+      action: 'Il codice è corretto, ma Meta sta rifiutando il token. Nell’app Meta devi essere Admin/Tester in Development mode oppure avere App Review approvata per pages_manage_posts e pages_read_engagement. Poi genera un nuovo Page Access Token dalla pagina Tecnofra.',
+      meta: { step: error.step, code: meta.code, type: meta.type, fbtrace_id: meta.fbtrace_id },
+    };
+  }
   if (meta?.code === 100 && meta?.error_subcode === 33) {
     return {
       ok: false,
@@ -166,42 +175,52 @@ Deno.serve(async (req) => {
     }
 
     const results: any = { facebook: null, instagram: null };
+    const errors: any = {};
 
     // 2) Facebook
     if (targets.includes('facebook')) {
-      if (publicUrls.length === 1) {
-        results.facebook = await metaPost(`/${PAGE_ID}/photos`, { url: publicUrls[0], caption }, TOKEN, 'Facebook foto');
-      } else {
-        // upload each as unpublished, then create a feed post linking them
-        const mediaIds: string[] = [];
-        for (const u of publicUrls) {
-          const j = await metaPost(`/${PAGE_ID}/photos`, { url: u, published: false }, TOKEN, 'Facebook upload');
-          mediaIds.push(j.id);
+      try {
+        if (publicUrls.length === 1) {
+          results.facebook = await metaPost(`/${PAGE_ID}/photos`, { url: publicUrls[0], caption }, TOKEN, 'Facebook foto');
+        } else {
+          // upload each as unpublished, then create a feed post linking them
+          const mediaIds: string[] = [];
+          for (const u of publicUrls) {
+            const j = await metaPost(`/${PAGE_ID}/photos`, { url: u, published: false }, TOKEN, 'Facebook upload');
+            mediaIds.push(j.id);
+          }
+          results.facebook = await metaPost(`/${PAGE_ID}/feed`, {
+            message: caption,
+            attached_media: mediaIds.map((id) => ({ media_fbid: id })),
+          }, TOKEN, 'Facebook feed');
         }
-        results.facebook = await metaPost(`/${PAGE_ID}/feed`, {
-          message: caption,
-          attached_media: mediaIds.map((id) => ({ media_fbid: id })),
-        }, TOKEN, 'Facebook feed');
+      } catch (e) {
+        errors.facebook = e instanceof MetaApiError ? friendlyMetaError(e) : { error: String(e) };
       }
     }
 
     // 3) Instagram
     if (targets.includes('instagram')) {
-      if (publicUrls.length === 1) {
-        const c = await metaPost(`/${effectiveIgId}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
-        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
-      } else {
-        const children: string[] = [];
-        for (const u of publicUrls) {
-          const c = await metaPost(`/${effectiveIgId}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
-          children.push(c.id);
+      try {
+        if (publicUrls.length === 1) {
+          const c = await metaPost(`/${effectiveIgId}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
+          results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
+        } else {
+          const children: string[] = [];
+          for (const u of publicUrls) {
+            const c = await metaPost(`/${effectiveIgId}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
+            children.push(c.id);
+          }
+          const carousel = await metaPost(`/${effectiveIgId}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
+          results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
         }
-        const carousel = await metaPost(`/${effectiveIgId}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
-        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
+      } catch (e) {
+        errors.instagram = e instanceof MetaApiError ? friendlyMetaError(e) : { error: String(e) };
       }
     }
 
-    return jsonResponse({ ok: true, urls: publicUrls, results, meta: { tokenSource, instagramId: effectiveIgId } });
+    const succeeded = Object.values(results).some(Boolean);
+    return jsonResponse({ ok: succeeded, urls: publicUrls, results, errors, meta: { tokenSource, instagramId: effectiveIgId } }, succeeded ? 200 : 400);
   } catch (e) {
     if (e instanceof MetaApiError) return jsonResponse(friendlyMetaError(e));
     return jsonResponse({ error: String(e instanceof Error ? e.message : e) }, 500);

@@ -500,6 +500,9 @@ export const SocialPanel = () => {
                   {generating === "image" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
                   Solo immagine
                 </Button>
+                <Button variant="secondary" onClick={recompose} disabled={!!generating || !selected} className="gap-2">
+                  <RefreshCw className="w-4 h-4" /> Ricomponi
+                </Button>
               </div>
             </div>
 

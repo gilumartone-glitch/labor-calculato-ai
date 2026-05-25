@@ -20,6 +20,15 @@ type WooProduct = {
 
 type Slide = { id: string; productId: number; productName: string; dataUrl: string; style: "scene" | "clean" | "editorial" };
 
+type PublishResponse = {
+  ok?: boolean;
+  error?: string;
+  action?: string;
+  code?: string;
+  urls?: string[];
+  results?: unknown;
+};
+
 export const SocialPanel = () => {
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<WooProduct[]>([]);
@@ -380,7 +389,11 @@ export const SocialPanel = () => {
         body: { slides: slidesToPublish, caption: fullCaption, targets: t },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const result = data as PublishResponse | null;
+      if (result?.ok === false || result?.error) {
+        const message = result.action ? `${result.error}\n${result.action}` : result.error;
+        throw new Error(message || "Errore pubblicazione");
+      }
       toast.success("Pubblicato!");
       console.log("publish result", data);
     } catch (e: any) {

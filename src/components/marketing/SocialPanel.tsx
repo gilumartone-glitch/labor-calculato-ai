@@ -53,74 +53,105 @@ export const SocialPanel = () => {
 
   useEffect(() => { loadProducts(); }, []);
 
-  const composeBrandedImage = (baseUrl: string, productName: string): Promise<string> =>
+  const loadImg = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
-      const SIZE = 1080;
-      const canvas = document.createElement("canvas");
-      canvas.width = SIZE;
-      canvas.height = SIZE;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas non disponibile"));
-
-      const base = new Image();
-      base.crossOrigin = "anonymous";
-      base.onload = () => {
-        // background
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(0, 0, SIZE, SIZE);
-        // cover the canvas with base image
-        const ratio = Math.max(SIZE / base.width, SIZE / base.height);
-        const w = base.width * ratio;
-        const h = base.height * ratio;
-        ctx.drawImage(base, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-
-        // top-left brand chip
-        ctx.fillStyle = "#00A3AC";
-        ctx.fillRect(40, 40, 220, 56);
-        ctx.fillStyle = "#000000";
-        ctx.font = "700 26px Inter, system-ui, sans-serif";
-        ctx.textBaseline = "middle";
-        ctx.fillText("TECNOFRA", 60, 70);
-
-        // bottom gradient for readability
-        const grad = ctx.createLinearGradient(0, SIZE - 360, 0, SIZE);
-        grad.addColorStop(0, "rgba(0,0,0,0)");
-        grad.addColorStop(1, "rgba(0,0,0,0.92)");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, SIZE - 360, SIZE, 360);
-
-        // turquoise accent bar
-        ctx.fillStyle = "#00A3AC";
-        ctx.fillRect(50, SIZE - 180, 80, 6);
-
-        // product name wrapping
-        const drawWrapped = (text: string, x: number, y: number, maxW: number, lineH: number, maxLines: number) => {
-          const words = text.toUpperCase().split(" ");
-          let line = "";
-          const lines: string[] = [];
-          for (const w of words) {
-            const test = line ? line + " " + w : w;
-            if (ctx.measureText(test).width > maxW && line) {
-              lines.push(line);
-              line = w;
-            } else line = test;
-          }
-          if (line) lines.push(line);
-          const shown = lines.slice(0, maxLines);
-          if (lines.length > maxLines) shown[maxLines - 1] = shown[maxLines - 1].replace(/.{0,3}$/, "…");
-          shown.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
-        };
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textBaseline = "top";
-        ctx.font = "800 56px Inter, system-ui, sans-serif";
-        drawWrapped(productName, 50, SIZE - 160, SIZE - 100, 64, 3);
-
-        resolve(canvas.toDataURL("image/png"));
-      };
-      base.onerror = () => reject(new Error("Impossibile caricare l'immagine generata"));
-      base.src = baseUrl;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("img load fail: " + src));
+      img.src = src;
     });
+
+  const composeBrandedImage = async (bgUrl: string, productImgUrl: string, productName: string): Promise<string> => {
+    const SIZE = 1080;
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas non disponibile");
+
+    // 1) background (AI scene) — fallback to solid black
+    try {
+      const bg = await loadImg(bgUrl);
+      const ratio = Math.max(SIZE / bg.width, SIZE / bg.height);
+      const w = bg.width * ratio;
+      const h = bg.height * ratio;
+      ctx.drawImage(bg, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+    } catch {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, SIZE, SIZE);
+    }
+
+    // 2) product photo (original, untouched) — CONTAIN, centered, ~62% of canvas
+    try {
+      // proxy through woo-products endpoint if direct load fails (Cloudflare/CORS)
+      let prod: HTMLImageElement;
+      try { prod = await loadImg(productImgUrl); }
+      catch {
+        const proxied = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woo-products?image=${encodeURIComponent(productImgUrl)}`;
+        prod = await loadImg(proxied);
+      }
+      const targetBox = SIZE * 0.62;
+      const r = Math.min(targetBox / prod.width, targetBox / prod.height);
+      const pw = prod.width * r;
+      const ph = prod.height * r;
+      const px = (SIZE - pw) / 2;
+      const py = (SIZE - ph) / 2 - 40; // shift up to leave room for caption
+      // subtle shadow plate
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(SIZE / 2, py + ph + 30, pw / 2.2, 24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.drawImage(prod, px, py, pw, ph);
+    } catch (e) {
+      console.warn("product image load failed", e);
+    }
+
+    // 3) Tecnofra logo (real favicon) top-left
+    try {
+      const logo = await loadImg("/tecnofra-logo.ico");
+      const lh = 72;
+      const lw = (logo.width / logo.height) * lh;
+      ctx.drawImage(logo, 48, 48, lw, lh);
+    } catch {
+      // fallback text logo
+      ctx.fillStyle = "#00A3AC";
+      ctx.font = "800 32px Inter, system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText("TECNOFRA", 48, 60);
+    }
+
+    // 4) bottom gradient + product name
+    const grad = ctx.createLinearGradient(0, SIZE - 320, 0, SIZE);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.95)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, SIZE - 320, SIZE, 320);
+
+    ctx.fillStyle = "#00A3AC";
+    ctx.fillRect(50, SIZE - 170, 80, 5);
+
+    const drawWrapped = (text: string, x: number, y: number, maxW: number, lineH: number, maxLines: number) => {
+      const words = text.toUpperCase().split(" ");
+      let line = "";
+      const lines: string[] = [];
+      for (const w of words) {
+        const test = line ? line + " " + w : w;
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      const shown = lines.slice(0, maxLines);
+      if (lines.length > maxLines) shown[maxLines - 1] = shown[maxLines - 1].replace(/.{0,3}$/, "…");
+      shown.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
+    };
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textBaseline = "top";
+    ctx.font = "800 54px Inter, system-ui, sans-serif";
+    drawWrapped(productName, 50, SIZE - 150, SIZE - 100, 62, 2);
+
+    return canvas.toDataURL("image/png");
+  };
 
   const generate = async (mode: "caption" | "image" | "all") => {
     if (!selected) return toast.error("Seleziona un prodotto");
@@ -135,14 +166,17 @@ export const SocialPanel = () => {
         setCaption(data.caption || "");
         setHashtags(data.hashtags || []);
       }
-      if (mode !== "caption" && data.imageDataUrl) {
+      if (mode !== "caption") {
         try {
-          const branded = await composeBrandedImage(data.imageDataUrl, selected.name);
+          const branded = await composeBrandedImage(
+            data.imageDataUrl || "",
+            selected.images?.[0]?.src || "",
+            selected.name,
+          );
           setImageDataUrl(branded);
         } catch (err: any) {
           console.error(err);
-          setImageDataUrl(data.imageDataUrl);
-          toast.warning("Immagine generata ma overlay brand non applicato");
+          toast.warning("Overlay non riuscito: " + (err.message || ""));
         }
       }
       toast.success("Generato");

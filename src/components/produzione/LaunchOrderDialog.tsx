@@ -209,7 +209,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     }
   };
 
-  const { cliente, data, note, depts, deptNotes, deptAssignees, attachments, nesting, priorita, delivery, warehouseOnly, magazzinoNote } = form;
+  const { cliente, production_name, customer_order_ref, data, note, depts, deptNotes, deptAssignees, attachments, nesting, priorita, delivery, warehouseOnly, magazzinoNote } = form;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

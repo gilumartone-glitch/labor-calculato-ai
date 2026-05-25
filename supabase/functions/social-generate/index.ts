@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
       mode?: 'caption' | 'image' | 'all';
       tone?: string;
       extraPrompt?: string;
-      background?: 'scene' | 'clean';
+      background?: 'scene' | 'clean' | 'editorial';
     };
 
     if (!product?.name) {
@@ -31,12 +31,16 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
 
     let caption = '';
     let hashtags: string[] = [];
+    let headline = '';
+    let headlineAccent = '';
+    let subtitle = '';
+    let cta = '';
     let imageDataUrl = '';
 
-    // 1) Caption + hashtags
+    // 1) Caption + hashtags + editorial copy (headline, accent word, italic subtitle, CTA)
     if (mode === 'caption' || mode === 'all') {
-      const sysPrompt = `Sei un social media manager italiano per Tecnofra, azienda di allestimenti tecnici, stampa e laboratorio teatrale. Crea contenuti per Instagram e Facebook che vanno bene per entrambi (massimo 2200 caratteri). Tono: ${tone}. Coerenza di brand: serio, competente, italiano, mai emoji eccessive (max 3-4). Rispondi SOLO con JSON valido nella forma {"caption":"...","hashtags":["tag1","tag2",...]}. Gli hashtag senza # e in minuscolo, da 15 a 25, mix di brand (tecnofra, allestimenti, palcoscenico), categoria prodotto e generici di settore.`;
-      const userPrompt = `${productCtx}\n\n${extraPrompt ? `Indicazioni extra: ${extraPrompt}\n\n` : ''}Genera caption + hashtags.`;
+      const sysPrompt = `Sei il social media manager italiano di Tecnofra (allestimenti tecnici, palcoscenico, laboratorio). Stile brand: serio, competente, leggermente provocatorio nei titoli. Rispondi SOLO con JSON: {"caption":"...","hashtags":["..."],"headline":"FRASE TUTTA MAIUSCOLA BREVE (max 6 parole) AD EFFETTO","headlineAccent":"UNA SOLA PAROLA della headline da evidenziare in turchese","subtitle":"sottotitolo italico breve di 3-7 parole, in minuscolo, evocativo (es. 'quella giusta... no.')","cta":"call to action breve in maiuscolo per la barra inferiore (max 8 parole, es. 'CONSULENZA GRATUITA PER LA SCELTA DELLA RUOTA')"}. caption max 2200 char, hashtag 15-25 senza # in minuscolo. headlineAccent DEVE essere una parola presente in headline. Tono: ${tone}.`;
+      const userPrompt = `${productCtx}\n\n${extraPrompt ? `Indicazioni extra: ${extraPrompt}\n\n` : ''}Genera caption + hashtag + headline editoriale + sottotitolo + CTA per post Instagram/Facebook stile Tecnofra.`;
 
       const r = await fetch(AI_URL, {
         method: 'POST',
@@ -56,6 +60,10 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
         const parsed = JSON.parse(j.choices?.[0]?.message?.content ?? '{}');
         caption = parsed.caption ?? '';
         hashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags.map((h: string) => String(h).replace(/^#/, '').toLowerCase()) : [];
+        headline = String(parsed.headline ?? '').toUpperCase();
+        headlineAccent = String(parsed.headlineAccent ?? '').toUpperCase();
+        subtitle = String(parsed.subtitle ?? '');
+        cta = String(parsed.cta ?? '').toUpperCase();
       } catch {
         caption = j.choices?.[0]?.message?.content ?? '';
       }
@@ -98,7 +106,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
       }
     }
 
-    return new Response(JSON.stringify({ caption, hashtags, imageDataUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ caption, hashtags, imageDataUrl, headline, headlineAccent, subtitle, cta }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e instanceof Error ? e.message : e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

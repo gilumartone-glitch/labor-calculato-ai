@@ -23,15 +23,61 @@ class MetaApiError extends Error {
   }
 }
 
+const toMetaParam = (value: unknown) => Array.isArray(value)
+  ? value.join(',')
+  : typeof value === 'object' && value !== null
+    ? JSON.stringify(value)
+    : String(value);
+
+const metaGet = async (path: string, params: Record<string, unknown>, token: string, step: string) => {
+  const url = new URL(`${GRAPH}${path}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, toMetaParam(value)));
+  url.searchParams.set('access_token', token);
+  const r = await fetch(url);
+  const payload = await r.json().catch(() => ({ error: { message: 'Risposta Meta non valida' } }));
+  if (!r.ok || payload?.error) throw new MetaApiError(step, r.status, payload);
+  return payload;
+};
+
 const metaPost = async (path: string, body: Record<string, unknown>, token: string, step: string) => {
-  const r = await fetch(`${GRAPH}${path}?access_token=${token}`, {
+  const form = new URLSearchParams();
+  Object.entries(body).forEach(([key, value]) => form.set(key, toMetaParam(value)));
+  form.set('access_token', token);
+  const r = await fetch(`${GRAPH}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
   });
   const payload = await r.json().catch(() => ({ error: { message: 'Risposta Meta non valida' } }));
   if (!r.ok || payload?.error) throw new MetaApiError(step, r.status, payload);
   return payload;
+};
+
+const resolvePageAccessToken = async (pageId: string, configuredToken: string) => {
+  let token = configuredToken;
+  let tokenSource = 'configured_page_token';
+
+  try {
+    const accounts = await metaGet('/me/accounts', {
+      fields: 'id,name,access_token,instagram_business_account{id,username}',
+      limit: 100,
+    }, configuredToken, 'Recupero Page Access Token');
+    const page = Array.isArray(accounts?.data)
+      ? accounts.data.find((p: any) => String(p?.id) === String(pageId))
+      : null;
+    if (page?.access_token) {
+      token = page.access_token;
+      tokenSource = 'derived_page_token';
+    }
+  } catch (_) {
+    // Se il secret è già un Page Access Token, /me/accounts può non essere disponibile: procediamo con quello configurato.
+  }
+
+  const page = await metaGet(`/${pageId}`, {
+    fields: 'id,name,instagram_business_account{id,username}',
+  }, token, 'Verifica Page Access Token');
+
+  return { token, tokenSource, page };
 };
 
 const friendlyMetaError = (error: MetaApiError) => {

@@ -193,18 +193,24 @@ export const SocialPanel = () => {
         ctx.shadowBlur = 0;
       }
 
-      // 5) Bottom turquoise bar with CTA + logo (legible Inter)
+      // 5) Bottom turquoise bar with CTA + logo — auto-fit font so text is never cut
       const BAR_H = 130;
       ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - BAR_H, SIZE, BAR_H);
-      // subtle dark accent line on top of bar
       ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(0, SIZE - BAR_H, SIZE, 2);
 
-      let ctaText = (opts.cta || "CONSULENZA GRATUITA").toUpperCase();
-      ctx.font = '700 34px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-      ctx.fillStyle = "#FFFFFF";
+      const ctaText = (opts.cta || "CONSULENZA GRATUITA").toUpperCase();
       const maxCtaW = SIZE - 260;
-      while (ctx.measureText(ctaText).width > maxCtaW && ctaText.length > 8) ctaText = ctaText.slice(0, -2);
-      ctx.fillText(ctaText, 50, SIZE - BAR_H + 48);
+      let ctaSize = 56;
+      const ctaFont = (s: number) => `700 ${s}px "Bebas Neue", "Oswald", "Anton", "Arial Narrow", sans-serif`;
+      ctx.font = ctaFont(ctaSize);
+      while (ctx.measureText(ctaText).width > maxCtaW && ctaSize > 22) {
+        ctaSize -= 2;
+        ctx.font = ctaFont(ctaSize);
+      }
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ctaText, 50, SIZE - BAR_H / 2);
+      ctx.textBaseline = "top";
 
       try {
         const logo = await loadImg("/tecnofra-logo.ico");
@@ -212,9 +218,11 @@ export const SocialPanel = () => {
         const lw = (logo.width / logo.height) * lh;
         ctx.drawImage(logo, SIZE - lw - 40, SIZE - BAR_H + (BAR_H - lh) / 2, lw, lh);
       } catch {
-        ctx.font = '800 30px "Inter", system-ui, sans-serif';
+        ctx.font = '800 36px "Bebas Neue", "Oswald", sans-serif';
         ctx.fillStyle = "#FFFFFF";
-        ctx.fillText("TECNOFRA", SIZE - 210, SIZE - BAR_H + 50);
+        ctx.textBaseline = "middle";
+        ctx.fillText("TECNOFRA", SIZE - 210, SIZE - BAR_H / 2);
+        ctx.textBaseline = "top";
       }
 
 
@@ -381,10 +389,26 @@ export const SocialPanel = () => {
     if (!fullCaption.trim()) return toast.error("Caption mancante");
     if (!targets.fb && !targets.ig) return toast.error("Seleziona almeno un canale");
     setPublishing(true);
+    const t: string[] = [];
+    if (targets.fb) t.push("facebook");
+    if (targets.ig) t.push("instagram");
+    const logActivity = async (status: "success" | "error", detail: string, meta: Record<string, unknown> = {}) => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (!u.user) return;
+        await supabase.from("marketing_activity_log").insert({
+          created_by: u.user.id,
+          type: "social",
+          channel: t.join("+") || "social",
+          title: selected?.name ? `Post: ${selected.name}` : "Post social",
+          detail,
+          status,
+          recipients_count: 0,
+          meta: { targets: t, slides: slidesToPublish.length, productId: selected?.id, ...meta },
+        } as any);
+      } catch (err) { console.warn("log fail", err); }
+    };
     try {
-      const t: string[] = [];
-      if (targets.fb) t.push("facebook");
-      if (targets.ig) t.push("instagram");
       const { data, error } = await supabase.functions.invoke("social-publish", {
         body: { slides: slidesToPublish, caption: fullCaption, targets: t },
       });
@@ -396,8 +420,10 @@ export const SocialPanel = () => {
       }
       toast.success("Pubblicato!");
       console.log("publish result", data);
+      await logActivity("success", fullCaption.slice(0, 280), { urls: result?.urls });
     } catch (e: any) {
       toast.error(e.message || "Errore pubblicazione");
+      await logActivity("error", e.message || "Errore pubblicazione");
     } finally {
       setPublishing(false);
     }

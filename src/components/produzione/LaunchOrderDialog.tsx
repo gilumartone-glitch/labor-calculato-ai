@@ -24,6 +24,8 @@ type UploadedFile = { name: string; type: string; path: string; size: number };
 
 type FormState = {
   cliente: string;
+  production_name: string;
+  customer_order_ref: string;
   data: string;
   note: string;
   depts: ProdDept[];
@@ -45,7 +47,8 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
   const profiles = useProdStore((s) => s.profiles);
 
   const initial: FormState = {
-    cliente: "", data: new Date().toISOString().slice(0, 10), note: "",
+    cliente: "", production_name: "", customer_order_ref: "",
+    data: new Date().toISOString().slice(0, 10), note: "",
     depts: [], deptNotes: {}, deptAssignees: {}, attachments: [], nesting: false,
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
@@ -111,7 +114,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
 
   const submit = async () => {
     if (!user) return;
-    const { cliente, depts, warehouseOnly, deptNotes, deptAssignees, magazzinoNote, attachments,
+    const { cliente, production_name, customer_order_ref, depts, warehouseOnly, deptNotes, deptAssignees, magazzinoNote, attachments,
       nesting, priorita, delivery, data, note } = form;
     if (!cliente.trim()) { toast.error("Cliente obbligatorio"); return; }
     if (!warehouseOnly && depts.length === 0) { toast.error("Seleziona almeno un reparto (oppure spunta 'Senza lavorazione')"); return; }
@@ -122,7 +125,9 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         code, cliente, data, note: note || null,
         priorita, delivery, status: "in_corso",
         attachments, nesting_included: nesting, created_by: user.id,
-      }).select().single();
+        production_name: production_name.trim() || null,
+        customer_order_ref: customer_order_ref.trim() || null,
+      } as any).select().single();
       if (error) throw error;
 
       const sequence: ProdDept[] = warehouseOnly ? ["magazzino"] : [...depts, "magazzino"];
@@ -204,7 +209,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     }
   };
 
-  const { cliente, data, note, depts, deptNotes, deptAssignees, attachments, nesting, priorita, delivery, warehouseOnly, magazzinoNote } = form;
+  const { cliente, production_name, customer_order_ref, data, note, depts, deptNotes, deptAssignees, attachments, nesting, priorita, delivery, warehouseOnly, magazzinoNote } = form;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,9 +238,29 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Nome produzione / Tipo lavorazione</Label>
+              <Input
+                value={production_name}
+                onChange={(e) => patch({ production_name: e.target.value })}
+                placeholder="Es. Tagli pannelli forex 3mm"
+              />
+              <div className="text-[10px] text-muted-foreground mt-1">Visibile all'operatore in cima alla scheda</div>
+            </div>
+            <div>
+              <Label>Rif. ordine cliente</Label>
+              <Input
+                value={customer_order_ref}
+                onChange={(e) => patch({ customer_order_ref: e.target.value })}
+                placeholder="Es. PO-1234"
+              />
+            </div>
+          </div>
+
           <div>
             <Label>Note generali</Label>
-            <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} />
+            <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} placeholder="Descrivi cosa va fatto, materiali, misure, qualsiasi cosa utile a chi riceverà la lavorazione" />
           </div>
 
           {!warehouseOnly && (

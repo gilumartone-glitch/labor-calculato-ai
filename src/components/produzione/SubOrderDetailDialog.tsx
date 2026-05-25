@@ -429,6 +429,20 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               </Badge>
             )}
           </DialogTitle>
+          {(order.production_name || order.customer_order_ref) && (
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {order.production_name && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 rounded-sm text-[12px] font-bold">
+                  {order.production_name}
+                </span>
+              )}
+              {order.customer_order_ref && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-ink/70 border border-ink/15 rounded-sm text-[11px] font-mono">
+                  Rif. cliente: {order.customer_order_ref}
+                </span>
+              )}
+            </div>
+          )}
           <DialogDescription className="text-[12px]">
             Dettaglio completo della lavorazione assegnata. Scarica i file, controlla materiali e istruzioni.
           </DialogDescription>
@@ -442,6 +456,19 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               <div className="font-bold text-amber-900">Lavorazione bloccata</div>
               <div className="text-amber-800">
                 Devi attendere il completamento di <span className="font-mono font-bold">{predecessor.code} — {DEPT_LABEL[predecessor.dept]}</span> (stato attuale: {SUB_STATUS_LABEL[predecessor.status]}).
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Banner: ordine manuale senza snapshot calcolatore */}
+        {!snapshot && (
+          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 flex items-start gap-3 text-[12px]">
+            <FileText className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-primary">Lavorazione manuale</div>
+              <div className="text-ink/70">
+                Questo ordine è stato lanciato senza preventivo dal calcolatore: non ci sono pezzi/nesting da mostrare. Controlla <strong>Nome produzione</strong>, <strong>Note generali</strong>, <strong>Istruzioni per te</strong> e gli <strong>Allegati</strong> qui sotto.
               </div>
             </div>
           </div>

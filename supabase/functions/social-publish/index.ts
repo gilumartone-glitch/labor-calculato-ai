@@ -23,15 +23,69 @@ class MetaApiError extends Error {
   }
 }
 
+const toMetaParam = (value: unknown) => Array.isArray(value)
+  ? value.join(',')
+  : typeof value === 'object' && value !== null
+    ? JSON.stringify(value)
+    : String(value);
+
+const metaGet = async (path: string, params: Record<string, unknown>, token: string, step: string) => {
+  const url = new URL(`${GRAPH}${path}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, toMetaParam(value)));
+  url.searchParams.set('access_token', token);
+  const r = await fetch(url);
+  const payload = await r.json().catch(() => ({ error: { message: 'Risposta Meta non valida' } }));
+  if (!r.ok || payload?.error) throw new MetaApiError(step, r.status, payload);
+  return payload;
+};
+
 const metaPost = async (path: string, body: Record<string, unknown>, token: string, step: string) => {
-  const r = await fetch(`${GRAPH}${path}?access_token=${token}`, {
+  const form = new URLSearchParams();
+  Object.entries(body).forEach(([key, value]) => form.set(key, toMetaParam(value)));
+  form.set('access_token', token);
+  const r = await fetch(`${GRAPH}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
   });
   const payload = await r.json().catch(() => ({ error: { message: 'Risposta Meta non valida' } }));
   if (!r.ok || payload?.error) throw new MetaApiError(step, r.status, payload);
   return payload;
+};
+
+const resolvePageAccessToken = async (pageId: string, configuredToken: string) => {
+  let token = configuredToken;
+  let tokenSource = 'configured_page_token';
+  let selectedPage: any = null;
+
+  try {
+    const accounts = await metaGet('/me/accounts', {
+      fields: 'id,name,access_token,instagram_business_account{id,username}',
+      limit: 100,
+    }, configuredToken, 'Recupero Page Access Token');
+    const page = Array.isArray(accounts?.data)
+      ? accounts.data.find((p: any) => String(p?.id) === String(pageId))
+      : null;
+    if (page?.access_token) {
+      token = page.access_token;
+      tokenSource = 'derived_page_token';
+      selectedPage = page;
+    }
+  } catch (_) {
+    // Se il secret è già un Page Access Token, /me/accounts può non essere disponibile: procediamo con quello configurato.
+  }
+
+  if (!selectedPage) {
+    try {
+      selectedPage = await metaGet(`/${pageId}`, {
+        fields: 'id,name,instagram_business_account{id,username}',
+      }, token, 'Verifica Page Access Token');
+    } catch (_) {
+      selectedPage = null;
+    }
+  }
+
+  return { token, tokenSource, page: selectedPage };
 };
 
 const friendlyMetaError = (error: MetaApiError) => {
@@ -69,9 +123,9 @@ Deno.serve(async (req) => {
 
   try {
     const PAGE_ID = Deno.env.get('META_PAGE_ID');
-    const TOKEN = Deno.env.get('META_PAGE_ACCESS_TOKEN');
+    const CONFIGURED_TOKEN = Deno.env.get('META_PAGE_ACCESS_TOKEN');
     const IG_ID = Deno.env.get('META_IG_BUSINESS_ID');
-    if (!PAGE_ID || !TOKEN || !IG_ID) {
+    if (!PAGE_ID || !CONFIGURED_TOKEN || !IG_ID) {
       return jsonResponse({ error: 'Configurare i secret META_PAGE_ID, META_PAGE_ACCESS_TOKEN, META_IG_BUSINESS_ID' }, 400);
     }
 
@@ -81,6 +135,16 @@ Deno.serve(async (req) => {
       targets?: ('facebook' | 'instagram')[];
     };
     if (!slides?.length) return jsonResponse({ error: 'Nessuna slide' }, 400);
+
+    const { token: TOKEN, tokenSource, page } = await resolvePageAccessToken(PAGE_ID, CONFIGURED_TOKEN);
+    const linkedIgId = page?.instagram_business_account?.id ? String(page.instagram_business_account.id) : '';
+    const effectiveIgId = linkedIgId || IG_ID;
+    if (IG_ID && linkedIgId && String(IG_ID) !== linkedIgId) {
+      console.warn('META_IG_BUSINESS_ID diverso dall’account Instagram collegato alla pagina; uso account collegato alla pagina', {
+        configuredIgId: IG_ID,
+        linkedIgId,
+      });
+    }
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -124,20 +188,20 @@ Deno.serve(async (req) => {
     // 3) Instagram
     if (targets.includes('instagram')) {
       if (publicUrls.length === 1) {
-        const c = await metaPost(`/${IG_ID}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
-        results.instagram = await metaPost(`/${IG_ID}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
+        const c = await metaPost(`/${effectiveIgId}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
+        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
       } else {
         const children: string[] = [];
         for (const u of publicUrls) {
-          const c = await metaPost(`/${IG_ID}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
+          const c = await metaPost(`/${effectiveIgId}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
           children.push(c.id);
         }
-        const carousel = await metaPost(`/${IG_ID}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
-        results.instagram = await metaPost(`/${IG_ID}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
+        const carousel = await metaPost(`/${effectiveIgId}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
+        results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
       }
     }
 
-    return jsonResponse({ ok: true, urls: publicUrls, results });
+    return jsonResponse({ ok: true, urls: publicUrls, results, meta: { tokenSource, instagramId: effectiveIgId } });
   } catch (e) {
     if (e instanceof MetaApiError) return jsonResponse(friendlyMetaError(e));
     return jsonResponse({ error: String(e instanceof Error ? e.message : e) }, 500);

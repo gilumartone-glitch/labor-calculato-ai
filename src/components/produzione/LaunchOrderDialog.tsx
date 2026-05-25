@@ -24,6 +24,8 @@ type UploadedFile = { name: string; type: string; path: string; size: number };
 
 type FormState = {
   cliente: string;
+  production_name: string;
+  customer_order_ref: string;
   data: string;
   note: string;
   depts: ProdDept[];
@@ -45,7 +47,8 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
   const profiles = useProdStore((s) => s.profiles);
 
   const initial: FormState = {
-    cliente: "", data: new Date().toISOString().slice(0, 10), note: "",
+    cliente: "", production_name: "", customer_order_ref: "",
+    data: new Date().toISOString().slice(0, 10), note: "",
     depts: [], deptNotes: {}, deptAssignees: {}, attachments: [], nesting: false,
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",

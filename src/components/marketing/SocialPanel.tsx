@@ -27,6 +27,7 @@ type PublishResponse = {
   code?: string;
   urls?: string[];
   results?: unknown;
+  errors?: Record<string, { error?: string; action?: string }>;
 };
 
 export const SocialPanel = () => {
@@ -415,12 +416,17 @@ export const SocialPanel = () => {
       if (error) throw error;
       const result = data as PublishResponse | null;
       if (result?.ok === false || result?.error) {
-        const message = result.action ? `${result.error}\n${result.action}` : result.error;
+        const channelErrors = result.errors
+          ? Object.entries(result.errors).map(([channel, err]) => `${channel}: ${err.error}${err.action ? `\n${err.action}` : ""}`).join("\n\n")
+          : "";
+        const message = channelErrors || (result.action ? `${result.error}\n${result.action}` : result.error);
         throw new Error(message || "Errore pubblicazione");
       }
-      toast.success("Pubblicato!");
+      const warnings = result?.errors ? Object.keys(result.errors) : [];
+      if (warnings.length) toast.warning(`Pubblicato solo su alcuni canali. Errore: ${warnings.join(", ")}`);
+      else toast.success("Pubblicato!");
       console.log("publish result", data);
-      await logActivity("success", fullCaption.slice(0, 280), { urls: result?.urls });
+      await logActivity(warnings.length ? "error" : "success", fullCaption.slice(0, 280), { urls: result?.urls, errors: result?.errors });
     } catch (e: any) {
       toast.error(e.message || "Errore pubblicazione");
       await logActivity("error", e.message || "Errore pubblicazione");

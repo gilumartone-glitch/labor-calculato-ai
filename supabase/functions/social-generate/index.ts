@@ -12,11 +12,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { product, mode = 'all', tone = 'professionale', extraPrompt = '' } = body as {
+    const { product, mode = 'all', tone = 'professionale', extraPrompt = '', background = 'scene' } = body as {
       product: { name: string; short_description?: string; description?: string; categories?: string[]; images?: { src: string; alt?: string }[]; permalink?: string };
       mode?: 'caption' | 'image' | 'all';
       tone?: string;
       extraPrompt?: string;
+      background?: 'scene' | 'clean';
     };
 
     if (!product?.name) {
@@ -61,7 +62,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
     }
 
     // 2) Image generation (square 1080x1080 brand)
-    if (mode === 'image' || mode === 'all') {
+    if ((mode === 'image' || mode === 'all') && background === 'scene') {
       const brandPrompt = `Crea uno SFONDO/AMBIENTAZIONE quadrato 1:1 per un post social Tecnofra. Sfondo nero #000000 dominante con leggero gradiente, accenti luminosi turchese-petrolio #00A3AC (linee, bagliori, particolato, luce di scena). Atmosfera: palcoscenico/laboratorio tecnico industriale premium, luci di scena, profondità. IMPORTANTE: scena VUOTA, NIENTE prodotti, NIENTE oggetti centrali, NIENTE persone, NIENTE testo, NIENTE loghi, NIENTE watermark. Solo ambientazione di sfondo elegante con ampio spazio centrale libero dove verrà sovrapposto un prodotto in post-produzione. Look cinematografico, professionale. ${extraPrompt}`;
 
 

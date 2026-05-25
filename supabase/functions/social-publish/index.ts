@@ -56,6 +56,7 @@ const metaPost = async (path: string, body: Record<string, unknown>, token: stri
 const resolvePageAccessToken = async (pageId: string, configuredToken: string) => {
   let token = configuredToken;
   let tokenSource = 'configured_page_token';
+  let selectedPage: any = null;
 
   try {
     const accounts = await metaGet('/me/accounts', {
@@ -68,16 +69,23 @@ const resolvePageAccessToken = async (pageId: string, configuredToken: string) =
     if (page?.access_token) {
       token = page.access_token;
       tokenSource = 'derived_page_token';
+      selectedPage = page;
     }
   } catch (_) {
     // Se il secret è già un Page Access Token, /me/accounts può non essere disponibile: procediamo con quello configurato.
   }
 
-  const page = await metaGet(`/${pageId}`, {
-    fields: 'id,name,instagram_business_account{id,username}',
-  }, token, 'Verifica Page Access Token');
+  if (!selectedPage) {
+    try {
+      selectedPage = await metaGet(`/${pageId}`, {
+        fields: 'id,name,instagram_business_account{id,username}',
+      }, token, 'Verifica Page Access Token');
+    } catch (_) {
+      selectedPage = null;
+    }
+  }
 
-  return { token, tokenSource, page };
+  return { token, tokenSource, page: selectedPage };
 };
 
 const friendlyMetaError = (error: MetaApiError) => {

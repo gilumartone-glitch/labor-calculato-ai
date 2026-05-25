@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     const per_page = url.searchParams.get('per_page') ?? '20';
     const id = url.searchParams.get('id');
 
-    const base = baseUrl.replace(/\/+$/, '');
+    const base = baseUrl.replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
     const auth = 'Basic ' + btoa(`${ck}:${cs}`);
 
     let endpoint = `${base}/wp-json/wc/v3/products`;

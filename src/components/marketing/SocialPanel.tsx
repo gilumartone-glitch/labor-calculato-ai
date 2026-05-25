@@ -321,6 +321,23 @@ export const SocialPanel = () => {
     }
   };
 
+  const recompose = async () => {
+    if (!selected) return;
+    try {
+      const branded = await composeBrandedImage({
+        bgUrl: "",
+        productImgUrl: selected.images?.[0]?.src || "",
+        productName: selected.name,
+        mode: style,
+        headline, headlineAccent, subtitle, cta: ctaText,
+      });
+      setImageDataUrl(branded);
+      toast.success("Immagine aggiornata");
+    } catch (e: any) {
+      toast.error(e.message || "Errore");
+    }
+  };
+
   const addToCarousel = () => {
     if (!imageDataUrl || !selected) return toast.error("Genera prima un'immagine");
     setCarousel((c) => [...c, { id: crypto.randomUUID(), productId: selected.id, productName: selected.name, dataUrl: imageDataUrl, style }]);

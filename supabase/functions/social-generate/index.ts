@@ -12,11 +12,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { product, mode = 'all', tone = 'professionale', extraPrompt = '' } = body as {
+    const { product, mode = 'all', tone = 'professionale', extraPrompt = '', background = 'scene' } = body as {
       product: { name: string; short_description?: string; description?: string; categories?: string[]; images?: { src: string; alt?: string }[]; permalink?: string };
       mode?: 'caption' | 'image' | 'all';
       tone?: string;
       extraPrompt?: string;
+      background?: 'scene' | 'clean';
     };
 
     if (!product?.name) {

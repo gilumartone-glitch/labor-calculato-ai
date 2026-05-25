@@ -62,7 +62,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
 
     // 2) Image generation (square 1080x1080 brand)
     if (mode === 'image' || mode === 'all') {
-      const brandPrompt = `Crea un post Instagram/Facebook quadrato 1:1 per Tecnofra. Stile grafico coerente di brand: sfondo nero #000000, accenti turchese-petrolio #00A3AC, testo bianco, layout pulito e minimal industriale, tipografia sans-serif moderna grande. Composizione: il prodotto "${product.name}" è il soggetto principale al centro, con una piccola etichetta turchese in alto a sinistra con scritto "TECNOFRA" e in basso un titolo breve in bianco con il nome del prodotto. Look professionale, premium, tecnico. Non aggiungere watermark estranei. ${extraPrompt}`;
+      const brandPrompt = `Crea un'immagine quadrata 1:1, alta qualità fotografica, del prodotto "${product.name}" per un post social. Sfondo nero #000000 pulito o leggero gradiente scuro, illuminazione studio drammatica, accento luminoso turchese-petrolio #00A3AC come luce di contorno o riflesso. Il prodotto è il SOGGETTO PRINCIPALE centrato e ben visibile, occupa circa il 70% dell'inquadratura, lasciando ~20% di spazio vuoto in basso per testo sovrapposto in post-produzione. NIENTE TESTO, NIENTE SCRITTE, NIENTE LOGHI, NIENTE WATERMARK nell'immagine. Look premium, industriale, tecnico, professionale. ${extraPrompt}`;
 
       const imgReq: any = {
         model: 'google/gemini-3.1-flash-image-preview',
@@ -95,8 +95,12 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
       if (imgs.length > 0) {
         imageDataUrl = imgs[0]?.image_url?.url || '';
       } else if (Array.isArray(msg?.content)) {
-        const imgPart = msg.content.find((c: any) => c.type === 'image_url' || c.type === 'output_image');
-        imageDataUrl = imgPart?.image_url?.url || imgPart?.image || '';
+        const imgPart = msg.content.find((c: any) => c.type === 'image_url' || c.type === 'output_image' || c.type === 'image');
+        imageDataUrl = imgPart?.image_url?.url || imgPart?.image_url || imgPart?.image || '';
+      }
+      if (!imageDataUrl) {
+        console.log('AI image: nessuna immagine nella risposta', JSON.stringify(j).slice(0, 800));
+        return new Response(JSON.stringify({ error: 'AI non ha restituito immagini', detail: JSON.stringify(j).slice(0, 400), caption, hashtags }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 

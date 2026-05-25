@@ -84,13 +84,7 @@ export const SocialPanel = () => {
 
     // 2) product photo (original, untouched) — CONTAIN, centered, ~62% of canvas
     try {
-      // proxy through woo-products endpoint if direct load fails (Cloudflare/CORS)
-      let prod: HTMLImageElement;
-      try { prod = await loadImg(productImgUrl); }
-      catch {
-        const proxied = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woo-products?image=${encodeURIComponent(productImgUrl)}`;
-        prod = await loadImg(proxied);
-      }
+      const prod = await loadImg(productImgUrl);
       const targetBox = SIZE * 0.62;
       const r = Math.min(targetBox / prod.width, targetBox / prod.height);
       const pw = prod.width * r;

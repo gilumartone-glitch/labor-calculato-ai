@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ArrowLeft, Megaphone, Plus, Trash2, Mail, Users, FolderTree, Send, Loader2, RefreshCw, Pencil, Tag, Upload, Download, Eye, Paperclip, Copy, X, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, MailX, Share2 } from "lucide-react";
+import { ArrowLeft, Megaphone, Plus, Trash2, Mail, Users, FolderTree, Send, Loader2, RefreshCw, Pencil, Tag, Upload, Download, Eye, Paperclip, Copy, X, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, MailX, Share2, History, CheckCircle2, XCircle } from "lucide-react";
 import { SocialPanel } from "@/components/marketing/SocialPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";

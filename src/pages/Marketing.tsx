@@ -628,8 +628,8 @@ const NewsletterPanel = () => {
     try {
       if (!user) return;
       await supabase.from("marketing_activity_log").insert({
-        created_by: user.id, type: "newsletter", channel, title, detail, status, recipients_count: recipients, meta,
-      });
+        created_by: user.id, type: "newsletter", channel, title, detail, status, recipients_count: recipients, meta: meta as any,
+      } as any);
     } catch (err) { console.warn("log fail", err); }
   };
 

@@ -18,7 +18,7 @@ type WooProduct = {
   tags: string[];
 };
 
-type Slide = { id: string; productId: number; productName: string; dataUrl: string; style: "scene" | "clean" };
+type Slide = { id: string; productId: number; productName: string; dataUrl: string; style: "scene" | "clean" | "editorial" };
 
 export const SocialPanel = () => {
   const [search, setSearch] = useState("");

@@ -389,10 +389,26 @@ export const SocialPanel = () => {
     if (!fullCaption.trim()) return toast.error("Caption mancante");
     if (!targets.fb && !targets.ig) return toast.error("Seleziona almeno un canale");
     setPublishing(true);
+    const t: string[] = [];
+    if (targets.fb) t.push("facebook");
+    if (targets.ig) t.push("instagram");
+    const logActivity = async (status: "success" | "error", detail: string, meta: Record<string, unknown> = {}) => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (!u.user) return;
+        await supabase.from("marketing_activity_log").insert({
+          created_by: u.user.id,
+          type: "social",
+          channel: t.join("+") || "social",
+          title: selected?.name ? `Post: ${selected.name}` : "Post social",
+          detail,
+          status,
+          recipients_count: 0,
+          meta: { targets: t, slides: slidesToPublish.length, productId: selected?.id, ...meta },
+        });
+      } catch (err) { console.warn("log fail", err); }
+    };
     try {
-      const t: string[] = [];
-      if (targets.fb) t.push("facebook");
-      if (targets.ig) t.push("instagram");
       const { data, error } = await supabase.functions.invoke("social-publish", {
         body: { slides: slidesToPublish, caption: fullCaption, targets: t },
       });
@@ -404,8 +420,10 @@ export const SocialPanel = () => {
       }
       toast.success("Pubblicato!");
       console.log("publish result", data);
+      await logActivity("success", fullCaption.slice(0, 280), { urls: result?.urls });
     } catch (e: any) {
       toast.error(e.message || "Errore pubblicazione");
+      await logActivity("error", e.message || "Errore pubblicazione");
     } finally {
       setPublishing(false);
     }

@@ -238,9 +238,29 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Nome produzione / Tipo lavorazione</Label>
+              <Input
+                value={production_name}
+                onChange={(e) => patch({ production_name: e.target.value })}
+                placeholder="Es. Tagli pannelli forex 3mm"
+              />
+              <div className="text-[10px] text-muted-foreground mt-1">Visibile all'operatore in cima alla scheda</div>
+            </div>
+            <div>
+              <Label>Rif. ordine cliente</Label>
+              <Input
+                value={customer_order_ref}
+                onChange={(e) => patch({ customer_order_ref: e.target.value })}
+                placeholder="Es. PO-1234"
+              />
+            </div>
+          </div>
+
           <div>
             <Label>Note generali</Label>
-            <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} />
+            <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} placeholder="Descrivi cosa va fatto, materiali, misure, qualsiasi cosa utile a chi riceverà la lavorazione" />
           </div>
 
           {!warehouseOnly && (

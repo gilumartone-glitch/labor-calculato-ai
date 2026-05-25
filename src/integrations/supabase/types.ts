@@ -423,6 +423,45 @@ export type Database = {
           },
         ]
       }
+      marketing_activity_log: {
+        Row: {
+          channel: string
+          created_at: string
+          created_by: string
+          detail: string | null
+          id: string
+          meta: Json
+          recipients_count: number
+          status: string
+          title: string
+          type: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          created_by: string
+          detail?: string | null
+          id?: string
+          meta?: Json
+          recipients_count?: number
+          status?: string
+          title: string
+          type: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          created_by?: string
+          detail?: string | null
+          id?: string
+          meta?: Json
+          recipients_count?: number
+          status?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       marketing_categories: {
         Row: {
           color: string | null

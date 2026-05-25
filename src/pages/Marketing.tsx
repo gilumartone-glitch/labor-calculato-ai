@@ -971,4 +971,112 @@ const NewsletterPanel = () => {
   );
 };
 
+/* ----------------------------- STORICO ATTIVITÀ ----------------------------- */
+type ActivityLog = {
+  id: string;
+  type: string;
+  channel: string;
+  title: string;
+  detail: string | null;
+  status: string;
+  recipients_count: number;
+  meta: any;
+  created_at: string;
+};
+
+const ActivityLogPanel = () => {
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState<"all" | "newsletter" | "social">("all");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("marketing_activity_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setLogs((data ?? []) as ActivityLog[]);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const remove = async (id: string) => {
+    if (!confirm("Eliminare questo record dallo storico?")) return;
+    await supabase.from("marketing_activity_log").delete().eq("id", id);
+    load();
+  };
+
+  const filtered = logs.filter((l) => filterType === "all" || l.type === filterType);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">Storico completo di tutte le attività di marketing (newsletter e social).</p>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as any)}
+            className="h-9 border-2 border-ink/20 rounded-sm px-2 bg-paper text-sm"
+          >
+            <option value="all">Tutti</option>
+            <option value="newsletter">Newsletter</option>
+            <option value="social">Social</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={load} className="gap-1"><RefreshCw className="w-3.5 h-3.5" /> Aggiorna</Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="grid place-items-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="border-2 border-ink/15 rounded-sm bg-paper p-8 text-center text-sm text-muted-foreground">
+          Nessuna attività registrata.
+        </div>
+      ) : (
+        <div className="border-2 border-ink/15 rounded-sm bg-paper divide-y divide-ink/10">
+          {filtered.map((l) => (
+            <div key={l.id} className="p-4 flex items-start gap-3 hover:bg-ink/5">
+              <div className="mt-0.5">
+                {l.status === "success" ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-destructive" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-ink/10">
+                    {l.type === "newsletter" ? <><Mail className="w-3 h-3 inline mr-1" />Newsletter</> : <><Share2 className="w-3 h-3 inline mr-1" />Social</>}
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-primary/15 text-primary">
+                    {l.channel}
+                  </span>
+                  {l.recipients_count > 0 && (
+                    <span className="font-mono text-[10px] text-muted-foreground">{l.recipients_count} destinatari</span>
+                  )}
+                  <span className="font-mono text-[10px] text-muted-foreground ml-auto">
+                    {new Date(l.created_at).toLocaleString("it-IT")}
+                  </span>
+                </div>
+                <div className="font-semibold mt-1 break-words">{l.title}</div>
+                {l.detail && <div className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap break-words">{l.detail}</div>}
+                {l.meta && Object.keys(l.meta).length > 0 && (
+                  <details className="mt-2">
+                    <summary className="text-[11px] font-mono text-muted-foreground cursor-pointer hover:text-foreground">Dettagli tecnici</summary>
+                    <pre className="text-[10px] bg-ink/5 p-2 rounded-sm mt-1 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(l.meta, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => remove(l.id)}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default Marketing;

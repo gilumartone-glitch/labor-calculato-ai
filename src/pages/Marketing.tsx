@@ -48,11 +48,13 @@ const Marketing = () => {
             <TabsTrigger value="social" className="gap-1.5"><Share2 className="w-4 h-4" /> Social</TabsTrigger>
             <TabsTrigger value="rubrica" className="gap-1.5"><Users className="w-4 h-4" /> Rubrica</TabsTrigger>
             <TabsTrigger value="categorie" className="gap-1.5"><FolderTree className="w-4 h-4" /> Categorie</TabsTrigger>
+            <TabsTrigger value="storico" className="gap-1.5"><History className="w-4 h-4" /> Storico</TabsTrigger>
           </TabsList>
           <TabsContent value="newsletter" className="mt-6"><NewsletterPanel /></TabsContent>
           <TabsContent value="social" className="mt-6"><SocialPanel /></TabsContent>
           <TabsContent value="rubrica" className="mt-6"><ContactsPanel /></TabsContent>
           <TabsContent value="categorie" className="mt-6"><CategoriesPanel /></TabsContent>
+          <TabsContent value="storico" className="mt-6"><ActivityLogPanel /></TabsContent>
         </Tabs>
       </main>
     </div>

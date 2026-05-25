@@ -290,10 +290,23 @@ export const SocialPanel = () => {
       if (mode !== "image") {
         setCaption(data.caption || "");
         setHashtags(data.hashtags || []);
+        if (data.headline) setHeadline(String(data.headline).toUpperCase());
+        if (data.headlineAccent) setHeadlineAccent(String(data.headlineAccent).toUpperCase());
+        if (data.subtitle) setSubtitle(String(data.subtitle));
+        if (data.cta) setCtaText(String(data.cta).toUpperCase());
       }
       if (mode !== "caption") {
         try {
-          const branded = await composeBrandedImage(data.imageDataUrl || "", selected.images?.[0]?.src || "", selected.name, style);
+          const branded = await composeBrandedImage({
+            bgUrl: data.imageDataUrl || "",
+            productImgUrl: selected.images?.[0]?.src || "",
+            productName: selected.name,
+            mode: style,
+            headline: data.headline || headline,
+            headlineAccent: data.headlineAccent || headlineAccent,
+            subtitle: data.subtitle || subtitle,
+            cta: data.cta || ctaText,
+          });
           setImageDataUrl(branded);
         } catch (err: any) {
           console.error(err);

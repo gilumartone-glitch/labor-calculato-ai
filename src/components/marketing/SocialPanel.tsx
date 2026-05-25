@@ -28,11 +28,15 @@ export const SocialPanel = () => {
   const [loadError, setLoadError] = useState("");
   const [tone, setTone] = useState("professionale, italiano, competente");
   const [extra, setExtra] = useState("");
-  const [style, setStyle] = useState<"scene" | "clean">("clean");
+  const [style, setStyle] = useState<"scene" | "clean" | "editorial">("editorial");
   const [generating, setGenerating] = useState<null | "caption" | "image" | "all">(null);
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [imageDataUrl, setImageDataUrl] = useState("");
+  const [headline, setHeadline] = useState("LA RUOTA SBAGLIATA SI SENTE.");
+  const [headlineAccent, setHeadlineAccent] = useState("SBAGLIATA");
+  const [subtitle, setSubtitle] = useState("Quella giusta… no.");
+  const [ctaText, setCtaText] = useState("CONSULENZA GRATUITA");
   const [carousel, setCarousel] = useState<Slide[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });

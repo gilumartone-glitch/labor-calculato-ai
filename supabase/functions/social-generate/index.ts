@@ -95,8 +95,12 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
       if (imgs.length > 0) {
         imageDataUrl = imgs[0]?.image_url?.url || '';
       } else if (Array.isArray(msg?.content)) {
-        const imgPart = msg.content.find((c: any) => c.type === 'image_url' || c.type === 'output_image');
-        imageDataUrl = imgPart?.image_url?.url || imgPart?.image || '';
+        const imgPart = msg.content.find((c: any) => c.type === 'image_url' || c.type === 'output_image' || c.type === 'image');
+        imageDataUrl = imgPart?.image_url?.url || imgPart?.image_url || imgPart?.image || '';
+      }
+      if (!imageDataUrl) {
+        console.log('AI image: nessuna immagine nella risposta', JSON.stringify(j).slice(0, 800));
+        return new Response(JSON.stringify({ error: 'AI non ha restituito immagini', detail: JSON.stringify(j).slice(0, 400), caption, hashtags }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 

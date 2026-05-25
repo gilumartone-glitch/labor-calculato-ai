@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
       mode?: 'caption' | 'image' | 'all';
       tone?: string;
       extraPrompt?: string;
-      background?: 'scene' | 'clean';
+      background?: 'scene' | 'clean' | 'editorial';
     };
 
     if (!product?.name) {

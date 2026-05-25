@@ -114,7 +114,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
 
   const submit = async () => {
     if (!user) return;
-    const { cliente, depts, warehouseOnly, deptNotes, deptAssignees, magazzinoNote, attachments,
+    const { cliente, production_name, customer_order_ref, depts, warehouseOnly, deptNotes, deptAssignees, magazzinoNote, attachments,
       nesting, priorita, delivery, data, note } = form;
     if (!cliente.trim()) { toast.error("Cliente obbligatorio"); return; }
     if (!warehouseOnly && depts.length === 0) { toast.error("Seleziona almeno un reparto (oppure spunta 'Senza lavorazione')"); return; }
@@ -125,7 +125,9 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         code, cliente, data, note: note || null,
         priorita, delivery, status: "in_corso",
         attachments, nesting_included: nesting, created_by: user.id,
-      }).select().single();
+        production_name: production_name.trim() || null,
+        customer_order_ref: customer_order_ref.trim() || null,
+      } as any).select().single();
       if (error) throw error;
 
       const sequence: ProdDept[] = warehouseOnly ? ["magazzino"] : [...depts, "magazzino"];

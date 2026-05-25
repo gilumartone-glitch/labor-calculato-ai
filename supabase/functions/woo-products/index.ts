@@ -28,7 +28,13 @@ Deno.serve(async (req) => {
       endpoint += `?${qs.toString()}`;
     }
 
-    const r = await fetch(endpoint, { headers: { Authorization: auth } });
+    const r = await fetch(endpoint, {
+      headers: {
+        Authorization: auth,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+    });
     const text = await r.text();
     if (!r.ok) {
       return new Response(JSON.stringify({ error: `WooCommerce ${r.status}`, detail: text.slice(0, 500) }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

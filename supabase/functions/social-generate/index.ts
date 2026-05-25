@@ -64,32 +64,8 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
     if (mode === 'image' || mode === 'all') {
       const brandPrompt = `Crea uno SFONDO/AMBIENTAZIONE quadrato 1:1 per un post social Tecnofra. Sfondo nero #000000 dominante con leggero gradiente, accenti luminosi turchese-petrolio #00A3AC (linee, bagliori, particolato, luce di scena). Atmosfera: palcoscenico/laboratorio tecnico industriale premium, luci di scena, profondità. IMPORTANTE: scena VUOTA, NIENTE prodotti, NIENTE oggetti centrali, NIENTE persone, NIENTE testo, NIENTE loghi, NIENTE watermark. Solo ambientazione di sfondo elegante con ampio spazio centrale libero dove verrà sovrapposto un prodotto in post-produzione. Look cinematografico, professionale. ${extraPrompt}`;
 
-      // Pre-fetch product image (bypass Cloudflare blocking Google's fetcher)
-      let productImageDataUrl = '';
-      const srcUrl = product.images?.[0]?.src;
-      if (srcUrl) {
-        try {
-          const ir = await fetch(srcUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
-              'Referer': 'https://tecnofra.it/',
-            },
-          });
-          if (ir.ok) {
-            const buf = new Uint8Array(await ir.arrayBuffer());
-            let bin = '';
-            for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-            const b64 = btoa(bin);
-            const mime = ir.headers.get('content-type') || 'image/jpeg';
-            productImageDataUrl = `data:${mime};base64,${b64}`;
-          } else {
-            console.log('Product image fetch failed:', ir.status);
-          }
-        } catch (e) {
-          console.log('Product image fetch error:', String(e));
-        }
-      }
+
+
 
       const imgReq: any = {
         model: 'google/gemini-3.1-flash-image-preview',

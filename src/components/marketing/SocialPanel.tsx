@@ -30,6 +30,15 @@ type PublishResponse = {
   errors?: Record<string, { error?: string; action?: string }>;
 };
 
+type InvokeErrorWithContext = Error & { context?: { json?: () => Promise<PublishResponse> } };
+
+const formatPublishErrors = (result: PublishResponse | null | undefined) => {
+  const channelErrors = result?.errors
+    ? Object.entries(result.errors).map(([channel, err]) => `${channel}: ${err.error}${err.action ? `\n${err.action}` : ""}`).join("\n\n")
+    : "";
+  return channelErrors || (result?.action ? `${result.error}\n${result.action}` : result?.error) || "Errore pubblicazione";
+};
+
 export const SocialPanel = () => {
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<WooProduct[]>([]);
@@ -413,14 +422,14 @@ export const SocialPanel = () => {
       const { data, error } = await supabase.functions.invoke("social-publish", {
         body: { slides: slidesToPublish, caption: fullCaption, targets: t },
       });
-      if (error) throw error;
+      if (error) {
+        const invokeError = error as InvokeErrorWithContext;
+        const errorBody = await invokeError.context?.json?.().catch(() => null);
+        throw new Error(formatPublishErrors(errorBody) || invokeError.message);
+      }
       const result = data as PublishResponse | null;
       if (result?.ok === false || result?.error) {
-        const channelErrors = result.errors
-          ? Object.entries(result.errors).map(([channel, err]) => `${channel}: ${err.error}${err.action ? `\n${err.action}` : ""}`).join("\n\n")
-          : "";
-        const message = channelErrors || (result.action ? `${result.error}\n${result.action}` : result.error);
-        throw new Error(message || "Errore pubblicazione");
+        throw new Error(formatPublishErrors(result));
       }
       const warnings = result?.errors ? Object.keys(result.errors) : [];
       if (warnings.length) toast.warning(`Pubblicato solo su alcuni canali. Errore: ${warnings.join(", ")}`);

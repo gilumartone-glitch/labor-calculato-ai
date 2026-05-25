@@ -111,15 +111,30 @@ export const SocialPanel = () => {
       gr.addColorStop(1, "rgba(10,18,22,0.85)");
       ctx.fillStyle = gr; ctx.fillRect(0, 0, SIZE, SIZE);
 
-      // 2) sharp product photo centered
+      // 2) sharp product photo centered — multiply to drop white background
       try {
         const prod = await loadImg(productImgUrl);
-        const targetBox = SIZE * 0.55;
+        const targetBox = SIZE * 0.58;
         const r = Math.min(targetBox / prod.width, targetBox / prod.height);
         const pw = prod.width * r, ph = prod.height * r;
         const px = (SIZE - pw) / 2;
-        const py = SIZE * 0.42;
+        const py = SIZE * 0.36;
+
+        // soft turquoise glow behind product
+        const glow = ctx.createRadialGradient(SIZE / 2, py + ph / 2, 20, SIZE / 2, py + ph / 2, Math.max(pw, ph) * 0.75);
+        glow.addColorStop(0, "rgba(0,163,172,0.35)");
+        glow.addColorStop(1, "rgba(0,163,172,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, py - 40, SIZE, ph + 80);
+
+        // multiply blend → white pixels of the source disappear into dark bg
+        ctx.globalCompositeOperation = "screen";
         ctx.drawImage(prod, px, py, pw, ph);
+        ctx.globalCompositeOperation = "source-over";
+        // re-draw normally with lowered opacity for color fidelity
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(prod, px, py, pw, ph);
+        ctx.globalAlpha = 1;
       } catch (e) { console.warn("product img fail", e); }
 
       // 3) HEADLINE (bold condensed, accent word turquoise)
@@ -169,21 +184,18 @@ export const SocialPanel = () => {
         ctx.shadowBlur = 0;
       }
 
-      // 5) Bottom black bar with CTA + logo
+      // 5) Bottom turquoise bar with CTA + logo (legible Inter)
       const BAR_H = 130;
-      ctx.fillStyle = "#0A1216"; ctx.fillRect(0, SIZE - BAR_H, SIZE, BAR_H);
-      ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - BAR_H, SIZE, 3);
-
-      ctx.font = '600 32px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = "#00C8D1";
-      ctx.fillText("🔧", 50, SIZE - BAR_H + 46);
+      ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - BAR_H, SIZE, BAR_H);
+      // subtle dark accent line on top of bar
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(0, SIZE - BAR_H, SIZE, 2);
 
       let ctaText = (opts.cta || "CONSULENZA GRATUITA").toUpperCase();
-      ctx.font = '800 26px "Inter", system-ui, sans-serif';
+      ctx.font = '700 34px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
       ctx.fillStyle = "#FFFFFF";
-      const maxCtaW = SIZE - 380;
+      const maxCtaW = SIZE - 260;
       while (ctx.measureText(ctaText).width > maxCtaW && ctaText.length > 8) ctaText = ctaText.slice(0, -2);
-      ctx.fillText(ctaText, 110, SIZE - BAR_H + 52);
+      ctx.fillText(ctaText, 50, SIZE - BAR_H + 48);
 
       try {
         const logo = await loadImg("/tecnofra-logo.ico");
@@ -191,10 +203,11 @@ export const SocialPanel = () => {
         const lw = (logo.width / logo.height) * lh;
         ctx.drawImage(logo, SIZE - lw - 40, SIZE - BAR_H + (BAR_H - lh) / 2, lw, lh);
       } catch {
-        ctx.font = '900 32px "Impact", sans-serif';
+        ctx.font = '800 30px "Inter", system-ui, sans-serif';
         ctx.fillStyle = "#FFFFFF";
-        ctx.fillText("TECNOFRA", SIZE - 220, SIZE - BAR_H + 50);
+        ctx.fillText("TECNOFRA", SIZE - 210, SIZE - BAR_H + 50);
       }
+
 
       return canvas.toDataURL("image/png");
     }

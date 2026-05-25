@@ -405,7 +405,7 @@ export const SocialPanel = () => {
           status,
           recipients_count: 0,
           meta: { targets: t, slides: slidesToPublish.length, productId: selected?.id, ...meta },
-        });
+        } as any);
       } catch (err) { console.warn("log fail", err); }
     };
     try {

@@ -64,15 +64,42 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
     if (mode === 'image' || mode === 'all') {
       const brandPrompt = `Crea un'immagine quadrata 1:1, alta qualità fotografica, del prodotto "${product.name}" per un post social. Sfondo nero #000000 pulito o leggero gradiente scuro, illuminazione studio drammatica, accento luminoso turchese-petrolio #00A3AC come luce di contorno o riflesso. Il prodotto è il SOGGETTO PRINCIPALE centrato e ben visibile, occupa circa il 70% dell'inquadratura, lasciando ~20% di spazio vuoto in basso per testo sovrapposto in post-produzione. NIENTE TESTO, NIENTE SCRITTE, NIENTE LOGHI, NIENTE WATERMARK nell'immagine. Look premium, industriale, tecnico, professionale. ${extraPrompt}`;
 
+      // Pre-fetch product image (bypass Cloudflare blocking Google's fetcher)
+      let productImageDataUrl = '';
+      const srcUrl = product.images?.[0]?.src;
+      if (srcUrl) {
+        try {
+          const ir = await fetch(srcUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+              'Referer': 'https://tecnofra.it/',
+            },
+          });
+          if (ir.ok) {
+            const buf = new Uint8Array(await ir.arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+            const b64 = btoa(bin);
+            const mime = ir.headers.get('content-type') || 'image/jpeg';
+            productImageDataUrl = `data:${mime};base64,${b64}`;
+          } else {
+            console.log('Product image fetch failed:', ir.status);
+          }
+        } catch (e) {
+          console.log('Product image fetch error:', String(e));
+        }
+      }
+
       const imgReq: any = {
         model: 'google/gemini-3.1-flash-image-preview',
         messages: [
           {
             role: 'user',
-            content: product.images?.[0]?.src
+            content: productImageDataUrl
               ? [
-                  { type: 'text', text: brandPrompt + ' Usa l\'immagine fornita del prodotto come riferimento.' },
-                  { type: 'image_url', image_url: { url: product.images[0].src } },
+                  { type: 'text', text: brandPrompt + ' Usa l\'immagine fornita del prodotto come riferimento visivo principale.' },
+                  { type: 'image_url', image_url: { url: productImageDataUrl } },
                 ]
               : brandPrompt,
           },

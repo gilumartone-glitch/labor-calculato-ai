@@ -93,17 +93,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
 
       const imgReq: any = {
         model: 'google/gemini-3.1-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: productImageDataUrl
-              ? [
-                  { type: 'text', text: brandPrompt + ' Usa l\'immagine fornita del prodotto come riferimento visivo principale.' },
-                  { type: 'image_url', image_url: { url: productImageDataUrl } },
-                ]
-              : brandPrompt,
-          },
-        ],
+        messages: [{ role: 'user', content: brandPrompt }],
         modalities: ['image', 'text'],
       };
 

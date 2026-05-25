@@ -624,6 +624,15 @@ const NewsletterPanel = () => {
     load();
   };
 
+  const logActivity = async (status: "success" | "error", title: string, detail: string, channel: string, meta: Record<string, unknown> = {}, recipients = 0) => {
+    try {
+      if (!user) return;
+      await supabase.from("marketing_activity_log").insert({
+        created_by: user.id, type: "newsletter", channel, title, detail, status, recipients_count: recipients, meta,
+      });
+    } catch (err) { console.warn("log fail", err); }
+  };
+
   const pushToMailchimp = async (sendNow: boolean) => {
     if (!editing?.id) { toast.error("Salva prima la bozza"); return; }
     if (sendNow && !confirm("Inviare la newsletter ORA a Mailchimp?")) return;
@@ -633,10 +642,12 @@ const NewsletterPanel = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(sendNow ? "Inviata!" : "Campagna creata su Mailchimp (bozza)");
+      await logActivity("success", editing.subject || "Newsletter", sendNow ? "Newsletter inviata" : "Bozza creata su Mailchimp", "mailchimp", { campaign_id: data?.campaign_id, send_now: sendNow }, data?.recipients_count ?? 0);
       load();
       if (sendNow) setEditing(null);
     } catch (e: any) {
       toast.error(e.message || "Errore Mailchimp");
+      await logActivity("error", editing.subject || "Newsletter", e.message || "Errore Mailchimp", "mailchimp", { send_now: sendNow });
     } finally {
       setWorking(false);
     }
@@ -651,12 +662,15 @@ const NewsletterPanel = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Test inviato a ${testEmail}`);
+      await logActivity("success", editing.subject || "Newsletter", `Email test inviata a ${testEmail}`, "mailchimp", { test_email: testEmail });
     } catch (e: any) {
       toast.error(e.message || "Errore invio test");
+      await logActivity("error", editing.subject || "Newsletter", e.message || "Errore invio test", "mailchimp", { test_email: testEmail });
     } finally {
       setWorking(false);
     }
   };
+
 
   const duplicate = async (n: Newsletter) => {
     const { data, error } = await supabase.from("marketing_newsletters").insert({

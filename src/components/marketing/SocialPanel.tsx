@@ -431,23 +431,51 @@ export const SocialPanel = () => {
               {/* style toggle */}
               <div className="mb-3">
                 <Label className="text-xs">Stile immagine</Label>
-                <div className="flex gap-2 mt-1">
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setStyle("editorial")}
+                    className={`text-xs py-2 px-3 border-2 rounded-sm font-semibold transition text-left ${style === "editorial" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
+                  >
+                    Editoriale<br /><span className="text-[10px] font-normal opacity-70">stile FB Tecnofra</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setStyle("clean")}
-                    className={`flex-1 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${style === "clean" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
+                    className={`text-xs py-2 px-3 border-2 rounded-sm font-semibold transition text-left ${style === "clean" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
                   >
-                    Pulito (bianco/nero + colori brand)
+                    Pulito<br /><span className="text-[10px] font-normal opacity-70">bianco + strisce</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setStyle("scene")}
-                    className={`flex-1 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${style === "scene" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
+                    className={`text-xs py-2 px-3 border-2 rounded-sm font-semibold transition text-left ${style === "scene" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
                   >
-                    Ambientato (sfondo AI)
+                    Ambientato<br /><span className="text-[10px] font-normal opacity-70">sfondo AI</span>
                   </button>
                 </div>
               </div>
+
+              {style === "editorial" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 p-3 bg-ink/[0.03] border border-ink/10 rounded-sm">
+                  <div className="md:col-span-2">
+                    <Label className="text-xs">Headline (maiuscolo, max 3 righe)</Label>
+                    <Input value={headline} onChange={(e) => setHeadline(e.target.value.toUpperCase())} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Parola accent (turchese)</Label>
+                    <Input value={headlineAccent} onChange={(e) => setHeadlineAccent(e.target.value.toUpperCase())} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sottotitolo italico</Label>
+                    <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="text-xs">CTA barra inferiore</Label>
+                    <Input value={ctaText} onChange={(e) => setCtaText(e.target.value.toUpperCase())} />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>

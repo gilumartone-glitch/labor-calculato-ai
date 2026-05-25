@@ -106,7 +106,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
       }
     }
 
-    return new Response(JSON.stringify({ caption, hashtags, imageDataUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ caption, hashtags, imageDataUrl, headline, headlineAccent, subtitle, cta }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e instanceof Error ? e.message : e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

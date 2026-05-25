@@ -129,6 +129,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Configurare i secret META_PAGE_ID, META_PAGE_ACCESS_TOKEN, META_IG_BUSINESS_ID' }, 400);
     }
 
+    const { slides, caption, targets = ['facebook', 'instagram'] } = await req.json() as {
+      slides: string[]; // data URLs
+      caption: string;
+      targets?: ('facebook' | 'instagram')[];
+    };
+    if (!slides?.length) return jsonResponse({ error: 'Nessuna slide' }, 400);
+
     const { token: TOKEN, tokenSource, page } = await resolvePageAccessToken(PAGE_ID, CONFIGURED_TOKEN);
     const linkedIgId = page?.instagram_business_account?.id ? String(page.instagram_business_account.id) : '';
     const effectiveIgId = linkedIgId || IG_ID;
@@ -138,13 +145,6 @@ Deno.serve(async (req) => {
         linkedIgId,
       });
     }
-
-    const { slides, caption, targets = ['facebook', 'instagram'] } = await req.json() as {
-      slides: string[]; // data URLs
-      caption: string;
-      targets?: ('facebook' | 'instagram')[];
-    };
-    if (!slides?.length) return jsonResponse({ error: 'Nessuna slide' }, 400);
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 

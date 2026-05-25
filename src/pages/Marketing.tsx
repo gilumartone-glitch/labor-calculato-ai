@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { ArrowLeft, Megaphone, Plus, Trash2, Mail, Users, FolderTree, Send, Loader2, RefreshCw, Pencil, Tag, Upload, Download, Eye, Paperclip, Copy, X, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, MailX } from "lucide-react";
+import { ArrowLeft, Megaphone, Plus, Trash2, Mail, Users, FolderTree, Send, Loader2, RefreshCw, Pencil, Tag, Upload, Download, Eye, Paperclip, Copy, X, ArrowUp, ArrowDown, ArrowUpDown, BarChart3, MailX, Share2 } from "lucide-react";
+import { SocialPanel } from "@/components/marketing/SocialPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -44,10 +45,12 @@ const Marketing = () => {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="newsletter" className="gap-1.5"><Mail className="w-4 h-4" /> Newsletter</TabsTrigger>
+            <TabsTrigger value="social" className="gap-1.5"><Share2 className="w-4 h-4" /> Social</TabsTrigger>
             <TabsTrigger value="rubrica" className="gap-1.5"><Users className="w-4 h-4" /> Rubrica</TabsTrigger>
             <TabsTrigger value="categorie" className="gap-1.5"><FolderTree className="w-4 h-4" /> Categorie</TabsTrigger>
           </TabsList>
           <TabsContent value="newsletter" className="mt-6"><NewsletterPanel /></TabsContent>
+          <TabsContent value="social" className="mt-6"><SocialPanel /></TabsContent>
           <TabsContent value="rubrica" className="mt-6"><ContactsPanel /></TabsContent>
           <TabsContent value="categorie" className="mt-6"><CategoriesPanel /></TabsContent>
         </Tabs>

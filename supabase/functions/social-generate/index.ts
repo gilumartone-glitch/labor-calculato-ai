@@ -62,7 +62,7 @@ Descrizione: ${(product.description || '').slice(0, 1500)}`;
 
     // 2) Image generation (square 1080x1080 brand)
     if (mode === 'image' || mode === 'all') {
-      const brandPrompt = `Crea un'immagine quadrata 1:1, alta qualità fotografica, del prodotto "${product.name}" per un post social. Sfondo nero #000000 pulito o leggero gradiente scuro, illuminazione studio drammatica, accento luminoso turchese-petrolio #00A3AC come luce di contorno o riflesso. Il prodotto è il SOGGETTO PRINCIPALE centrato e ben visibile, occupa circa il 70% dell'inquadratura, lasciando ~20% di spazio vuoto in basso per testo sovrapposto in post-produzione. NIENTE TESTO, NIENTE SCRITTE, NIENTE LOGHI, NIENTE WATERMARK nell'immagine. Look premium, industriale, tecnico, professionale. ${extraPrompt}`;
+      const brandPrompt = `Crea uno SFONDO/AMBIENTAZIONE quadrato 1:1 per un post social Tecnofra. Sfondo nero #000000 dominante con leggero gradiente, accenti luminosi turchese-petrolio #00A3AC (linee, bagliori, particolato, luce di scena). Atmosfera: palcoscenico/laboratorio tecnico industriale premium, luci di scena, profondità. IMPORTANTE: scena VUOTA, NIENTE prodotti, NIENTE oggetti centrali, NIENTE persone, NIENTE testo, NIENTE loghi, NIENTE watermark. Solo ambientazione di sfondo elegante con ampio spazio centrale libero dove verrà sovrapposto un prodotto in post-produzione. Look cinematografico, professionale. ${extraPrompt}`;
 
       // Pre-fetch product image (bypass Cloudflare blocking Google's fetcher)
       let productImageDataUrl = '';

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, Sparkles, Download, Copy, RefreshCw, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Loader2, Search, Sparkles, Download, Copy, RefreshCw, Image as ImageIcon, ExternalLink, Plus, X, Send, Facebook, Instagram } from "lucide-react";
 import { toast } from "sonner";
 
 type WooProduct = {
@@ -18,6 +18,8 @@ type WooProduct = {
   tags: string[];
 };
 
+type Slide = { id: string; productId: number; productName: string; dataUrl: string; style: "scene" | "clean" };
+
 export const SocialPanel = () => {
   const [search, setSearch] = useState("");
   const [products, setProducts] = useState<WooProduct[]>([]);
@@ -26,10 +28,14 @@ export const SocialPanel = () => {
   const [loadError, setLoadError] = useState("");
   const [tone, setTone] = useState("professionale, italiano, competente");
   const [extra, setExtra] = useState("");
+  const [style, setStyle] = useState<"scene" | "clean">("clean");
   const [generating, setGenerating] = useState<null | "caption" | "image" | "all">(null);
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [imageDataUrl, setImageDataUrl] = useState("");
+  const [carousel, setCarousel] = useState<Slide[]>([]);
+  const [publishing, setPublishing] = useState(false);
+  const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });
 
   const loadProducts = async (q = "") => {
     setLoading(true);
@@ -62,87 +68,98 @@ export const SocialPanel = () => {
       img.src = src;
     });
 
-  const composeBrandedImage = async (bgUrl: string, productImgUrl: string, productName: string): Promise<string> => {
+  // Brand colors: primary turquoise 0,163,172 (#00A3AC), secondary black, tertiary white
+  const composeBrandedImage = async (bgUrl: string, productImgUrl: string, productName: string, mode: "scene" | "clean"): Promise<string> => {
     const SIZE = 1080;
     const canvas = document.createElement("canvas");
-    canvas.width = SIZE;
-    canvas.height = SIZE;
+    canvas.width = SIZE; canvas.height = SIZE;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas non disponibile");
 
-    // 1) background (AI scene) — fallback to solid black
-    try {
-      const bg = await loadImg(bgUrl);
-      const ratio = Math.max(SIZE / bg.width, SIZE / bg.height);
-      const w = bg.width * ratio;
-      const h = bg.height * ratio;
-      ctx.drawImage(bg, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-    } catch {
-      ctx.fillStyle = "#000000";
+    if (mode === "scene") {
+      try {
+        const bg = await loadImg(bgUrl);
+        const ratio = Math.max(SIZE / bg.width, SIZE / bg.height);
+        const w = bg.width * ratio, h = bg.height * ratio;
+        ctx.drawImage(bg, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+      } catch {
+        ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, SIZE, SIZE);
+      }
+    } else {
+      // CLEAN: white bg with diagonal turquoise stripes top-right + black footer band
+      ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, SIZE, SIZE);
+      // diagonal turquoise stripes in top-right corner
+      ctx.save();
+      ctx.fillStyle = "#00A3AC";
+      ctx.translate(SIZE, 0);
+      ctx.rotate(Math.PI / 4);
+      for (let i = 0; i < 6; i++) ctx.fillRect(-200 + i * 60, -300, 24, 600);
+      ctx.restore();
+      // black bottom band
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, SIZE - 260, SIZE, 260);
+      // turquoise top divider on band
+      ctx.fillStyle = "#00A3AC";
+      ctx.fillRect(0, SIZE - 264, SIZE, 4);
     }
 
-    // 2) product photo (original, untouched) — CONTAIN, centered, ~62% of canvas
+    // product photo (original, untouched)
     try {
       const prod = await loadImg(productImgUrl);
-      const targetBox = SIZE * 0.62;
+      const targetBox = SIZE * (mode === "clean" ? 0.58 : 0.62);
       const r = Math.min(targetBox / prod.width, targetBox / prod.height);
-      const pw = prod.width * r;
-      const ph = prod.height * r;
+      const pw = prod.width * r, ph = prod.height * r;
       const px = (SIZE - pw) / 2;
-      const py = (SIZE - ph) / 2 - 40; // shift up to leave room for caption
-      // subtle shadow plate
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.beginPath();
-      ctx.ellipse(SIZE / 2, py + ph + 30, pw / 2.2, 24, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const py = (mode === "clean" ? (SIZE - 260) / 2 - ph / 2 + 40 : (SIZE - ph) / 2 - 40);
+      if (mode === "scene") {
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.beginPath();
+        ctx.ellipse(SIZE / 2, py + ph + 30, pw / 2.2, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.drawImage(prod, px, py, pw, ph);
-    } catch (e) {
-      console.warn("product image load failed", e);
-    }
+    } catch (e) { console.warn("product image fail", e); }
 
-    // 3) Tecnofra logo (real favicon) top-left
+    // logo top-left
     try {
       const logo = await loadImg("/tecnofra-logo.ico");
-      const lh = 72;
+      const lh = mode === "clean" ? 80 : 72;
       const lw = (logo.width / logo.height) * lh;
       ctx.drawImage(logo, 48, 48, lw, lh);
     } catch {
-      // fallback text logo
-      ctx.fillStyle = "#00A3AC";
+      ctx.fillStyle = mode === "clean" ? "#000000" : "#00A3AC";
       ctx.font = "800 32px Inter, system-ui, sans-serif";
       ctx.textBaseline = "top";
       ctx.fillText("TECNOFRA", 48, 60);
     }
 
-    // 4) bottom gradient + product name
-    const grad = ctx.createLinearGradient(0, SIZE - 320, 0, SIZE);
-    grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(1, "rgba(0,0,0,0.95)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, SIZE - 320, SIZE, 320);
-
-    ctx.fillStyle = "#00A3AC";
-    ctx.fillRect(50, SIZE - 170, 80, 5);
+    // bottom: product name
+    if (mode === "scene") {
+      const grad = ctx.createLinearGradient(0, SIZE - 320, 0, SIZE);
+      grad.addColorStop(0, "rgba(0,0,0,0)");
+      grad.addColorStop(1, "rgba(0,0,0,0.95)");
+      ctx.fillStyle = grad; ctx.fillRect(0, SIZE - 320, SIZE, 320);
+      ctx.fillStyle = "#00A3AC"; ctx.fillRect(50, SIZE - 170, 80, 5);
+    }
 
     const drawWrapped = (text: string, x: number, y: number, maxW: number, lineH: number, maxLines: number) => {
       const words = text.toUpperCase().split(" ");
-      let line = "";
-      const lines: string[] = [];
+      let line = ""; const lines: string[] = [];
       for (const w of words) {
         const test = line ? line + " " + w : w;
-        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
-        else line = test;
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
       }
       if (line) lines.push(line);
       const shown = lines.slice(0, maxLines);
       if (lines.length > maxLines) shown[maxLines - 1] = shown[maxLines - 1].replace(/.{0,3}$/, "…");
       shown.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
     };
+
     ctx.fillStyle = "#FFFFFF";
     ctx.textBaseline = "top";
-    ctx.font = "800 54px Inter, system-ui, sans-serif";
-    drawWrapped(productName, 50, SIZE - 150, SIZE - 100, 62, 2);
+    ctx.font = `800 ${mode === "clean" ? 48 : 54}px Inter, system-ui, sans-serif`;
+    drawWrapped(productName, 50, mode === "clean" ? SIZE - 200 : SIZE - 150, SIZE - 100, mode === "clean" ? 56 : 62, 2);
 
     return canvas.toDataURL("image/png");
   };
@@ -152,7 +169,7 @@ export const SocialPanel = () => {
     setGenerating(mode);
     try {
       const { data, error } = await supabase.functions.invoke("social-generate", {
-        body: { product: selected, mode, tone, extraPrompt: extra },
+        body: { product: selected, mode, tone, extraPrompt: extra, background: style },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -162,11 +179,7 @@ export const SocialPanel = () => {
       }
       if (mode !== "caption") {
         try {
-          const branded = await composeBrandedImage(
-            data.imageDataUrl || "",
-            selected.images?.[0]?.src || "",
-            selected.name,
-          );
+          const branded = await composeBrandedImage(data.imageDataUrl || "", selected.images?.[0]?.src || "", selected.name, style);
           setImageDataUrl(branded);
         } catch (err: any) {
           console.error(err);
@@ -181,19 +194,43 @@ export const SocialPanel = () => {
     }
   };
 
-  const fullCaption = caption + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
-
-  const copyAll = () => {
-    navigator.clipboard.writeText(fullCaption);
-    toast.success("Caption copiata");
+  const addToCarousel = () => {
+    if (!imageDataUrl || !selected) return toast.error("Genera prima un'immagine");
+    setCarousel((c) => [...c, { id: crypto.randomUUID(), productId: selected.id, productName: selected.name, dataUrl: imageDataUrl, style }]);
+    toast.success(`Slide ${carousel.length + 1} aggiunta`);
   };
+  const removeFromCarousel = (id: string) => setCarousel((c) => c.filter((s) => s.id !== id));
 
+  const fullCaption = caption + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
+  const copyAll = () => { navigator.clipboard.writeText(fullCaption); toast.success("Caption copiata"); };
   const downloadImage = () => {
     if (!imageDataUrl) return;
     const a = document.createElement("a");
-    a.href = imageDataUrl;
-    a.download = `tecnofra-${selected?.id || "post"}.png`;
-    a.click();
+    a.href = imageDataUrl; a.download = `tecnofra-${selected?.id || "post"}.png`; a.click();
+  };
+
+  const publish = async () => {
+    const slidesToPublish = carousel.length > 0 ? carousel.map((s) => s.dataUrl) : (imageDataUrl ? [imageDataUrl] : []);
+    if (!slidesToPublish.length) return toast.error("Nessuna immagine da pubblicare");
+    if (!fullCaption.trim()) return toast.error("Caption mancante");
+    if (!targets.fb && !targets.ig) return toast.error("Seleziona almeno un canale");
+    setPublishing(true);
+    try {
+      const t: string[] = [];
+      if (targets.fb) t.push("facebook");
+      if (targets.ig) t.push("instagram");
+      const { data, error } = await supabase.functions.invoke("social-publish", {
+        body: { slides: slidesToPublish, caption: fullCaption, targets: t },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Pubblicato!");
+      console.log("publish result", data);
+    } catch (e: any) {
+      toast.error(e.message || "Errore pubblicazione");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -263,6 +300,28 @@ export const SocialPanel = () => {
                   </a>
                 </div>
               </div>
+
+              {/* style toggle */}
+              <div className="mb-3">
+                <Label className="text-xs">Stile immagine</Label>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setStyle("clean")}
+                    className={`flex-1 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${style === "clean" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
+                  >
+                    Pulito (bianco/nero + colori brand)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStyle("scene")}
+                    className={`flex-1 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${style === "scene" ? "border-primary bg-primary/10" : "border-ink/15 hover:border-ink/40"}`}
+                  >
+                    Ambientato (sfondo AI)
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Tono</Label>
@@ -300,36 +359,88 @@ export const SocialPanel = () => {
                     <div className="text-white/40 text-xs">Nessuna immagine generata</div>
                   )}
                 </div>
-                {imageDataUrl && (
-                  <Button size="sm" variant="outline" className="w-full mt-2 gap-2" onClick={downloadImage}>
-                    <Download className="w-4 h-4" /> Scarica PNG
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <Button size="sm" variant="outline" className="gap-2" onClick={downloadImage} disabled={!imageDataUrl}>
+                    <Download className="w-4 h-4" /> PNG
                   </Button>
-                )}
+                  <Button size="sm" variant="outline" className="gap-2" onClick={addToCarousel} disabled={!imageDataUrl}>
+                    <Plus className="w-4 h-4" /> Carosello
+                  </Button>
+                </div>
               </div>
 
               {/* caption */}
               <div className="border-2 border-ink/15 rounded-sm bg-paper p-3 flex flex-col">
-                <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Caption + Hashtag</div>
+                <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Caption</div>
                 <Textarea
-                  value={fullCaption}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    const parts = v.split(/\n\n#|\n#/);
-                    setCaption(parts[0] || "");
-                    const tagPart = v.match(/#[\w]+/g) || [];
-                    setHashtags(tagPart.map((t) => t.replace(/^#/, "").toLowerCase()));
-                  }}
-                  className="flex-1 min-h-[280px] text-sm"
-                  placeholder="Caption + hashtag verranno generati qui"
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  className="flex-1 min-h-[160px] text-sm"
+                  placeholder="Caption…"
                 />
-                <Button size="sm" variant="outline" className="mt-2 gap-2" onClick={copyAll} disabled={!fullCaption}>
-                  <Copy className="w-4 h-4" /> Copia tutto
+                <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-3 mb-1">Hashtag ({hashtags.length})</div>
+                <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+                  {hashtags.map((h, i) => (
+                    <span key={i} className="text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-sm font-mono">
+                      #{h}
+                      <button onClick={() => setHashtags((hs) => hs.filter((_, j) => j !== i))} className="ml-1 opacity-60 hover:opacity-100">×</button>
+                    </span>
+                  ))}
+                  {hashtags.length === 0 && <span className="text-xs text-muted-foreground">Nessun hashtag</span>}
+                </div>
+                <Button size="sm" variant="outline" className="mt-3 gap-2" onClick={copyAll} disabled={!fullCaption}>
+                  <Copy className="w-4 h-4" /> Copia caption + hashtag
                 </Button>
               </div>
             </div>
 
-            <div className="border-2 border-dashed border-ink/20 rounded-sm p-4 text-xs text-muted-foreground">
-              <strong className="text-ink">Prossimo step:</strong> pubblicazione automatica su Facebook + Instagram via Meta Graph API. Appena hai recuperato Page Access Token, PAGE_ID e IG_BUSINESS_ID dimmelo e li aggiungo come secret.
+            {/* CAROSELLO */}
+            {carousel.length > 0 && (
+              <div className="border-2 border-primary/40 rounded-sm bg-primary/5 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-mono uppercase tracking-wider text-primary font-semibold">Carosello · {carousel.length} slide</div>
+                  <Button size="sm" variant="ghost" onClick={() => setCarousel([])}>Svuota</Button>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {carousel.map((s, i) => (
+                    <div key={s.id} className="relative shrink-0 w-24 h-24 border-2 border-ink/20 rounded-sm overflow-hidden">
+                      <img src={s.dataUrl} alt={s.productName} className="w-full h-full object-cover" />
+                      <div className="absolute top-0 left-0 bg-black/70 text-white text-[10px] px-1">{i + 1}</div>
+                      <button onClick={() => removeFromCarousel(s.id)} className="absolute top-0 right-0 bg-destructive text-white p-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PUBBLICA */}
+            <div className="border-2 border-ink/15 rounded-sm bg-paper p-4">
+              <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Pubblica</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setTargets((t) => ({ ...t, fb: !t.fb }))}
+                  className={`flex items-center gap-2 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${targets.fb ? "border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]" : "border-ink/15 text-muted-foreground"}`}
+                >
+                  <Facebook className="w-4 h-4" /> Facebook
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargets((t) => ({ ...t, ig: !t.ig }))}
+                  className={`flex items-center gap-2 text-xs py-2 px-3 border-2 rounded-sm font-semibold transition ${targets.ig ? "border-[#E4405F] bg-[#E4405F]/10 text-[#E4405F]" : "border-ink/15 text-muted-foreground"}`}
+                >
+                  <Instagram className="w-4 h-4" /> Instagram
+                </button>
+              </div>
+              <Button onClick={publish} disabled={publishing} className="gap-2 w-full">
+                {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Pubblica {carousel.length > 1 ? `carosello (${carousel.length} slide)` : "post"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Richiede i secret <code>META_PAGE_ID</code>, <code>META_PAGE_ACCESS_TOKEN</code>, <code>META_IG_BUSINESS_ID</code>. Senza, vedrai un errore esplicito.
+              </p>
             </div>
           </>
         )}

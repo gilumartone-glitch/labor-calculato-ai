@@ -23,6 +23,7 @@ export const SocialPanel = () => {
   const [products, setProducts] = useState<WooProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<WooProduct | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [tone, setTone] = useState("professionale, italiano, competente");
   const [extra, setExtra] = useState("");
   const [generating, setGenerating] = useState<null | "caption" | "image" | "all">(null);
@@ -32,20 +33,19 @@ export const SocialPanel = () => {
 
   const loadProducts = async (q = "") => {
     setLoading(true);
+    setLoadError("");
     try {
-      const { data, error } = await supabase.functions.invoke("woo-products", {
-        body: null,
-        method: "GET" as any,
-        // pass search via query (functions.invoke doesn't support qs, so we use fetch fallback)
-      });
-      // fallback: use fetch directly with query string
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woo-products${q ? `?search=${encodeURIComponent(q)}` : ""}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Errore caricamento prodotti");
-      setProducts(Array.isArray(j) ? j : []);
+      setProducts(Array.isArray(j) ? j : Array.isArray(j.products) ? j.products : []);
+      if (!Array.isArray(j) && j.warning) setLoadError(j.warning);
     } catch (e: any) {
-      toast.error(e.message || "Errore");
+      const message = e.message || "Errore";
+      setLoadError(message);
+      setProducts([]);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -107,6 +107,11 @@ export const SocialPanel = () => {
             <Search className="w-4 h-4" />
           </Button>
         </div>
+        {loadError && (
+          <div className="mb-3 rounded-sm border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {loadError}
+          </div>
+        )}
         {loading ? (
           <div className="grid place-items-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (

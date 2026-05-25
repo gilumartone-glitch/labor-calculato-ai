@@ -100,7 +100,7 @@ const friendlyMetaError = (error: MetaApiError) => {
       meta: { step: error.step, code: meta.code, type: meta.type, fbtrace_id: meta.fbtrace_id },
     };
   }
-  if (meta?.code === 200 && message.includes('pages_manage_posts')) {
+  if (meta?.code === 200 && (message.includes('pages_manage_posts') || message.includes('pages_read_engagement'))) {
     return {
       ok: false,
       code: 'META_FACEBOOK_PERMISSION_UNAVAILABLE',
@@ -220,7 +220,11 @@ Deno.serve(async (req) => {
     }
 
     const succeeded = Object.values(results).some(Boolean);
-    return jsonResponse({ ok: succeeded, urls: publicUrls, results, errors, meta: { tokenSource, instagramId: effectiveIgId } }, succeeded ? 200 : 400);
+    const hasHandledChannelErrors = Object.keys(errors).length > 0;
+    return jsonResponse(
+      { ok: succeeded, urls: publicUrls, results, errors, meta: { tokenSource, instagramId: effectiveIgId } },
+      succeeded || hasHandledChannelErrors ? 200 : 400,
+    );
   } catch (e) {
     if (e instanceof MetaApiError) return jsonResponse(friendlyMetaError(e));
     return jsonResponse({ error: String(e instanceof Error ? e.message : e) }, 500);

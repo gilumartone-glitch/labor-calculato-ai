@@ -186,6 +186,7 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
       if (hasTaglio) result.add("taglio");
       if (!hasStampa && !hasTaglio && pieces.length > 0) result.add("stampa");
     } else if (baseKey === "falegnameria") result.add("falegnameria");
+    else if (baseKey === "magazzino" || baseKey === "vendite") result.add("magazzino");
     else result.add("altro");
   }
   return Array.from(result);

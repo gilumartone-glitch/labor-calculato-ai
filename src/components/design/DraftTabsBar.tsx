@@ -667,14 +667,21 @@ export const DraftTabsBar = () => {
 
       // Sub di reparto: bloccati finché acquisti non arrivati
       const baseOrdine = d.missing?.length ?? 0;
+      const salesItems = collectSalesItems(
+        ((productionSnapshot as any)?.designState as any) ?? (productionSnapshot as any),
+      );
+      const salesNote = buildSalesNote(salesItems);
       for (let i = 0; i < depts.length; i++) {
         const dept = depts[i];
+        const subNote = dept === "magazzino" && salesNote
+          ? `${titolo}${titolo ? " — " : ""}${salesNote}`
+          : (titolo || null);
         const { error: eSub } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(prodCode, SUB_DEPT_SUFFIX[dept], i + 1),
           dept,
           ordine: baseOrdine + i,
-          note: titolo || null,
+          note: subNote,
           files: [],
           depends_on: firstAcquistiId,
         } as any);

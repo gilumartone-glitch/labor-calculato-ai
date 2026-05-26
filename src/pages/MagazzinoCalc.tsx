@@ -1349,9 +1349,10 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
                     new_state: { code, source: "magazzino-danza" },
                   });
                   toast.success(`Ordine ${code} creato e inviato al magazzino`, {
-                    action: { label: "Apri", onClick: () => navigate(`/produzione/board?order=${pord.id}`) },
+                    action: { label: "Apri Flow", onClick: () => navigate("/flow") },
                   });
                   setFlowOpen(false);
+                  navigate("/flow");
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
                 } finally {

@@ -569,124 +569,93 @@ function FirePickerDialog({ products, onPick, onClose }: {
 
 function ManualMagazzinoOrderForm({
   sourceLabel,
+  categoryKey,
   suggestions,
   picker,
 }: {
   sourceLabel: string;
+  categoryKey: SaleCategory;
   suggestions: { descrizione: string; um: string }[];
   picker?: (onPick: (item: PickedItem) => void, onClose: () => void) => React.ReactNode;
 }) {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [cliente, setCliente] = useState("");
-  const [ref, setRef] = useState("");
-  const [note, setNote] = useState("");
-  const [lines, setLines] = useState<ManualLine[]>([
-    { id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" },
-  ]);
-  const [assignee, setAssignee] = useState("");
-  const [users, setUsers] = useState<{ id: string; display_name: string | null }[]>([]);
-  const [busy, setBusy] = useState(false);
+  // Le righe vivono nel draft di progetto (officina:state.salesCarts[<key>]):
+  // cliente, riferimento ordine e responsabile magazzino vengono scelti una
+  // sola volta in "Crea commessa nel Flow" (DraftTabsBar in alto).
+  const [lines, setLines] = useState<ManualLine[]>(() => {
+    const cart = readDraftSalesCart(categoryKey);
+    if (cart.length === 0) return [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }];
+    return cart.map((l) => ({
+      id: l.id || uid(),
+      descrizione: l.name || "",
+      qty: l.qty != null ? String(l.qty) : "",
+      um: l.unit || suggestions[0]?.um || "pz",
+      note: l.variant || "",
+    }));
+  });
   const [pickerLineId, setPickerLineId] = useState<string | null>(null);
+  const [manualEdit, setManualEdit] = useState<Record<string, boolean>>({});
 
+  // Sync verso il draft a ogni cambio.
   useEffect(() => {
-    supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true })
-      .then(({ data }) => setUsers(data ?? []));
-  }, []);
+    const valid = lines.filter((l) => l.descrizione.trim() && Number(l.qty) > 0);
+    const cart: CartLine[] = valid.map((l) => ({
+      id: l.id,
+      materialId: "",
+      qty: Number(l.qty) || 0,
+      name: l.descrizione.trim(),
+      variant: l.note?.trim() || "",
+      unit: (l.um as SaleUnit) || "pz",
+      priceSell: 0,
+      pricePurchase: 0,
+      category: categoryKey,
+    }));
+    writeDraftSalesCart(categoryKey, cart);
+  }, [lines, categoryKey]);
+
+  // Ricarica quando si cambia scheda progetto.
+  useEffect(() => {
+    const onLoaded = () => {
+      const cart = readDraftSalesCart(categoryKey);
+      setLines(
+        cart.length === 0
+          ? [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }]
+          : cart.map((l) => ({
+              id: l.id || uid(),
+              descrizione: l.name || "",
+              qty: l.qty != null ? String(l.qty) : "",
+              um: l.unit || suggestions[0]?.um || "pz",
+              note: l.variant || "",
+            })),
+      );
+    };
+    window.addEventListener("officina:draft-state-loaded", onLoaded);
+    return () => window.removeEventListener("officina:draft-state-loaded", onLoaded);
+  }, [categoryKey, suggestions]);
 
   const addLine = (preset?: { descrizione: string; um: string }) => {
     const id = uid();
-    setLines([...lines, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+    setLines((ls) => [...ls, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
     return id;
   };
   const addAndPick = () => { const id = addLine(); setPickerLineId(id); };
-  const updLine = (id: string, patch: Partial<ManualLine>) => setLines(lines.map((l) => l.id === id ? { ...l, ...patch } : l));
-  const rmLine = (id: string) => setLines(lines.filter((l) => l.id !== id));
-  const [manualEdit, setManualEdit] = useState<Record<string, boolean>>({});
+  const updLine = (id: string, patch: Partial<ManualLine>) => setLines((ls) => ls.map((l) => l.id === id ? { ...l, ...patch } : l));
+  const rmLine = (id: string) => setLines((ls) => ls.filter((l) => l.id !== id));
 
-  const validLines = lines.filter((l) => l.descrizione.trim() && Number(l.qty) > 0);
-
-  const submit = async () => {
-    if (!user) { toast.error("Devi accedere"); return; }
-    if (!cliente.trim()) { toast.error("Inserisci il cliente"); return; }
-    if (validLines.length === 0) { toast.error("Aggiungi almeno una voce"); return; }
-    if (!assignee) { toast.error("Seleziona il responsabile magazzino"); return; }
-    setBusy(true);
-    try {
-      const code = await nextOrderCode();
-      const itemsTxt = validLines.map((l) => `${l.descrizione} — ${l.qty} ${l.um}${l.note ? ` (${l.note})` : ""}`).join(" · ");
-      const fullNote = [note.trim(), itemsTxt].filter(Boolean).join("\n");
-      const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
-        code,
-        cliente: cliente.trim().slice(0, 200),
-        data: new Date().toISOString().slice(0, 10),
-        note: `${sourceLabel} — ${fullNote}`,
-        priorita: "normale",
-        delivery: "spedizione",
-        status: "in_corso",
-        attachments: [],
-        nesting_included: false,
-        created_by: user.id,
-        customer_order_ref: ref.trim() || null,
-        snapshot: {
-          source: `magazzino-ordine-manuale`,
-          sourceLabel,
-          cliente: cliente.trim(),
-          ref: ref.trim(),
-          items: validLines.map((l) => ({ descrizione: l.descrizione, qty: Number(l.qty), um: l.um, note: l.note })),
-          note,
-        } as never,
-      }).select().single();
-      if (e1) throw e1;
-      await supabase.from("production_sub_orders").insert({
-        order_id: pord.id,
-        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-        dept: "magazzino",
-        ordine: 0,
-        note: itemsTxt,
-        files: [],
-        depends_on: null,
-        assignee_id: assignee,
-      } as any);
-      await notify({
-        userIds: [assignee],
-        type: "magazzino_da_preparare",
-        message: `${sourceLabel} — ${code} · ${cliente.trim()}`,
-        order_id: pord.id,
-        link: "/produzione/preparazione",
-        is_urgent: false,
-      });
-      await logAction({
-        action: "FLOW_LANCIATO",
-        entity_type: "order",
-        entity_id: pord.id,
-        detail: `${sourceLabel} ${code} per ${cliente.trim()} (${itemsTxt})`,
-        new_state: { code, source: "magazzino-ordine-manuale" },
-      });
-      toast.success(`Ordine ${code} creato e inviato al magazzino`, {
-        action: { label: "Apri Flow", onClick: () => navigate("/flow") },
-      });
-      navigate("/flow");
-      setCliente(""); setRef(""); setNote("");
-      setLines([{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }]);
-      setAssignee("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
-    } finally { setBusy(false); }
-  };
+  const validCount = lines.filter((l) => l.descrizione.trim() && Number(l.qty) > 0).length;
 
   return (
     <div className="border-2 border-ink/15 rounded-sm bg-paper">
-      <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2 flex-wrap">
         <PackageCheck className="w-3.5 h-3.5" />
-        <div className="font-mono text-[10px] uppercase tracking-widest">Ordine manuale → magazzino</div>
+        <div className="font-mono text-[10px] uppercase tracking-widest">{sourceLabel} · ordine manuale → magazzino</div>
+        <div className="flex-1" />
+        {validCount > 0 && (
+          <div className="font-mono text-[10px] uppercase tracking-widest text-primary">
+            {validCount} vo{validCount === 1 ? "ce" : "ci"} · usa <strong>Invia al Flow</strong> in alto
+          </div>
+        )}
       </div>
       <div className="p-4 space-y-4">
-        <div className="grid md:grid-cols-2 gap-3">
-          <Field label="Cliente *"><Input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nome cliente" /></Field>
-          <Field label="Rif. ordine cliente"><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="es. ORD-123" /></Field>
-        </div>
-
         <div className="border-2 border-ink/15 rounded-sm bg-background">
           <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
             <div className="font-mono text-[10px] uppercase tracking-widest">Voci ordine ({lines.length})</div>
@@ -744,40 +713,11 @@ function ManualMagazzinoOrderForm({
           (item) => { updLine(pickerLineId, { descrizione: item.label, um: item.um }); setPickerLineId(null); },
           () => setPickerLineId(null),
         )}
-
-        <Field label="Note ordine"><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note interne / istruzioni" /></Field>
-
-        <div>
-          <Label className="text-[11px] font-mono uppercase tracking-wider">Responsabile magazzino *</Label>
-          {users.length === 0 ? (
-            <div className="text-[11px] text-destructive mt-1">Nessun utente con settore "magazzino". Assegna il settore in Gestione utenti.</div>
-          ) : (
-            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="mt-1 w-full h-9 px-2 border-2 border-ink/20 rounded-sm bg-paper text-sm">
-              <option value="">— seleziona —</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>)}
-            </select>
-          )}
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          {(() => {
-            const missing: string[] = [];
-            if (!cliente.trim()) missing.push("cliente");
-            if (validLines.length === 0) missing.push("almeno una voce con descrizione e quantità > 0");
-            if (!assignee) missing.push("responsabile magazzino");
-            return missing.length > 0 ? (
-              <div className="text-[10px] font-mono text-amber-700">Manca: {missing.join(" · ")}</div>
-            ) : null;
-          })()}
-          <Button onClick={submit} disabled={busy}>
-            {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PackageCheck className="w-4 h-4 mr-2" />}
-            Crea ordine magazzino
-          </Button>
-        </div>
       </div>
     </div>
   );
 }
+
 
 /* ============== Sezione Listino nastri ============== */
 function TapeListSection({ tapes, setTapes }: { tapes: TapeRoll[]; setTapes: (t: TapeRoll[]) => void }) {

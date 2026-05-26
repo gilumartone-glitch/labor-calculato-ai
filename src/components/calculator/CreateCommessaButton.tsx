@@ -181,6 +181,20 @@ export const CreateCommessaButton = ({
       supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
         setProfiles((data ?? []) as any);
       });
+      // se è fornita una factory di snapshot (es. da Progettazione), aggiorna
+      // l'inferenza dei reparti rilevati con lo snapshot live.
+      if (getSnapshot) {
+        (async () => {
+          try {
+            const live = await getSnapshot();
+            setInferenceSnapshot(live);
+          } catch {
+            /* ignore: useremo lo snapshot statico */
+          }
+        })();
+      } else {
+        setInferenceSnapshot(snapshot);
+      }
     }
     setOpen(v);
   };

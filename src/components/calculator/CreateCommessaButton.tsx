@@ -103,6 +103,7 @@ export const CreateCommessaButton = ({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  type RefType = "OC" | "PR" | "FT";
   type FormState = {
     titolo: string; cliente: string; prodName: string; importo: number;
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
@@ -110,26 +111,31 @@ export const CreateCommessaButton = ({
     materialOnlyDepts: ProdDept[];
     excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
+    refType: RefType;
+    refNumber: string;
   };
   const initialForm: FormState = {
-    titolo: defaultTitle, cliente: "", prodName: "",
+    titolo: "", cliente: "", prodName: "",
     importo: defaultAmount, reparto: defaultReparto, priorita: "media",
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
     excludedDepts: [],
     deptAssignees: {},
+    refType: "OC",
+    refNumber: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, refType, refNumber } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
   const setImporto = (v: number) => patch({ importo: v });
-  const setReparto = (v: CommessaReparto) => patch({ reparto: v });
   const setPriorita = (v: CommessaPriorita) => patch({ priorita: v });
   const setScadenza = (v: string) => patch({ scadenza: v });
   const setNote = (v: string) => patch({ note: v });
   const setWarehouseOnly = (v: boolean) => patch({ warehouseOnly: v });
+  const setRefType = (v: RefType) => patch({ refType: v });
+  const setRefNumber = (v: string) => patch({ refNumber: v });
   const toggleMaterialOnlyDept = (d: ProdDept) =>
     setForm((f) => ({
       ...f,

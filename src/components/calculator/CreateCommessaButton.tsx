@@ -265,13 +265,11 @@ export const CreateCommessaButton = ({
         return;
       }
 
-      // Flusso normale: prepara reparti e apri la verifica materiali (acquisti propedeutici alla lavorazione)
-      const fallbackDept = REPARTO_TO_PROD[reparto];
+      // Flusso normale: usa solo i reparti rilevati (no fallback su reparti vuoti).
       const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
-      const allDepts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
-      const depts: ProdDept[] = allDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+      const depts: ProdDept[] = inferred.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
       if (depts.length === 0) {
-        toast.error("Seleziona almeno un reparto da lanciare");
+        toast.error("Nessun reparto con lavorazioni o prodotti da lanciare");
         setSaving(false);
         return;
       }

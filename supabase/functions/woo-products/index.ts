@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       return jsonResponse({
         products: [],
         blocked: true,
-        warning: 'WooCommerce è raggiungibile, ma il firewall/Cloudflare sta mostrando una pagina “Just a moment...” alle richieste backend. Escludi /wp-json/* dal challenge o consenti le richieste verso la REST API.',
+        warning: 'Cloudflare/firewall sta bloccando le richieste REST con una pagina “Just a moment…”. Su Cloudflare crea una WAF Skip Rule per i path che iniziano con /wp-json/ e /index.php?rest_route= (Security Level: Essentially Off, Browser Integrity Check: Off, Bot Fight Mode: Off). In alternativa whitelist gli IP delle edge functions Supabase.',
       });
     }
 

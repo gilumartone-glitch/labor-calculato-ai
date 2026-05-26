@@ -182,10 +182,13 @@ Deno.serve(async (req) => {
         for (let k = 0; k < bin.length; k++) buf[k] = bin.charCodeAt(k);
         const path = `social/${Date.now()}-${i}.png`;
         const up = await supabase.storage.from('marketing-attachments').upload(path, buf, { contentType: mime, upsert: true });
-      if (up.error) throw new Error('Upload storage: ' + up.error.message);
-      const { data: pub } = supabase.storage.from('marketing-attachments').getPublicUrl(path);
-      publicUrls.push(pub.publicUrl);
+        if (up.error) throw new Error('Upload storage: ' + up.error.message);
+        const { data: pub } = supabase.storage.from('marketing-attachments').getPublicUrl(path);
+        publicUrls.push(pub.publicUrl);
+      }
     }
+
+
 
     const results: any = { facebook: null, instagram: null };
     const errors: any = {};

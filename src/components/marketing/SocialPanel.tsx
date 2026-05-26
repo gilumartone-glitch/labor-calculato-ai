@@ -60,10 +60,74 @@ export const SocialPanel = () => {
   const [publishing, setPublishing] = useState(false);
   const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });
   const [ctaLink, setCtaLink] = useState("");
+  const [history, setHistory] = useState<Array<{ id: string; created_at: string; status: string; title: string; detail: string; channel: string; meta: any }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [republishingId, setRepublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (selected?.permalink) setCtaLink(selected.permalink);
   }, [selected?.id]);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("marketing_activity_log")
+        .select("id, created_at, status, title, detail, channel, meta")
+        .eq("type", "social")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setHistory((data || []) as any);
+    } catch (e: any) {
+      toast.error(e.message || "Errore caricamento storico");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const republish = async (entry: typeof history[number], onlyChannel?: "facebook" | "instagram") => {
+    const urls: string[] = Array.isArray(entry.meta?.urls) ? entry.meta.urls : [];
+    if (!urls.length) return toast.error("Questo post non ha immagini riutilizzabili nello storico");
+    const caption = entry.detail || "";
+    const t: string[] = onlyChannel ? [onlyChannel] : (Array.isArray(entry.meta?.targets) ? entry.meta.targets : ["facebook", "instagram"]);
+    setRepublishingId(entry.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-publish", {
+        body: { imageUrls: urls, caption, targets: t },
+      });
+      if (error) {
+        const invokeError = error as InvokeErrorWithContext;
+        const errorBody = await invokeError.context?.json?.().catch(() => null);
+        throw new Error(formatPublishErrors(errorBody) || invokeError.message);
+      }
+      const result = data as PublishResponse | null;
+      if (result?.ok === false || result?.error) throw new Error(formatPublishErrors(result));
+      const warnings = result?.errors ? Object.keys(result.errors) : [];
+      if (warnings.length) toast.warning(`Ripubblicato solo in parte. Errore: ${warnings.join(", ")}`);
+      else toast.success("Ripubblicato!");
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (u.user) await supabase.from("marketing_activity_log").insert({
+          created_by: u.user.id,
+          type: "social",
+          channel: t.join("+"),
+          title: entry.title + " (ripubblicato)",
+          detail: caption.slice(0, 280),
+          status: warnings.length ? "error" : "success",
+          recipients_count: 0,
+          meta: { targets: t, slides: urls.length, urls, errors: result?.errors, republishedFrom: entry.id },
+        } as any);
+      } catch {}
+      await loadHistory();
+    } catch (e: any) {
+      toast.error(e.message || "Errore ripubblicazione");
+    } finally {
+      setRepublishingId(null);
+    }
+  };
 
   const loadProducts = async (q = "") => {
     setLoading(true);
@@ -704,6 +768,69 @@ export const SocialPanel = () => {
             </div>
           </>
         )}
+      </div>
+
+      {/* STORICO — full width */}
+      <div className="lg:col-span-2 border-2 border-ink/15 rounded-sm bg-paper p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold tracking-wide uppercase">Storico pubblicazioni</h3>
+          <Button size="sm" variant="outline" onClick={loadHistory} disabled={historyLoading} className="gap-2">
+            {historyLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            Aggiorna
+          </Button>
+        </div>
+        {history.length === 0 && !historyLoading && (
+          <p className="text-xs text-muted-foreground">Nessuna pubblicazione registrata.</p>
+        )}
+        <div className="space-y-2 max-h-96 overflow-auto">
+          {history.map((h) => {
+            const hasUrls = Array.isArray(h.meta?.urls) && h.meta.urls.length > 0;
+            const failedChannels: string[] = h.meta?.errors ? Object.keys(h.meta.errors) : [];
+            const isError = h.status === "error";
+            return (
+              <div key={h.id} className={`border rounded-sm p-3 text-xs ${isError ? "border-destructive/40 bg-destructive/5" : "border-ink/15"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-1.5 py-0.5 rounded-sm font-bold uppercase text-[10px] ${isError ? "bg-destructive text-destructive-foreground" : "bg-emerald-600 text-white"}`}>
+                        {isError ? "Errore" : "OK"}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">{new Date(h.created_at).toLocaleString("it-IT")}</span>
+                      <span className="text-muted-foreground text-[11px]">· {h.channel}</span>
+                      {failedChannels.length > 0 && (
+                        <span className="text-destructive text-[11px]">· falliti: {failedChannels.join(", ")}</span>
+                      )}
+                    </div>
+                    <div className="font-semibold truncate">{h.title}</div>
+                    <div className="text-muted-foreground line-clamp-2 mt-0.5">{h.detail}</div>
+                  </div>
+                  {hasUrls && (
+                    <div className="flex flex-col gap-1 shrink-0">
+                      {failedChannels.includes("facebook") && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h, "facebook")} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Facebook className="w-3 h-3" />}
+                          Ripubblica FB
+                        </Button>
+                      )}
+                      {failedChannels.includes("instagram") && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h, "instagram")} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Instagram className="w-3 h-3" />}
+                          Ripubblica IG
+                        </Button>
+                      )}
+                      {failedChannels.length === 0 && isError && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h)} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          Riprova
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

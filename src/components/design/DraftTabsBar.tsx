@@ -202,29 +202,14 @@ export const DraftTabsBar = () => {
       const currentLocal = readLocalState();
 
       if (list.length === 0) {
-        // Prima volta: se esiste stato locale lo migro come Progetto 1
-        const initialSnap = currentLocal && Object.keys(currentLocal).length > 0 ? currentLocal : {};
-        const { data: created, error: cErr } = await supabase
-          .from("design_drafts")
-          .insert({
-            user_id: user.id,
-            name: "Progetto 1",
-            snapshot: initialSnap as never,
-            ordine: 0,
-            active: true,
-          })
-          .select()
-          .single();
-        if (cErr || !created) {
-          toast.error("Errore creazione prima bozza");
-          setLoading(false);
-          return;
-        }
+        // Nessuna scheda: non ne creiamo automaticamente.
+        // L'utente userà il pulsante "Nuovo" per crearne una.
+        // (Dopo "Invia al Flow" il progetto deve sparire e non riapparire da solo.)
         if (cancelled) return;
-        setDrafts([created as Draft]);
-        setActiveId(created.id);
-        localStorage.setItem(ACTIVE_DRAFT_KEY, created.id);
-        writeLocalState(initialSnap);
+        setDrafts([]);
+        setActiveId(null);
+        localStorage.removeItem(ACTIVE_DRAFT_KEY);
+        writeLocalState({});
         setLoading(false);
         return;
       }
@@ -656,22 +641,18 @@ export const DraftTabsBar = () => {
         });
       }
 
-      // Reset UI: chiude la tab corrente
+      // Reset UI: chiude la tab corrente. Se era l'ultima, NON ne creiamo una
+      // nuova automaticamente: il progetto deve "sparire" dalla Progettazione una
+      // volta inviato al Flow. Tornerà a comparire solo se la Produzione lo
+      // rimanda in revisione (return_order_to_revision crea una nuova draft).
       await supabase.from("design_drafts").delete().eq("id", activeId);
       const remaining = drafts.filter((dr) => dr.id !== activeId);
       writeLocalState({});
+      localStorage.removeItem(ACTIVE_DRAFT_KEY);
 
       if (remaining.length === 0) {
-        const { data: created } = await supabase
-          .from("design_drafts")
-          .insert({ user_id: user.id, name: "Progetto 1", snapshot: {} as never, ordine: 0, active: true })
-          .select()
-          .single();
-        if (created) {
-          setDrafts([created as Draft]);
-          setActiveId(created.id);
-          localStorage.setItem(ACTIVE_DRAFT_KEY, created.id);
-        }
+        setDrafts([]);
+        setActiveId(null);
       } else {
         const next = remaining[0];
         await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);

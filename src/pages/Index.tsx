@@ -313,7 +313,7 @@ const Index = () => {
 
   /** Reset totale del preventivo: azzera tutti i reparti, riporta i parametri ai default
    *  e cancella lo stato persistito su localStorage. NON tocca i listini. */
-  const resetAllJob = () => {
+  const resetAllJob = async () => {
     const totalPieces =
       departments.tappezzeria.pieces.length +
       departments.stampa.pieces.length +
@@ -332,22 +332,25 @@ const Index = () => {
       )
     )
       return;
-    setDepartments({
-      tappezzeria: initialDept(),
-      stampa: initialDept(),
-      falegnameria: initialDept(),
-    });
-    setJobName("Lavorazione su misura");
-    setQuantity(1);
-    setMargin(30);
-    setVat(22);
-    setApplyVat(false);
-    // Reset "anti-ghost": forza il rimontaggio dei figli per ripulire eventuali
-    // stati locali di input (widthStr, autocomplete, ecc.) e cancella la
-    // serializzazione applicata in modo che il prossimo write parta pulito.
-    lastAppliedRef.current = "";
-    setResetNonce((n) => n + 1);
+    // Pulisci stato locale e snapshot della scheda attiva sul cloud, poi ricarica.
+    // Il reload garantisce il rimontaggio completo di TUTTI i componenti figli
+    // (input, autocomplete, righe materiale/pezzo) evitando freeze dovuti a stati
+    // locali residui dopo il reset.
+    try {
+      localStorage.removeItem(STATE_KEY);
+      const activeDraftId = localStorage.getItem("officina:active-draft");
+      if (activeDraftId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        await supabase
+          .from("design_drafts")
+          .update({ snapshot: {} as never })
+          .eq("id", activeDraftId);
+      }
+    } catch {
+      /* ignore */
+    }
     toast.success("Preventivo azzerato");
+    window.location.reload();
   };
 
   const computeTotals = (s: DepartmentState) => {

@@ -769,6 +769,69 @@ export const SocialPanel = () => {
           </>
         )}
       </div>
+
+      {/* STORICO — full width */}
+      <div className="lg:col-span-2 border-2 border-ink/15 rounded-sm bg-paper p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold tracking-wide uppercase">Storico pubblicazioni</h3>
+          <Button size="sm" variant="outline" onClick={loadHistory} disabled={historyLoading} className="gap-2">
+            {historyLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            Aggiorna
+          </Button>
+        </div>
+        {history.length === 0 && !historyLoading && (
+          <p className="text-xs text-muted-foreground">Nessuna pubblicazione registrata.</p>
+        )}
+        <div className="space-y-2 max-h-96 overflow-auto">
+          {history.map((h) => {
+            const hasUrls = Array.isArray(h.meta?.urls) && h.meta.urls.length > 0;
+            const failedChannels: string[] = h.meta?.errors ? Object.keys(h.meta.errors) : [];
+            const isError = h.status === "error";
+            return (
+              <div key={h.id} className={`border rounded-sm p-3 text-xs ${isError ? "border-destructive/40 bg-destructive/5" : "border-ink/15"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-1.5 py-0.5 rounded-sm font-bold uppercase text-[10px] ${isError ? "bg-destructive text-destructive-foreground" : "bg-emerald-600 text-white"}`}>
+                        {isError ? "Errore" : "OK"}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">{new Date(h.created_at).toLocaleString("it-IT")}</span>
+                      <span className="text-muted-foreground text-[11px]">· {h.channel}</span>
+                      {failedChannels.length > 0 && (
+                        <span className="text-destructive text-[11px]">· falliti: {failedChannels.join(", ")}</span>
+                      )}
+                    </div>
+                    <div className="font-semibold truncate">{h.title}</div>
+                    <div className="text-muted-foreground line-clamp-2 mt-0.5">{h.detail}</div>
+                  </div>
+                  {hasUrls && (
+                    <div className="flex flex-col gap-1 shrink-0">
+                      {failedChannels.includes("facebook") && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h, "facebook")} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Facebook className="w-3 h-3" />}
+                          Ripubblica FB
+                        </Button>
+                      )}
+                      {failedChannels.includes("instagram") && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h, "instagram")} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Instagram className="w-3 h-3" />}
+                          Ripubblica IG
+                        </Button>
+                      )}
+                      {failedChannels.length === 0 && isError && (
+                        <Button size="sm" variant="outline" disabled={republishingId === h.id} onClick={() => republish(h)} className="gap-1 h-7 text-[11px]">
+                          {republishingId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          Riprova
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

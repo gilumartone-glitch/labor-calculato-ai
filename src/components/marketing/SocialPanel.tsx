@@ -390,7 +390,9 @@ export const SocialPanel = () => {
   };
   const removeFromCarousel = (id: string) => setCarousel((c) => c.filter((s) => s.id !== id));
 
-  const fullCaption = caption + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
+  const fullCaption = caption
+    + (ctaLink.trim() ? `\n\n👉 Scopri di più: ${ctaLink.trim()}` : "")
+    + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
   const copyAll = () => { navigator.clipboard.writeText(fullCaption); toast.success("Caption copiata"); };
   const downloadImage = () => {
     if (!imageDataUrl) return;

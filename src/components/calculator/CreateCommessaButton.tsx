@@ -201,9 +201,23 @@ export const CreateCommessaButton = ({
       } else {
         setInferenceSnapshot(snapshot);
       }
+    if (v && defaultTitle && defaultTitle.trim()) {
+      // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
+      // L'utente può comunque modificarlo successivamente.
+      setForm((f) => ({ ...f, titolo: defaultTitle }));
     }
     setOpen(v);
   };
+
+  // Mantieni il titolo allineato al nome della schedina mentre il dialog è
+  // aperto: se l'utente rinomina il "Progetto N", l'aggiornamento si
+  // propaga in automatico (può comunque sovrascrivere manualmente dopo).
+  useEffect(() => {
+    if (!open) return;
+    if (!defaultTitle || !defaultTitle.trim()) return;
+    setForm((f) => (f.titolo === defaultTitle ? f : { ...f, titolo: defaultTitle }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultTitle, open]);
 
   const submit = async () => {
     if (!user) {

@@ -781,16 +781,30 @@ export const DraftTabsBar = () => {
             Storico
           </button>
 
-          <button
-            type="button"
-            onClick={openSendDialog}
+          <CreateCommessaButton
+            label="Invia al Flow"
+            defaultTitle={(() => {
+              const snap = readLocalState() as any;
+              return snap?._revisionTitolo || snap?.revision?.titolo || snap?.jobName ||
+                drafts.find((d) => d.id === activeId)?.name || "Progetto";
+            })()}
+            defaultAmount={(() => {
+              const s: any = readLocalState();
+              return Number(s?.total ?? s?.totals?.total ?? 0) || 0;
+            })()}
+            defaultReparto="generale"
+            snapshot={readLocalState()}
+            getSnapshot={async () => await snapshotForProduction(readLocalState())}
+            onAfterSubmit={async () => {
+              if (!activeId) return;
+              await supabase.from("design_drafts").delete().eq("id", activeId);
+              writeLocalState({});
+              localStorage.removeItem(ACTIVE_DRAFT_KEY);
+            }}
+            triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-sm text-xs uppercase tracking-wider font-bold shadow-md hover:bg-primary/90 disabled:opacity-40 transition-all"
+            hideWarehouseShortcut
             disabled={!activeId || loading}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-sm text-xs uppercase tracking-wider font-bold shadow-md hover:bg-primary/90 disabled:opacity-40 transition-all"
-            title="Invia il progetto attivo al Flow (Invio per confermare)"
-          >
-            <Send className="w-3.5 h-3.5" />
-            Invia al Flow
-          </button>
+          />
         </div>
       </div>
 

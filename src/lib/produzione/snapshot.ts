@@ -147,8 +147,13 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
   const depts = collectSnapshotDepartments(snap);
   // Mappa key reparto → totale dal summary (se disponibile), per filtrare i vuoti.
   const totalsByKey = new Map<string, number>();
+  let anyNonZeroTotal = false;
   if (snap?.source === "summary" && snap.departments) {
-    for (const d of snap.departments) totalsByKey.set(d.key.toLowerCase(), d.totals?.total ?? 0);
+    for (const d of snap.departments) {
+      const t = d.totals?.total ?? 0;
+      totalsByKey.set(d.key.toLowerCase(), t);
+      if (t > 0) anyNonZeroTotal = true;
+    }
   }
   const result = new Set<ProdDept>();
   for (const d of depts) {
@@ -156,9 +161,13 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
     const pieces = d.state?.pieces ?? [];
     const materials = d.state?.materials ?? [];
     const total = totalsByKey.get(baseKey);
-    // Skip reparti vuoti: nessun pezzo, nessun materiale e totale a 0.
-    const isEmpty = pieces.length === 0 && materials.length === 0 && (total === undefined || total <= 0);
-    if (isEmpty) continue;
+    const noContent = pieces.length === 0 && materials.length === 0;
+    // Se almeno un reparto ha total > 0 nel riepilogo, ci fidiamo dei totali e
+    // scartiamo i reparti con totale 0 (richiesta utente: "se un settore è a
+    // 0 € non deve essere preso in considerazione"). Se invece i totali non
+    // sono stati calcolati (tutti 0 / undefined), torniamo al check contenuto.
+    const zeroTotal = anyNonZeroTotal && (total === undefined || total <= 0);
+    if (noContent || zeroTotal) continue;
     if (baseKey === "tappezzeria") result.add("tappezzeria");
     else if (baseKey === "stampa") {
       const cat = d.catalog;
@@ -176,8 +185,6 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
       if (hasStampa) result.add("stampa");
       if (hasTaglio) result.add("taglio");
       if (!hasStampa && !hasTaglio && pieces.length > 0) result.add("stampa");
-      // Se non ci sono pezzi ma solo materiali manuali, non aggiungiamo nulla
-      // (la vendita di solo materiale è gestita altrove).
     } else if (baseKey === "falegnameria") result.add("falegnameria");
     else result.add("altro");
   }

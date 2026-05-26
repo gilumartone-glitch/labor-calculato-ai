@@ -67,6 +67,7 @@ const Hub = () => {
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <UpdateCheckButton />
+            <ChangePasswordButton variant="outline" />
             <AdminUsersLink variant="outline" />
             <button onClick={signOut} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">
               <LogOut className="w-3 h-3" /> Esci

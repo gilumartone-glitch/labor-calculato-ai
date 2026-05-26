@@ -160,9 +160,10 @@ export const CreateCommessaButton = ({
   );
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
-    const base = inferredDepts.length > 0 ? inferredDepts : [fallbackDept];
-    return base.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
-  }, [inferredDepts, fallbackDept, materialOnlyDepts, excludedDepts]);
+    // Solo reparti realmente rilevati (con lavorazioni/materiali). Niente fallback
+    // se lo snapshot non ha contenuto per quel reparto.
+    return inferredDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+  }, [inferredDepts, materialOnlyDepts, excludedDepts]);
   const operatorsForDept = (d: ProdDept) =>
     profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
 

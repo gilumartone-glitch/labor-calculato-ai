@@ -394,9 +394,27 @@ export const CreateCommessaButton = ({
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
         const depts = pendingPayload.depts ?? [];
         const baseOrdine = d.missing?.length ?? 0;
+        // Carrello vendite (per arricchire la nota del sub magazzino).
+        const ps: any = pendingPayload.productionSnapshot;
+        const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
+          ? ps.salesCarts
+          : (ps?.designState?.salesCarts && typeof ps.designState.salesCarts === "object" ? ps.designState.salesCarts : {});
+        const salesLines: string[] = [];
+        for (const k of Object.keys(carts || {})) {
+          for (const l of (carts[k] || [])) {
+            const desc = [l.name, l.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
+            const q = Number(l.qty) || 0;
+            const sell = (Number(l.priceSell) || 0) * q;
+            salesLines.push(`• ${desc} — ${q} ${l.unit || ""}${sell > 0 ? ` · ${sell.toFixed(2)}€` : ""}`.trim());
+          }
+        }
+        const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
           const assignee = deptAssignees[dept] || null;
+          const noteForSub = dept === "magazzino" && salesNote
+            ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
+            : (titolo.trim() || null);
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -404,7 +422,7 @@ export const CreateCommessaButton = ({
               code: subCode(code, SUB_DEPT_SUFFIX[dept], i + 1),
               dept,
               ordine: baseOrdine + i,
-              note: titolo.trim() || null,
+              note: noteForSub,
               files: [],
               depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
               assignee_id: assignee,

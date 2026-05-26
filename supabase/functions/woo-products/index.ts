@@ -51,8 +51,12 @@ Deno.serve(async (req) => {
       Referer: `${base}/`,
     };
 
-    const buildAdminUrl = (withQueryCredentials: boolean) => {
-      const endpoint = new URL(`${base}/wp-json/wc/v3/products${id ? `/${encodeURIComponent(id)}` : ''}`);
+    const buildAdminUrl = (withQueryCredentials: boolean, useRestRoute = false) => {
+      const routePath = `/wc/v3/products${id ? `/${encodeURIComponent(id)}` : ''}`;
+      const endpoint = useRestRoute
+        ? new URL(`${base}/index.php`)
+        : new URL(`${base}/wp-json${routePath}`);
+      if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
       if (!id) {
         endpoint.searchParams.set('per_page', perPage);
         endpoint.searchParams.set('page', page);
@@ -66,8 +70,12 @@ Deno.serve(async (req) => {
       return endpoint.toString();
     };
 
-    const buildStoreApiUrl = () => {
-      const endpoint = new URL(`${base}/wp-json/wc/store/v1/products`);
+    const buildStoreApiUrl = (useRestRoute = false) => {
+      const routePath = `/wc/store/v1/products`;
+      const endpoint = useRestRoute
+        ? new URL(`${base}/index.php`)
+        : new URL(`${base}/wp-json${routePath}`);
+      if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
       endpoint.searchParams.set('per_page', perPage);
       endpoint.searchParams.set('page', page);
       if (search) endpoint.searchParams.set('search', search);
@@ -77,7 +85,12 @@ Deno.serve(async (req) => {
     const attempts = [
       { name: 'wc-query-auth', endpoint: buildAdminUrl(true), headers: browserHeaders },
       { name: 'wc-basic-auth', endpoint: buildAdminUrl(false), headers: { ...browserHeaders, Authorization: auth } },
-      ...(id ? [] : [{ name: 'wc-store-api', endpoint: buildStoreApiUrl(), headers: browserHeaders }]),
+      { name: 'wc-restroute-query-auth', endpoint: buildAdminUrl(true, true), headers: browserHeaders },
+      { name: 'wc-restroute-basic-auth', endpoint: buildAdminUrl(false, true), headers: { ...browserHeaders, Authorization: auth } },
+      ...(id ? [] : [
+        { name: 'wc-store-api', endpoint: buildStoreApiUrl(), headers: browserHeaders },
+        { name: 'wc-store-api-restroute', endpoint: buildStoreApiUrl(true), headers: browserHeaders },
+      ]),
     ];
 
     let lastError: { status: number; detail: string; blocked: boolean; source: string } | null = null;

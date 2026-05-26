@@ -3,6 +3,7 @@ import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, 
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
+import { ChangePasswordButton } from "@/components/ChangePasswordButton";
 import { UpdateCheckButton } from "@/components/UpdateCheckButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -66,6 +67,7 @@ const Hub = () => {
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <UpdateCheckButton />
+            <ChangePasswordButton variant="outline" />
             <AdminUsersLink variant="outline" />
             <button onClick={signOut} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">
               <LogOut className="w-3 h-3" /> Esci

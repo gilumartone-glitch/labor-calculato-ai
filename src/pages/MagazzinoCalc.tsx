@@ -2152,9 +2152,11 @@ function SaleProductSection({
           {loadingCat ? " · caricamento…" : ` · ${materials.length} varianti`}
         </div>
         <div className="flex-1" />
-        <Button size="sm" variant="outline" disabled={cart.length === 0} onClick={() => setOrderOpen(true)}>
-          <PackageCheck className="w-3.5 h-3.5 mr-1" /> Ordine ({cart.length})
-        </Button>
+        {cart.length > 0 && (
+          <div className="font-mono text-[10px] uppercase tracking-widest text-primary">
+            {cart.length} articol{cart.length === 1 ? "o" : "i"} nel carrello · usa <strong>Invia al Flow</strong> in alto
+          </div>
+        )}
       </div>
 
       <div className="border-2 border-ink/15 rounded-sm bg-paper">
@@ -2271,59 +2273,8 @@ function SaleProductSection({
         </div>
       </div>
 
-      {/* Mini-dialog: cliente + apri ConfirmToWarehouseDialog */}
-      <Dialog open={orderOpen} onOpenChange={setOrderOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2"><PackageCheck className="w-4 h-4" /> Crea ordine — {title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <Label>Cliente *</Label>
-              <ContactSelect type="cliente" value={cliente} onChange={setCliente} />
-            </div>
-            <div>
-              <Label>Note ordine</Label>
-              <Textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Note interne / istruzioni" />
-            </div>
-            <div className="border-2 border-ink/15 rounded-sm p-2">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Articoli ({cart.length})</div>
-              <div className="divide-y text-[11px]">
-                {cart.map((l) => {
-                  const t = lineTotal(l);
-                  return (
-                    <div key={l.id} className="py-1 flex justify-between gap-2">
-                      <span><strong>{t.material?.name}</strong>{t.material ? ` · ${labelOf(t.material)}` : ""}</span>
-                      <span className="font-mono">{fmt(l.qty)} {t.material ? unitOf(t.material) : ""} — {eur(t.sell)}</span>
-                    </div>
-                  );
-                })}
-                <div className="py-1 flex justify-between font-bold text-dept">
-                  <span>Totale vendita</span>
-                  <span className="font-mono">{eur(cartTotals.sell)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOrderOpen(false)}>Annulla</Button>
-            <Button onClick={() => { if (!cliente.trim()) { toast.error("Inserisci il cliente"); return; } setConfirmOpen(true); }}>
-              Continua → Magazzino
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Cliente e responsabile magazzino sono scelti in "Crea commessa nel Flow" (DraftTabsBar). */}
 
-      <ConfirmToWarehouseDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={`Invia al magazzino — ${title}`}
-        defaultRef=""
-        defaultProductionName={cliente}
-        materials={materialsForDialog}
-        saving={saving}
-        onConfirm={onWarehouseConfirm}
-      />
     </div>
   );
 }

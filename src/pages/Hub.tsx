@@ -3,6 +3,7 @@ import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, 
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
+import { ChangePasswordButton } from "@/components/ChangePasswordButton";
 import { UpdateCheckButton } from "@/components/UpdateCheckButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 

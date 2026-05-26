@@ -29,6 +29,15 @@ const toMetaParam = (value: unknown) => Array.isArray(value)
     ? JSON.stringify(value)
     : String(value);
 
+const appendMetaParam = (form: URLSearchParams, key: string, value: unknown) => {
+  // Meta richiede array di oggetti come parametri indicizzati: key[0]={...}&key[1]={...}
+  if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+    value.forEach((item, i) => form.set(`${key}[${i}]`, JSON.stringify(item)));
+    return;
+  }
+  form.set(key, toMetaParam(value));
+};
+
 const metaGet = async (path: string, params: Record<string, unknown>, token: string, step: string) => {
   const url = new URL(`${GRAPH}${path}`);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, toMetaParam(value)));
@@ -41,7 +50,7 @@ const metaGet = async (path: string, params: Record<string, unknown>, token: str
 
 const metaPost = async (path: string, body: Record<string, unknown>, token: string, step: string) => {
   const form = new URLSearchParams();
-  Object.entries(body).forEach(([key, value]) => form.set(key, toMetaParam(value)));
+  Object.entries(body).forEach(([key, value]) => appendMetaParam(form, key, value));
   form.set('access_token', token);
   const r = await fetch(`${GRAPH}${path}`, {
     method: 'POST',

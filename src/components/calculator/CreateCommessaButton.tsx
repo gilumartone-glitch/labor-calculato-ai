@@ -144,9 +144,13 @@ export const CreateCommessaButton = ({
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
+  // Snapshot usato per l'inferenza dei reparti rilevati. Per default è la prop
+  // statica `snapshot`; se è fornita `getSnapshot` (es. Progettazione), viene
+  // popolato all'apertura del dialog con lo snapshot "live" del calcolatore.
+  const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const inferredDepts: ProdDept[] = useMemo(
-    () => inferProdDeptsFromSnapshot(snapshot as any),
-    [snapshot],
+    () => inferProdDeptsFromSnapshot(inferenceSnapshot as any),
+    [inferenceSnapshot],
   );
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {

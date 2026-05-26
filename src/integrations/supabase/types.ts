@@ -1120,6 +1120,7 @@ export type Database = {
         Args: { _roles: string[]; _user_id: string }
         Returns: undefined
       }
+      get_admin_user_ids: { Args: never; Returns: string[] }
       has_permission: {
         Args: {
           _page: string

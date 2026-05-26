@@ -96,9 +96,9 @@ export async function getProduzioneWriters(depts?: string[]): Promise<string[]> 
 
   const [{ data: profs }, { data: admins }] = await Promise.all([
     supabase.from("profiles").select("id, settori").in("id", writerIds),
-    supabase.from("user_roles").select("user_id").eq("role", "admin").in("user_id", writerIds),
+    (supabase as any).rpc("get_admin_user_ids"),
   ]);
-  const adminSet = new Set((admins ?? []).map((r: any) => r.user_id));
+  const adminSet = new Set(((admins ?? []) as any[]).map((r: any) => (typeof r === "string" ? r : r.user_id ?? r)));
   const deptSet = new Set(depts);
   return (profs ?? [])
     .filter((p: any) => adminSet.has(p.id) || ((p.settori ?? []) as string[]).some((s) => deptSet.has(s)))
@@ -107,8 +107,8 @@ export async function getProduzioneWriters(depts?: string[]): Promise<string[]> 
 
 /** Tutti gli admin. */
 export async function getAdmins(): Promise<string[]> {
-  const { data } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-  return (data ?? []).map((r: any) => r.user_id);
+  const { data } = await (supabase as any).rpc("get_admin_user_ids");
+  return ((data ?? []) as any[]).map((r: any) => (typeof r === "string" ? r : r.user_id ?? r));
 }
 
 /** Utenti con il settore "magazzino" assegnato nel profilo. */

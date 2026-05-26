@@ -84,10 +84,48 @@ const hasDeptContent = (state: any) =>
   (state?.perimeters?.length ?? 0) > 0 ||
   (state?.transports?.length ?? 0) > 0;
 
+const SALES_CATEGORY_LABEL: Record<string, string> = {
+  stampa: "Stampa (rivendita)",
+  tessuti: "Tessuti (rivendita)",
+};
+
+type SalesCartLine = {
+  id?: string; materialId?: string; qty?: number;
+  name?: string; variant?: string; unit?: string;
+  priceSell?: number; pricePurchase?: number; category?: string;
+};
+
+const collectSalesItems = (snap: Record<string, unknown>): SalesCartLine[] => {
+  const carts = (snap as any)?.salesCarts;
+  if (!carts || typeof carts !== "object") return [];
+  const out: SalesCartLine[] = [];
+  for (const key of Object.keys(carts)) {
+    const list = Array.isArray(carts[key]) ? carts[key] : [];
+    for (const l of list) {
+      if (!l) continue;
+      out.push({ ...(l as SalesCartLine), category: (l as any).category || key });
+    }
+  }
+  return out;
+};
+
+const buildSalesNote = (items: SalesCartLine[]): string => {
+  if (!items.length) return "";
+  const lines = items.map((l) => {
+    const desc = [l.name, l.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
+    const qty = Number(l.qty) || 0;
+    const sell = (Number(l.priceSell) || 0) * qty;
+    const price = sell > 0 ? ` · ${sell.toFixed(2)}€` : "";
+    return `• ${desc} — ${qty} ${l.unit || ""}${price}`.trim();
+  });
+  return `Vendite da preparare:\n${lines.join("\n")}`;
+};
+
 const snapshotForProduction = async (snap: Record<string, unknown>): Promise<Record<string, unknown>> => {
   const rawDepartments = (snap as any).departments;
+  const salesItems = collectSalesItems(snap);
   if (Array.isArray(rawDepartments)) return snap;
-  if (!rawDepartments || typeof rawDepartments !== "object") return snap;
+  if ((!rawDepartments || typeof rawDepartments !== "object") && salesItems.length === 0) return snap;
 
   const { data: catalogRows } = await supabase.from("catalogs").select("dept, data");
   const catalogs = new Map((catalogRows ?? []).map((row: any) => [row.dept, row.data]));
@@ -96,11 +134,33 @@ const snapshotForProduction = async (snap: Record<string, unknown>): Promise<Rec
       key,
       label,
       totals: { materials: 0, operations: 0, perimeters: 0, pieces: 0, transports: 0, total: 0 },
-      state: rawDepartments[key],
+      state: rawDepartments?.[key],
       catalog: catalogs.get(key),
       customerType: key === "stampa" ? (snap as any).customerType : "dealer",
     }))
     .filter((dept) => hasDeptContent(dept.state));
+
+  if (salesItems.length > 0) {
+    const totalSell = salesItems.reduce((s, l) => s + (Number(l.priceSell) || 0) * (Number(l.qty) || 0), 0);
+    departments.push({
+      key: "magazzino",
+      label: "Magazzino · Vendite",
+      totals: { materials: totalSell, operations: 0, perimeters: 0, pieces: 0, transports: 0, total: totalSell },
+      state: {
+        pieces: [],
+        materials: salesItems.map((l) => ({
+          name: l.name || "Vendita",
+          color: l.variant || "",
+          height: "",
+          quantity: Number(l.qty) || 0,
+          unit: l.unit || "pz",
+          unitCost: Number(l.priceSell) || 0,
+        })),
+      } as any,
+      catalog: undefined as any,
+      customerType: "dealer",
+    } as any);
+  }
 
   return {
     source: "summary",
@@ -111,9 +171,11 @@ const snapshotForProduction = async (snap: Record<string, unknown>): Promise<Rec
     applyVat: (snap as any).applyVat ?? false,
     customerType: (snap as any).customerType,
     departments,
+    salesCarts: (snap as any).salesCarts ?? undefined,
     designState: snap,
   };
 };
+
 
 const readLocalState = (): Record<string, unknown> => {
   try {

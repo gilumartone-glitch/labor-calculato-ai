@@ -469,23 +469,25 @@ export const CreateCommessaButton = ({
       <button
         type="button"
         disabled={disabled}
-        className={triggerClass}
+        className={triggerClassName ?? triggerClass}
         title={label}
         onClick={() => { setWarehouseOnly(false); handleOpenChange(true); }}
       >
         <Workflow className={variant === "primary" ? "w-3.5 h-3.5" : "w-3 h-3"} />
         {label}
       </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => { setWarehouseOnly(true); handleOpenChange(true); }}
-        className="inline-flex items-center gap-1.5 px-2 py-1 border border-ink/30 rounded-sm text-[10px] uppercase tracking-wider font-semibold text-ink/70 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        title="Crea ordine senza lavorazione (solo magazzino)"
-      >
-        <PackageCheck className="w-3 h-3" />
-        Solo magazzino
-      </button>
+      {!hideWarehouseShortcut && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => { setWarehouseOnly(true); handleOpenChange(true); }}
+          className="inline-flex items-center gap-1.5 px-2 py-1 border border-ink/30 rounded-sm text-[10px] uppercase tracking-wider font-semibold text-ink/70 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Crea ordine senza lavorazione (solo magazzino)"
+        >
+          <PackageCheck className="w-3 h-3" />
+          Solo magazzino
+        </button>
+      )}
     </div>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">

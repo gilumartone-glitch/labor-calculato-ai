@@ -2000,7 +2000,17 @@ function SaleProductSection({
 
   const addToCart = () => {
     if (!selected || qty <= 0) return;
-    setCart([...cart, { id: uid(), materialId: selected.id, qty }]);
+    setCart([...cart, {
+      id: uid(),
+      materialId: selected.id,
+      qty,
+      name: selected.name,
+      variant: labelOf(selected),
+      unit: unitOf(selected),
+      priceSell: sellOf(selected),
+      pricePurchase: purchaseOf(selected),
+      category: categoryKey,
+    }]);
     setQty(0);
   };
 

@@ -140,17 +140,27 @@ export const collectSnapshotPieces = (depts: SnapshotDept[]) =>
     })),
   );
 
-/** Mappa il key reparto-calcolatore → ProdDept, considerando anche le lavorazioni dei pezzi. */
+/** Mappa il key reparto-calcolatore → ProdDept, considerando anche le lavorazioni dei pezzi.
+ *  IMPORTANTE: i reparti senza pezzi né materiali vengono esclusi (non c'è nulla
+ *  da lavorare o da vendere, quindi non vanno portati in Flow). */
 export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[] => {
   const depts = collectSnapshotDepartments(snap);
+  // Mappa key reparto → totale dal summary (se disponibile), per filtrare i vuoti.
+  const totalsByKey = new Map<string, number>();
+  if (snap?.source === "summary" && snap.departments) {
+    for (const d of snap.departments) totalsByKey.set(d.key.toLowerCase(), d.totals?.total ?? 0);
+  }
   const result = new Set<ProdDept>();
   for (const d of depts) {
     const baseKey = d.key.toLowerCase();
-    // Reparto base
+    const pieces = d.state?.pieces ?? [];
+    const materials = d.state?.materials ?? [];
+    const total = totalsByKey.get(baseKey);
+    // Skip reparti vuoti: nessun pezzo, nessun materiale e totale a 0.
+    const isEmpty = pieces.length === 0 && materials.length === 0 && (total === undefined || total <= 0);
+    if (isEmpty) continue;
     if (baseKey === "tappezzeria") result.add("tappezzeria");
     else if (baseKey === "stampa") {
-      // Per il "laboratorio stampa", individuiamo stampa e/o taglio dai pezzi.
-      const pieces = d.state?.pieces ?? [];
       const cat = d.catalog;
       let hasStampa = false;
       let hasTaglio = false;
@@ -165,11 +175,11 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
       }
       if (hasStampa) result.add("stampa");
       if (hasTaglio) result.add("taglio");
-      // Se nessuna lavorazione specifica, default a stampa
-      if (!hasStampa && !hasTaglio) result.add("stampa");
+      if (!hasStampa && !hasTaglio && pieces.length > 0) result.add("stampa");
+      // Se non ci sono pezzi ma solo materiali manuali, non aggiungiamo nulla
+      // (la vendita di solo materiale è gestita altrove).
     } else if (baseKey === "falegnameria") result.add("falegnameria");
     else result.add("altro");
   }
-  if (result.size === 0) result.add("altro");
   return Array.from(result);
 };

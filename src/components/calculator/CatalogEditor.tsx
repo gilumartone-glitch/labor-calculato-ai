@@ -839,7 +839,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                       <input
                         type="number"
                         step="0.01"
-                        value={v.purchasePrice === 0 ? "" : v.purchasePrice}
+                        value={v.purchasePrice === 0 ? "" : Math.round(v.purchasePrice * 100) / 100}
                         onChange={(e) => updateVariant(v.id, { purchasePrice: parseFloat(e.target.value) || 0 })}
                         placeholder="costo"
                         className="input-bare w-full text-right font-mono text-sm"
@@ -851,7 +851,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                           <input
                             type="number"
                             step="0.01"
-                            value={(v.sellPiece ?? 0) === 0 ? "" : v.sellPiece}
+                            value={(v.sellPiece ?? 0) === 0 ? "" : Math.round((v.sellPiece ?? 0) * 100) / 100}
                             onChange={(e) => updateVariant(v.id, { sellPiece: parseFloat(e.target.value) || 0 })}
                             placeholder="rotolo"
                             className="input-bare w-full text-right font-mono text-sm"
@@ -861,13 +861,14 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                           <input
                             type="number"
                             step="0.01"
-                            value={(v.sellCut ?? 0) === 0 ? "" : v.sellCut}
+                            value={(v.sellCut ?? 0) === 0 ? "" : Math.round((v.sellCut ?? 0) * 100) / 100}
                             onChange={(e) => updateVariant(v.id, { sellCut: parseFloat(e.target.value) || 0 })}
                             placeholder="taglio"
                             className="input-bare w-full text-right font-mono text-sm"
                           />
                         </div>
                       </>
+
                     ) : (
                     <div className="col-span-24 md:col-span-6">
                       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1 bg-muted/40 border border-ink/10 rounded-sm font-mono text-[10px]">

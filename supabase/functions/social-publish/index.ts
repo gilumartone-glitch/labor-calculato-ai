@@ -147,12 +147,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Configurare i secret META_PAGE_ID, META_PAGE_ACCESS_TOKEN, META_IG_BUSINESS_ID' }, 400);
     }
 
-    const { slides, caption, targets = ['facebook', 'instagram'] } = await req.json() as {
-      slides: string[]; // data URLs
+    const { slides, imageUrls, caption, targets = ['facebook', 'instagram'] } = await req.json() as {
+      slides?: string[]; // data URLs
+      imageUrls?: string[]; // URL pubbliche già caricate (ripubblicazione)
       caption: string;
       targets?: ('facebook' | 'instagram')[];
     };
-    if (!slides?.length) return jsonResponse({ error: 'Nessuna slide' }, 400);
+    if (!slides?.length && !imageUrls?.length) return jsonResponse({ error: 'Nessuna slide' }, 400);
 
     const { token: TOKEN, tokenSource, page } = await resolvePageAccessToken(PAGE_ID, CONFIGURED_TOKEN);
     const linkedIgId = page?.instagram_business_account?.id ? String(page.instagram_business_account.id) : '';
@@ -166,18 +167,21 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    // 1) upload each slide → public URL
-    const publicUrls: string[] = [];
-    for (let i = 0; i < slides.length; i++) {
-      const dataUrl = slides[i];
-      const m = dataUrl.match(/^data:(.+);base64,(.+)$/);
-      if (!m) throw new Error('Slide non valida (atteso data URL)');
-      const mime = m[1];
-      const bin = atob(m[2]);
-      const buf = new Uint8Array(bin.length);
-      for (let k = 0; k < bin.length; k++) buf[k] = bin.charCodeAt(k);
-      const path = `social/${Date.now()}-${i}.png`;
-      const up = await supabase.storage.from('marketing-attachments').upload(path, buf, { contentType: mime, upsert: true });
+    // 1) Ottieni URL pubbliche: usa quelle fornite, oppure carica le slide
+    let publicUrls: string[] = [];
+    if (imageUrls?.length) {
+      publicUrls = imageUrls;
+    } else {
+      for (let i = 0; i < slides!.length; i++) {
+        const dataUrl = slides![i];
+        const m = dataUrl.match(/^data:(.+);base64,(.+)$/);
+        if (!m) throw new Error('Slide non valida (atteso data URL)');
+        const mime = m[1];
+        const bin = atob(m[2]);
+        const buf = new Uint8Array(bin.length);
+        for (let k = 0; k < bin.length; k++) buf[k] = bin.charCodeAt(k);
+        const path = `social/${Date.now()}-${i}.png`;
+        const up = await supabase.storage.from('marketing-attachments').upload(path, buf, { contentType: mime, upsert: true });
       if (up.error) throw new Error('Upload storage: ' + up.error.message);
       const { data: pub } = supabase.storage.from('marketing-attachments').getPublicUrl(path);
       publicUrls.push(pub.publicUrl);

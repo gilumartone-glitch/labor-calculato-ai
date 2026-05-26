@@ -202,29 +202,14 @@ export const DraftTabsBar = () => {
       const currentLocal = readLocalState();
 
       if (list.length === 0) {
-        // Prima volta: se esiste stato locale lo migro come Progetto 1
-        const initialSnap = currentLocal && Object.keys(currentLocal).length > 0 ? currentLocal : {};
-        const { data: created, error: cErr } = await supabase
-          .from("design_drafts")
-          .insert({
-            user_id: user.id,
-            name: "Progetto 1",
-            snapshot: initialSnap as never,
-            ordine: 0,
-            active: true,
-          })
-          .select()
-          .single();
-        if (cErr || !created) {
-          toast.error("Errore creazione prima bozza");
-          setLoading(false);
-          return;
-        }
+        // Nessuna scheda: non ne creiamo automaticamente.
+        // L'utente userà il pulsante "Nuovo" per crearne una.
+        // (Dopo "Invia al Flow" il progetto deve sparire e non riapparire da solo.)
         if (cancelled) return;
-        setDrafts([created as Draft]);
-        setActiveId(created.id);
-        localStorage.setItem(ACTIVE_DRAFT_KEY, created.id);
-        writeLocalState(initialSnap);
+        setDrafts([]);
+        setActiveId(null);
+        localStorage.removeItem(ACTIVE_DRAFT_KEY);
+        writeLocalState({});
         setLoading(false);
         return;
       }

@@ -1898,13 +1898,8 @@ function SaleProductSection({
     window.addEventListener("officina:draft-state-loaded", onLoaded);
     return () => window.removeEventListener("officina:draft-state-loaded", onLoaded);
   }, [categoryKey]);
-  const [orderOpen, setOrderOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [cliente, setCliente] = useState("");
-  const [orderNote, setOrderNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  // Cliente, note, responsabile magazzino: ora si scelgono nel dialog "Crea commessa nel Flow".
+
 
   useEffect(() => {
     let cancelled = false;

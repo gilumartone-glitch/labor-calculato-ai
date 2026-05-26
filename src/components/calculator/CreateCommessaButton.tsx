@@ -74,6 +74,14 @@ interface CreateCommessaButtonProps {
   variant?: "primary" | "subtle";
   /** Disabilita il bottone (es. totale a 0) */
   disabled?: boolean;
+  /** Se presente, viene chiamata al submit per produrre lo snapshot effettivo da salvare (sovrascrive la prop snapshot). */
+  getSnapshot?: () => Promise<Snapshot> | Snapshot;
+  /** Callback eseguita dopo la creazione effettiva dell'ordine in produzione (es. cleanup draft Progettazione). */
+  onAfterSubmit?: () => Promise<void> | void;
+  /** Classe CSS custom per il trigger button (sovrascrive lo stile di variant). */
+  triggerClassName?: string;
+  /** Nasconde il pulsante "Solo magazzino" affiancato. */
+  hideWarehouseShortcut?: boolean;
 }
 
 export const CreateCommessaButton = ({
@@ -84,6 +92,10 @@ export const CreateCommessaButton = ({
   snapshot,
   variant = "primary",
   disabled = false,
+  getSnapshot,
+  onAfterSubmit,
+  triggerClassName,
+  hideWarehouseShortcut = false,
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -132,9 +144,13 @@ export const CreateCommessaButton = ({
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
+  // Snapshot usato per l'inferenza dei reparti rilevati. Per default è la prop
+  // statica `snapshot`; se è fornita `getSnapshot` (es. Progettazione), viene
+  // popolato all'apertura del dialog con lo snapshot "live" del calcolatore.
+  const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const inferredDepts: ProdDept[] = useMemo(
-    () => inferProdDeptsFromSnapshot(snapshot as any),
-    [snapshot],
+    () => inferProdDeptsFromSnapshot(inferenceSnapshot as any),
+    [inferenceSnapshot],
   );
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
@@ -165,6 +181,20 @@ export const CreateCommessaButton = ({
       supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
         setProfiles((data ?? []) as any);
       });
+      // se è fornita una factory di snapshot (es. da Progettazione), aggiorna
+      // l'inferenza dei reparti rilevati con lo snapshot live.
+      if (getSnapshot) {
+        (async () => {
+          try {
+            const live = await getSnapshot();
+            setInferenceSnapshot(live);
+          } catch {
+            /* ignore: useremo lo snapshot statico */
+          }
+        })();
+      } else {
+        setInferenceSnapshot(snapshot);
+      }
     }
     setOpen(v);
   };
@@ -181,14 +211,17 @@ export const CreateCommessaButton = ({
     }
     setSaving(true);
     try {
+      // Snapshot effettivo: se è fornita una factory async (es. da Progettazione)
+      // usala, altrimenti usa la prop snapshot statica.
+      const baseSnapshot: Snapshot = getSnapshot ? await getSnapshot() : snapshot;
       const designStateRaw = readDesignState();
       // Se il lancio parte da un singolo reparto, NON includere lo stato
       // degli altri reparti nello snapshot (altrimenti la commessa porta in
       // Flow anche lavorazioni di altri reparti).
       const designState: Record<string, unknown> =
-        (snapshot as any)?.source === "department" && (snapshot as any)?.deptKey
+        (baseSnapshot as any)?.source === "department" && (baseSnapshot as any)?.deptKey
           ? (() => {
-              const k = (snapshot as any).deptKey as string;
+              const k = (baseSnapshot as any).deptKey as string;
               const only: Record<string, unknown> = {};
               if (designStateRaw && (designStateRaw as any)[k] !== undefined) {
                 (only as any)[k] = (designStateRaw as any)[k];
@@ -197,8 +230,8 @@ export const CreateCommessaButton = ({
             })()
           : designStateRaw;
       const productionSnapshot: Snapshot = Object.keys(designState).length > 0
-        ? { ...snapshot, designState }
-        : snapshot;
+        ? { ...baseSnapshot, designState }
+        : baseSnapshot;
       const stato = warehouseOnly ? "da_fare" : "preventivo";
       // 1) Commessa nel flow
       const { error } = await supabase.from("commesse").insert({
@@ -414,6 +447,9 @@ export const CreateCommessaButton = ({
       setPendingPayload(null);
       setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
       clearForm();
+      if (onAfterSubmit) {
+        try { await onAfterSubmit(); } catch (e) { console.warn("[CreateCommessaButton] onAfterSubmit error", e); }
+      }
       navigate("/flow");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
@@ -433,23 +469,25 @@ export const CreateCommessaButton = ({
       <button
         type="button"
         disabled={disabled}
-        className={triggerClass}
+        className={triggerClassName ?? triggerClass}
         title={label}
         onClick={() => { setWarehouseOnly(false); handleOpenChange(true); }}
       >
         <Workflow className={variant === "primary" ? "w-3.5 h-3.5" : "w-3 h-3"} />
         {label}
       </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => { setWarehouseOnly(true); handleOpenChange(true); }}
-        className="inline-flex items-center gap-1.5 px-2 py-1 border border-ink/30 rounded-sm text-[10px] uppercase tracking-wider font-semibold text-ink/70 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        title="Crea ordine senza lavorazione (solo magazzino)"
-      >
-        <PackageCheck className="w-3 h-3" />
-        Solo magazzino
-      </button>
+      {!hideWarehouseShortcut && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => { setWarehouseOnly(true); handleOpenChange(true); }}
+          className="inline-flex items-center gap-1.5 px-2 py-1 border border-ink/30 rounded-sm text-[10px] uppercase tracking-wider font-semibold text-ink/70 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Crea ordine senza lavorazione (solo magazzino)"
+        >
+          <PackageCheck className="w-3 h-3" />
+          Solo magazzino
+        </button>
+      )}
     </div>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">

@@ -650,7 +650,7 @@ export const CreateCommessaButton = ({
         <DialogFooter>
           <button
             type="button"
-            onClick={() => { setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto }); clearForm(); }}
+            onClick={() => { setForm({ ...initialForm, importo: defaultAmount, reparto: defaultReparto }); clearForm(); }}
             className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-destructive font-mono mr-auto"
           >
             Pulisci modulo

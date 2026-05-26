@@ -59,6 +59,11 @@ export const SocialPanel = () => {
   const [carousel, setCarousel] = useState<Slide[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });
+  const [ctaLink, setCtaLink] = useState("");
+
+  useEffect(() => {
+    if (selected?.permalink) setCtaLink(selected.permalink);
+  }, [selected?.id]);
 
   const loadProducts = async (q = "") => {
     setLoading(true);
@@ -385,7 +390,9 @@ export const SocialPanel = () => {
   };
   const removeFromCarousel = (id: string) => setCarousel((c) => c.filter((s) => s.id !== id));
 
-  const fullCaption = caption + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
+  const fullCaption = caption
+    + (ctaLink.trim() ? `\n\n👉 Scopri di più: ${ctaLink.trim()}` : "")
+    + (hashtags.length ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ") : "");
   const copyAll = () => { navigator.clipboard.writeText(fullCaption); toast.success("Caption copiata"); };
   const downloadImage = () => {
     if (!imageDataUrl) return;
@@ -660,6 +667,17 @@ export const SocialPanel = () => {
             {/* PUBBLICA */}
             <div className="border-2 border-ink/15 rounded-sm bg-paper p-4">
               <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Pubblica</div>
+              <div className="mb-3">
+                <Label className="text-xs">Link CTA (cliccabile su Facebook, testo su Instagram)</Label>
+                <Input
+                  value={ctaLink}
+                  onChange={(e) => setCtaLink(e.target.value)}
+                  placeholder="https://tecnofra.it/prodotto/..."
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Verrà aggiunto in fondo alla caption come "👉 Scopri di più: …". Lascia vuoto per non includerlo.
+                </p>
+              </div>
               <div className="flex flex-wrap gap-2 mb-3">
                 <button
                   type="button"

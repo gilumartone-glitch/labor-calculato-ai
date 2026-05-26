@@ -663,11 +663,11 @@ export const DraftTabsBar = () => {
       }
 
       toast.success(`Inviato al Flow + Produzione ${prodCode}${d.missing?.length ? " — in attesa acquisti" : ""}`, {
-        action: { label: "Apri Produzione", onClick: () => navigate(`/produzione/board?order=${prodId}`) },
+        action: { label: "Apri Flow", onClick: () => navigate("/flow") },
       });
       setConfirmOpen(false);
       setPendingPayload(null);
-      window.location.reload();
+      navigate("/flow");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore";
       toast.error("Errore creazione ordine: " + msg);

@@ -179,7 +179,6 @@ export const CreateCommessaButton = ({
     if (v) {
       setForm((f) => ({
         ...f,
-        titolo: f.titolo || defaultTitle,
         importo: f.importo || defaultAmount,
         reparto: f.reparto || defaultReparto,
       }));

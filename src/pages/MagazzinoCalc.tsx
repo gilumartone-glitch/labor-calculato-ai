@@ -1990,7 +1990,11 @@ function SaleProductSection({
 
   const lineTotal = (line: CartLine) => {
     const m = materials.find((x: any) => x.id === line.materialId);
-    return { material: m, sell: sellOf(m) * line.qty, purchase: purchaseOf(m) * line.qty };
+    // Se il catalogo non ha il materiale (es. carrello caricato prima del
+    // fetch del catalogo), uso i prezzi salvati nella riga.
+    const sell = m ? sellOf(m) * line.qty : (Number(line.priceSell) || 0) * line.qty;
+    const purchase = m ? purchaseOf(m) * line.qty : (Number(line.pricePurchase) || 0) * line.qty;
+    return { material: m, sell, purchase };
   };
   const cartTotals = useMemo(() => {
     let sell = 0, purchase = 0;

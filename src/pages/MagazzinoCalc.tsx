@@ -1824,7 +1824,7 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
    I listini coincidono con quelli del reparto: "stampa" usa il listino del
    Laboratorio, "tessuti" usa il listino della Tappezzeria. Le modifiche al
    catalogo si fanno dalle pagine reparto. */
-type SaleCategory = "stampa" | "tessuti";
+type SaleCategory = "stampa" | "tessuti" | "danza" | "ignifugo";
 type CartLine = {
   id: string;
   materialId: string;

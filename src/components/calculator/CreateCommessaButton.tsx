@@ -495,27 +495,18 @@ export const CreateCommessaButton = ({
       )}
     </div>
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl">{warehouseOnly ? "Solo magazzino" : "Crea commessa nel Flow"}</DialogTitle>
+      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto">
+        <DialogHeader className="pb-1">
+          <DialogTitle className="font-display text-xl">{warehouseOnly ? "Solo magazzino" : "Crea commessa nel Flow"}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="flex items-center justify-between border-2 border-primary/30 bg-primary/5 rounded-sm px-3 py-2">
-            <div>
-              <Label className="m-0">Senza lavorazione (solo magazzino)</Label>
-              <div className="text-[10px] text-muted-foreground">Prodotti già pronti — il magazzino li prepara per la consegna</div>
-            </div>
-            <Switch checked={warehouseOnly} onCheckedChange={setWarehouseOnly} />
-          </div>
-
+        <div className="space-y-3 py-1">
           <div>
             <Label htmlFor="titolo">Titolo</Label>
             <Input
               id="titolo"
               value={titolo}
               onChange={(e) => setTitolo(e.target.value)}
-              placeholder="es. Tende su misura sala riunioni"
             />
           </div>
 
@@ -535,26 +526,33 @@ export const CreateCommessaButton = ({
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label>Tipo rif.</Label>
+              <Select value={refType} onValueChange={(v) => setRefType(v as RefType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OC">OC — Ordine cliente</SelectItem>
+                  <SelectItem value="PR">PR — Preventivo</SelectItem>
+                  <SelectItem value="FT">FT — Fattura</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="refnum">Numero riferimento</Label>
+              <Input id="refnum" value={refNumber} onChange={(e) => setRefNumber(e.target.value)} placeholder="es. 12345" />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="prod">Prod. (nome progetto/film)</Label>
             <Input id="prod" value={prodName} onChange={(e) => setProdName(e.target.value)} placeholder="es. Avatar 3" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Reparto</Label>
-              <Select value={reparto} onValueChange={(v) => setReparto(v as CommessaReparto)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tappezzeria">Tappezzeria</SelectItem>
-                  <SelectItem value="stampa">Laboratorio</SelectItem>
-                  <SelectItem value="falegnameria">Falegnameria</SelectItem>
-                  <SelectItem value="generale">Generale</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Priorità</Label>
               <Select value={priorita} onValueChange={(v) => setPriorita(v as CommessaPriorita)}>
@@ -590,19 +588,12 @@ export const CreateCommessaButton = ({
             />
           </div>
 
-          <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
-            ✓ Il dettaglio del calcolo verrà salvato come snapshot nella commessa.
-          </div>
-
           {!warehouseOnly && activeDepts.length > 0 && (
-            <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 space-y-2">
+            <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-2.5 space-y-1.5">
               <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
                 Assegna operatore per reparto
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                Indica chi, all'interno di ciascun reparto, deve eseguire la lavorazione (facoltativo).
-              </div>
-              <div className="space-y-2 pt-1">
+              <div className="space-y-1.5">
                 {activeDepts.map((d) => {
                   const ops = operatorsForDept(d);
                   return (
@@ -611,7 +602,7 @@ export const CreateCommessaButton = ({
                       <select
                         value={deptAssignees[d] ?? ""}
                         onChange={(e) => setDeptAssignee(d, e.target.value)}
-                        className="col-span-2 h-9 px-2 border-2 border-input rounded-md bg-background text-sm"
+                        className="col-span-2 h-8 px-2 border-2 border-input rounded-md bg-background text-sm"
                       >
                         <option value="">Operatore (facoltativo)…</option>
                         {ops.map((o) => (
@@ -629,12 +620,9 @@ export const CreateCommessaButton = ({
           )}
 
           {!warehouseOnly && inferredDepts.length > 1 && (
-            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3 space-y-2">
+            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-2.5 space-y-1.5">
               <div className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
                 Reparti da lanciare in Flow
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                Tutti i reparti rilevati sono attivi. Clicca per escludere quelli che NON vuoi lanciare ora.
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 {inferredDepts.map((d) => {
@@ -651,34 +639,6 @@ export const CreateCommessaButton = ({
                       }`}
                     >
                       {DEPT_LABEL[d]} {excluded ? "· escluso" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {!warehouseOnly && inferredDepts.length > 0 && (
-            <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-                Solo materiale per reparto
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                Spunta i reparti per cui NON serve la lavorazione: il materiale verrà gestito direttamente dal magazzino.
-              </div>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {inferredDepts.filter((d) => !excludedDepts.includes(d)).map((d) => {
-                  const on = materialOnlyDepts.includes(d);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => toggleMaterialOnlyDept(d)}
-                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
-                        on ? "bg-amber-100 text-amber-900 border-amber-500" : "border-ink/20 text-ink/60 hover:border-ink"
-                      }`}
-                    >
-                      {DEPT_LABEL[d]} {on ? "· solo materiale" : ""}
                     </button>
                   );
                 })}

@@ -1898,13 +1898,8 @@ function SaleProductSection({
     window.addEventListener("officina:draft-state-loaded", onLoaded);
     return () => window.removeEventListener("officina:draft-state-loaded", onLoaded);
   }, [categoryKey]);
-  const [orderOpen, setOrderOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [cliente, setCliente] = useState("");
-  const [orderNote, setOrderNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  // Cliente, note, responsabile magazzino: ora si scelgono nel dialog "Crea commessa nel Flow".
+
 
   useEffect(() => {
     let cancelled = false;
@@ -2018,131 +2013,10 @@ function SaleProductSection({
     setQty(0);
   };
 
-  const onWarehouseConfirm = async (d: WarehouseConfirmData) => {
-    if (!user || cart.length === 0) return;
-    setSaving(true);
-    try {
-      const code = await nextOrderCode();
-      const noteLines = cart.map((l) => {
-        const m = materials.find((x: any) => x.id === l.materialId);
-        if (!m) return null;
-        return `• ${m.name} (${labelOf(m)}) — ${l.qty} ${unitOf(m)} · vendita ${eur(sellOf(m) * l.qty)}`;
-      }).filter(Boolean).join("\n");
-      const fullNote = `Vendita ${categoryKey} (solo materiale)\n${noteLines}${orderNote ? `\n\nNote: ${orderNote}` : ""}`;
+  // Le righe del carrello vengono inviate al Flow tramite il bottone "Invia al Flow"
+  // (DraftTabsBar → CreateCommessaButton), che gestisce cliente, riferimento ordine
+  // e responsabile magazzino in un unico punto.
 
-      const { data: pord, error: e1 } = await supabase
-        .from("production_orders")
-        .insert({
-          code,
-          cliente: (cliente || d.production_name || "Cliente").slice(0, 200),
-          data: new Date().toISOString().slice(0, 10),
-          note: fullNote,
-          priorita: "normale",
-          delivery: "corriere",
-          status: "in_corso",
-          attachments: [],
-          nesting_included: false,
-          created_by: user.id,
-          snapshot: { source: "vendite", category: categoryKey, sourceDept, items: cart.map((l) => {
-            const m = materials.find((x: any) => x.id === l.materialId);
-            return {
-              materialId: m?.id,
-              name: m?.name,
-              variant: m ? labelOf(m) : "",
-              qty: l.qty,
-              unit: m ? unitOf(m) : defaultUnit,
-              priceSell: m ? sellOf(m) : 0,
-              pricePurchase: m ? purchaseOf(m) : 0,
-            };
-          }) } as never,
-          customer_order_ref: d.customer_order_ref,
-          production_name: d.production_name || null,
-        } as any)
-        .select()
-        .single();
-      if (e1) throw e1;
-
-      let firstAcquistiId: string | null = null;
-      if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
-        const acquistiRows = d.missing.map((m, i) => ({
-          order_id: pord.id,
-          code: subCode(code, SUB_DEPT_SUFFIX["acquisti"], i + 1),
-          dept: "acquisti" as const,
-          ordine: i,
-          note: `Da ordinare: ${m.label}${m.detail ? " · " + m.detail : ""} (rif. ${d.customer_order_ref})`,
-          supplier_name: m.supplier_name || null,
-          files: [],
-        }));
-        const { data: acquistiSubs, error: ea } = await supabase
-          .from("production_sub_orders")
-          .insert(acquistiRows as any)
-          .select("id");
-        if (ea) throw ea;
-        firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
-
-        await notify({
-          userIds: [d.acquisti_assignee_id],
-          type: "magazzino_da_preparare",
-          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${cliente || "vendita"}`,
-          order_id: pord.id,
-          link: "/produzione/acquisti",
-          is_urgent: false,
-        });
-      }
-
-      const { error: e2 } = await supabase.from("production_sub_orders").insert({
-        order_id: pord.id,
-        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-        dept: "magazzino",
-        ordine: (d.missing?.length ?? 0),
-        note: `Vendita ${title} · ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
-        files: [],
-        depends_on: firstAcquistiId,
-        assignee_id: d.assignee_id,
-      } as any);
-      if (e2) throw e2;
-
-      await notify({
-        userIds: [d.assignee_id],
-        type: "magazzino_da_preparare",
-        message: d.missing?.length
-          ? `In attesa acquisti — ${code} · ${cliente || "vendita"} (${d.missing.length} materiali)`
-          : `Da preparare: ${code} · ${cliente || "vendita"} (Ordine ${d.customer_order_ref})`,
-        order_id: pord.id,
-        link: "/produzione/preparazione",
-        is_urgent: false,
-      });
-
-      await logAction({
-        action: "VENDITA_LANCIATA",
-        entity_type: "order",
-        entity_id: pord.id,
-        detail: `Vendita ${categoryKey} ${code} — rif. cliente ${d.customer_order_ref}`,
-        new_state: { code, category: categoryKey, items: cart.length },
-      });
-
-      toast.success(`Ordine ${code} creato e inviato al magazzino`);
-      setConfirmOpen(false);
-      setOrderOpen(false);
-      setCart([]);
-      setCliente("");
-      setOrderNote("");
-      navigate("/flow");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const materialsForDialog = useMemo(() => cart.map((l) => {
-    const m = materials.find((x: any) => x.id === l.materialId);
-    return {
-      key: l.id,
-      label: m?.name ?? "—",
-      detail: [m ? labelOf(m) : "", `${l.qty} ${m ? unitOf(m) : ""}`].filter(Boolean).join(" · "),
-    };
-  }), [cart, materials]);
 
   return (
     <div className="space-y-4">
@@ -2152,9 +2026,11 @@ function SaleProductSection({
           {loadingCat ? " · caricamento…" : ` · ${materials.length} varianti`}
         </div>
         <div className="flex-1" />
-        <Button size="sm" variant="outline" disabled={cart.length === 0} onClick={() => setOrderOpen(true)}>
-          <PackageCheck className="w-3.5 h-3.5 mr-1" /> Ordine ({cart.length})
-        </Button>
+        {cart.length > 0 && (
+          <div className="font-mono text-[10px] uppercase tracking-widest text-primary">
+            {cart.length} articol{cart.length === 1 ? "o" : "i"} nel carrello · usa <strong>Invia al Flow</strong> in alto
+          </div>
+        )}
       </div>
 
       <div className="border-2 border-ink/15 rounded-sm bg-paper">
@@ -2271,59 +2147,8 @@ function SaleProductSection({
         </div>
       </div>
 
-      {/* Mini-dialog: cliente + apri ConfirmToWarehouseDialog */}
-      <Dialog open={orderOpen} onOpenChange={setOrderOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2"><PackageCheck className="w-4 h-4" /> Crea ordine — {title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <Label>Cliente *</Label>
-              <ContactSelect type="cliente" value={cliente} onChange={setCliente} />
-            </div>
-            <div>
-              <Label>Note ordine</Label>
-              <Textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Note interne / istruzioni" />
-            </div>
-            <div className="border-2 border-ink/15 rounded-sm p-2">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Articoli ({cart.length})</div>
-              <div className="divide-y text-[11px]">
-                {cart.map((l) => {
-                  const t = lineTotal(l);
-                  return (
-                    <div key={l.id} className="py-1 flex justify-between gap-2">
-                      <span><strong>{t.material?.name}</strong>{t.material ? ` · ${labelOf(t.material)}` : ""}</span>
-                      <span className="font-mono">{fmt(l.qty)} {t.material ? unitOf(t.material) : ""} — {eur(t.sell)}</span>
-                    </div>
-                  );
-                })}
-                <div className="py-1 flex justify-between font-bold text-dept">
-                  <span>Totale vendita</span>
-                  <span className="font-mono">{eur(cartTotals.sell)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOrderOpen(false)}>Annulla</Button>
-            <Button onClick={() => { if (!cliente.trim()) { toast.error("Inserisci il cliente"); return; } setConfirmOpen(true); }}>
-              Continua → Magazzino
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Cliente e responsabile magazzino sono scelti in "Crea commessa nel Flow" (DraftTabsBar). */}
 
-      <ConfirmToWarehouseDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={`Invia al magazzino — ${title}`}
-        defaultRef=""
-        defaultProductionName={cliente}
-        materials={materialsForDialog}
-        saving={saving}
-        onConfirm={onWarehouseConfirm}
-      />
     </div>
   );
 }

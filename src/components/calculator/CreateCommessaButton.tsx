@@ -447,6 +447,9 @@ export const CreateCommessaButton = ({
       setPendingPayload(null);
       setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
       clearForm();
+      if (onAfterSubmit) {
+        try { await onAfterSubmit(); } catch (e) { console.warn("[CreateCommessaButton] onAfterSubmit error", e); }
+      }
       navigate("/flow");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Errore creazione ordine");

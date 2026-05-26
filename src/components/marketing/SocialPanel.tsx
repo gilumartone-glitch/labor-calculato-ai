@@ -60,10 +60,74 @@ export const SocialPanel = () => {
   const [publishing, setPublishing] = useState(false);
   const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });
   const [ctaLink, setCtaLink] = useState("");
+  const [history, setHistory] = useState<Array<{ id: string; created_at: string; status: string; title: string; detail: string; channel: string; meta: any }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [republishingId, setRepublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (selected?.permalink) setCtaLink(selected.permalink);
   }, [selected?.id]);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("marketing_activity_log")
+        .select("id, created_at, status, title, detail, channel, meta")
+        .eq("type", "social")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setHistory((data || []) as any);
+    } catch (e: any) {
+      toast.error(e.message || "Errore caricamento storico");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const republish = async (entry: typeof history[number], onlyChannel?: "facebook" | "instagram") => {
+    const urls: string[] = Array.isArray(entry.meta?.urls) ? entry.meta.urls : [];
+    if (!urls.length) return toast.error("Questo post non ha immagini riutilizzabili nello storico");
+    const caption = entry.detail || "";
+    const t: string[] = onlyChannel ? [onlyChannel] : (Array.isArray(entry.meta?.targets) ? entry.meta.targets : ["facebook", "instagram"]);
+    setRepublishingId(entry.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-publish", {
+        body: { imageUrls: urls, caption, targets: t },
+      });
+      if (error) {
+        const invokeError = error as InvokeErrorWithContext;
+        const errorBody = await invokeError.context?.json?.().catch(() => null);
+        throw new Error(formatPublishErrors(errorBody) || invokeError.message);
+      }
+      const result = data as PublishResponse | null;
+      if (result?.ok === false || result?.error) throw new Error(formatPublishErrors(result));
+      const warnings = result?.errors ? Object.keys(result.errors) : [];
+      if (warnings.length) toast.warning(`Ripubblicato solo in parte. Errore: ${warnings.join(", ")}`);
+      else toast.success("Ripubblicato!");
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (u.user) await supabase.from("marketing_activity_log").insert({
+          created_by: u.user.id,
+          type: "social",
+          channel: t.join("+"),
+          title: entry.title + " (ripubblicato)",
+          detail: caption.slice(0, 280),
+          status: warnings.length ? "error" : "success",
+          recipients_count: 0,
+          meta: { targets: t, slides: urls.length, urls, errors: result?.errors, republishedFrom: entry.id },
+        } as any);
+      } catch {}
+      await loadHistory();
+    } catch (e: any) {
+      toast.error(e.message || "Errore ripubblicazione");
+    } finally {
+      setRepublishingId(null);
+    }
+  };
 
   const loadProducts = async (q = "") => {
     setLoading(true);

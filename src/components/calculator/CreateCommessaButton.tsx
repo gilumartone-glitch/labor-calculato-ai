@@ -74,6 +74,14 @@ interface CreateCommessaButtonProps {
   variant?: "primary" | "subtle";
   /** Disabilita il bottone (es. totale a 0) */
   disabled?: boolean;
+  /** Se presente, viene chiamata al submit per produrre lo snapshot effettivo da salvare (sovrascrive la prop snapshot). */
+  getSnapshot?: () => Promise<Snapshot> | Snapshot;
+  /** Callback eseguita dopo la creazione effettiva dell'ordine in produzione (es. cleanup draft Progettazione). */
+  onAfterSubmit?: () => Promise<void> | void;
+  /** Classe CSS custom per il trigger button (sovrascrive lo stile di variant). */
+  triggerClassName?: string;
+  /** Nasconde il pulsante "Solo magazzino" affiancato. */
+  hideWarehouseShortcut?: boolean;
 }
 
 export const CreateCommessaButton = ({
@@ -84,6 +92,10 @@ export const CreateCommessaButton = ({
   snapshot,
   variant = "primary",
   disabled = false,
+  getSnapshot,
+  onAfterSubmit,
+  triggerClassName,
+  hideWarehouseShortcut = false,
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();

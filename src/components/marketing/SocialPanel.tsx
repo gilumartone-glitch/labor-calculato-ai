@@ -59,6 +59,11 @@ export const SocialPanel = () => {
   const [carousel, setCarousel] = useState<Slide[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [targets, setTargets] = useState<{ fb: boolean; ig: boolean }>({ fb: true, ig: true });
+  const [ctaLink, setCtaLink] = useState("");
+
+  useEffect(() => {
+    if (selected?.permalink) setCtaLink(selected.permalink);
+  }, [selected?.id]);
 
   const loadProducts = async (q = "") => {
     setLoading(true);

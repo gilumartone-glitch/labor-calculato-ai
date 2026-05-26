@@ -201,10 +201,11 @@ export const CreateCommessaButton = ({
       } else {
         setInferenceSnapshot(snapshot);
       }
-    if (v && defaultTitle && defaultTitle.trim()) {
-      // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
-      // L'utente può comunque modificarlo successivamente.
-      setForm((f) => ({ ...f, titolo: defaultTitle }));
+      if (defaultTitle && defaultTitle.trim()) {
+        // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
+        // L'utente può comunque modificarlo successivamente.
+        setForm((f) => ({ ...f, titolo: defaultTitle }));
+      }
     }
     setOpen(v);
   };

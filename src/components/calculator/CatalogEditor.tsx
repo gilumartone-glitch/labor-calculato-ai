@@ -1007,11 +1007,19 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                               )}
                               <span className="font-semibold">
                                 {typeof m.costPrice === "number" ? (
-                                  <>· costo {eur(m.costPrice)}/{m.priceUnit ?? m.unit} · rot {eur(m.pricePiece)} · tag {eur(m.priceCut)}</>
+                                  <>· costo {eur(m.costPrice)}/{m.priceUnit ?? m.unit} · vendita rot {eur(m.pricePiece)} · tag {eur(m.priceCut)}</>
                                 ) : (
-                                  <>· costo {eur(m.pricePiece)}/{m.priceUnit ?? m.unit}</>
+                                  <>
+                                    · costo {eur(m.pricePiece)}/{m.priceUnit ?? m.unit}
+                                    {" · "}
+                                    <span className="text-muted-foreground">vendita</span>{" "}
+                                    Riv {eur(m.pricePiece * priceMultiplier("dealer", "piece"))}/{eur(m.pricePiece * priceMultiplier("dealer", "cut"))}
+                                    {" · "}
+                                    <span className="text-primary">Fin {eur(m.pricePiece * priceMultiplier("final", "piece"))}/{eur(m.pricePiece * priceMultiplier("final", "cut"))}</span>
+                                  </>
                                 )}
                               </span>
+
                             </span>
                           );
                         })}

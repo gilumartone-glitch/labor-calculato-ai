@@ -450,7 +450,7 @@ export const CreateCommessaButton = ({
       setConfirmOpen(false);
       setOpen(false);
       setPendingPayload(null);
-      setForm({ ...initialForm, titolo: defaultTitle, importo: defaultAmount, reparto: defaultReparto });
+      setForm({ ...initialForm, importo: defaultAmount, reparto: defaultReparto });
       clearForm();
       if (onAfterSubmit) {
         try { await onAfterSubmit(); } catch (e) { console.warn("[CreateCommessaButton] onAfterSubmit error", e); }

@@ -967,6 +967,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
       {mode === "ordine" ? (
         <ManualMagazzinoOrderForm
           sourceLabel="Tappeto danza"
+          categoryKey="danza"
           suggestions={[
             { descrizione: "Tappeto danza (rotolo intero)", um: "rt" },
             { descrizione: "Tappeto danza (taglio)", um: "mq" },
@@ -1449,6 +1450,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
       {mode === "ordine" ? (
         <ManualMagazzinoOrderForm
           sourceLabel="Vernice ignifuga"
+          categoryKey="ignifugo"
           suggestions={[
             { descrizione: "Vernice ignifuga (latta)", um: "latte" },
             { descrizione: "Vernice ignifuga (kg)", um: "kg" },

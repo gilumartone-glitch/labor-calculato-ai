@@ -1825,7 +1825,45 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
    Laboratorio, "tessuti" usa il listino della Tappezzeria. Le modifiche al
    catalogo si fanno dalle pagine reparto. */
 type SaleCategory = "stampa" | "tessuti";
-type CartLine = { id: string; materialId: string; qty: number };
+type CartLine = {
+  id: string;
+  materialId: string;
+  qty: number;
+  // Snapshot per uso nel Flow (così il carrello è auto-contenuto nel draft).
+  name?: string;
+  variant?: string;
+  unit?: SaleUnit;
+  priceSell?: number;
+  pricePurchase?: number;
+  category?: SaleCategory;
+};
+
+const DRAFT_STATE_KEY = "officina:state";
+
+const readDraftSalesCart = (categoryKey: SaleCategory): CartLine[] => {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(DRAFT_STATE_KEY) : null;
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const c = parsed?.salesCarts?.[categoryKey];
+    return Array.isArray(c) ? c : [];
+  } catch { return []; }
+};
+
+const writeDraftSalesCart = (categoryKey: SaleCategory, next: CartLine[]) => {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STATE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const salesCarts = { ...(parsed?.salesCarts || {}) };
+    if (next.length === 0) delete salesCarts[categoryKey];
+    else salesCarts[categoryKey] = next;
+    const updated: any = { ...parsed };
+    if (Object.keys(salesCarts).length === 0) delete updated.salesCarts;
+    else updated.salesCarts = salesCarts;
+    window.localStorage.setItem(DRAFT_STATE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("officina:draft-state-changed"));
+  } catch { /* noop */ }
+};
 
 function SaleProductSection({
   title,
@@ -1849,18 +1887,17 @@ function SaleProductSection({
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
-  const cartStorageKey = `vendite:cart:${categoryKey}:v1`;
-  const [cart, setCart] = useState<CartLine[]>(() => {
-    try {
-      const raw = typeof window !== "undefined" ? window.localStorage.getItem(cartStorageKey) : null;
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
-  });
+  const [cart, setCart] = useState<CartLine[]>(() => readDraftSalesCart(categoryKey));
   useEffect(() => {
-    try { window.localStorage.setItem(cartStorageKey, JSON.stringify(cart)); } catch { /* noop */ }
-  }, [cart, cartStorageKey]);
+    writeDraftSalesCart(categoryKey, cart);
+  }, [cart, categoryKey]);
+  // Quando l'utente cambia scheda progetto (DraftTabsBar dispatcha l'evento),
+  // ricarichiamo il carrello dalla draft attiva.
+  useEffect(() => {
+    const onLoaded = () => setCart(readDraftSalesCart(categoryKey));
+    window.addEventListener("officina:draft-state-loaded", onLoaded);
+    return () => window.removeEventListener("officina:draft-state-loaded", onLoaded);
+  }, [categoryKey]);
   const [orderOpen, setOrderOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cliente, setCliente] = useState("");

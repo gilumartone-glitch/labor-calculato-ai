@@ -72,7 +72,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       return;
     }
     if (needsFornitore && !fornitore.trim()) {
-      toast.error("Indica il fornitore consigliato per il reparto Amministrazione");
+      toast.error("Indica il fornitore consigliato per il reparto Acquisti / Amministrazione");
       return;
     }
     setSaving(true);

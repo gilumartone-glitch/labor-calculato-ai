@@ -153,15 +153,33 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-cap block mb-1">Cliente</label>
-              <ContactSelect
-                value={cliente}
-                onChange={setCliente}
-                type="cliente"
-                size="sm"
-              />
-            </div>
+            {reparto === "acquisti" ? (
+              <div>
+                <label className="label-cap block mb-1">Fornitore *</label>
+                <ContactSelect
+                  value={fornitore}
+                  onChange={setFornitore}
+                  type="fornitore"
+                  size="sm"
+                />
+              </div>
+            ) : reparto === "amministrazione" ? (
+              <>
+                <div>
+                  <label className="label-cap block mb-1">Cliente</label>
+                  <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+                </div>
+                <div>
+                  <label className="label-cap block mb-1">Fornitore *</label>
+                  <ContactSelect value={fornitore} onChange={setFornitore} type="fornitore" size="sm" />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="label-cap block mb-1">Cliente</label>
+                <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+              </div>
+            )}
             <div>
               <label className="label-cap block mb-1">Importo (€)</label>
               <input
@@ -174,6 +192,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
               />
             </div>
           </div>
+
 
           <div className="grid grid-cols-3 gap-3">
             <div>

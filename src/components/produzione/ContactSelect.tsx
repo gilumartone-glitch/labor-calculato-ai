@@ -74,7 +74,7 @@ export const ContactSelect = ({ value, onChange, type, placeholder, className, s
     if (!name) return;
     setAdding(true);
     try {
-      const c = await addContabContact({ name, type });
+      const c = await addContabContact({ name, type: unified ? "entrambi" : type });
       setContacts((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]);
       onChange(c.name);
       setQuery(c.name);

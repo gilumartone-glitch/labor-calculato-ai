@@ -48,10 +48,10 @@ export const ContactSelect = ({ value, onChange, type, placeholder, className, s
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return contacts
-      .filter((c) => c.type === type || c.type === "entrambi")
+      .filter((c) => unified ? true : (c.type === type || c.type === "entrambi"))
       .filter((c) => !q || c.name.toLowerCase().includes(q))
       .slice(0, 12);
-  }, [contacts, query, type]);
+  }, [contacts, query, type, unified]);
 
   useEffect(() => { setHighlight(-1); }, [query, open]);
   useEffect(() => {

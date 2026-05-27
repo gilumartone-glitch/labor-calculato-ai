@@ -59,7 +59,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
     }
   }, [open, initial]);
 
-  const needsFornitore = reparto === "amministrazione";
+  const needsFornitore = reparto === "amministrazione" || reparto === "acquisti";
 
 
   const toggleAssignee = (id: string) =>
@@ -72,7 +72,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       return;
     }
     if (needsFornitore && !fornitore.trim()) {
-      toast.error("Indica il fornitore consigliato per il reparto Amministrazione");
+      toast.error("Indica il fornitore consigliato per il reparto Acquisti / Amministrazione");
       return;
     }
     setSaving(true);

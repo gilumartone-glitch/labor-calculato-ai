@@ -1199,6 +1199,7 @@ export type Database = {
         | "generale"
         | "amministrazione"
         | "logistica"
+        | "acquisti"
       commessa_stato:
         | "da_fare"
         | "preventivo"
@@ -1406,6 +1407,7 @@ export const Constants = {
         "generale",
         "amministrazione",
         "logistica",
+        "acquisti",
       ],
       commessa_stato: [
         "da_fare",

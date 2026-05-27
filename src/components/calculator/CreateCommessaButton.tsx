@@ -39,6 +39,7 @@ const REPARTO_TO_PROD: Record<CommessaReparto, ProdDept> = {
   stampa: "stampa",
   falegnameria: "taglio",
   amministrazione: "altro",
+  acquisti: "altro",
   logistica: "altro",
   generale: "altro",
 };

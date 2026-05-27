@@ -84,7 +84,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
         {
           titolo: titolo.trim(),
           descrizione: descFinal || null,
-          cliente: cliente.trim() || null,
+          cliente: reparto === "acquisti" ? (fornitore.trim() || null) : (cliente.trim() || null),
           importo: typeof importo === "number" && importo > 0 ? importo : null,
           data_scadenza: dataScadenza || null,
 

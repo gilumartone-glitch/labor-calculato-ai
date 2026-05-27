@@ -546,6 +546,27 @@ export default function Contabilita() {
     return out;
   }, []);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
+
+  const restoreSnapshot = useCallback(async (raw: unknown) => {
+    const restored = normalizeState(raw as Partial<AccountingState>);
+    // Forza un upsert pulito: azzera il riferimento così il save effect lo rimanda al cloud
+    lastRemoteRef.current = "";
+    ownSaveUntilRef.current = Date.now() + 3000;
+    setState(restored);
+    try { writeLocalState(restored, Date.now()); } catch { /* ignore */ }
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData?.user?.id ?? null;
+    const { error } = await supabase
+      .from("contabilita_state")
+      .upsert(
+        [{ key: REMOTE_KEY, data: restored as unknown as never, updated_by: uid as unknown as never }],
+        { onConflict: "key" },
+      );
+    if (error) throw error;
+    lastRemoteRef.current = serializeAccountingState(restored);
+    setSaveStatus("idle");
+  }, []);
 
   // Merge granulare anti-cancellazione: fonde lo stato remoto con quello locale
   // per ID, in modo che modifiche concorrenti di utenti diversi non si distruggano.

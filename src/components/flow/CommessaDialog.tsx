@@ -59,7 +59,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
     }
   }, [open, initial]);
 
-  const needsFornitore = reparto === "amministrazione";
+  const needsFornitore = reparto === "amministrazione" || reparto === "acquisti";
 
 
   const toggleAssignee = (id: string) =>

@@ -21,7 +21,7 @@ type Props = {
 };
 
 /** Combobox cliente/fornitore con autocomplete da contabilita_state e + per aggiungere. */
-export const ContactSelect = ({ value, onChange, type, placeholder, className, size = "md", autoFocus }: Props) => {
+export const ContactSelect = ({ value, onChange, type, placeholder, className, size = "md", autoFocus, unified }: Props) => {
   const [contacts, setContacts] = useState<ContabContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);

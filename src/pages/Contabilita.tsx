@@ -765,49 +765,72 @@ export default function Contabilita() {
     return () => clearInterval(id);
   }, [saveStatus]);
 
-  // 3) Realtime: ricevi modifiche da altri utenti
+  // 3) Realtime: ricevi modifiche da altri utenti.
+  // NOTA: il payload Realtime di Supabase ha un limite di ~256 KB. Il record
+  // della contabilità supera questa soglia (≈280 KB), quindi `payload.new`
+  // arriva troncato/vuoto. Per garantire la sincronizzazione facciamo SEMPRE
+  // un re-fetch della riga quando arriva un evento, ignorando il payload.
   useEffect(() => {
+    let refetching = false;
+    const applyRemote = async () => {
+      if (refetching) return;
+      refetching = true;
+      try {
+        const { data, error } = await supabase
+          .from("contabilita_state")
+          .select("data")
+          .eq("key", REMOTE_KEY)
+          .maybeSingle();
+        if (error || !data?.data) return;
+        const remote = normalizeState(data.data as Partial<AccountingState>);
+        const remoteSerialized = serializeAccountingState(remote);
+        if (remoteSerialized === lastRemoteRef.current) return;
+        if (Date.now() < ownSaveUntilRef.current) {
+          lastRemoteRef.current = remoteSerialized;
+          return;
+        }
+        const local = stateRef.current ?? remote;
+        const localActive = Date.now() < localEditUntilRef.current;
+        const merged = mergeRemoteState(local, remote, localActive);
+        const mergedSerialized = serializeAccountingState(merged);
+        if (mergedSerialized === serializeAccountingState(local)) {
+          lastRemoteRef.current = remoteSerialized;
+          return;
+        }
+        lastRemoteRef.current = remoteSerialized;
+        setState(merged);
+        try { writeLocalState(merged); } catch { /* ignore */ }
+        if (localActive) {
+          toast.info("Modifiche ricevute da un altro dispositivo: unite per riga.", {
+            duration: 6000,
+          });
+        }
+      } finally {
+        refetching = false;
+      }
+    };
+
     const channel = supabase
       .channel("contabilita-state-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "contabilita_state", filter: `key=eq.${REMOTE_KEY}` },
-        (payload) => {
-          const next = (payload.new as { data?: Partial<AccountingState> } | null)?.data;
-          if (!next) return;
-          const remote = normalizeState(next);
-          const remoteSerialized = serializeAccountingState(remote);
-          if (remoteSerialized === lastRemoteRef.current) return;
-          if (Date.now() < ownSaveUntilRef.current) {
-            lastRemoteRef.current = remoteSerialized;
-            return;
-          }
-          // Merge granulare per-riga (per ID): le righe modificate localmente in volo
-          // non vengono perse, ma quelle nuove/aggiornate dal remoto vengono aggiunte.
-          const local = stateRef.current ?? remote;
-          const localActive = Date.now() < localEditUntilRef.current;
-          const merged = mergeRemoteState(local, remote, localActive);
-          const mergedSerialized = serializeAccountingState(merged);
-          if (mergedSerialized === serializeAccountingState(local)) {
-            lastRemoteRef.current = remoteSerialized;
-            return;
-          }
-          // Tieni come riferimento l'ultimo stato realmente ricevuto dal cloud:
-          // se il merge contiene righe locali non ancora presenti online,
-          // l'effetto di salvataggio le rimanda subito al cloud invece di saltarle.
-          lastRemoteRef.current = remoteSerialized;
-          setState(merged);
-          try { writeLocalState(merged); } catch { /* ignore */ }
-          if (localActive) {
-            // Avvisa l'utente che è arrivato un update da un altro PC mentre stava editando.
-            toast.info("Modifiche ricevute da un altro dispositivo: unite per riga.", {
-              duration: 6000,
-            });
-          }
-        },
+        () => { void applyRemote(); },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    // Safety net: ogni 30s riallinea con il cloud, nel caso un evento Realtime
+    // fosse stato perso (es. connessione instabile).
+    const poll = setInterval(() => { void applyRemote(); }, 30000);
+    // Riallinea quando la finestra torna in primo piano.
+    const onVis = () => { if (document.visibilityState === "visible") void applyRemote(); };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   // Flush sincrono su chiusura finestra / cambio visibilità: evita di perdere l'ultimo

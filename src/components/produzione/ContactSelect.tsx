@@ -16,10 +16,12 @@ type Props = {
   /** Compatto per liste / per-row */
   size?: "sm" | "md";
   autoFocus?: boolean;
+  /** Se true: i nuovi contatti vengono aggiunti come "entrambi" (cliente+fornitore) e la ricerca mostra anche l'altro tipo. */
+  unified?: boolean;
 };
 
 /** Combobox cliente/fornitore con autocomplete da contabilita_state e + per aggiungere. */
-export const ContactSelect = ({ value, onChange, type, placeholder, className, size = "md", autoFocus }: Props) => {
+export const ContactSelect = ({ value, onChange, type, placeholder, className, size = "md", autoFocus, unified }: Props) => {
   const [contacts, setContacts] = useState<ContabContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -46,10 +48,10 @@ export const ContactSelect = ({ value, onChange, type, placeholder, className, s
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return contacts
-      .filter((c) => c.type === type || c.type === "entrambi")
+      .filter((c) => unified ? true : (c.type === type || c.type === "entrambi"))
       .filter((c) => !q || c.name.toLowerCase().includes(q))
       .slice(0, 12);
-  }, [contacts, query, type]);
+  }, [contacts, query, type, unified]);
 
   useEffect(() => { setHighlight(-1); }, [query, open]);
   useEffect(() => {
@@ -72,7 +74,7 @@ export const ContactSelect = ({ value, onChange, type, placeholder, className, s
     if (!name) return;
     setAdding(true);
     try {
-      const c = await addContabContact({ name, type });
+      const c = await addContabContact({ name, type: unified ? "entrambi" : type });
       setContacts((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]);
       onChange(c.name);
       setQuery(c.name);

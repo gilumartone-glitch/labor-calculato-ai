@@ -161,23 +161,24 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
                   onChange={setFornitore}
                   type="fornitore"
                   size="sm"
+                  unified
                 />
               </div>
             ) : reparto === "amministrazione" ? (
               <>
                 <div>
                   <label className="label-cap block mb-1">Cliente</label>
-                  <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+                  <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" unified />
                 </div>
                 <div>
                   <label className="label-cap block mb-1">Fornitore *</label>
-                  <ContactSelect value={fornitore} onChange={setFornitore} type="fornitore" size="sm" />
+                  <ContactSelect value={fornitore} onChange={setFornitore} type="fornitore" size="sm" unified />
                 </div>
               </>
             ) : (
               <div>
                 <label className="label-cap block mb-1">Cliente</label>
-                <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+                <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" unified />
               </div>
             )}
             <div>

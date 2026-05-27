@@ -216,18 +216,34 @@ Deno.serve(async (req) => {
     }
 
     // 3) Instagram
+    const waitForContainer = async (containerId: string, step: string) => {
+      // Meta: polling status_code finché FINISHED (max ~30s)
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const s = await metaGet(`/${containerId}`, { fields: 'status_code,status' }, TOKEN, `${step} status`);
+        if (s.status_code === 'FINISHED') return;
+        if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') {
+          throw new Error(`${step}: container ${s.status_code} — ${s.status || ''}`);
+        }
+      }
+      throw new Error(`${step}: timeout attesa elaborazione container Instagram`);
+    };
+
     if (targets.includes('instagram')) {
       try {
         if (publicUrls.length === 1) {
           const c = await metaPost(`/${effectiveIgId}/media`, { image_url: publicUrls[0], caption }, TOKEN, 'Instagram container');
+          await waitForContainer(c.id, 'Instagram container');
           results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: c.id }, TOKEN, 'Instagram pubblicazione');
         } else {
           const children: string[] = [];
           for (const u of publicUrls) {
             const c = await metaPost(`/${effectiveIgId}/media`, { image_url: u, is_carousel_item: true }, TOKEN, 'Instagram slide carosello');
+            await waitForContainer(c.id, 'Instagram slide carosello');
             children.push(c.id);
           }
           const carousel = await metaPost(`/${effectiveIgId}/media`, { media_type: 'CAROUSEL', children, caption }, TOKEN, 'Instagram carosello');
+          await waitForContainer(carousel.id, 'Instagram carosello');
           results.instagram = await metaPost(`/${effectiveIgId}/media_publish`, { creation_id: carousel.id }, TOKEN, 'Instagram pubblicazione carosello');
         }
       } catch (e) {

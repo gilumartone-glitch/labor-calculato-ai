@@ -71,15 +71,23 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       toast.error("Il titolo è obbligatorio");
       return;
     }
+    if (needsFornitore && !fornitore.trim()) {
+      toast.error("Indica il fornitore consigliato per il reparto Amministrazione");
+      return;
+    }
     setSaving(true);
     try {
+      const descFinal = needsFornitore && fornitore.trim()
+        ? `Fornitore: ${fornitore.trim()}\n\n${descrizione.trim()}`.trim()
+        : descrizione.trim();
       await onSave(
         {
           titolo: titolo.trim(),
-          descrizione: descrizione.trim() || null,
+          descrizione: descFinal || null,
           cliente: cliente.trim() || null,
           importo: typeof importo === "number" && importo > 0 ? importo : null,
           data_scadenza: dataScadenza || null,
+
           reparto,
           priorita,
           stato,

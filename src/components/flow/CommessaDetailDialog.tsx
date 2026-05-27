@@ -543,10 +543,14 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
         />
 
         <Tabs defaultValue="overview" className="mt-2">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-1" : "grid-cols-3"}`}>
             <TabsTrigger value="overview">Dettaglio</TabsTrigger>
-            <TabsTrigger value="pieces">Pezzi ({allPieces.length})</TabsTrigger>
-            <TabsTrigger value="materials">Materiali ({aggregated.length})</TabsTrigger>
+            {commessa.tipo !== "task" && (
+              <>
+                <TabsTrigger value="pieces">Pezzi ({allPieces.length})</TabsTrigger>
+                <TabsTrigger value="materials">Materiali ({aggregated.length})</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* OVERVIEW */}
@@ -557,10 +561,22 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
               <Stat label="Stato" value={commessa.stato.replace("_", " ")} />
               <Stat label="Scadenza" value={fmtDate(commessa.data_scadenza)} />
             </div>
+            {commessa.descrizione ? (
+              <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-primary mb-1">
+                  {commessa.tipo === "task" ? "Cosa fare" : "Descrizione"}
+                </div>
+                <div className="text-sm whitespace-pre-wrap">{commessa.descrizione}</div>
+              </div>
+            ) : commessa.tipo === "task" && (
+              <div className="border border-dashed border-ink/20 rounded-sm p-3 text-xs text-muted-foreground italic">
+                Nessuna descrizione. Chi ha creato il task non ha specificato cosa fare — chiedi di modificarlo aggiungendo i dettagli nel campo "Descrizione".
+              </div>
+            )}
             {commessa.note && (
               <div className="border border-dashed border-ink/30 rounded-sm p-3">
                 <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
-                  Note
+                  Note interne
                 </div>
                 <div className="text-sm whitespace-pre-wrap">{commessa.note}</div>
               </div>

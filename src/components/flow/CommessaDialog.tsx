@@ -34,13 +34,19 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
   const [stato, setStato] = useState<CommessaStato>("da_fare");
   const [tipo, setTipo] = useState<CommessaTipo>("commessa");
   const [note, setNote] = useState("");
+  const [fornitore, setFornitore] = useState("");
   const [assegnatariIds, setAssegnatariIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const FORN_RE = /^Fornitore:\s*(.+?)\n?\n?/;
 
   useEffect(() => {
     if (open) {
       setTitolo(initial?.titolo ?? "");
-      setDescrizione(initial?.descrizione ?? "");
+      const desc = initial?.descrizione ?? "";
+      const m = desc.match(FORN_RE);
+      setFornitore(m ? m[1].trim() : "");
+      setDescrizione(m ? desc.replace(FORN_RE, "") : desc);
       setCliente(initial?.cliente ?? "");
       setImporto(typeof initial?.importo === "number" ? initial.importo : "");
       setDataScadenza(initial?.data_scadenza ?? "");
@@ -52,6 +58,9 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       setAssegnatariIds(initial?.assegnatari?.map((a) => a.id) ?? []);
     }
   }, [open, initial]);
+
+  const needsFornitore = reparto === "amministrazione";
+
 
   const toggleAssignee = (id: string) =>
     setAssegnatariIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

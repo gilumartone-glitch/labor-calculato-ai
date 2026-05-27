@@ -16,6 +16,8 @@ type Props = {
   /** Compatto per liste / per-row */
   size?: "sm" | "md";
   autoFocus?: boolean;
+  /** Se true: i nuovi contatti vengono aggiunti come "entrambi" (cliente+fornitore) e la ricerca mostra anche l'altro tipo. */
+  unified?: boolean;
 };
 
 /** Combobox cliente/fornitore con autocomplete da contabilita_state e + per aggiungere. */

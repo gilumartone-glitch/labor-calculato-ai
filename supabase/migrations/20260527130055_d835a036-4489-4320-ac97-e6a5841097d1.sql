@@ -1,0 +1,1 @@
+ALTER TYPE public.commessa_reparto ADD VALUE IF NOT EXISTS 'acquisti';

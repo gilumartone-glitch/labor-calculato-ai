@@ -277,31 +277,33 @@ export const SocialPanel = () => {
       ctx.fillStyle = "#00A3AC"; ctx.fillRect(0, SIZE - BAR_H, SIZE, BAR_H);
       ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(0, SIZE - BAR_H, SIZE, 2);
 
+      // Try to load logo first so we know the reserved width
+      let logoImg: HTMLImageElement | null = null;
+      try { logoImg = await loadImg("/tecnofra-logo.png"); } catch { logoImg = null; }
+      const LOGO_H = 88;
+      const LOGO_PAD_RIGHT = 36;
+      const LOGO_GAP = 28;
+      const logoW = logoImg ? (logoImg.width / logoImg.height) * LOGO_H : 0;
+      const reservedRight = logoImg ? logoW + LOGO_PAD_RIGHT + LOGO_GAP : 220;
+
       const ctaText = (opts.cta || "CONSULENZA GRATUITA").toUpperCase();
-      const maxCtaW = SIZE - 260;
-      let ctaSize = 56;
-      const ctaFont = (s: number) => `700 ${s}px "Bebas Neue", "Oswald", "Anton", "Arial Narrow", sans-serif`;
+      const PAD_LEFT = 50;
+      const maxCtaW = SIZE - PAD_LEFT - reservedRight;
+      let ctaSize = 54;
+      // Peso medio (600) per testo "leggermente grasso" ma leggibile
+      const ctaFont = (s: number) => `600 ${s}px "Oswald", "Barlow Condensed", "Arial Narrow", sans-serif`;
       ctx.font = ctaFont(ctaSize);
-      while (ctx.measureText(ctaText).width > maxCtaW && ctaSize > 22) {
+      while (ctx.measureText(ctaText).width > maxCtaW && ctaSize > 20) {
         ctaSize -= 2;
         ctx.font = ctaFont(ctaSize);
       }
       ctx.fillStyle = "#FFFFFF";
       ctx.textBaseline = "middle";
-      ctx.fillText(ctaText, 50, SIZE - BAR_H / 2);
+      ctx.fillText(ctaText, PAD_LEFT, SIZE - BAR_H / 2);
       ctx.textBaseline = "top";
 
-      try {
-        const logo = await loadImg("/tecnofra-logo.ico");
-        const lh = 70;
-        const lw = (logo.width / logo.height) * lh;
-        ctx.drawImage(logo, SIZE - lw - 40, SIZE - BAR_H + (BAR_H - lh) / 2, lw, lh);
-      } catch {
-        ctx.font = '800 36px "Bebas Neue", "Oswald", sans-serif';
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textBaseline = "middle";
-        ctx.fillText("TECNOFRA", SIZE - 210, SIZE - BAR_H / 2);
-        ctx.textBaseline = "top";
+      if (logoImg) {
+        ctx.drawImage(logoImg, SIZE - logoW - LOGO_PAD_RIGHT, SIZE - BAR_H + (BAR_H - LOGO_H) / 2, logoW, LOGO_H);
       }
 
 

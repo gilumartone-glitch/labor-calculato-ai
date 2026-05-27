@@ -84,7 +84,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
         {
           titolo: titolo.trim(),
           descrizione: descFinal || null,
-          cliente: cliente.trim() || null,
+          cliente: reparto === "acquisti" ? (fornitore.trim() || null) : (cliente.trim() || null),
           importo: typeof importo === "number" && importo > 0 ? importo : null,
           data_scadenza: dataScadenza || null,
 
@@ -153,15 +153,33 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-cap block mb-1">Cliente</label>
-              <ContactSelect
-                value={cliente}
-                onChange={setCliente}
-                type="cliente"
-                size="sm"
-              />
-            </div>
+            {reparto === "acquisti" ? (
+              <div>
+                <label className="label-cap block mb-1">Fornitore *</label>
+                <ContactSelect
+                  value={fornitore}
+                  onChange={setFornitore}
+                  type="fornitore"
+                  size="sm"
+                />
+              </div>
+            ) : reparto === "amministrazione" ? (
+              <>
+                <div>
+                  <label className="label-cap block mb-1">Cliente</label>
+                  <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+                </div>
+                <div>
+                  <label className="label-cap block mb-1">Fornitore *</label>
+                  <ContactSelect value={fornitore} onChange={setFornitore} type="fornitore" size="sm" />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="label-cap block mb-1">Cliente</label>
+                <ContactSelect value={cliente} onChange={setCliente} type="cliente" size="sm" />
+              </div>
+            )}
             <div>
               <label className="label-cap block mb-1">Importo (€)</label>
               <input
@@ -174,6 +192,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
               />
             </div>
           </div>
+
 
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -210,20 +229,8 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
             </div>
           </div>
 
-          {needsFornitore && (
-            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3">
-              <label className="label-cap block mb-1 text-primary">Fornitore consigliato *</label>
-              <ContactSelect
-                value={fornitore}
-                onChange={setFornitore}
-                type="fornitore"
-                size="sm"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1.5 font-mono uppercase tracking-wider">
-                Richiesto per task all'ufficio acquisti / amministrazione
-              </p>
-            </div>
-          )}
+
+
 
           <div>
             <label className="label-cap block mb-1">Scadenza</label>

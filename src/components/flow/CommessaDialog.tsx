@@ -34,13 +34,19 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
   const [stato, setStato] = useState<CommessaStato>("da_fare");
   const [tipo, setTipo] = useState<CommessaTipo>("commessa");
   const [note, setNote] = useState("");
+  const [fornitore, setFornitore] = useState("");
   const [assegnatariIds, setAssegnatariIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const FORN_RE = /^Fornitore:\s*(.+?)\n?\n?/;
 
   useEffect(() => {
     if (open) {
       setTitolo(initial?.titolo ?? "");
-      setDescrizione(initial?.descrizione ?? "");
+      const desc = initial?.descrizione ?? "";
+      const m = desc.match(FORN_RE);
+      setFornitore(m ? m[1].trim() : "");
+      setDescrizione(m ? desc.replace(FORN_RE, "") : desc);
       setCliente(initial?.cliente ?? "");
       setImporto(typeof initial?.importo === "number" ? initial.importo : "");
       setDataScadenza(initial?.data_scadenza ?? "");
@@ -53,6 +59,9 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
     }
   }, [open, initial]);
 
+  const needsFornitore = reparto === "amministrazione";
+
+
   const toggleAssignee = (id: string) =>
     setAssegnatariIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
@@ -62,15 +71,23 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       toast.error("Il titolo è obbligatorio");
       return;
     }
+    if (needsFornitore && !fornitore.trim()) {
+      toast.error("Indica il fornitore consigliato per il reparto Amministrazione");
+      return;
+    }
     setSaving(true);
     try {
+      const descFinal = needsFornitore && fornitore.trim()
+        ? `Fornitore: ${fornitore.trim()}\n\n${descrizione.trim()}`.trim()
+        : descrizione.trim();
       await onSave(
         {
           titolo: titolo.trim(),
-          descrizione: descrizione.trim() || null,
+          descrizione: descFinal || null,
           cliente: cliente.trim() || null,
           importo: typeof importo === "number" && importo > 0 ? importo : null,
           data_scadenza: dataScadenza || null,
+
           reparto,
           priorita,
           stato,
@@ -192,6 +209,21 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
               </select>
             </div>
           </div>
+
+          {needsFornitore && (
+            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3">
+              <label className="label-cap block mb-1 text-primary">Fornitore consigliato *</label>
+              <ContactSelect
+                value={fornitore}
+                onChange={setFornitore}
+                type="fornitore"
+                size="sm"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1.5 font-mono uppercase tracking-wider">
+                Richiesto per task all'ufficio acquisti / amministrazione
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="label-cap block mb-1">Scadenza</label>

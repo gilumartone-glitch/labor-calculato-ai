@@ -229,20 +229,8 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
             </div>
           </div>
 
-          {needsFornitore && (
-            <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3">
-              <label className="label-cap block mb-1 text-primary">Fornitore consigliato *</label>
-              <ContactSelect
-                value={fornitore}
-                onChange={setFornitore}
-                type="fornitore"
-                size="sm"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1.5 font-mono uppercase tracking-wider">
-                Richiesto per task all'ufficio acquisti / amministrazione
-              </p>
-            </div>
-          )}
+
+
 
           <div>
             <label className="label-cap block mb-1">Scadenza</label>

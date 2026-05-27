@@ -21,6 +21,7 @@ import { FEBRUARY_2026_MOVEMENTS } from "@/lib/february-2026-seed";
 import { MARCH_2026_MOVEMENTS } from "@/lib/march-2026-seed";
 import { AnagraficaView } from "@/components/contabilita/AnagraficaView";
 import { Contact, suggestContacts, normalizeText, movementMatchesContact } from "@/components/contabilita/contacts";
+import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -545,6 +546,27 @@ export default function Contabilita() {
     return out;
   }, []);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
+
+  const restoreSnapshot = useCallback(async (raw: unknown) => {
+    const restored = normalizeState(raw as Partial<AccountingState>);
+    // Forza un upsert pulito: azzera il riferimento così il save effect lo rimanda al cloud
+    lastRemoteRef.current = "";
+    ownSaveUntilRef.current = Date.now() + 3000;
+    setState(restored);
+    try { writeLocalState(restored, Date.now()); } catch { /* ignore */ }
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData?.user?.id ?? null;
+    const { error } = await supabase
+      .from("contabilita_state")
+      .upsert(
+        [{ key: REMOTE_KEY, data: restored as unknown as never, updated_by: uid as unknown as never }],
+        { onConflict: "key" },
+      );
+    if (error) throw error;
+    lastRemoteRef.current = serializeAccountingState(restored);
+    setSaveStatus("idle");
+  }, []);
 
   // Merge granulare anti-cancellazione: fonde lo stato remoto con quello locale
   // per ID, in modo che modifiche concorrenti di utenti diversi non si distruggano.
@@ -1113,9 +1135,10 @@ export default function Contabilita() {
             <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><Landmark className="h-5 w-5" /></div>
             <div className="min-w-0"><h1 className="font-display text-lg md:text-2xl font-semibold leading-tight truncate">Contabilità</h1><p className="hidden md:block text-xs uppercase tracking-[0.2em] text-muted-foreground">Entrate, uscite, scadenze, fissi e previsionale</p></div>
           </div>
-          <div className="flex flex-wrap gap-2 items-center"><AdminUsersLink variant="outline" /><Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title={history.length === 0 ? "Niente da annullare" : `Annulla (${history.length})`}><Undo2 className="h-4 w-4" /><span className="hidden sm:inline">Annulla{history.length > 0 ? ` (${history.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={redo} disabled={future.length === 0} title={future.length === 0 ? "Niente da rifare" : `Avanti (${future.length})`}><Redo2 className="h-4 w-4" /><span className="hidden sm:inline">Avanti{future.length > 0 ? ` (${future.length})` : ""}</span></Button><div className={`flex items-center gap-1.5 text-xs ${saveStatus === "error" ? "text-destructive" : "text-muted-foreground"}`} title="Salvataggio automatico in tempo reale">{saveStatus === "saving" ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Salvataggio…</span></>) : saveStatus === "error" ? (<><X className="h-3.5 w-3.5" /><span className="hidden sm:inline">Non salvato</span></>) : (<><Check className="h-3.5 w-3.5 text-green-600" /><span className="hidden sm:inline">Salvato</span></>)}</div></div>
+          <div className="flex flex-wrap gap-2 items-center"><AdminUsersLink variant="outline" /><Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title={history.length === 0 ? "Niente da annullare" : `Annulla (${history.length})`}><Undo2 className="h-4 w-4" /><span className="hidden sm:inline">Annulla{history.length > 0 ? ` (${history.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={redo} disabled={future.length === 0} title={future.length === 0 ? "Niente da rifare" : `Avanti (${future.length})`}><Redo2 className="h-4 w-4" /><span className="hidden sm:inline">Avanti{future.length > 0 ? ` (${future.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={() => setSnapshotsOpen(true)} title="Versioni precedenti (ripristino)"><History className="h-4 w-4" /><span className="hidden sm:inline">Versioni</span></Button><div className={`flex items-center gap-1.5 text-xs ${saveStatus === "error" ? "text-destructive" : "text-muted-foreground"}`} title="Salvataggio automatico in tempo reale">{saveStatus === "saving" ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Salvataggio…</span></>) : saveStatus === "error" ? (<><X className="h-3.5 w-3.5" /><span className="hidden sm:inline">Non salvato</span></>) : (<><Check className="h-3.5 w-3.5 text-green-600" /><span className="hidden sm:inline">Salvato</span></>)}</div></div>
         </div>
       </header>
+      <SnapshotsDialog open={snapshotsOpen} onOpenChange={setSnapshotsOpen} remoteKey={REMOTE_KEY} onRestore={restoreSnapshot} />
 
       <main className="w-full px-3 md:px-6 space-y-6 py-4 md:py-8">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

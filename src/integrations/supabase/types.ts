@@ -196,6 +196,33 @@ export type Database = {
         }
         Relationships: []
       }
+      contabilita_state_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          key: string
+          movements_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data: Json
+          id?: string
+          key: string
+          movements_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          key?: string
+          movements_count?: number
+        }
+        Relationships: []
+      }
       design_draft_versions: {
         Row: {
           created_at: string

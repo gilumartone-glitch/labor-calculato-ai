@@ -43,6 +43,7 @@ export const REPARTI: { k: CommessaReparto; label: string }[] = [
   { k: "stampa", label: "Laboratorio" },
   { k: "falegnameria", label: "Falegnameria" },
   { k: "amministrazione", label: "Amministrazione" },
+  { k: "acquisti", label: "Acquisti" },
   { k: "logistica", label: "Logistica" },
   { k: "generale", label: "Generale" },
 ];

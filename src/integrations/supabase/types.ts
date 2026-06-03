@@ -903,10 +903,16 @@ export type Database = {
           created_at: string
           depends_on: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
+          due_date: string | null
           files: Json
           id: string
+          material_code: string | null
+          material_label: string | null
+          material_qty: number | null
+          material_unit: string | null
           note: string | null
           order_id: string
+          order_status: string | null
           ordine: number
           rejected_at: string | null
           rejected_by: string | null
@@ -924,10 +930,16 @@ export type Database = {
           created_at?: string
           depends_on?: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
+          due_date?: string | null
           files?: Json
           id?: string
+          material_code?: string | null
+          material_label?: string | null
+          material_qty?: number | null
+          material_unit?: string | null
           note?: string | null
           order_id: string
+          order_status?: string | null
           ordine?: number
           rejected_at?: string | null
           rejected_by?: string | null
@@ -945,10 +957,16 @@ export type Database = {
           created_at?: string
           depends_on?: string | null
           dept?: Database["public"]["Enums"]["prod_dept"]
+          due_date?: string | null
           files?: Json
           id?: string
+          material_code?: string | null
+          material_label?: string | null
+          material_qty?: number | null
+          material_unit?: string | null
           note?: string | null
           order_id?: string
+          order_status?: string | null
           ordine?: number
           rejected_at?: string | null
           rejected_by?: string | null

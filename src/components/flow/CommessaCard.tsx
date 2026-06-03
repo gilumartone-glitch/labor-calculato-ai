@@ -1,9 +1,17 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Tag, Trash2, GripVertical, AlertTriangle } from "lucide-react";
+import { Calendar, Tag, Trash2, GripVertical, AlertTriangle, Factory } from "lucide-react";
 import { Commessa, REPARTI, PRIORITA_LABEL } from "./types";
 
 export type OrderColor = { bg: string; border: string; chip: string };
+
+export type ProdSubInfo = {
+  id: string;
+  dept: string;
+  status: string;
+  assigneeName: string | null;
+  code: string;
+};
 
 interface Props {
   commessa: Commessa;
@@ -11,6 +19,7 @@ interface Props {
   onDelete: () => void;
   canDelete?: boolean;
   color?: OrderColor;
+  prodSubs?: ProdSubInfo[];
 }
 
 const REPARTO_LABEL: Record<string, string> = Object.fromEntries(REPARTI.map((r) => [r.k, r.label]));
@@ -46,7 +55,23 @@ const isOverdue = (iso: string | null, stato: string) => {
   return new Date(iso) < new Date(new Date().toDateString());
 };
 
-export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, color }: Props) => {
+/** Mappa dept produzione -> chip colorato (allineato a ProdBoard) */
+const PROD_DEPT_CHIP: Record<string, { cls: string; label: string; icon: string }> = {
+  acquisti:     { cls: "bg-blue-600 text-white",      label: "Acquisti",      icon: "🛒" },
+  vendite:      { cls: "bg-cyan-600 text-white",      label: "Vendite",       icon: "💼" },
+  magazzino:    { cls: "bg-slate-700 text-white",     label: "Amministr.",    icon: "📋" },
+  grafica:      { cls: "bg-fuchsia-600 text-white",   label: "Grafica",       icon: "🎨" },
+  tappezzeria:  { cls: "bg-rose-600 text-white",      label: "Tappezzeria",   icon: "🪡" },
+  laboratorio:  { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  stampa:       { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  taglio:       { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  stampa_3d:    { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  falegnameria: { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  assemblaggio: { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  altro:        { cls: "bg-ink/70 text-paper",        label: "Altro",         icon: "•"  },
+};
+
+export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, color, prodSubs }: Props) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: commessa.id,
     data: { stato: commessa.stato },
@@ -204,6 +229,38 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
               <span className="inline-flex items-center px-1.5 py-0.5 border border-dashed border-destructive/40 text-destructive text-[9px] font-mono uppercase tracking-wider rounded-sm">
                 Nessun assegnatario
               </span>
+            </div>
+          )}
+
+          {/* Sub‑ordini di produzione: chi sta lavorando in fabbrica, in tempo reale */}
+          {prodSubs && prodSubs.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed border-ink/15">
+              <div className="flex items-center gap-1 mb-1">
+                <Factory className="w-3 h-3 text-ink/50" />
+                <span className="font-mono text-[9px] uppercase tracking-wider text-ink/50 font-bold">
+                  In produzione · {prodSubs.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {prodSubs.map((s) => {
+                  const chip = PROD_DEPT_CHIP[s.dept] ?? PROD_DEPT_CHIP.altro;
+                  return (
+                    <span
+                      key={s.id}
+                      title={`${s.code} · ${s.status}${s.assigneeName ? ` · ${s.assigneeName}` : ""}`}
+                      className={`inline-flex items-center gap-1 pl-1 pr-1.5 py-0.5 rounded-sm text-[10px] font-bold ${chip.cls} ${s.status === "in_lavorazione" ? "ring-2 ring-ink/30" : ""}`}
+                    >
+                      <span aria-hidden>{chip.icon}</span>
+                      <span className="font-mono uppercase tracking-wider">{chip.label}</span>
+                      {s.assigneeName ? (
+                        <span className="opacity-90">· {s.assigneeName.split(" ")[0]}</span>
+                      ) : (
+                        <span className="opacity-70 italic">· libero</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

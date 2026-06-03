@@ -1,7 +1,7 @@
 export type CommessaStato = "da_fare" | "preventivo" | "in_produzione" | "pronto" | "consegnato";
 export type CommessaPriorita = "bassa" | "media" | "alta";
 export type CommessaTipo = "commessa" | "task";
-export type CommessaReparto = "tappezzeria" | "stampa" | "falegnameria" | "laboratorio" | "grafica" | "amministrazione" | "acquisti" | "vendite" | "logistica" | "generale";
+export type CommessaReparto = "tappezzeria" | "stampa" | "falegnameria" | "amministrazione" | "acquisti" | "logistica" | "generale";
 
 export type Profile = {
   id: string;

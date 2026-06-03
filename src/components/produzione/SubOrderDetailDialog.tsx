@@ -14,7 +14,8 @@ import {
   ProdSubOrder, ProdOrder, ProdSubStatus,
   DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL, DEPT_COLOR,
 } from "@/lib/produzione/types";
-import { logAction } from "@/lib/produzione/helpers";
+import { logAction, notify } from "@/lib/produzione/helpers";
+import { usePermissions } from "@/hooks/usePermissions";
 import { fmtMm } from "@/lib/produzione/scrap";
 import { CHECKLIST_TEMPLATES } from "@/lib/produzione/checklist-templates";
 import {
@@ -137,6 +138,7 @@ type Props = {
 
 export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecessor, onStart, onComplete }: Props) => {
   const { user } = useAuth();
+  const { isAdmin } = usePermissions();
   const { inventory, scraps, profiles, refreshOrders } = useProdStore();
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
@@ -144,6 +146,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const [loadingChk, setLoadingChk] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [editing, setEditing] = useState<{ id: string; label: string } | null>(null);
+  const [savingAssignee, setSavingAssignee] = useState(false);
 
   const orderFiles: FileItem[] = (order?.attachments as any[]) ?? [];
   const subFiles: FileItem[] = (sub?.files as any[]) ?? [];
@@ -415,6 +418,44 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   const dc = DEPT_COLOR[sub.dept];
   const assignee = sub.assignee_id ? profiles.find((p) => p.id === sub.assignee_id) : null;
+  const canEditAssignee = !!user && !!order && (user.id === order.created_by || isAdmin);
+  const assigneeOptions = profiles;
+
+  const changeAssignee = async (newId: string) => {
+    if (!sub || !order) return;
+    setSavingAssignee(true);
+    try {
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .update({ assignee_id: newId || null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      const newName = profiles.find((p) => p.id === newId)?.display_name ?? "Nessuno";
+      await logAction({
+        action: "SUBORDINE_ASSEGNATARIO_MODIFICATO",
+        entity_type: "sub_order",
+        entity_id: sub.id,
+        detail: `${sub.code} → ${newName}`,
+        new_state: { assignee_id: newId || null },
+      });
+      if (newId && newId !== sub.assignee_id) {
+        await notify({
+          userIds: [newId],
+          type: "magazzino_da_preparare",
+          message: `Ti è stata assegnata: ${sub.code} · ${DEPT_LABEL[sub.dept]} (${order.code})`,
+          order_id: order.id,
+          link: "/produzione/board",
+          is_urgent: order.priorita !== "normale",
+        });
+      }
+      await refreshOrders();
+      toast.success("Assegnatario aggiornato");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore aggiornamento assegnatario");
+    } finally {
+      setSavingAssignee(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -429,10 +470,28 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               <div className="font-display text-2xl font-bold leading-tight">{DEPT_LABEL[sub.dept]}</div>
             </div>
             <div className="ml-auto flex items-center gap-2 flex-wrap">
-              <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
-                <User className="w-3 h-3" />
-                {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
-              </div>
+              {canEditAssignee ? (
+                <div className="bg-white/15 border border-white/30 rounded-sm pl-2 pr-1 py-0.5 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3 h-3" />
+                  <select
+                    value={sub.assignee_id ?? ""}
+                    disabled={savingAssignee}
+                    onChange={(e) => changeAssignee(e.target.value)}
+                    className="bg-transparent text-white font-bold uppercase text-[11px] outline-none cursor-pointer hover:bg-white/10 rounded-sm px-1 py-0.5"
+                    title="Cambia assegnatario"
+                  >
+                    <option value="" className="text-ink">— Non assegnato —</option>
+                    {assigneeOptions.map((p) => (
+                      <option key={p.id} value={p.id} className="text-ink">{p.display_name ?? p.id.slice(0, 6)}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3 h-3" />
+                  {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
+                </div>
+              )}
               {order.priorita !== "normale" && (
                 <div className="bg-white/95 text-destructive border border-white rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> {PRIORITY_LABEL[order.priorita]}

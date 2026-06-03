@@ -221,6 +221,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           material_unit: m.unit ?? null,
           material_code: m.code ?? null,
           order_status: "da_ordinare",
+          assignee_id: d.acquisti_assignee_id || null,
           files: [],
         }));
         const { data: acquistiSubs, error: ea } = await supabase
@@ -248,6 +249,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
         note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
         files: [],
         depends_on: firstAcquistiId,
+        assignee_id: d.assignee_id || null,
       });
       if (e2) throw e2;
 

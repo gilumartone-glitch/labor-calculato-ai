@@ -70,6 +70,24 @@ const STAGES: { key: string; label: string; match: (o: ProdOrder, subs: ProdSubO
 
 const PROD_DEPT_KEYS = new Set<ProdDept>(Object.keys(DEPT_LABEL) as ProdDept[]);
 
+/** Palette riciclabile: ogni commessa attiva sul board ottiene un colore distinto.
+ *  Quando l'ordine viene spedito/chiuso ed esce dalla vista, il colore torna
+ *  disponibile per i nuovi ordini. */
+const ORDER_PALETTE: { bg: string; border: string; chip: string }[] = [
+  { bg: "bg-rose-50",     border: "border-l-rose-500",     chip: "bg-rose-500" },
+  { bg: "bg-amber-50",    border: "border-l-amber-500",    chip: "bg-amber-500" },
+  { bg: "bg-emerald-50",  border: "border-l-emerald-500",  chip: "bg-emerald-500" },
+  { bg: "bg-sky-50",      border: "border-l-sky-500",      chip: "bg-sky-500" },
+  { bg: "bg-violet-50",   border: "border-l-violet-500",   chip: "bg-violet-500" },
+  { bg: "bg-fuchsia-50",  border: "border-l-fuchsia-500",  chip: "bg-fuchsia-500" },
+  { bg: "bg-orange-50",   border: "border-l-orange-500",   chip: "bg-orange-500" },
+  { bg: "bg-teal-50",     border: "border-l-teal-500",     chip: "bg-teal-500" },
+  { bg: "bg-indigo-50",   border: "border-l-indigo-500",   chip: "bg-indigo-500" },
+  { bg: "bg-lime-50",     border: "border-l-lime-600",     chip: "bg-lime-600" },
+  { bg: "bg-cyan-50",     border: "border-l-cyan-500",     chip: "bg-cyan-500" },
+  { bg: "bg-pink-50",     border: "border-l-pink-500",     chip: "bg-pink-500" },
+];
+
 const ProdBoard = () => {
   const { user } = useAuth();
   const { isAdmin, roles } = usePermissions();
@@ -123,6 +141,18 @@ const ProdBoard = () => {
     if (filterDept === "all") return orders;
     return orders.filter((o) => (subsByOrder[o.id] ?? []).some((s) => s.dept === filterDept));
   }, [orders, subsByOrder, displaySubsByOrder, filterDept, isCoordinator]);
+
+  /** Assegna un colore stabile a ogni commessa ANCORA attiva sul board.
+   *  Ordini "spedito"/"chiuso" non ricevono colore (lo "liberano" per i nuovi). */
+  const orderColor = useMemo(() => {
+    const m = new Map<string, typeof ORDER_PALETTE[number]>();
+    const active = visibleOrders
+      .filter((o) => o.status !== "spedito" && o.status !== "chiuso")
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code));
+    active.forEach((o, i) => m.set(o.id, ORDER_PALETTE[i % ORDER_PALETTE.length]));
+    return m;
+  }, [visibleOrders]);
 
   const isSubLocked = (sub: ProdSubOrder): ProdSubOrder | null => {
     if (!sub.depends_on) return null;
@@ -368,13 +398,16 @@ const ProdBoard = () => {
                   const urgent = o.priorita !== "normale";
                   const pcByDept = piecesCountByDept(o);
                   const totalPieces = Object.values(pcByDept).reduce((a, b) => a + (b ?? 0), 0);
+                  const oc = orderColor.get(o.id);
+                  const tintBg = oc?.bg ?? "bg-paper";
+                  const leftBorder = oc?.border ?? "border-l-ink/30";
                   return (
                     <div
                       key={o.id}
-                      className={`bg-paper border-2 rounded-sm p-2.5 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
+                      className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-2.5 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-[11px] font-bold">{o.code}</span>
+                        <span className={`font-mono text-[11px] font-bold text-white px-1.5 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
                         <div className="flex items-center gap-1">
                           <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
                             {PRIORITY_LABEL[o.priorita]}

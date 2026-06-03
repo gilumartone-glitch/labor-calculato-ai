@@ -349,6 +349,7 @@ export const CreateCommessaButton = ({
           material_unit: m.unit ?? null,
           material_code: m.code ?? null,
           order_status: "da_ordinare",
+          assignee_id: d.acquisti_assignee_id || null,
           files: [],
         }));
         const { data: acquistiSubs, error: ea } = await supabase

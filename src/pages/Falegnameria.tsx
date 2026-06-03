@@ -255,7 +255,7 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   useEffect(() => {
     if (!projectReady) return;
     saveSharedWorkshopMaterials(project.materialCatalog);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     window.dispatchEvent(new Event("workshop-summary-updated"));
     const serialized = JSON.stringify(project);
     if (serialized !== lastAppliedRef.current && cloud.ready) {

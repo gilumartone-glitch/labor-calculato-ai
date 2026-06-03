@@ -656,6 +656,54 @@ export type Database = {
         }
         Relationships: []
       }
+      montaggi_planning: {
+        Row: {
+          cantiere_label: string
+          commessa_id: string | null
+          created_at: string
+          created_by: string
+          date: string
+          end_time: string | null
+          hours: number
+          id: string
+          notes: string | null
+          operator_id: string
+          role: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          cantiere_label?: string
+          commessa_id?: string | null
+          created_at?: string
+          created_by: string
+          date: string
+          end_time?: string | null
+          hours?: number
+          id?: string
+          notes?: string | null
+          operator_id: string
+          role?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cantiere_label?: string
+          commessa_id?: string | null
+          created_at?: string
+          created_by?: string
+          date?: string
+          end_time?: string | null
+          hours?: number
+          id?: string
+          notes?: string | null
+          operator_id?: string
+          role?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       prod_chat_channels: {
         Row: {
           created_at: string

@@ -336,10 +336,26 @@ export const ConfirmToWarehouseDialog = ({
                 </>
               )}
               <div className="text-[10px] font-mono text-amber-900">
-                La preparazione magazzino sarà sbloccata quando tutti i materiali risulteranno arrivati.
+                La lavorazione sarà sbloccata quando tutti i materiali risulteranno arrivati.
               </div>
             </div>
           )}
+
+          {/* Sub Amministrazione opzionale (chiusura/bolla) */}
+          <label className="flex items-start gap-2 cursor-pointer border border-dashed border-ink/20 rounded-sm px-3 py-2 hover:bg-muted/30 transition-colors">
+            <input
+              type="checkbox"
+              checked={createAdminClosure}
+              onChange={(e) => setCreateAdminClosure(e.target.checked)}
+              className="mt-0.5"
+            />
+            <div className="flex-1">
+              <div className="text-[12px] font-semibold text-ink">Crea anche sub Amministrazione</div>
+              <div className="text-[10px] font-mono text-muted-foreground">
+                Per chiusura/bolla/spedizione a fine lavorazione. Disattivalo se non serve.
+              </div>
+            </div>
+          </label>
 
           <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
             I responsabili riceveranno una notifica con il dettaglio dell'ordine.

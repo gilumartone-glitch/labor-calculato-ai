@@ -138,6 +138,7 @@ type Props = {
 
 export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecessor, onStart, onComplete }: Props) => {
   const { user } = useAuth();
+  const { isAdmin } = usePermissions();
   const { inventory, scraps, profiles, refreshOrders } = useProdStore();
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
@@ -145,6 +146,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const [loadingChk, setLoadingChk] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [editing, setEditing] = useState<{ id: string; label: string } | null>(null);
+  const [savingAssignee, setSavingAssignee] = useState(false);
 
   const orderFiles: FileItem[] = (order?.attachments as any[]) ?? [];
   const subFiles: FileItem[] = (sub?.files as any[]) ?? [];

@@ -2122,7 +2122,7 @@ function SaleProductSection({
               </div>
 
               {selected && qty > 0 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                   <KPI
                     label="Prezzo d'acquisto"
                     value={`${eur(purchasePerSaleUnit(selected, effectiveSaleUnit))}/${effectiveSaleUnit}`}
@@ -2130,12 +2130,17 @@ function SaleProductSection({
                       ? `da ${eur(purchaseOf(selected))}/${baseUnit} × h ${fmt(heightMeters(selected))} m`
                       : `listino ${eur(purchaseOf(selected))}/${baseUnit}`}
                   />
+                  <KPI
+                    label="Prezzo vendita unitario"
+                    value={`${eur(sellPerSaleUnit(selected, effectiveSaleUnit))}/${effectiveSaleUnit}`}
+                    hint={`×${priceMultiplier(customerType, priceMode)} · ${priceMode === "piece" ? "intero" : "al taglio"}`}
+                  />
                   <KPI label="Quantità" value={`${fmt(qty)} ${effectiveSaleUnit}`} hint={labelOf(selected)} />
                   <KPI label="Costo materiale" value={eur(purchasePerSaleUnit(selected, effectiveSaleUnit) * qty)} hint="totale d'acquisto" />
                   <KPI
-                    label="Prezzo vendita"
+                    label="Prezzo vendita totale"
                     value={eur(sellPerSaleUnit(selected, effectiveSaleUnit) * qty)}
-                    hint={`${CUSTOMER_LABEL[customerType]} · ${priceMode === "piece" ? "intero" : "al taglio"} · ×${priceMultiplier(customerType, priceMode)}`}
+                    hint={`${CUSTOMER_LABEL[customerType]} · ${priceMode === "piece" ? "intero" : "al taglio"}`}
                     highlight
                   />
                 </div>

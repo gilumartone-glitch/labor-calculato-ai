@@ -2070,18 +2070,74 @@ function SaleProductSection({
                   <div className="relative">
                     <Input type="number" step="0.01" value={qty || ""} onChange={(e) => setQty(Number(e.target.value))} className="pr-12" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono uppercase tracking-wider text-muted-foreground pointer-events-none">
-                      {selected ? unitOf(selected) : defaultUnit}
+                      {effectiveSaleUnit}
                     </span>
                   </div>
                 </Field>
               </div>
 
+              {/* Modalità di vendita: tipo cliente, intero/al taglio, unità */}
+              <div className="grid md:grid-cols-3 gap-3">
+                <Field label="Tipo cliente">
+                  <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                    {(["final", "dealer"] as CustomerType[]).map((c) => (
+                      <button key={c} type="button" onClick={() => setCustomerType(c)}
+                        className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${customerType === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                        {CUSTOMER_LABEL[c]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Modalità">
+                  <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                    {(["piece", "cut"] as PriceMode[]).map((m) => (
+                      <button key={m} type="button" onClick={() => setPriceMode(m)}
+                        className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${priceMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                        {m === "piece" ? `Intero (×${priceMultiplier(customerType, "piece")})` : `Al taglio (×${priceMultiplier(customerType, "cut")})`}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                {canSwitchToMl ? (
+                  <Field label="Unità di vendita">
+                    <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                      {([
+                        { v: "m²" as SaleUnit, lab: "m² (a metro quadro)" },
+                        { v: "m" as SaleUnit, lab: `ml (h ${fmt(heightMeters(selected))} m)` },
+                      ]).map((opt) => (
+                        <button key={opt.v} type="button" onClick={() => setSaleUnitOverride(opt.v === baseUnit ? "" : opt.v)}
+                          className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${effectiveSaleUnit === opt.v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                          {opt.lab}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                ) : (
+                  <Field label="Unità di vendita">
+                    <div className="h-10 flex items-center px-3 text-[12px] font-mono text-muted-foreground border border-dashed border-input rounded-md">
+                      {baseUnit} (unità del listino)
+                    </div>
+                  </Field>
+                )}
+              </div>
+
               {selected && qty > 0 && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <KPI label="Prezzo unitario" value={`${eur(sellOf(selected))}/${unitOf(selected)}`} hint={purchaseOf(selected) ? `acquisto ${eur(purchaseOf(selected))}` : "vendita"} />
-                  <KPI label="Quantità" value={`${fmt(qty)} ${unitOf(selected)}`} hint={labelOf(selected)} />
-                  <KPI label="Costo materiale" value={eur(purchaseOf(selected) * qty)} hint="prezzo d'acquisto" />
-                  <KPI label="Prezzo vendita" value={eur(sellOf(selected) * qty)} hint="solo materiale, no lavorazione" highlight />
+                  <KPI
+                    label="Prezzo d'acquisto"
+                    value={`${eur(purchasePerSaleUnit(selected, effectiveSaleUnit))}/${effectiveSaleUnit}`}
+                    hint={effectiveSaleUnit !== baseUnit
+                      ? `da ${eur(purchaseOf(selected))}/${baseUnit} × h ${fmt(heightMeters(selected))} m`
+                      : `listino ${eur(purchaseOf(selected))}/${baseUnit}`}
+                  />
+                  <KPI label="Quantità" value={`${fmt(qty)} ${effectiveSaleUnit}`} hint={labelOf(selected)} />
+                  <KPI label="Costo materiale" value={eur(purchasePerSaleUnit(selected, effectiveSaleUnit) * qty)} hint="totale d'acquisto" />
+                  <KPI
+                    label="Prezzo vendita"
+                    value={eur(sellPerSaleUnit(selected, effectiveSaleUnit) * qty)}
+                    hint={`${CUSTOMER_LABEL[customerType]} · ${priceMode === "piece" ? "intero" : "al taglio"} · ×${priceMultiplier(customerType, priceMode)}`}
+                    highlight
+                  />
                 </div>
               )}
 

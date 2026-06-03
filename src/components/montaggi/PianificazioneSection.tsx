@@ -320,7 +320,7 @@ export const PianificazioneSection = ({
     const message = `🛠 Pianificazione cantiere "${cantiereLabel}"\n\n📅 Giornate:\n${daysTxt}${addrTxt}${toolsTxt}${matTxt}`;
     const { error } = await supabase.from("prod_notifications").insert({
       user_id: op.userId,
-      type: "ordine_aggiornato" as never,
+      type: "chat_messaggio",
       message,
       is_urgent: false,
     });

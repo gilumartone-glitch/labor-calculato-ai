@@ -840,10 +840,17 @@ export const pieceTotal = (
   piece: PieceLine,
   catalog: Catalog,
   customer?: CustomerType,
-): number =>
+): number => {
+  // Override "Livella €/m²": sostituisce il prezzo cliente del pezzo
+  // (materiale + lavorazioni + sfridi) con areaM2 × qty × override.
+  const override = Number(piece.priceOverridePerSqm ?? 0);
+  if (override > 0) {
+    const area = pieceAreaM2Local(piece);
+    return area * pieceQty(piece) * override;
+  }
   // Lo sfrido (1,5 m linerai) si applica una sola volta per pezzo, non per copia.
   // Quindi: (materialeLavorabile + lavorazioni) × qty + sfrido × 1.
-  ((pieceMaterialTotal(piece, catalog, customer) -
+  return ((pieceMaterialTotal(piece, catalog, customer) -
     pieceInitialScrapSellCost(piece, catalog, customer)) +
     pieceWorkTotal(piece, catalog, customer)) *
     pieceQty(piece) +
@@ -851,6 +858,7 @@ export const pieceTotal = (
   // Sfrido di nesting (leftover): addebitato per ogni copia (è materiale fisico
   // consumato in più ad ogni ripetizione del pezzo).
   pieceLeftoverScrapSellCost(piece, catalog, customer) * pieceQty(piece);
+};
 
 /** Suggerisce la quantità materiale (m) totale: usata da PieceCard come fallback. */
 export const suggestedMaterialQty = (

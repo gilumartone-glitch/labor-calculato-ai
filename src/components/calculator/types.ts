@@ -262,6 +262,10 @@ export type PieceLine = {
   pickedStockId?: string | null;
   /** Codice/etichetta leggibile della scelta (per visualizzazione offline). */
   pickedStockLabel?: string | null;
+  /** Override del prezzo cliente €/m² applicato dal pulsante "Livella €/m²".
+   *  Quando valorizzato, pieceTotal ignora materiale/lavorazioni/sfridi e
+   *  restituisce areaM2 × qty × priceOverridePerSqm. */
+  priceOverridePerSqm?: number | null;
   note?: string;
 };
 

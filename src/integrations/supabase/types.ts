@@ -1208,6 +1208,8 @@ export type Database = {
         | "logistica"
         | "magazzino"
         | "acquisti"
+        | "laboratorio"
+        | "vendite"
       checklist_item_status: "todo" | "done" | "skipped"
       commessa_priorita: "bassa" | "media" | "alta"
       commessa_reparto:
@@ -1240,6 +1242,8 @@ export type Database = {
         | "falegnameria"
         | "magazzino"
         | "acquisti"
+        | "laboratorio"
+        | "vendite"
       prod_notif_type:
         | "ordine_creato"
         | "subordine_assegnato"
@@ -1415,6 +1419,8 @@ export const Constants = {
         "logistica",
         "magazzino",
         "acquisti",
+        "laboratorio",
+        "vendite",
       ],
       checklist_item_status: ["todo", "done", "skipped"],
       commessa_priorita: ["bassa", "media", "alta"],
@@ -1450,6 +1456,8 @@ export const Constants = {
         "falegnameria",
         "magazzino",
         "acquisti",
+        "laboratorio",
+        "vendite",
       ],
       prod_notif_type: [
         "ordine_creato",

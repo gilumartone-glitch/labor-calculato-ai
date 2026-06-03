@@ -225,6 +225,21 @@ export const DepartmentView = ({
     // 3) Distribuisco lo sfrido proporzionalmente. Per i pezzi senza key
     //    (sfrido non applicabile, es. lastre) lo sfrido resta 0.
     return base.map((b) => {
+      const override = Number(b.piece.priceOverridePerSqm ?? 0);
+      if (override > 0) {
+        const total = b.areaTot * override;
+        return {
+          piece: b.piece,
+          qty: b.qty,
+          material: total,
+          initialScrap: 0,
+          leftoverScrap: 0,
+          nestingScrap: 0,
+          work: { stampa: 0, taglio: 0, perimetrale: 0, altre: 0, seam: 0, custom: 0, print: 0, scrap: 0, total: 0 },
+          total,
+          overridden: true as const,
+        };
+      }
       let initialScrap = 0;
       if (b.key) {
         const g = groupScrap.get(b.key);
@@ -246,6 +261,7 @@ export const DepartmentView = ({
         nestingScrap,
         work: b.wb,
         total,
+        overridden: false as const,
       };
     });
   })();
@@ -259,6 +275,31 @@ export const DepartmentView = ({
 
   type Tab = "lavorazioni" | "nesting" | "magazzino" | "listini";
   const [tab, setTab] = useState<Tab>("lavorazioni");
+  const currentOverride = pieces.find((p) => Number(p.priceOverridePerSqm ?? 0) > 0)?.priceOverridePerSqm ?? null;
+  const [levelInput, setLevelInput] = useState<string>(currentOverride ? String(currentOverride) : "");
+  const hasOverride = pieces.some((p) => Number(p.priceOverridePerSqm ?? 0) > 0);
+
+  const applyLevelPrice = () => {
+    const v = parseFloat(levelInput.replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0) {
+      toast.error("Inserisci un €/m² valido");
+      return;
+    }
+    setState({
+      ...state,
+      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: v })),
+    });
+    toast.success(`Prezzi livellati a ${v.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²`);
+  };
+
+  const resetLevelPrice = () => {
+    setState({
+      ...state,
+      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: null })),
+    });
+    setLevelInput("");
+    toast.success("Prezzi ripristinati al calcolo automatico");
+  };
 
   const addMaterial = () => {
     const newLine: MaterialLine = {
@@ -530,21 +571,58 @@ export const DepartmentView = ({
             )}
             {perPieceTotals.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="label-cap mb-2">Prezzo per lavorazione</div>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
+                  <div className="label-cap">Prezzo per lavorazione</div>
+                  <div className="flex items-end gap-2 font-mono text-[11px]">
+                    <div className="flex flex-col">
+                      <label className="uppercase tracking-wider text-[10px] text-muted-foreground mb-0.5">
+                        Livella €/m² su tutti i pezzi
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          inputMode="decimal"
+                          placeholder="es. 19,90"
+                          value={levelInput}
+                          onChange={(e) => setLevelInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") applyLevelPrice(); }}
+                          className="h-8 w-28 px-2 border border-input rounded-sm bg-paper tabular-nums"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-2 text-[11px]" onClick={applyLevelPrice}>
+                          Applica
+                        </Button>
+                        {hasOverride && (
+                          <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={resetLevelPrice}>
+                            <RotateCcw className="w-3 h-3 mr-1" /> Ripristina
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {hasOverride && (
+                  <div className="mb-2 px-2 py-1.5 bg-primary/10 border border-primary/30 rounded-sm font-mono text-[10px] uppercase tracking-wider text-primary">
+                    Prezzi livellati: il totale di ogni pezzo è area × €/m² impostato, ignorando materiale/lavorazioni/sfridi.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {perPieceTotals.map(
-                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total }, i) => {
+                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total, overridden }, i) => {
                       const name = piece.productName?.trim() || `Pezzo ${i + 1}`;
                       const sfrido = initialScrap;
                       const scarto = work.scrap;
                       const lavorazione = work.total - scarto;
-                      const rows: { label: string; value: number }[] = [
-                        { label: "Materiale", value: material },
-                        { label: "Sfrido iniziale", value: sfrido },
-                        { label: "Sfrido lastre", value: nestingScrap },
-                        { label: "Lavorazione", value: lavorazione },
-                        { label: "Scarto", value: scarto },
-                      ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
+                      const rows: { label: string; value: number }[] = overridden
+                        ? [{ label: "Prezzo livellato", value: material }]
+                        : [
+                            { label: "Materiale", value: material },
+                            { label: "Sfrido iniziale", value: sfrido },
+                            { label: "Sfrido lastre", value: nestingScrap },
+                            { label: "Lavorazione", value: lavorazione },
+                            { label: "Scarto", value: scarto },
+                          ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
                       const unitPrice = qty > 0 ? total / qty : total;
                       // Prezzo per metro quadro: si calcola sul singolo pezzo
                       // (unitPrice = prezzo di una copia) diviso l'area del pezzo in m².
@@ -586,8 +664,14 @@ export const DepartmentView = ({
                               {dimLabel && (
                                 <span className="ml-1.5 text-ink/70">· {dimLabel}</span>
                               )}
+                              {overridden && (
+                                <span className="ml-1.5 px-1 py-0.5 bg-primary/15 text-primary rounded-sm text-[9px] uppercase tracking-wider">
+                                  livellato
+                                </span>
+                              )}
                             </span>
                             <span className="font-semibold tabular-nums text-[12px]">{eur(total)}</span>
+
                           </div>
                           <div className="space-y-0.5">
                             {rows.map((r, idx) => (

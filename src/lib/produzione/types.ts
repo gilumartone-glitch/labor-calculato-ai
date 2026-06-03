@@ -1,5 +1,5 @@
 export type ProdDept =
-  | "grafica"
+  | "progettazione"
   | "stampa"
   | "taglio"
   | "tappezzeria"
@@ -13,18 +13,18 @@ export type ProdDept =
   | "altro";
 
 export type AppSettore =
-  | "grafica" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
+  | "progettazione" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
   | "laboratorio" | "amministrazione" | "logistica" | "magazzino" | "acquisti"
   | "vendite" | "altro";
 
 export const SETTORE_LABEL: Record<AppSettore, string> = {
-  grafica: "Grafica",
-  stampa: "Laboratorio",
-  taglio: "Laboratorio",
+  progettazione: "Progettazione",
+  stampa: "Stampa",
+  taglio: "Taglio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Laboratorio",
-  falegnameria: "Laboratorio",
-  laboratorio: "Laboratorio",
+  stampa_3d: "Stampa 3D",
+  falegnameria: "Falegnameria",
+  laboratorio: "Lavorazione",
   amministrazione: "Amministrazione",
   logistica: "Amministrazione",
   magazzino: "Amministrazione",
@@ -34,14 +34,34 @@ export const SETTORE_LABEL: Record<AppSettore, string> = {
 };
 
 export const ALL_SETTORI: AppSettore[] = [
+  "progettazione",
+  "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d",
   "amministrazione", "acquisti", "vendite",
-  "laboratorio", "tappezzeria", "grafica",
 ];
 
 /** Reparti UFFICIO (chi gestisce, ordina, fattura). */
 export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
 /** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
-export const WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "grafica"];
+export const WORK_DEPTS: ProdDept[] = ["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "progettazione"];
+
+/** Gerarchia di reparto per i selettori (Lavorazione contiene i sotto-reparti). */
+export type DeptGroup = {
+  key: ProdDept | "lavorazione_group";
+  label: string;
+  children?: ProdDept[];
+  selectable: boolean;
+};
+
+export const DEPT_HIERARCHY: DeptGroup[] = [
+  { key: "progettazione", label: "Progettazione", selectable: true },
+  {
+    key: "lavorazione_group", label: "Lavorazione", selectable: true,
+    children: ["stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d"],
+  },
+  { key: "amministrazione" as ProdDept, label: "Amministrazione", selectable: true },
+  { key: "acquisti", label: "Acquisti", selectable: true },
+  { key: "vendite", label: "Vendite", selectable: true },
+];
 export type ProdPriority = "normale" | "urgente" | "bloccante";
 export type ProdDelivery = "spedizione" | "ritiro" | "mezzo_proprio" | "corriere";
 export type ProdOrderStatus = "nuovo" | "in_corso" | "pronto" | "spedito" | "chiuso" | "annullato";

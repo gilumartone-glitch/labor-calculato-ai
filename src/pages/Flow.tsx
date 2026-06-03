@@ -147,6 +147,7 @@ const Flow = () => {
           id: s.id,
           dept: s.dept as string,
           status: s.status as string,
+          assigneeId: s.assignee_id ?? null,
           assigneeName: assignee?.display_name ?? null,
           code: s.code,
         });

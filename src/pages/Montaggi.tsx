@@ -172,6 +172,8 @@ const hydrateProject = (rawProject: StoredWoodProject): WoodProject => {
   return {
     ...base,
     ...rawProject,
+    address: rawProject.address ?? "",
+    tools: Array.isArray(rawProject.tools) ? rawProject.tools : [],
     workers: rawProject.workers?.length ? rawProject.workers : base.workers,
     labor: rawProject.labor?.length ? rawProject.labor : base.labor,
     transports: Array.isArray(rawProject.transports) ? rawProject.transports : [],

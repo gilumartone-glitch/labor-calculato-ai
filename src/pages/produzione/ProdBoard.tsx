@@ -516,7 +516,9 @@ const ProdBoard = () => {
                                   </div>
                                 );
                               })()}
+                              </div>
                             </div>
+
                           );
                         })}
                       </div>

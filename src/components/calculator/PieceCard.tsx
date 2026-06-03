@@ -1424,6 +1424,57 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
         </div>
       )}
 
+      {/* Margini manuali (solo Tappezzeria): cm extra su Larghezza (B) e Altezza (H)
+          aggiunti alle dimensioni del pezzo per il calcolo del materiale. Sostituiscono
+          completamente l'abbondanza automatica derivata dalle lavorazioni. */}
+      {isTappezzeria && (
+        <div className="mt-5 pt-3 border-2 border-ink/20 bg-paper rounded-md p-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-ink/70 font-bold">
+              // Margini abbondanza (manuali)
+            </div>
+            <div className="flex items-end gap-3">
+              <div>
+                <label className="label-cap block mb-0.5">B · larghezza (cm)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={line.marginExtraWCm ?? "" as any}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const num = v === "" ? undefined : Math.max(0, parseFloat(v.replace(",", ".")) || 0);
+                    onChange({ ...line, marginExtraWCm: num, manualMargins: true });
+                  }}
+                  placeholder="0"
+                  className="input-bare w-24 font-mono text-sm text-right"
+                />
+              </div>
+              <div>
+                <label className="label-cap block mb-0.5">H · altezza (cm)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={line.marginExtraHCm ?? "" as any}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const num = v === "" ? undefined : Math.max(0, parseFloat(v.replace(",", ".")) || 0);
+                    onChange({ ...line, marginExtraHCm: num, manualMargins: true });
+                  }}
+                  placeholder="0"
+                  className="input-bare w-24 font-mono text-sm text-right"
+                />
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground ml-auto">
+              I cm vengono sommati alle dimensioni del pezzo prima del calcolo materiale.
+              Se è attiva la rotazione, B/H vengono scambiati di conseguenza.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3) Lavorazioni del pezzo: stampa / taglio / perimetrale / altre (Stampa) o solo perimetrali (altri reparti) */}
       {(() => {
         const activeCategory: "stampa" | "taglio" | "perimetrale" | "altre" | undefined =

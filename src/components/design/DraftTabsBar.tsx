@@ -52,11 +52,14 @@ type DraftVersion = {
 const REPARTO_TO_PROD: Record<CommessaReparto, ProdDept> = {
   tappezzeria: "tappezzeria",
   stampa: "stampa",
-  falegnameria: "taglio",
+  falegnameria: "falegnameria",
   amministrazione: "altro",
-  acquisti: "altro",
+  acquisti: "acquisti",
   logistica: "altro",
   generale: "altro",
+  progettazione: "progettazione",
+  lavorazione: "laboratorio",
+  vendite: "vendite",
 };
 const PRIO_TO_PROD: Record<CommessaPriorita, ProdPriority> = {
   bassa: "normale",

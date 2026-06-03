@@ -16,6 +16,7 @@ import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/help
 import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { CUSTOMER_LABEL, type CustomerType, type PriceMode, priceMultiplier, sellPrice } from "@/lib/pricing";
 
 /* ============== Tipi ============== */
 type DanceRoll = {
@@ -1778,6 +1779,8 @@ type CartLine = {
   priceSell?: number;
   pricePurchase?: number;
   category?: SaleCategory;
+  customerType?: CustomerType;
+  priceMode?: PriceMode;
 };
 
 const DRAFT_STATE_KEY = "officina:state";
@@ -1829,6 +1832,9 @@ function SaleProductSection({
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
+  const [customerType, setCustomerType] = useState<CustomerType>("final");
+  const [priceMode, setPriceMode] = useState<PriceMode>("cut");
+  const [saleUnitOverride, setSaleUnitOverride] = useState<SaleUnit | "">("");
   const [cart, setCart] = useState<CartLine[]>(() => readDraftSalesCart(categoryKey));
   useEffect(() => {
     writeDraftSalesCart(categoryKey, cart);
@@ -1915,22 +1921,48 @@ function SaleProductSection({
     if (typeof m.costPrice === "number") return m.costPrice;
     return Number(m.pricePiece) || 0;
   };
-  const sellOf = (m: any): number => {
-    if (!m) return 0;
-    const base = Number(m.priceCut) || Number(m.pricePiece) || 0;
-    if (typeof m.costPrice === "number") return base; // tappezzeria: prezzo già di vendita
-    const markup = Number(catalog?.markupPct ?? 0);
-    return base * (1 + markup / 100);
+  // Altezza materiale convertita in metri (per conversione m² → ml).
+  const heightMeters = (m: any): number => {
+    const h = Number(m?.height);
+    if (!isFinite(h) || h <= 0) return 0;
+    const u = String(m?.heightUnit || "cm").toLowerCase();
+    if (u === "mm") return h / 1000;
+    if (u === "m") return h;
+    return h / 100;
   };
+  // Prezzo d'acquisto convertito nell'unità di vendita scelta.
+  const purchasePerSaleUnit = (m: any, su: SaleUnit): number => {
+    const p = purchaseOf(m);
+    const bu = unitOf(m);
+    if (!m || bu === su) return p;
+    if (bu === "m²" && su === "m") return p * heightMeters(m); // €/m² × altezza(m) = €/ml
+    if (bu === "m" && su === "m²") {
+      const h = heightMeters(m);
+      return h > 0 ? p / h : p;
+    }
+    return p;
+  };
+  // Prezzo di vendita = acquisto × moltiplicatore (rivenditore/finale × intero/taglio).
+  const sellPerSaleUnit = (m: any, su: SaleUnit): number =>
+    sellPrice(purchasePerSaleUnit(m, su), customerType, priceMode);
 
   const selected = variants.find((v: any) => v.id === variantId) ?? variants[0];
+  const baseUnit: SaleUnit = selected ? unitOf(selected) : defaultUnit;
+  const canSwitchToMl = baseUnit === "m²" && heightMeters(selected) > 0;
+  const effectiveSaleUnit: SaleUnit = saleUnitOverride && (saleUnitOverride === "m" || saleUnitOverride === "m²")
+    ? saleUnitOverride
+    : baseUnit;
+  // Reset override se il nuovo materiale non lo supporta più.
+  useEffect(() => {
+    if (saleUnitOverride && !canSwitchToMl) setSaleUnitOverride("");
+  }, [canSwitchToMl, saleUnitOverride]);
 
   const lineTotal = (line: CartLine) => {
     const m = materials.find((x: any) => x.id === line.materialId);
-    // Se il catalogo non ha il materiale (es. carrello caricato prima del
-    // fetch del catalogo), uso i prezzi salvati nella riga.
-    const sell = m ? sellOf(m) * line.qty : (Number(line.priceSell) || 0) * line.qty;
-    const purchase = m ? purchaseOf(m) * line.qty : (Number(line.pricePurchase) || 0) * line.qty;
+    // Usiamo sempre lo snapshot della riga: il prezzo dipende anche da
+    // cliente/modalità/unità di vendita scelti al momento dell'aggiunta.
+    const sell = (Number(line.priceSell) || 0) * line.qty;
+    const purchase = (Number(line.pricePurchase) || 0) * line.qty;
     return { material: m, sell, purchase };
   };
   const cartTotals = useMemo(() => {
@@ -1947,10 +1979,12 @@ function SaleProductSection({
       qty,
       name: selected.name,
       variant: labelOf(selected),
-      unit: unitOf(selected),
-      priceSell: sellOf(selected),
-      pricePurchase: purchaseOf(selected),
+      unit: effectiveSaleUnit,
+      priceSell: sellPerSaleUnit(selected, effectiveSaleUnit),
+      pricePurchase: purchasePerSaleUnit(selected, effectiveSaleUnit),
       category: categoryKey,
+      customerType,
+      priceMode,
     }]);
     setQty(0);
   };
@@ -2036,18 +2070,74 @@ function SaleProductSection({
                   <div className="relative">
                     <Input type="number" step="0.01" value={qty || ""} onChange={(e) => setQty(Number(e.target.value))} className="pr-12" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono uppercase tracking-wider text-muted-foreground pointer-events-none">
-                      {selected ? unitOf(selected) : defaultUnit}
+                      {effectiveSaleUnit}
                     </span>
                   </div>
                 </Field>
               </div>
 
+              {/* Modalità di vendita: tipo cliente, intero/al taglio, unità */}
+              <div className="grid md:grid-cols-3 gap-3">
+                <Field label="Tipo cliente">
+                  <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                    {(["final", "dealer"] as CustomerType[]).map((c) => (
+                      <button key={c} type="button" onClick={() => setCustomerType(c)}
+                        className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${customerType === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                        {CUSTOMER_LABEL[c]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Modalità">
+                  <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                    {(["piece", "cut"] as PriceMode[]).map((m) => (
+                      <button key={m} type="button" onClick={() => setPriceMode(m)}
+                        className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${priceMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                        {m === "piece" ? `Intero (×${priceMultiplier(customerType, "piece")})` : `Al taglio (×${priceMultiplier(customerType, "cut")})`}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                {canSwitchToMl ? (
+                  <Field label="Unità di vendita">
+                    <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
+                      {([
+                        { v: "m²" as SaleUnit, lab: "m² (a metro quadro)" },
+                        { v: "m" as SaleUnit, lab: `ml (h ${fmt(heightMeters(selected))} m)` },
+                      ]).map((opt) => (
+                        <button key={opt.v} type="button" onClick={() => setSaleUnitOverride(opt.v === baseUnit ? "" : opt.v)}
+                          className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${effectiveSaleUnit === opt.v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                          {opt.lab}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                ) : (
+                  <Field label="Unità di vendita">
+                    <div className="h-10 flex items-center px-3 text-[12px] font-mono text-muted-foreground border border-dashed border-input rounded-md">
+                      {baseUnit} (unità del listino)
+                    </div>
+                  </Field>
+                )}
+              </div>
+
               {selected && qty > 0 && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <KPI label="Prezzo unitario" value={`${eur(sellOf(selected))}/${unitOf(selected)}`} hint={purchaseOf(selected) ? `acquisto ${eur(purchaseOf(selected))}` : "vendita"} />
-                  <KPI label="Quantità" value={`${fmt(qty)} ${unitOf(selected)}`} hint={labelOf(selected)} />
-                  <KPI label="Costo materiale" value={eur(purchaseOf(selected) * qty)} hint="prezzo d'acquisto" />
-                  <KPI label="Prezzo vendita" value={eur(sellOf(selected) * qty)} hint="solo materiale, no lavorazione" highlight />
+                  <KPI
+                    label="Prezzo d'acquisto"
+                    value={`${eur(purchasePerSaleUnit(selected, effectiveSaleUnit))}/${effectiveSaleUnit}`}
+                    hint={effectiveSaleUnit !== baseUnit
+                      ? `da ${eur(purchaseOf(selected))}/${baseUnit} × h ${fmt(heightMeters(selected))} m`
+                      : `listino ${eur(purchaseOf(selected))}/${baseUnit}`}
+                  />
+                  <KPI label="Quantità" value={`${fmt(qty)} ${effectiveSaleUnit}`} hint={labelOf(selected)} />
+                  <KPI label="Costo materiale" value={eur(purchasePerSaleUnit(selected, effectiveSaleUnit) * qty)} hint="totale d'acquisto" />
+                  <KPI
+                    label="Prezzo vendita"
+                    value={eur(sellPerSaleUnit(selected, effectiveSaleUnit) * qty)}
+                    hint={`${CUSTOMER_LABEL[customerType]} · ${priceMode === "piece" ? "intero" : "al taglio"} · ×${priceMultiplier(customerType, priceMode)}`}
+                    highlight
+                  />
                 </div>
               )}
 

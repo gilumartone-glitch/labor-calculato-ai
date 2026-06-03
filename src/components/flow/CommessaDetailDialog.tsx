@@ -116,6 +116,27 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  /** id del production_order collegato a questa commessa (se esiste) */
+  const [linkedProdOrderId, setLinkedProdOrderId] = useState<string | null>(null);
+
+  // Verifica se esiste già un production_order collegato (source_commessa_id)
+  useEffect(() => {
+    if (!commessa) {
+      setLinkedProdOrderId(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("production_orders")
+      .select("id")
+      .eq("source_commessa_id", commessa.id)
+      .neq("status", "annullato")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setLinkedProdOrderId(data?.id ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [commessa?.id, open]);
 
   useEffect(() => {
     if (!user) return;
@@ -152,6 +173,13 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       setConfirmOpen(true);
       return;
     }
+    // "Inizia produzione" su una commessa NON ancora lanciata in Flow Board
+    // → apri lo stesso dialog di lancio così l'ordine appare in produzione
+    if (next === "in_produzione" && !linkedProdOrderId) {
+      setConfirmLabel(label);
+      setConfirmOpen(true);
+      return;
+    }
     setBusy(true);
     try {
       const { error } = await supabase.from("commesse").update({ stato: next }).eq("id", commessa.id);
@@ -174,10 +202,12 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
     if (!commessa || !user) return;
     setConfirmBusy(true);
     try {
-      // 1) Aggiorna stato commessa
+      // 1) Aggiorna stato commessa: se era già "da_fare" (lancio diretto via "Inizia produzione")
+      //    porta direttamente a "in_produzione"; altrimenti standard "da_fare".
+      const nextStato: CommessaStato = commessa.stato === "da_fare" ? "in_produzione" : "da_fare";
       const { error: e0 } = await supabase
         .from("commesse")
-        .update({ stato: "da_fare" })
+        .update({ stato: nextStato })
         .eq("id", commessa.id);
       if (e0) throw e0;
 
@@ -556,6 +586,41 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           </div>
         </DialogHeader>
 
+        {/* Stato collegamento con Flow Board */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-2 rounded-sm text-xs"
+             style={{ borderColor: linkedProdOrderId ? "hsl(var(--primary))" : "hsl(var(--border))" }}>
+          {linkedProdOrderId ? (
+            <>
+              <div className="flex items-center gap-2 text-primary">
+                <span className="text-base leading-none">✓</span>
+                <span className="font-bold uppercase tracking-wider text-[10px]">
+                  Collegata a Flow Board
+                </span>
+                <span className="text-muted-foreground normal-case font-normal">
+                  · La produzione è già stata lanciata
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { onOpenChange(false); navigate("/produzione/board"); }}
+                className="text-[10px] uppercase tracking-wider font-bold underline hover:text-primary"
+              >
+                Apri in Flow Board →
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-amber-700">
+              <span className="text-base leading-none">⚠</span>
+              <span className="font-bold uppercase tracking-wider text-[10px]">
+                Non ancora in Flow Board
+              </span>
+              <span className="text-muted-foreground normal-case font-normal">
+                · Premi "Inizia produzione" per lanciarla a reparti e assegnatari
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Bottoni di transizione di stato */}
         <StateActions
           stato={commessa.stato}
@@ -563,6 +628,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           busy={busy}
           onAction={setStato}
         />
+
 
         <Tabs defaultValue="overview" className="mt-2">
           <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-1" : "grid-cols-3"}`}>

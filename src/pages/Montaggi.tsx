@@ -112,6 +112,7 @@ const initialProject = (): WoodProject => ({
   name: "Nuovo montaggio",
   description: "",
   customer: "",
+  address: "",
   date: new Date().toISOString().slice(0, 10),
   workers: defaultWorkers,
   labor: [{ id: uid(), workerId: defaultWorkers[0].id, hours: 1 }],
@@ -120,6 +121,7 @@ const initialProject = (): WoodProject => ({
   materials: [],
   marginPct: 30,
   elements: [],
+  tools: [],
 });
 
 const categoryLabel: Record<MaterialCategory, string> = {

@@ -179,10 +179,10 @@ export const PianificazioneSection = () => {
   const cantieriThisWeek = useMemo(() => {
     const set = new Map<string, { label: string; count: number; hours: number }>();
     for (const p of plans) {
-      const key = p.commessa_id ?? p.cantiere_label || "—";
+      const key = p.commessa_id ?? (p.cantiere_label || "—");
       const label = p.commessa_id
-        ? commessaMap.get(p.commessa_id)?.titolo ?? p.cantiere_label || "Cantiere"
-        : p.cantiere_label || "Cantiere";
+        ? (commessaMap.get(p.commessa_id)?.titolo ?? (p.cantiere_label || "Cantiere"))
+        : (p.cantiere_label || "Cantiere");
       const cur = set.get(key) ?? { label, count: 0, hours: 0 };
       cur.count += 1;
       cur.hours += Number(p.hours || 0);

@@ -46,7 +46,7 @@ const isOverdue = (iso: string | null, stato: string) => {
   return new Date(iso) < new Date(new Date().toDateString());
 };
 
-export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: Props) => {
+export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, color }: Props) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: commessa.id,
     data: { stato: commessa.stato },
@@ -60,6 +60,12 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
 
   const overdue = isOverdue(commessa.data_scadenza, commessa.stato);
   const dateLabel = formatDate(commessa.data_scadenza);
+  const meta = REPARTO_META[commessa.reparto] ?? REPARTO_META.generale;
+  const repartoLabel = REPARTO_LABEL[commessa.reparto] ?? commessa.reparto;
+
+  const orderBg = color?.bg ?? "bg-paper";
+  const orderBorder = color?.border ?? "border-l-ink/30";
+  const orderChip = color?.chip ?? "bg-ink/70";
 
   return (
     <div
@@ -74,11 +80,27 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
           onOpen();
         }
       }}
-      className={`group cursor-pointer border-l-4 border border-ink/15 ${
-        PRIORITY_STYLES[commessa.priorita] ?? "bg-paper"
-      } rounded-sm p-3 hover:shadow-md hover:border-primary/40 transition-all`}
+      className={`group cursor-pointer border-l-[6px] border border-ink/15 ${orderBg} ${orderBorder} rounded-sm hover:shadow-md hover:border-primary/40 transition-all overflow-hidden`}
     >
-      <div className="flex items-start gap-2">
+      {/* Banda reparto: si capisce a colpo d'occhio a CHI è destinata */}
+      <div className={`flex items-center justify-between gap-2 px-2 py-1 border-b ${meta.cls}`}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm leading-none" aria-hidden>{meta.icon}</span>
+          <span className="text-[10px] font-mono uppercase tracking-widest font-bold truncate">
+            {repartoLabel}
+          </span>
+          <span className="text-[9px] font-mono opacity-70 uppercase tracking-wider">
+            · {meta.kind === "ufficio" ? "Ufficio" : meta.kind === "lavorazione" ? "Lavorazione" : "Generale"}
+          </span>
+        </div>
+        {commessa.priorita === "alta" && (
+          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-paper/20 rounded-sm text-[9px] font-bold uppercase tracking-wider">
+            <AlertTriangle className="w-2.5 h-2.5" /> Alta
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-start gap-2 p-3">
         <button
           {...attributes}
           {...listeners}
@@ -90,14 +112,17 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h4 className="font-display text-sm font-semibold leading-tight break-words">
-              {commessa.titolo}
-              {commessa.tipo === "task" && (
-                <span className="ml-1.5 inline-block px-1.5 py-0.5 bg-ink/10 text-ink/60 text-[8px] font-mono uppercase tracking-wider rounded-sm align-middle">
-                  task
-                </span>
-              )}
-            </h4>
+            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${orderChip} shrink-0`} aria-hidden />
+              <h4 className="font-display text-sm font-semibold leading-tight break-words">
+                {commessa.titolo}
+                {commessa.tipo === "task" && (
+                  <span className="ml-1.5 inline-block px-1.5 py-0.5 bg-ink/10 text-ink/60 text-[8px] font-mono uppercase tracking-wider rounded-sm align-middle">
+                    task
+                  </span>
+                )}
+              </h4>
+            </div>
             {canDelete && (
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button
@@ -117,29 +142,25 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
           </div>
 
           {commessa.cliente && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1">
-              <User className="w-3 h-3 shrink-0" />
-              <span className="truncate">{commessa.cliente}</span>
+            <div className="text-[11px] text-ink/70 mb-1.5 truncate">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-ink/40 mr-1">cliente</span>
+              {commessa.cliente}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px] font-mono uppercase tracking-wider">
-            <span className="px-1.5 py-0.5 bg-ink/8 text-ink/70 rounded-sm border border-ink/10">
-              <Briefcase className="w-2.5 h-2.5 inline mr-0.5" />
-              {REPARTO_LABEL[commessa.reparto] ?? commessa.reparto}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 rounded-sm border ${
-                commessa.priorita === "alta"
-                  ? "border-destructive/30 text-destructive bg-destructive/5"
-                  : commessa.priorita === "media"
-                  ? "border-primary/30 text-primary bg-primary/5"
-                  : "border-ink/15 text-ink/50"
-              }`}
-            >
-              <Tag className="w-2.5 h-2.5 inline mr-0.5" />
-              {PRIORITA_LABEL[commessa.priorita]}
-            </span>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] font-mono uppercase tracking-wider">
+            {commessa.priorita !== "alta" && (
+              <span
+                className={`px-1.5 py-0.5 rounded-sm border ${
+                  commessa.priorita === "media"
+                    ? "border-primary/30 text-primary bg-primary/5"
+                    : "border-ink/15 text-ink/50"
+                }`}
+              >
+                <Tag className="w-2.5 h-2.5 inline mr-0.5" />
+                {PRIORITA_LABEL[commessa.priorita]}
+              </span>
+            )}
             {dateLabel && (
               <span
                 className={`px-1.5 py-0.5 rounded-sm border ${
@@ -159,24 +180,30 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false }: 
             )}
           </div>
 
-          {commessa.assegnatari && commessa.assegnatari.length > 0 && (
-            <div className="flex items-center gap-1 mt-2">
-              <div className="flex -space-x-1.5">
-                {commessa.assegnatari.slice(0, 4).map((a) => (
-                  <div
-                    key={a.id}
-                    title={a.display_name ?? "Utente"}
-                    className="w-5 h-5 rounded-full border-2 border-paper bg-ink text-paper text-[9px] font-mono font-bold grid place-items-center"
-                  >
+          {commessa.assegnatari && commessa.assegnatari.length > 0 ? (
+            <div className="flex items-center flex-wrap gap-1 mt-2">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-ink/40">A:</span>
+              {commessa.assegnatari.slice(0, 3).map((a) => (
+                <span
+                  key={a.id}
+                  className="inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 bg-ink text-paper rounded-full text-[10px] font-bold"
+                  title={a.display_name ?? "Utente"}
+                >
+                  <span className="w-4 h-4 rounded-full bg-paper text-ink grid place-items-center text-[8px] font-mono font-bold">
                     {(a.display_name ?? "?").slice(0, 1).toUpperCase()}
-                  </div>
-                ))}
-              </div>
-              {commessa.assegnatari.length > 4 && (
-                <span className="text-[9px] font-mono text-muted-foreground">
-                  +{commessa.assegnatari.length - 4}
+                  </span>
+                  <span>{(a.display_name ?? "Utente").split(" ")[0]}</span>
                 </span>
+              ))}
+              {commessa.assegnatari.length > 3 && (
+                <span className="text-[9px] font-mono text-ink/60">+{commessa.assegnatari.length - 3}</span>
               )}
+            </div>
+          ) : (
+            <div className="mt-2">
+              <span className="inline-flex items-center px-1.5 py-0.5 border border-dashed border-destructive/40 text-destructive text-[9px] font-mono uppercase tracking-wider rounded-sm">
+                Nessun assegnatario
+              </span>
             </div>
           )}
         </div>

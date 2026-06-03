@@ -171,6 +171,7 @@ export const CreateCommessaButton = ({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | {
     mode: "warehouse" | "normal";
+    commessaId: string;
     clienteName: string;
     productionSnapshot: Snapshot;
     depts?: ProdDept[];
@@ -256,7 +257,7 @@ export const CreateCommessaButton = ({
         : baseSnapshot;
       const stato = warehouseOnly ? "da_fare" : "preventivo";
       // 1) Commessa nel flow
-      const { error } = await supabase.from("commesse").insert({
+      const { data: createdCommessa, error } = await supabase.from("commesse").insert({
         titolo: titolo.trim(),
         cliente: cliente.trim() || null,
         importo: importo || null,
@@ -268,13 +269,14 @@ export const CreateCommessaButton = ({
         note: note.trim() || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
-      });
+      }).select("id").single();
       if (error) throw error;
+      const commessaId = createdCommessa.id;
 
       // Se senza lavorazione: chiedo dati magazzino e creo solo l'ordine magazzino, niente sub di reparto
       if (warehouseOnly) {
         const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-        setPendingPayload({ mode: "warehouse", clienteName, productionSnapshot });
+        setPendingPayload({ mode: "warehouse", commessaId, clienteName, productionSnapshot });
         setConfirmOpen(true);
         // teniamo open il dialog principale per riaprire in caso di annullo
         setSaving(false);
@@ -290,7 +292,7 @@ export const CreateCommessaButton = ({
         return;
       }
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-      setPendingPayload({ mode: "normal", clienteName, productionSnapshot, depts });
+      setPendingPayload({ mode: "normal", commessaId, clienteName, productionSnapshot, depts });
       setConfirmOpen(true);
       setSaving(false);
       return;

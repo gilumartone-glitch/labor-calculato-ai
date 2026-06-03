@@ -133,6 +133,7 @@ const sectionTabs: { key: WoodSection; label: string; icon: typeof FileText }[] 
   { key: "progetto", label: "Progetto", icon: FileText },
   { key: "materiali", label: "Materiali", icon: Package },
   { key: "lavoratori", label: "Lavoratori", icon: Users },
+  { key: "pianificazione", label: "Pianificazione", icon: CalendarDays },
   { key: "disegno", label: "Disegnatore", icon: Ruler },
 ];
 

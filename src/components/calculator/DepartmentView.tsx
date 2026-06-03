@@ -275,7 +275,8 @@ export const DepartmentView = ({
 
   type Tab = "lavorazioni" | "nesting" | "magazzino" | "listini";
   const [tab, setTab] = useState<Tab>("lavorazioni");
-  const [levelInput, setLevelInput] = useState<string>("");
+  const currentOverride = pieces.find((p) => Number(p.priceOverridePerSqm ?? 0) > 0)?.priceOverridePerSqm ?? null;
+  const [levelInput, setLevelInput] = useState<string>(currentOverride ? String(currentOverride) : "");
   const hasOverride = pieces.some((p) => Number(p.priceOverridePerSqm ?? 0) > 0);
 
   const applyLevelPrice = () => {

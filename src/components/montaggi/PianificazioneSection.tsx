@@ -91,12 +91,14 @@ type Props = {
   cantiereLabel: string; // nome del progetto Montaggi corrente
   /** "project" = solo vista cantiere corrente (default), "global" = panoramica globale */
   mode?: "project" | "global";
+  /** Lavoratori del tab "Lavoratori": usati come seed di default se l'anagrafica è vuota */
+  defaultWorkers?: Array<{ name: string; role?: string }>;
 };
 
 /** ============================================================
  *  COMPONENTE PRINCIPALE
  *  ============================================================ */
-export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project" }: Props) => {
+export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project", defaultWorkers }: Props) => {
   const { user } = useAuth();
   const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date()));
@@ -113,30 +115,38 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
   useEffect(() => {
     if (!ops.ready || seededRef.__montaggiOpsSeeded) return;
     if (operators.length > 0) { seededRef.__montaggiOpsSeeded = true; return; }
-    const collected = collectWorkersFromArchives();
-    if (collected.length > 0) {
+    let seed: Operator[] = [];
+    if (defaultWorkers && defaultWorkers.length > 0) {
+      const seen = new Set<string>();
+      for (const w of defaultWorkers) {
+        const name = (w.name ?? "").trim();
+        if (!name) continue;
+        const k = name.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        seed.push({ id: uid(), name, role: w.role ?? "" });
+      }
+    }
+    if (seed.length === 0) seed = collectWorkersFromArchives();
+    if (seed.length > 0) {
       seededRef.__montaggiOpsSeeded = true;
-      setOperators(collected);
+      setOperators(seed);
     }
     // eslint-disable-next-line
   }, [ops.ready]);
 
-  /** Merge manuale da Archivio squadre (bottone) */
-  const importFromArchives = () => {
-    const collected = collectWorkersFromArchives();
-    if (collected.length === 0) {
-      toast.info("Nessun nominativo trovato nell'archivio squadre dei progetti Montaggi.");
+  /** Aggiungi un operaio al volo (prompt nome) */
+  const promptAddOperator = () => {
+    const name = window.prompt("Nome operaio")?.trim();
+    if (!name) return;
+    if (operators.some((o) => o.name.trim().toLowerCase() === name.toLowerCase())) {
+      toast.info("Operaio già presente.");
       return;
     }
-    const byName = new Map(operators.map((o) => [o.name.trim().toLowerCase(), o]));
-    let added = 0;
-    for (const w of collected) {
-      const key = w.name.trim().toLowerCase();
-      if (!byName.has(key)) { byName.set(key, w); added++; }
-    }
-    setOperators(Array.from(byName.values()));
-    toast.success(added > 0 ? `${added} operai importati dall'archivio.` : "Nessun nuovo nominativo da importare.");
+    setOperators([...operators, { id: uid(), name, role: "" }]);
   };
+
+
 
 
   /** Carica assegnazioni (range largo: 4 settimane intorno per la panoramica) */

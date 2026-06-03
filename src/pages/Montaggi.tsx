@@ -71,7 +71,7 @@ type DrawingElement = {
   unit: "mm" | "cm";
   materialIds: string[];
 };
-type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno";
+type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "pianificazione";
 
 type WoodProject = {
   name: string;

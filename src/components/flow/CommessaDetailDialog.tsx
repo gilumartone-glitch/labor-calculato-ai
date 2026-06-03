@@ -173,6 +173,13 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       setConfirmOpen(true);
       return;
     }
+    // "Inizia produzione" su una commessa NON ancora lanciata in Flow Board
+    // → apri lo stesso dialog di lancio così l'ordine appare in produzione
+    if (next === "in_produzione" && !linkedProdOrderId) {
+      setConfirmLabel(label);
+      setConfirmOpen(true);
+      return;
+    }
     setBusy(true);
     try {
       const { error } = await supabase.from("commesse").update({ stato: next }).eq("id", commessa.id);

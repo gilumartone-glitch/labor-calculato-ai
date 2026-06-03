@@ -446,6 +446,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
             <ProjectSection project={project} updateProject={updateProject} updateMaterialLine={updateMaterialLine} addMaterialLine={addMaterialLine} />
           )}
 
+          {section === "pianificazione" && <PianificazioneSection />}
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
           {section === "disegno" && (

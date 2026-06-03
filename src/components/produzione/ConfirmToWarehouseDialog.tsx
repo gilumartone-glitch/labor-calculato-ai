@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, PackageCheck, ShoppingCart } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, PackageCheck, ShoppingCart, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,12 @@ export type WarehouseMaterialItem = {
   key: string;
   label: string;
   detail?: string;
+  /** Quantità da acquistare (es. 12.5). */
+  qty?: number;
+  /** Unità di misura (es. "m²", "m"). */
+  unit?: string;
+  /** Codice/identificativo materiale. */
+  code?: string;
 };
 
 export type MissingMaterial = {
@@ -19,6 +25,9 @@ export type MissingMaterial = {
   label: string;
   detail?: string;
   supplier_name?: string | null;
+  qty?: number;
+  unit?: string;
+  code?: string;
 };
 
 export type WarehouseConfirmData = {
@@ -59,16 +68,14 @@ export const ConfirmToWarehouseDialog = ({
   const [prodName, setProdName] = useState(defaultProductionName);
   const [assignee, setAssignee] = useState<string>("");
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
-  // map: material key -> available in stock?  default true (in magazzino)
   const [available, setAvailable] = useState<Record<string, boolean>>({});
-  // map: material key -> supplier name
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
 
-  // Fix Radix Dialog pointer-events leak: quando un dialog si chiude e subito
-  // se ne apre un altro (es. SendDialog → questo) `pointer-events: none` resta
-  // sul body bloccando input e click per centinaia di ms. Il cleanup di Radix
-  // scatta DOPO il mount di questo dialog, quindi un singolo setTimeout(0) non
-  // basta: forziamo la pulizia ripetutamente per i primi 400ms.
+  // Sezioni richiuse di default quando già valorizzate
+  const [editRef, setEditRef] = useState(false);
+  const [editAssignee, setEditAssignee] = useState(false);
+  const [editAcquisti, setEditAcquisti] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     const clear = () => { document.body.style.pointerEvents = ""; };
@@ -85,7 +92,9 @@ export const ConfirmToWarehouseDialog = ({
     if (!open) return;
     setRef(defaultRef);
     setProdName(defaultProductionName);
-    // default: tutti disponibili
+    setEditRef(!defaultRef);
+    setEditAssignee(false);
+    setEditAcquisti(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
     setAvailable(init);
@@ -112,27 +121,31 @@ export const ConfirmToWarehouseDialog = ({
 
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])
-    .map((m) => ({ key: m.key, label: m.label, detail: m.detail, supplier_name: suppliers[m.key]?.trim() || null }));
+    .map((m) => ({
+      key: m.key, label: m.label, detail: m.detail, qty: m.qty, unit: m.unit, code: m.code,
+      supplier_name: suppliers[m.key]?.trim() || null,
+    }));
   const hasMissing = missing.length > 0;
 
+  const assigneeName = useMemo(() => users.find((u) => u.id === assignee)?.display_name ?? "", [users, assignee]);
+  const acquistiAssigneeName = useMemo(() => acquistiUsers.find((u) => u.id === acquistiAssignee)?.display_name ?? "", [acquistiUsers, acquistiAssignee]);
+
   const handle = async () => {
-    if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); return; }
+    if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); setEditRef(true); return; }
     if (!assignee) { toast.error("Seleziona il responsabile magazzino"); return; }
     if (hasMissing && !acquistiAssignee) { toast.error("Seleziona il responsabile acquisti per i materiali mancanti"); return; }
     if (hasMissing) {
       const noSupplier = missing.find((m) => !m.supplier_name);
       if (noSupplier) { toast.error(`Indica il fornitore per: ${noSupplier.label}`); return; }
     }
-    const u = users.find((x) => x.id === assignee);
-    const ua = acquistiUsers.find((x) => x.id === acquistiAssignee);
     await onConfirm({
       customer_order_ref: ref.trim(),
       production_name: prodName.trim(),
       assignee_id: assignee,
-      assignee_name: u?.display_name ?? "",
+      assignee_name: assigneeName,
       missing,
       acquisti_assignee_id: hasMissing ? acquistiAssignee : null,
-      acquisti_assignee_name: hasMissing ? (ua?.display_name ?? "") : null,
+      acquisti_assignee_name: hasMissing ? acquistiAssigneeName : null,
     });
   };
 
@@ -145,30 +158,50 @@ export const ConfirmToWarehouseDialog = ({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Numero ordine cliente *</Label>
-              <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="es. PO-12345" autoFocus />
+          {/* Riepilogo compatto ordine + nome produzione */}
+          {!editRef && (ref || prodName) ? (
+            <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
+              <div className="text-[11px] font-mono">
+                <span className="text-muted-foreground uppercase tracking-wider">Ordine</span>{" "}
+                <span className="font-bold text-ink">{ref || "—"}</span>
+                {prodName && <> · <span className="text-muted-foreground">Prod.</span> <span className="font-semibold text-ink">{prodName}</span></>}
+              </div>
+              <button type="button" onClick={() => setEditRef(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
+                <Pencil className="w-3 h-3" /> Modifica
+              </button>
             </div>
-            <div>
-              <Label>Prod. (nome progetto/film)</Label>
-              <Input value={prodName} onChange={(e) => setProdName(e.target.value)} placeholder="es. Avatar 3" />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Numero ordine cliente *</Label>
+                <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="es. PO-12345" autoFocus />
+              </div>
+              <div>
+                <Label>Prod. (nome progetto/film)</Label>
+                <Input value={prodName} onChange={(e) => setProdName(e.target.value)} placeholder="es. Avatar 3" />
+              </div>
             </div>
-          </div>
+          )}
 
           {materials.length > 0 && (
             <div>
               <Label>Disponibilità materiali *</Label>
-              <div className="text-[10px] font-mono text-muted-foreground mb-2">Spunta i materiali presenti in magazzino. Per quelli da ordinare puoi pre-selezionare il fornitore.</div>
+              <div className="text-[10px] font-mono text-muted-foreground mb-2">Spunta i materiali presenti in magazzino. Per quelli da ordinare indica il fornitore.</div>
               <div className="border-2 border-ink/15 rounded-sm divide-y divide-ink/10 max-h-56 overflow-y-auto">
                 {materials.map((m) => {
                   const ok = !!available[m.key];
+                  const qtyTxt = m.qty != null && m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : null;
                   return (
                     <div key={m.key} className={`px-3 py-2 ${ok ? "" : "bg-amber-50/60"}`}>
                       <label className="flex items-start gap-2 cursor-pointer">
                         <input type="checkbox" checked={ok} onChange={(e) => setAvailable((c) => ({ ...c, [m.key]: e.target.checked }))} className="mt-0.5" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-semibold text-ink truncate">{m.label}</div>
+                          <div className="text-[12px] font-semibold text-ink truncate flex items-center gap-2">
+                            {m.label}
+                            {qtyTxt && (
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-sm bg-ink text-paper">{qtyTxt}</span>
+                            )}
+                          </div>
                           {m.detail && <div className="text-[10px] font-mono text-muted-foreground truncate">{m.detail}</div>}
                         </div>
                         <span className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"}`}>
@@ -188,47 +221,74 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           )}
 
-          <div>
-            <Label>Responsabile magazzino *</Label>
-            {loading ? (
-              <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
-            ) : users.length === 0 ? (
-              <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
-                Nessun utente con settore "magazzino". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> → riga utente → colonna Settori → clicca "Magazzino".
+          {/* Responsabile magazzino: collapsed se già impostato */}
+          {!editAssignee && assignee && !loading ? (
+            <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
+              <div className="text-[11px] font-mono">
+                <span className="text-muted-foreground uppercase tracking-wider">Responsabile mag.</span>{" "}
+                <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
-            ) : (
-              <select
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
-                ))}
-              </select>
-            )}
-          </div>
+              <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
+                <Pencil className="w-3 h-3" /> Cambia
+              </button>
+            </div>
+          ) : (
+            <div>
+              <Label>Responsabile magazzino *</Label>
+              {loading ? (
+                <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
+              ) : users.length === 0 ? (
+                <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
+                  Nessun utente con settore "magazzino". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> → riga utente → colonna Settori → clicca "Magazzino".
+                </div>
+              ) : (
+                <select
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {hasMissing && (
             <div className="border-2 border-amber-400 bg-amber-50/40 rounded-sm p-3 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold text-amber-900">
                 <ShoppingCart className="w-3.5 h-3.5" /> Acquisti — {missing.length} materiale/i da ordinare
               </div>
-              <Label>Responsabile acquisti *</Label>
-              {acquistiUsers.length === 0 ? (
-                <div className="text-[11px] text-destructive border border-destructive/30 bg-destructive/5 rounded-sm px-2 py-1">
-                  Nessun utente con settore "acquisti". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> e assegna il settore.
+              {!editAcquisti && acquistiAssignee ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-mono">
+                    <span className="text-muted-foreground uppercase tracking-wider">Resp. acquisti</span>{" "}
+                    <span className="font-bold text-amber-900">{acquistiAssigneeName || acquistiAssignee.slice(0, 8)}</span>
+                  </div>
+                  <button type="button" onClick={() => setEditAcquisti(true)} className="text-[10px] uppercase tracking-wider text-amber-900 hover:underline flex items-center gap-1">
+                    <Pencil className="w-3 h-3" /> Cambia
+                  </button>
                 </div>
               ) : (
-                <select
-                  value={acquistiAssignee}
-                  onChange={(e) => setAcquistiAssignee(e.target.value)}
-                  className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
-                >
-                  {acquistiUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
-                  ))}
-                </select>
+                <>
+                  <Label>Responsabile acquisti *</Label>
+                  {acquistiUsers.length === 0 ? (
+                    <div className="text-[11px] text-destructive border border-destructive/30 bg-destructive/5 rounded-sm px-2 py-1">
+                      Nessun utente con settore "acquisti". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> e assegna il settore.
+                    </div>
+                  ) : (
+                    <select
+                      value={acquistiAssignee}
+                      onChange={(e) => setAcquistiAssignee(e.target.value)}
+                      className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+                    >
+                      {acquistiUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                      ))}
+                    </select>
+                  )}
+                </>
               )}
               <div className="text-[10px] font-mono text-amber-900">
                 La preparazione magazzino sarà sbloccata quando tutti i materiali risulteranno arrivati.

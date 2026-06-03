@@ -478,6 +478,30 @@ const ProdBoard = () => {
                                 {s.completed_at && ` · compl. ${fmtDate(s.completed_at)}`}
                                 {s.rejected_at && ` · rim. ${fmtDate(s.rejected_at)}`}
                               </div>
+                              {(() => {
+                                // Banner "in attesa materiali" per le lavorazioni bloccate da acquisti
+                                if (s.dept === "acquisti" || s.status === "completato") return null;
+                                const waitingAcq = subs.filter((x) => x.order_id === s.order_id && x.dept === "acquisti" && x.status !== "completato");
+                                if (waitingAcq.length === 0) return null;
+                                return (
+                                  <div className="mt-1 border border-amber-300 bg-amber-50 rounded-sm px-1.5 py-1 text-[9px] text-amber-900">
+                                    <div className="font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <Lock className="w-2.5 h-2.5" /> In attesa materiale ({waitingAcq.length})
+                                    </div>
+                                    {waitingAcq.slice(0, 3).map((w) => {
+                                      const qtyTxt = w.material_qty != null && w.material_unit ? `${Number(w.material_qty).toFixed(1)} ${w.material_unit}` : null;
+                                      const stateTxt = w.order_status ? ({ da_ordinare: "da ordinare", ordinato: "ordinato", in_transito: "in transito", arrivato: "arrivato" } as any)[w.order_status] : "da ordinare";
+                                      return (
+                                        <div key={w.id} className="font-mono truncate">
+                                          • {qtyTxt && <span className="font-bold">{qtyTxt}</span>} {w.material_label || w.code}
+                                          {w.supplier_name && <span className="text-amber-700"> · {w.supplier_name}</span>}
+                                          <span className="text-amber-700"> · {stateTxt}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}

@@ -419,7 +419,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const dc = DEPT_COLOR[sub.dept];
   const assignee = sub.assignee_id ? profiles.find((p) => p.id === sub.assignee_id) : null;
   const canEditAssignee = !!user && !!order && (user.id === order.created_by || isAdmin);
-  const assigneeOptions = profiles.filter((p) => p.approved !== false);
+  const assigneeOptions = profiles;
 
   const changeAssignee = async (newId: string) => {
     if (!sub || !order) return;

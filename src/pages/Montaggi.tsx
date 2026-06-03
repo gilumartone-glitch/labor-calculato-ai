@@ -230,8 +230,11 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [section, setSection] = useState<WoodSection>("progetto");
   const [projectReady, setProjectReady] = useState(false);
-  const cloud = useCloudWorkspace<WoodProject | null>("montaggi_project", null, {
-    localStorageKeys: [STORAGE_KEY, LEGACY_STORAGE_KEY],
+  // Scope per-draft: ogni progetto Flow ha il suo modulo Montaggi indipendente.
+  const draftId = (typeof window !== "undefined" && localStorage.getItem("officina:active-draft")) || "default";
+  const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:${draftId}`;
+  const cloud = useCloudWorkspace<WoodProject | null>(`montaggi_project:${draftId}`, null, {
+    localStorageKeys: [DRAFT_STORAGE_KEY, STORAGE_KEY, LEGACY_STORAGE_KEY],
     hydrate: (raw) => hydrateProject(raw as WoodProject),
   });
   const lastAppliedRef = useRef<string>("");
@@ -253,7 +256,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   useEffect(() => {
     if (!projectReady) return;
     saveSharedWorkshopMaterials(project.materialCatalog);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     window.dispatchEvent(new Event("workshop-summary-updated"));
     const serialized = JSON.stringify(project);
     if (serialized !== lastAppliedRef.current && cloud.ready) {
@@ -263,7 +266,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   }, [project, projectReady, cloud.ready]);
 
   const saveProject = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     toast.success("Progetto Montaggi salvato");
   };
 

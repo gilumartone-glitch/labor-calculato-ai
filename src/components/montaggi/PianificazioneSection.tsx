@@ -116,14 +116,13 @@ export const PianificazioneSection = () => {
       supabase.from("profiles").select("id, display_name").order("display_name"),
       supabase
         .from("commesse")
-        .select("id, titolo, cliente")
-        .neq("stato", "annullato")
+        .select("id, titolo, cliente, stato")
         .order("created_at", { ascending: false })
         .limit(200),
     ]);
     setPlans((pl ?? []) as Planning[]);
     setProfiles((pr ?? []) as Profile[]);
-    setCommesse((co ?? []) as Commessa[]);
+    setCommesse(((co ?? []) as any[]).filter((c) => c.stato !== "consegnato"));
     setLoading(false);
   }, [weekStartIso, weekEndIso]);
 

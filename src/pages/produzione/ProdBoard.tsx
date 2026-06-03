@@ -142,6 +142,18 @@ const ProdBoard = () => {
     return orders.filter((o) => (subsByOrder[o.id] ?? []).some((s) => s.dept === filterDept));
   }, [orders, subsByOrder, displaySubsByOrder, filterDept, isCoordinator]);
 
+  /** Assegna un colore stabile a ogni commessa ANCORA attiva sul board.
+   *  Ordini "spedito"/"chiuso" non ricevono colore (lo "liberano" per i nuovi). */
+  const orderColor = useMemo(() => {
+    const m = new Map<string, typeof ORDER_PALETTE[number]>();
+    const active = visibleOrders
+      .filter((o) => o.status !== "spedito" && o.status !== "chiuso")
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code));
+    active.forEach((o, i) => m.set(o.id, ORDER_PALETTE[i % ORDER_PALETTE.length]));
+    return m;
+  }, [visibleOrders]);
+
   const isSubLocked = (sub: ProdSubOrder): ProdSubOrder | null => {
     if (!sub.depends_on) return null;
     const pred = subs.find((s) => s.id === sub.depends_on);

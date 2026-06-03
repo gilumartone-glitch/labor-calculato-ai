@@ -265,7 +265,7 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   }, [project, projectReady, cloud.ready]);
 
   const saveProject = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     toast.success("Progetto Falegnameria salvato");
   };
 

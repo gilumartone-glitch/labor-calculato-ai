@@ -430,7 +430,10 @@ const Index = () => {
   ] as const).map(({ key, label }) => {
     void workshopTick;
     try {
-      const raw = localStorage.getItem(WORKSHOP_KEYS[key]);
+      // Le chiavi sono scoped per-draft: ogni progetto Flow ha il proprio modulo.
+      const activeDraftId = localStorage.getItem("officina:active-draft") || "default";
+      const draftKey = `${WORKSHOP_KEYS[key]}:${activeDraftId}`;
+      const raw = localStorage.getItem(draftKey);
       if (!raw) return null;
       const project = JSON.parse(raw);
       const materialById = new Map((project.materialCatalog ?? []).map((m: any) => [m.id, m]));

@@ -60,6 +60,17 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
 
 export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
+  const isTappezzeria = dept === "tappezzeria";
+  // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati
+  // automaticamente dalle lavorazioni). Allinea il flag al primo render se
+  // mancante, così anche i pezzi salvati prima di questa feature usano la
+  // nuova modalità.
+  useEffect(() => {
+    if (isTappezzeria && !line.manualMargins) {
+      onChange({ ...line, manualMargins: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTappezzeria, line.id]);
   const materialLockedToLab = !isStampa && !!line.materialFromLab;
   // Stato locale di stringa per i campi dimensionali: permette di digitare
   // liberamente decimali (anche con la virgola italiana) senza che il

@@ -16,6 +16,7 @@ import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/help
 import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { CUSTOMER_LABEL, type CustomerType, type PriceMode, priceMultiplier, sellPrice } from "@/lib/pricing";
 
 /* ============== Tipi ============== */
 type DanceRoll = {

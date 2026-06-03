@@ -55,7 +55,23 @@ const isOverdue = (iso: string | null, stato: string) => {
   return new Date(iso) < new Date(new Date().toDateString());
 };
 
-export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, color }: Props) => {
+/** Mappa dept produzione -> chip colorato (allineato a ProdBoard) */
+const PROD_DEPT_CHIP: Record<string, { cls: string; label: string; icon: string }> = {
+  acquisti:     { cls: "bg-blue-600 text-white",      label: "Acquisti",      icon: "🛒" },
+  vendite:      { cls: "bg-cyan-600 text-white",      label: "Vendite",       icon: "💼" },
+  magazzino:    { cls: "bg-slate-700 text-white",     label: "Amministr.",    icon: "📋" },
+  grafica:      { cls: "bg-fuchsia-600 text-white",   label: "Grafica",       icon: "🎨" },
+  tappezzeria:  { cls: "bg-rose-600 text-white",      label: "Tappezzeria",   icon: "🪡" },
+  laboratorio:  { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  stampa:       { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  taglio:       { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  stampa_3d:    { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  falegnameria: { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  assemblaggio: { cls: "bg-emerald-600 text-white",   label: "Laboratorio",   icon: "🔬" },
+  altro:        { cls: "bg-ink/70 text-paper",        label: "Altro",         icon: "•"  },
+};
+
+export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, color, prodSubs }: Props) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: commessa.id,
     data: { stato: commessa.stato },

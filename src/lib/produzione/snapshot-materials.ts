@@ -1,7 +1,17 @@
 import { computeNesting } from "@/lib/nesting";
 import type { Catalog, DepartmentState } from "@/components/calculator/types";
 
-export type SnapshotMaterial = { key: string; label: string; detail?: string };
+export type SnapshotMaterial = {
+  key: string;
+  label: string;
+  detail?: string;
+  /** Quantità totale stimata da ordinare/preparare. */
+  qty?: number;
+  /** Unità di misura della quantità ("m²" o "m"). */
+  unit?: string;
+  /** Codice/identificativo breve del materiale (es. PAN-300). */
+  code?: string;
+};
 
 type DeptLike = { label?: string; key?: string; state?: DepartmentState; catalog?: Catalog };
 
@@ -26,9 +36,17 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
         const key = `${g.material.name}|${g.material.color || ""}|${g.material.height || ""}`;
         const qty = g.format === "lastra" ? g.totalAreaM2 : g.totalLengthM;
         const unit = g.format === "lastra" ? "m²" : "m";
-        const detail = [g.material.color, g.material.height ? `${g.material.height} ${g.material.heightUnit || "cm"}` : null, qty ? `${qty.toFixed(2)} ${unit}` : null]
-          .filter(Boolean).join(" · ");
-        if (!out.has(key)) out.set(key, { key, label: g.material.name, detail });
+        const heightTxt = g.material.height ? `${g.material.height} ${g.material.heightUnit || "cm"}` : null;
+        const detail = [g.material.color, heightTxt].filter(Boolean).join(" · ");
+        const existing = out.get(key);
+        if (existing) {
+          existing.qty = (existing.qty ?? 0) + (qty || 0);
+        } else {
+          // Codice "breve" derivato: prime lettere del nome + altezza (es. PANNO-300)
+          const short = String(g.material.name).toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
+          const code = heightTxt ? `${short}-${String(g.material.height).replace(/\D/g, "")}` : short;
+          out.set(key, { key, label: g.material.name, detail, qty: qty || 0, unit, code });
+        }
       }
     } catch { /* ignore */ }
   }

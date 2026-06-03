@@ -202,10 +202,12 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
     if (!commessa || !user) return;
     setConfirmBusy(true);
     try {
-      // 1) Aggiorna stato commessa
+      // 1) Aggiorna stato commessa: se era già "da_fare" (lancio diretto via "Inizia produzione")
+      //    porta direttamente a "in_produzione"; altrimenti standard "da_fare".
+      const nextStato: CommessaStato = commessa.stato === "da_fare" ? "in_produzione" : "da_fare";
       const { error: e0 } = await supabase
         .from("commesse")
-        .update({ stato: "da_fare" })
+        .update({ stato: nextStato })
         .eq("id", commessa.id);
       if (e0) throw e0;
 

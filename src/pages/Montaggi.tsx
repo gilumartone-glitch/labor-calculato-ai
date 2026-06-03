@@ -40,6 +40,7 @@ import {
   type WorkshopMaterial,
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
+import { PianificazioneSection } from "@/components/montaggi/PianificazioneSection";
 
 type WorkerProfile = {
   id: string;

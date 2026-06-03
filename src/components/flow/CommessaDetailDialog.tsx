@@ -586,6 +586,41 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           </div>
         </DialogHeader>
 
+        {/* Stato collegamento con Flow Board */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-2 rounded-sm text-xs"
+             style={{ borderColor: linkedProdOrderId ? "hsl(var(--primary))" : "hsl(var(--border))" }}>
+          {linkedProdOrderId ? (
+            <>
+              <div className="flex items-center gap-2 text-primary">
+                <span className="text-base leading-none">✓</span>
+                <span className="font-bold uppercase tracking-wider text-[10px]">
+                  Collegata a Flow Board
+                </span>
+                <span className="text-muted-foreground normal-case font-normal">
+                  · La produzione è già stata lanciata
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { onOpenChange(false); navigate("/produzione/board"); }}
+                className="text-[10px] uppercase tracking-wider font-bold underline hover:text-primary"
+              >
+                Apri in Flow Board →
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-amber-700">
+              <span className="text-base leading-none">⚠</span>
+              <span className="font-bold uppercase tracking-wider text-[10px]">
+                Non ancora in Flow Board
+              </span>
+              <span className="text-muted-foreground normal-case font-normal">
+                · Premi "Inizia produzione" per lanciarla a reparti e assegnatari
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Bottoni di transizione di stato */}
         <StateActions
           stato={commessa.stato}
@@ -593,6 +628,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           busy={busy}
           onAction={setStato}
         />
+
 
         <Tabs defaultValue="overview" className="mt-2">
           <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-1" : "grid-cols-3"}`}>

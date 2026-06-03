@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2 } from "lucide-react";
+import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { LaunchOrderDialog } from "@/components/produzione/LaunchOrderDialog";

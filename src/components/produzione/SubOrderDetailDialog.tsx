@@ -470,10 +470,28 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               <div className="font-display text-2xl font-bold leading-tight">{DEPT_LABEL[sub.dept]}</div>
             </div>
             <div className="ml-auto flex items-center gap-2 flex-wrap">
-              <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
-                <User className="w-3 h-3" />
-                {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
-              </div>
+              {canEditAssignee ? (
+                <div className="bg-white/15 border border-white/30 rounded-sm pl-2 pr-1 py-0.5 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3 h-3" />
+                  <select
+                    value={sub.assignee_id ?? ""}
+                    disabled={savingAssignee}
+                    onChange={(e) => changeAssignee(e.target.value)}
+                    className="bg-transparent text-white font-bold uppercase text-[11px] outline-none cursor-pointer hover:bg-white/10 rounded-sm px-1 py-0.5"
+                    title="Cambia assegnatario"
+                  >
+                    <option value="" className="text-ink">— Non assegnato —</option>
+                    {assigneeOptions.map((p) => (
+                      <option key={p.id} value={p.id} className="text-ink">{p.display_name ?? p.id.slice(0, 6)}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3 h-3" />
+                  {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
+                </div>
+              )}
               {order.priorita !== "normale" && (
                 <div className="bg-white/95 text-destructive border border-white rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> {PRIORITY_LABEL[order.priorita]}

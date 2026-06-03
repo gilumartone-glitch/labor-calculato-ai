@@ -149,12 +149,13 @@ const Flow = () => {
     () =>
       commesse.filter((c) => {
         if (filterReparto !== "all" && c.reparto !== filterReparto) return false;
-        if (isCoordinator) return true;
+        // Coordinatori/admin: vedono tutto solo se scope === "all".
+        if (isCoordinator && scope === "all") return true;
         if (!user) return false;
         if (c.created_by === user.id) return true;
         return (c.assegnatari ?? []).some((a) => a.id === user.id);
       }),
-    [commesse, filterReparto, isCoordinator, user],
+    [commesse, filterReparto, isCoordinator, scope, user],
   );
 
   const byStato = useMemo(() => {

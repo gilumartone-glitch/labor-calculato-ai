@@ -271,16 +271,6 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     return map;
   }, [operators, weekDays, indexMap]);
 
-  /** ============================================================
-   *  ANAGRAFICA OPERAI
-   *  ============================================================ */
-  const addOperator = () => setOperators([...operators, { id: uid(), name: `Operaio ${operators.length + 1}`, role: "" }]);
-  const updateOperator = (id: string, patch: Partial<Operator>) =>
-    setOperators(operators.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-  const removeOperator = (id: string) => {
-    if (!confirm("Rimuovere l'operaio dall'anagrafica? Le assegnazioni esistenti restano nel database.")) return;
-    setOperators(operators.filter((o) => o.id !== id));
-  };
 
   /** ============================================================
    *  RENDER

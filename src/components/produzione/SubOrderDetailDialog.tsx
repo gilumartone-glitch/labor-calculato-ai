@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";
 import {
   ProdSubOrder, ProdOrder, ProdSubStatus,
-  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL,
+  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL, DEPT_COLOR,
 } from "@/lib/produzione/types";
 import { logAction } from "@/lib/produzione/helpers";
 import { fmtMm } from "@/lib/produzione/scrap";

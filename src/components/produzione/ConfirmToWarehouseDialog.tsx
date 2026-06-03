@@ -65,14 +65,20 @@ export const ConfirmToWarehouseDialog = ({
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
 
   // Fix Radix Dialog pointer-events leak: quando un dialog si chiude e subito
-  // se ne apre un altro (es. SendDialog → questo) `pointer-events: none`
-  // resta sul body bloccando click successivi (anche il bottone Reset).
+  // se ne apre un altro (es. SendDialog → questo) `pointer-events: none` resta
+  // sul body bloccando input e click per centinaia di ms. Il cleanup di Radix
+  // scatta DOPO il mount di questo dialog, quindi un singolo setTimeout(0) non
+  // basta: forziamo la pulizia ripetutamente per i primi 400ms.
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      if (open) document.body.style.pointerEvents = "";
-      else document.body.style.pointerEvents = "";
-    }, 0);
-    return () => window.clearTimeout(id);
+    if (!open) return;
+    const clear = () => { document.body.style.pointerEvents = ""; };
+    clear();
+    const raf = requestAnimationFrame(clear);
+    const timers = [50, 120, 250, 400].map((d) => window.setTimeout(clear, d));
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach((id) => window.clearTimeout(id));
+    };
   }, [open]);
 
   useEffect(() => {

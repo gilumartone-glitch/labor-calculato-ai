@@ -257,14 +257,9 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Pianificazione montaggi</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-md border border-border overflow-hidden">
-              <Button size="sm" variant={view === "progetto" ? "default" : "ghost"} className="rounded-none" onClick={() => setView("progetto")}>
-                <Hammer className="h-4 w-4" />Progetto
-              </Button>
-              <Button size="sm" variant={view === "panoramica" ? "default" : "ghost"} className="rounded-none" onClick={() => setView("panoramica")}>
-                <Globe className="h-4 w-4" />Panoramica
-              </Button>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              {mode === "global" ? (<><Globe className="h-3 w-3 mr-1" />Panoramica globale</>) : (<><Hammer className="h-3 w-3 mr-1" />Cantiere: {cantiereLabel}</>)}
+            </Badge>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
               <div className="px-3 text-sm font-mono">

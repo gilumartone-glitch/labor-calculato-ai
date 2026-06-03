@@ -286,6 +286,20 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       });
       if (e2) throw e2;
 
+      const flowAssigneeIds = Array.from(new Set([
+        d.acquisti_assignee_id || null,
+        d.assignee_id || null,
+      ].filter((id): id is string => !!id)));
+      if (flowAssigneeIds.length > 0) {
+        const { error: assErr } = await supabase
+          .from("commessa_assegnatari")
+          .upsert(
+            flowAssigneeIds.map((uid) => ({ commessa_id: commessa.id, user_id: uid })),
+            { onConflict: "commessa_id,user_id", ignoreDuplicates: true },
+          );
+        if (assErr) throw assErr;
+      }
+
       // Sub-ordine opzionale di chiusura Amministrazione (bolla/spedizione)
       if (d.create_admin_closure) {
         await supabase.from("production_sub_orders").insert({

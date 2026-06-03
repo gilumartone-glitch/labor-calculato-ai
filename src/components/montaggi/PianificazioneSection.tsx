@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
+import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -106,34 +107,54 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
 
-  const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, DEFAULT_OPERATORS);
-  const operators = ops.state;
-  const setOperators = (next: Operator[]) => ops.setState(next);
+  // --- GLOBAL mode: anagrafica condivisa sul cloud ---
+  const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, []);
+  // --- PROJECT mode: lavoratori = quelli del tab Lavoratori + extra ad-hoc per draft ---
+  const extras = useCloudWorkspace<Operator[]>(
+    `montaggi:planning-extras:${draftId}`,
+    [],
+  );
 
-  /** Seed automatico la prima volta che l'anagrafica è vuota dopo ready */
+  const slugName = (name: string) => `proj:${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+  const projectOperators = useMemo<Operator[]>(() => {
+    if (view !== "progetto") return [];
+    const out: Operator[] = [];
+    const seen = new Set<string>();
+    for (const w of defaultWorkers ?? []) {
+      const name = (w.name ?? "").trim();
+      if (!name) continue;
+      const k = name.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ id: slugName(name), name, role: w.role ?? "" });
+    }
+    for (const e of extras.state ?? []) {
+      const name = (e.name ?? "").trim();
+      if (!name) continue;
+      const k = name.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ id: e.id || slugName(name), name, role: e.role ?? "" });
+    }
+    return out;
+  }, [view, defaultWorkers, extras.state]);
+
+  const operators = view === "progetto" ? projectOperators : ops.state;
+
+  /** Seed automatico (solo modalità globale) la prima volta che l'anagrafica è vuota */
   const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };
   useEffect(() => {
+    if (view !== "panoramica") return;
     if (!ops.ready || seededRef.__montaggiOpsSeeded) return;
-    if (operators.length > 0) { seededRef.__montaggiOpsSeeded = true; return; }
-    let seed: Operator[] = [];
-    if (defaultWorkers && defaultWorkers.length > 0) {
-      const seen = new Set<string>();
-      for (const w of defaultWorkers) {
-        const name = (w.name ?? "").trim();
-        if (!name) continue;
-        const k = name.toLowerCase();
-        if (seen.has(k)) continue;
-        seen.add(k);
-        seed.push({ id: uid(), name, role: w.role ?? "" });
-      }
-    }
-    if (seed.length === 0) seed = collectWorkersFromArchives();
+    if (ops.state.length > 0) { seededRef.__montaggiOpsSeeded = true; return; }
+    const seed = collectWorkersFromArchives();
     if (seed.length > 0) {
       seededRef.__montaggiOpsSeeded = true;
-      setOperators(seed);
+      ops.setState(seed);
     }
     // eslint-disable-next-line
-  }, [ops.ready]);
+  }, [ops.ready, view]);
 
   /** Aggiungi un operaio al volo (prompt nome) */
   const promptAddOperator = () => {
@@ -143,7 +164,11 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
       toast.info("Operaio già presente.");
       return;
     }
-    setOperators([...operators, { id: uid(), name, role: "" }]);
+    if (view === "progetto") {
+      extras.setState([...(extras.state ?? []), { id: slugName(name), name, role: "" }]);
+    } else {
+      ops.setState([...ops.state, { id: uid(), name, role: "" }]);
+    }
   };
 
 
@@ -246,16 +271,6 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     return map;
   }, [operators, weekDays, indexMap]);
 
-  /** ============================================================
-   *  ANAGRAFICA OPERAI
-   *  ============================================================ */
-  const addOperator = () => setOperators([...operators, { id: uid(), name: `Operaio ${operators.length + 1}`, role: "" }]);
-  const updateOperator = (id: string, patch: Partial<Operator>) =>
-    setOperators(operators.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-  const removeOperator = (id: string) => {
-    if (!confirm("Rimuovere l'operaio dall'anagrafica? Le assegnazioni esistenti restano nel database.")) return;
-    setOperators(operators.filter((o) => o.id !== id));
-  };
 
   /** ============================================================
    *  RENDER

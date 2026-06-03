@@ -546,7 +546,7 @@ export const computePieceMaterial = (
       ? materialUnitCost(p.material, "cut") // niente customer => niente molt. Riv/Fin
       : materialUnitCost(p.material, piece.priceMode, customer);
     void effectiveMode;
-    const materialCost = clientCostForPlan(p, u);
+    const materialCost = clientCostForPlan(p, u, isRot);
     const seamCost = p.seamLengthM * seamPrice;
     const cost = materialCost + seamCost;
     const {

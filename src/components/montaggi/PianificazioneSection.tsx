@@ -57,19 +57,48 @@ const addDays = (d: Date, n: number) => {
 };
 
 /** ============================================================
+ *  IMPORT DA ARCHIVIO SQUADRE (localStorage dei progetti Montaggi)
+ *  ============================================================ */
+const collectWorkersFromArchives = (): Operator[] => {
+  if (typeof window === "undefined") return [];
+  const out = new Map<string, Operator>();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (!key.startsWith("officina:montaggi-module:v2") && !key.startsWith("officina:falegnameria-module:v1")) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const workers: Array<{ name?: string }> = Array.isArray(parsed?.workers) ? parsed.workers : [];
+      for (const w of workers) {
+        const name = (w?.name ?? "").trim();
+        if (!name) continue;
+        if (!out.has(name.toLowerCase())) {
+          out.set(name.toLowerCase(), { id: uid(), name, role: "" });
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return Array.from(out.values());
+};
+
+/** ============================================================
  *  PROPS
  *  ============================================================ */
 type Props = {
   draftId: string;
   cantiereLabel: string; // nome del progetto Montaggi corrente
+  /** "project" = solo vista cantiere corrente (default), "global" = panoramica globale */
+  mode?: "project" | "global";
 };
 
 /** ============================================================
  *  COMPONENTE PRINCIPALE
  *  ============================================================ */
-export const PianificazioneSection = ({ draftId, cantiereLabel }: Props) => {
+export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project" }: Props) => {
   const { user } = useAuth();
-  const [view, setView] = useState<"progetto" | "panoramica">("progetto");
+  const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date()));
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +107,37 @@ export const PianificazioneSection = ({ draftId, cantiereLabel }: Props) => {
   const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, DEFAULT_OPERATORS);
   const operators = ops.state;
   const setOperators = (next: Operator[]) => ops.setState(next);
+
+  /** Seed automatico la prima volta che l'anagrafica è vuota dopo ready */
+  const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };
+  useEffect(() => {
+    if (!ops.ready || seededRef.__montaggiOpsSeeded) return;
+    if (operators.length > 0) { seededRef.__montaggiOpsSeeded = true; return; }
+    const collected = collectWorkersFromArchives();
+    if (collected.length > 0) {
+      seededRef.__montaggiOpsSeeded = true;
+      setOperators(collected);
+    }
+    // eslint-disable-next-line
+  }, [ops.ready]);
+
+  /** Merge manuale da Archivio squadre (bottone) */
+  const importFromArchives = () => {
+    const collected = collectWorkersFromArchives();
+    if (collected.length === 0) {
+      toast.info("Nessun nominativo trovato nell'archivio squadre dei progetti Montaggi.");
+      return;
+    }
+    const byName = new Map(operators.map((o) => [o.name.trim().toLowerCase(), o]));
+    let added = 0;
+    for (const w of collected) {
+      const key = w.name.trim().toLowerCase();
+      if (!byName.has(key)) { byName.set(key, w); added++; }
+    }
+    setOperators(Array.from(byName.values()));
+    toast.success(added > 0 ? `${added} operai importati dall'archivio.` : "Nessun nuovo nominativo da importare.");
+  };
+
 
   /** Carica assegnazioni (range largo: 4 settimane intorno per la panoramica) */
   const loadAssignments = async () => {

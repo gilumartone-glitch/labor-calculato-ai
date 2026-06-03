@@ -394,7 +394,7 @@ export const computePieceMaterial = (
       const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
       return (op?.category ?? "") === "stampa";
     });
-  const noPrintNoScrap = !hasPrintWork;
+  const noPrintNoScrap = !hasPrintWork && !piece.chargeScrap;
   // Prezzo d'ACQUISTO unitario (per calcolo sfrido a costo). Per il nuovo schema
   // Tappezzeria (manual sell prices) il costo è in `costPrice`. Per lo schema legacy
   // "molt. automatici" il costo è già in pricePiece/priceCut (= prezzo d'acquisto).
@@ -413,13 +413,15 @@ export const computePieceMaterial = (
     }
     return purchase * SCRAP_SELL_MULT;
   };
-  const clientCostForPlan = (plan: OrientationPlan, unit: number): number => {
+  const clientCostForPlan = (plan: OrientationPlan, unit: number, isRot = false): number => {
     const format = plan.material.format ?? "rotolo";
     const priceUnit = materialPriceUnit(plan.material);
     // In Tappezzeria (catalog marcato con __skipInitialScrap) NON addebitiamo
     // lo sfrido iniziale e vendiamo il rotolo a metri lineari reali usati.
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
-    if (format === "rotolo" && skipInitialScrap) {
+    if (format === "rotolo" && !!catalog.__skipInitialScrap) {
+      const planPieceWM = isRot ? pieceHM : pieceWM;
+      const planPieceHM = isRot ? pieceWM : pieceHM;
       // Nesting interno alla card: più copie dello stesso pezzo possono
       // affiancarsi sulla larghezza del rotolo. Calcoliamo i metri lineari
       // totali del rotolo necessari per TUTTE le copie e poi dividiamo per
@@ -429,17 +431,17 @@ export const computePieceMaterial = (
       // BUGFIX: se il pezzo è più largo del rullo servono più teli per coprirlo.
       // In quel caso usiamo i metri lineari totali calcolati dal piano (plan.totalMetersM)
       // invece di assumere che il pezzo entri nella larghezza del rullo.
-      if (plan.rollWidthM > 0 && pieceWM > plan.rollWidthM) {
+      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
         if (priceUnit === "ml") return plan.totalMetersM * unit;
         // priceUnit === "mq": area effettivamente consumata dai teli
         return plan.totalMetersM * plan.rollWidthM * unit;
       }
       const piecesPerShelf =
-        plan.rollWidthM > 0 && pieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / pieceWM))
+        plan.rollWidthM > 0 && planPieceWM > 0
+          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
           : 1;
       const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * pieceHM;
+      const nestedTotalMetersM = shelves * planPieceHM;
       return (nestedTotalMetersM * unit) / qty;
     }
     if (format === "rotolo" && priceUnit === "mq") {
@@ -469,16 +471,19 @@ export const computePieceMaterial = (
   //   (metri lineari teli) × €/ml d'acquisto + sfrido valutato a €/mq se disponibile.
   const internalCostForPlan = (
     plan: OrientationPlan,
+    isRot = false,
   ): { cost: number; scrap: number; scrapSell: number } => {
     const format = plan.material.format ?? "rotolo";
     const purchase = purchaseUnit(plan.material);
     const priceUnit = materialPriceUnit(plan.material);
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
-    if (format === "rotolo" && skipInitialScrap) {
+    if (format === "rotolo" && !!catalog.__skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
+      const planPieceWM = isRot ? pieceHM : pieceWM;
+      const planPieceHM = isRot ? pieceWM : pieceHM;
       // BUGFIX coerente con clientCostForPlan: pezzi più larghi del rullo
       // richiedono più teli — usa plan.totalMetersM invece di pieceHM.
-      if (plan.rollWidthM > 0 && pieceWM > plan.rollWidthM) {
+      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
         const cost =
           priceUnit === "ml"
             ? plan.totalMetersM * purchase
@@ -486,11 +491,11 @@ export const computePieceMaterial = (
         return { cost, scrap: 0, scrapSell: 0 };
       }
       const piecesPerShelf =
-        plan.rollWidthM > 0 && pieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / pieceWM))
+        plan.rollWidthM > 0 && planPieceWM > 0
+          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
           : 1;
       const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * pieceHM;
+      const nestedTotalMetersM = shelves * planPieceHM;
       return { cost: (nestedTotalMetersM * purchase) / qty, scrap: 0, scrapSell: 0 };
     }
     if (format !== "rotolo" || plan.rollWidthM <= 0) {
@@ -514,17 +519,11 @@ export const computePieceMaterial = (
 
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
   const natural = planOrientation(variants, pieceWM, pieceHM);
-  // Rotazione consentita SOLO se:
-  //  - il pezzo lo permette (allowRotation)
-  //  - c'è un solo pezzo (quantity ≤ 1): più copie identiche non si possono ruotare
-  //    indipendentemente
-  //  - la cucitura non risulta orizzontale: nel piano ruotato i teli si affiancano
-  //    sull'altezza del pezzo, quindi le cuciture diventano orizzontali quando
-  //    ci sono più di 1 telo. Vietato.
-  const pieceQty = Math.max(1, Number(piece.quantity ?? 1) || 1);
-  const rotationAllowed = !!piece.allowRotation && pieceQty === 1;
+  // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
+  // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
+  const rotationAllowed = !!piece.allowRotation;
   const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM) : null;
-  const rotated = rotatedRaw && rotatedRaw.panels <= 1 ? rotatedRaw : null;
+  const rotated = rotatedRaw;
 
   type FullPlan = {
     plan: OrientationPlan;
@@ -548,14 +547,14 @@ export const computePieceMaterial = (
       ? materialUnitCost(p.material, "cut") // niente customer => niente molt. Riv/Fin
       : materialUnitCost(p.material, piece.priceMode, customer);
     void effectiveMode;
-    const materialCost = clientCostForPlan(p, u);
+    const materialCost = clientCostForPlan(p, u, isRot);
     const seamCost = p.seamLengthM * seamPrice;
     const cost = materialCost + seamCost;
     const {
       cost: internalCost,
       scrap: internalScrap,
       scrapSell: internalScrapSell,
-    } = internalCostForPlan(p);
+    } = internalCostForPlan(p, isRot);
     return {
       plan: p,
       rotated: isRot,

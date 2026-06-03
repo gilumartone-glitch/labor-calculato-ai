@@ -554,7 +554,42 @@ export const DepartmentView = ({
             )}
             {perPieceTotals.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="label-cap mb-2">Prezzo per lavorazione</div>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
+                  <div className="label-cap">Prezzo per lavorazione</div>
+                  <div className="flex items-end gap-2 font-mono text-[11px]">
+                    <div className="flex flex-col">
+                      <label className="uppercase tracking-wider text-[10px] text-muted-foreground mb-0.5">
+                        Livella €/m² su tutti i pezzi
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          inputMode="decimal"
+                          placeholder="es. 19,90"
+                          value={levelInput}
+                          onChange={(e) => setLevelInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") applyLevelPrice(); }}
+                          className="h-8 w-28 px-2 border border-input rounded-sm bg-paper tabular-nums"
+                        />
+                        <Button size="sm" variant="default" className="h-8 px-2 text-[11px]" onClick={applyLevelPrice}>
+                          Applica
+                        </Button>
+                        {hasOverride && (
+                          <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={resetLevelPrice}>
+                            <RotateCcw className="w-3 h-3 mr-1" /> Ripristina
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {hasOverride && (
+                  <div className="mb-2 px-2 py-1.5 bg-primary/10 border border-primary/30 rounded-sm font-mono text-[10px] uppercase tracking-wider text-primary">
+                    Prezzi livellati: il totale di ogni pezzo è area × €/m² impostato, ignorando materiale/lavorazioni/sfridi.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {perPieceTotals.map(
                     ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total }, i) => {

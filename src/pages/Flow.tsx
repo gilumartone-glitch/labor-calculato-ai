@@ -492,7 +492,7 @@ const Flow = () => {
             <DragOverlay>
               {draggedCommessa && (
                 <div className="rotate-2 opacity-90">
-                  <CommessaCard commessa={draggedCommessa} onOpen={() => {}} onDelete={() => {}} />
+                  <CommessaCard commessa={draggedCommessa} color={colorByCommessa.get(draggedCommessa.id)} onOpen={() => {}} onDelete={() => {}} />
                 </div>
               )}
             </DragOverlay>

@@ -663,8 +663,14 @@ export const DepartmentView = ({
                               {dimLabel && (
                                 <span className="ml-1.5 text-ink/70">· {dimLabel}</span>
                               )}
+                              {overridden && (
+                                <span className="ml-1.5 px-1 py-0.5 bg-primary/15 text-primary rounded-sm text-[9px] uppercase tracking-wider">
+                                  livellato
+                                </span>
+                              )}
                             </span>
                             <span className="font-semibold tabular-nums text-[12px]">{eur(total)}</span>
+
                           </div>
                           <div className="space-y-0.5">
                             {rows.map((r, idx) => (

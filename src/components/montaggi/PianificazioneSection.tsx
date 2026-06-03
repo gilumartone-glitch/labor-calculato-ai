@@ -389,7 +389,10 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
       <Card className="border-2 border-dept shadow-soft">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5" />Anagrafica operai (condivisa)</CardTitle>
-          <Button size="sm" onClick={addOperator}><Plus className="h-4 w-4" />Aggiungi operaio</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={importFromArchives}><Users className="h-4 w-4" />Importa da Archivio squadre</Button>
+            <Button size="sm" onClick={addOperator}><Plus className="h-4 w-4" />Aggiungi operaio</Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {operators.map((op) => (

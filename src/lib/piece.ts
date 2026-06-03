@@ -471,6 +471,7 @@ export const computePieceMaterial = (
   //   (metri lineari teli) × €/ml d'acquisto + sfrido valutato a €/mq se disponibile.
   const internalCostForPlan = (
     plan: OrientationPlan,
+    isRot = false,
   ): { cost: number; scrap: number; scrapSell: number } => {
     const format = plan.material.format ?? "rotolo";
     const purchase = purchaseUnit(plan.material);
@@ -478,8 +479,8 @@ export const computePieceMaterial = (
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && !!catalog.__skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
-      const planPieceWM = plan === rotatedRaw ? pieceHM : pieceWM;
-      const planPieceHM = plan === rotatedRaw ? pieceWM : pieceHM;
+      const planPieceWM = isRot ? pieceHM : pieceWM;
+      const planPieceHM = isRot ? pieceWM : pieceHM;
       // BUGFIX coerente con clientCostForPlan: pezzi più larghi del rullo
       // richiedono più teli — usa plan.totalMetersM invece di pieceHM.
       if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
@@ -553,7 +554,7 @@ export const computePieceMaterial = (
       cost: internalCost,
       scrap: internalScrap,
       scrapSell: internalScrapSell,
-    } = internalCostForPlan(p);
+    } = internalCostForPlan(p, isRot);
     return {
       plan: p,
       rotated: isRot,

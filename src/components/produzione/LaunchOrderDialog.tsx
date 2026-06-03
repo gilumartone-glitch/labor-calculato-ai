@@ -17,7 +17,7 @@ import {
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";
 
 const DEPTS: ProdDept[] = [
-  "grafica", "stampa", "taglio", "tappezzeria", "stampa_3d", "falegnameria", "assemblaggio", "altro",
+  "progettazione", "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "assemblaggio", "altro",
 ];
 
 type UploadedFile = { name: string; type: string; path: string; size: number };
@@ -266,19 +266,37 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           {!warehouseOnly && (
           <div>
             <Label className="mb-2 block">Sequenza lavorazioni * <span className="text-[10px] font-mono text-muted-foreground">(nell'ordine in cui vanno eseguite)</span></Label>
-            <div className="flex flex-wrap gap-2">
-              {DEPTS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleDept(d)}
-                  className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${
-                    depts.includes(d) ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/60 hover:border-ink"
-                  }`}
-                >
-                  {DEPT_LABEL[d]}
-                </button>
-              ))}
+            <div className="space-y-3">
+              {/* Progettazione */}
+              <div className="flex flex-wrap gap-2">
+                {(["progettazione"] as ProdDept[]).map((d) => (
+                  <button key={d} type="button" onClick={() => toggleDept(d)}
+                    className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${depts.includes(d) ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/60 hover:border-ink"}`}>
+                    {DEPT_LABEL[d]}
+                  </button>
+                ))}
+              </div>
+              {/* Lavorazione (gruppo) */}
+              <div className="border-l-2 border-ink/15 pl-3">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">Lavorazione</div>
+                <div className="flex flex-wrap gap-2">
+                  {(["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d"] as ProdDept[]).map((d) => (
+                    <button key={d} type="button" onClick={() => toggleDept(d)}
+                      className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${depts.includes(d) ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/60 hover:border-ink"}`}>
+                      {DEPT_LABEL[d]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Uffici / altro */}
+              <div className="flex flex-wrap gap-2">
+                {(["assemblaggio", "altro"] as ProdDept[]).map((d) => (
+                  <button key={d} type="button" onClick={() => toggleDept(d)}
+                    className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold border-2 rounded-sm transition-colors ${depts.includes(d) ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/60 hover:border-ink"}`}>
+                    {DEPT_LABEL[d]}
+                  </button>
+                ))}
+              </div>
             </div>
             {depts.length > 0 && (
               <div className="mt-3 space-y-2 border-l-2 border-primary/30 pl-3">

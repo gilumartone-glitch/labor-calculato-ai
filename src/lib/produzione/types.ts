@@ -1,5 +1,5 @@
 export type ProdDept =
-  | "grafica"
+  | "progettazione"
   | "stampa"
   | "taglio"
   | "tappezzeria"
@@ -13,18 +13,18 @@ export type ProdDept =
   | "altro";
 
 export type AppSettore =
-  | "grafica" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
+  | "progettazione" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
   | "laboratorio" | "amministrazione" | "logistica" | "magazzino" | "acquisti"
   | "vendite" | "altro";
 
 export const SETTORE_LABEL: Record<AppSettore, string> = {
-  grafica: "Grafica",
-  stampa: "Laboratorio",
-  taglio: "Laboratorio",
+  progettazione: "Progettazione",
+  stampa: "Stampa",
+  taglio: "Taglio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Laboratorio",
-  falegnameria: "Laboratorio",
-  laboratorio: "Laboratorio",
+  stampa_3d: "Stampa 3D",
+  falegnameria: "Falegnameria",
+  laboratorio: "Lavorazione",
   amministrazione: "Amministrazione",
   logistica: "Amministrazione",
   magazzino: "Amministrazione",
@@ -34,14 +34,34 @@ export const SETTORE_LABEL: Record<AppSettore, string> = {
 };
 
 export const ALL_SETTORI: AppSettore[] = [
+  "progettazione",
+  "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d",
   "amministrazione", "acquisti", "vendite",
-  "laboratorio", "tappezzeria", "grafica",
 ];
 
 /** Reparti UFFICIO (chi gestisce, ordina, fattura). */
 export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
 /** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
-export const WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "grafica"];
+export const WORK_DEPTS: ProdDept[] = ["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "progettazione"];
+
+/** Gerarchia di reparto per i selettori (Lavorazione contiene i sotto-reparti). */
+export type DeptGroup = {
+  key: ProdDept | "lavorazione_group";
+  label: string;
+  children?: ProdDept[];
+  selectable: boolean;
+};
+
+export const DEPT_HIERARCHY: DeptGroup[] = [
+  { key: "progettazione", label: "Progettazione", selectable: true },
+  {
+    key: "lavorazione_group", label: "Lavorazione", selectable: true,
+    children: ["stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d"],
+  },
+  { key: "amministrazione" as ProdDept, label: "Amministrazione", selectable: true },
+  { key: "acquisti", label: "Acquisti", selectable: true },
+  { key: "vendite", label: "Vendite", selectable: true },
+];
 export type ProdPriority = "normale" | "urgente" | "bloccante";
 export type ProdDelivery = "spedizione" | "ritiro" | "mezzo_proprio" | "corriere";
 export type ProdOrderStatus = "nuovo" | "in_corso" | "pronto" | "spedito" | "chiuso" | "annullato";
@@ -211,14 +231,14 @@ export const SCRAP_STATUS_LABEL: Record<ScrapPieceStatus, string> = {
 };
 
 export const DEPT_LABEL: Record<ProdDept, string> = {
-  grafica: "Grafica",
-  stampa: "Laboratorio",
-  taglio: "Laboratorio",
+  progettazione: "Progettazione",
+  stampa: "Stampa",
+  taglio: "Taglio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Laboratorio",
-  falegnameria: "Laboratorio",
-  assemblaggio: "Laboratorio",
-  laboratorio: "Laboratorio",
+  stampa_3d: "Stampa 3D",
+  falegnameria: "Falegnameria",
+  assemblaggio: "Lavorazione",
+  laboratorio: "Lavorazione",
   magazzino: "Amministrazione",
   acquisti: "Acquisti",
   vendite: "Vendite",
@@ -249,12 +269,12 @@ export const SUB_STATUS_LABEL: Record<ProdSubStatus, string> = {
 };
 
 export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
-  grafica: "G",
-  stampa: "L",
-  taglio: "L",
+  progettazione: "P2",
+  stampa: "S",
+  taglio: "T",
   tappezzeria: "P",
-  stampa_3d: "L",
-  falegnameria: "L",
+  stampa_3d: "3D",
+  falegnameria: "F",
   assemblaggio: "L",
   laboratorio: "L",
   magazzino: "M",
@@ -274,7 +294,7 @@ export const DEPT_COLOR: Record<ProdDept, {
 }> = {
   acquisti:     { chip: "bg-rose-600 text-white",    border: "border-rose-600",    soft: "bg-rose-50",    text: "text-rose-700",    emoji: "🛒" },
   magazzino:    { chip: "bg-slate-700 text-white",   border: "border-slate-700",   soft: "bg-slate-50",   text: "text-slate-700",   emoji: "📦" },
-  grafica:      { chip: "bg-fuchsia-600 text-white", border: "border-fuchsia-600", soft: "bg-fuchsia-50", text: "text-fuchsia-700", emoji: "🎨" },
+  progettazione:{ chip: "bg-fuchsia-600 text-white", border: "border-fuchsia-600", soft: "bg-fuchsia-50", text: "text-fuchsia-700", emoji: "📐" },
   stampa:       { chip: "bg-blue-600 text-white",    border: "border-blue-600",    soft: "bg-blue-50",    text: "text-blue-700",    emoji: "🖨️" },
   taglio:       { chip: "bg-cyan-600 text-white",    border: "border-cyan-600",    soft: "bg-cyan-50",    text: "text-cyan-700",    emoji: "✂️" },
   tappezzeria:  { chip: "bg-emerald-600 text-white", border: "border-emerald-600", soft: "bg-emerald-50", text: "text-emerald-700", emoji: "🪡" },
@@ -286,12 +306,15 @@ export const DEPT_COLOR: Record<ProdDept, {
   altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
 };
 /** Mappa un nome reparto "legacy" (dal preventivo o vecchi sub) sul reparto
- *  di lavorazione corrente (Laboratorio / Tappezzeria / Grafica).
- *  Default: laboratorio. */
+ *  di lavorazione corrente. Default: laboratorio. */
 export const toWorkDept = (legacy?: string | null): ProdDept => {
   const k = (legacy ?? "").toLowerCase().trim();
   if (!k) return "laboratorio";
   if (k.includes("tappezz")) return "tappezzeria";
-  if (k.includes("grafica")) return "grafica";
+  if (k.includes("grafica") || k.includes("progett")) return "progettazione";
+  if (k.includes("falegn")) return "falegnameria";
+  if (k.includes("3d")) return "stampa_3d";
+  if (k.includes("tagl")) return "taglio";
+  if (k.includes("stamp")) return "stampa";
   return "laboratorio";
 };

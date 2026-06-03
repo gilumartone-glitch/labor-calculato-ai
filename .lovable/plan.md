@@ -1,22 +1,43 @@
-## Cosa cambia
+## Obiettivo
+Ristrutturare i reparti su più livelli ed eliminare "Grafica".
 
-### 1. Nuova pagina "Montaggi" nell'Hub
-- Aggiungo un nuovo tile **Montaggi** nella `Hub.tsx` (riquadro colorato dedicato), che porta a `/montaggi-pianificazione`.
-- Creo la pagina `src/pages/MontaggiPianificazione.tsx`: header coerente con le altre pagine + `PianificazioneSection` in modalità **panoramica globale** (tutti gli operai × tutti i cantieri).
-- Aggiungo la rotta in `App.tsx`, protetta da `RouteGuard page="montaggi"`.
+## Nuova struttura
+```text
+Progettazione        (nuovo, sostituisce Grafica)
+Lavorazione          (selezionabile + raggruppatore)
+  ├─ Stampa
+  ├─ Taglio
+  ├─ Tappezzeria
+  ├─ Falegnameria
+  └─ Stampa 3D
+Amministrazione
+Acquisti
+Vendite
+```
 
-### 2. Operai di default dall'Archivio squadre
-- Quando l'anagrafica operai globale è vuota al primo caricamento, viene **seedata automaticamente** leggendo tutti gli "Archivi squadre e montatori" presenti nei progetti Montaggi salvati in locale (`officina:montaggi-module:v2:*`) — vengono presi i nomi unici, mantenendo l'eventuale ruolo.
-- Aggiungo un pulsante **"Importa da Archivio squadre"** sempre visibile, che esegue lo stesso merge al volo (utile quando aggiungi un nuovo montatore in un progetto e lo vuoi ribaltare nella panoramica).
-- Resta la possibilità di aggiungere/rimuovere/rinominare operai liberamente, anche un solo nominativo per un singolo progetto.
+## Cosa cambia nel codice
+1. **`src/lib/produzione/types.ts`** — tipo cardine
+   - `ProdDept`: rimuovo `"grafica"`, aggiungo `"progettazione"`. `"laboratorio"` resta come reparto generico "Lavorazione".
+   - `AppSettore`: stesso trattamento (rimuovo grafica, aggiungo progettazione).
+   - `SETTORE_LABEL`, `DEPT_LABEL`: `laboratorio → "Lavorazione"`, `progettazione → "Progettazione"`; rimuovo Grafica.
+   - `WORK_DEPTS = ["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "progettazione"]`.
+   - `ALL_SETTORI`: aggiorno con progettazione e i sotto-reparti.
+   - `DEPT_COLOR`: nuovo colore per `progettazione`, mantengo gli altri.
+   - `SUB_DEPT_SUFFIX`: aggiungo `progettazione: "P2"` (o simile), `laboratorio` resta `L`.
+   - `toWorkDept()`: mappa legacy `"grafica"` → `"progettazione"` per compatibilità snapshot/ordini storici.
+2. **UI dei reparti raggruppati**: nei selettori di reparto (LaunchOrderDialog, board produzione, CommessaDialog, calculator) renderizzo le opzioni con un'intestazione "Lavorazione" e i sotto-reparti indentati. Espongo anche "Lavorazione" come opzione selezionabile.
+3. **Pages produzione (Board, Dashboard, Inventory, FindMaterial)**: filtri per reparto aggiornati. La vista board mostra colonna "Lavorazione" che può espandersi nei sub.
+4. **Checklist e snapshot** (`checklist-templates.ts`, `snapshot.ts`, `helpers.ts`): rinomino chiave `grafica → progettazione`, lascio fallback che traduce eventuali vecchi valori.
+5. **Contabilità / contatti** (`contacts.ts`, `AnagraficaView.tsx`, `Contabilita.tsx`): sostituisco etichetta Grafica con Progettazione.
+6. **Hub / permessi pagina**: se la voce "Grafica" è una card a sé, diventa "Progettazione".
+7. **Migrazione dati esistente**: non tocco lo schema (le colonne sono `text`), ma uno UPDATE per spostare i record con `dept='grafica'` (e simili in `commessa.reparto`, `prod_sub_orders.dept`, `profiles.settori`) a `progettazione`.
 
-### 3. Cleanup del modulo Montaggi
-- Dentro Montaggi (`/preventivi?tab=montaggi`) la sezione "Pianificazione" mostra solo la vista **del singolo progetto** (con avviso conflitti su altri cantieri). La toggle "Panoramica" lì viene rimossa: per la vista globale si va dal nuovo tile Hub.
+## Quello che NON faccio
+- Nessuna modifica a colonne/enum del DB (sono già `text`).
+- Nessun cambiamento alla logica di RLS/permessi (le chiavi reparto restano stringhe).
+- Non rimuovo il file `checklist-templates.ts` legacy: lascio un alias.
 
-### Dettagli tecnici
-
-- `PianificazioneSection` riceve un nuovo prop `mode: "project" | "global"`:
-  - `project` (default attuale embed Montaggi): solo calendario settimanale del cantiere corrente con highlight conflitti, niente toggle.
-  - `global` (nuova pagina): mostra tutti i cantieri allo stesso peso, niente highlight "altro cantiere", consente di filtrare/cercare cantiere.
-- Seed operai: hook esegue una scansione di `localStorage` la prima volta che `ops.state.length === 0` dopo `ready`. Lo stato è condiviso via `useSharedCloudState` su `catalogs.dept = "montaggi:operai:v1"`, quindi tutti gli utenti vedono lo stesso elenco.
-- Nessuna migrazione DB: la tabella `montaggi_planning` esiste già.
+## Test rapidi dopo le modifiche
+- Build TS pulita.
+- Selettori reparto mostrano la nuova gerarchia.
+- Un ordine storico con reparto "grafica" continua a comparire (mappato a Progettazione).

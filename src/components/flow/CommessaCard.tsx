@@ -9,6 +9,7 @@ export type ProdSubInfo = {
   id: string;
   dept: string;
   status: string;
+  assigneeId: string | null;
   assigneeName: string | null;
   code: string;
 };

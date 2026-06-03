@@ -418,6 +418,44 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   const dc = DEPT_COLOR[sub.dept];
   const assignee = sub.assignee_id ? profiles.find((p) => p.id === sub.assignee_id) : null;
+  const canEditAssignee = !!user && !!order && (user.id === order.created_by || isAdmin);
+  const assigneeOptions = profiles.filter((p) => p.approved !== false);
+
+  const changeAssignee = async (newId: string) => {
+    if (!sub || !order) return;
+    setSavingAssignee(true);
+    try {
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .update({ assignee_id: newId || null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      const newName = profiles.find((p) => p.id === newId)?.display_name ?? "Nessuno";
+      await logAction({
+        action: "SUBORDINE_ASSEGNATARIO_MODIFICATO",
+        entity_type: "sub_order",
+        entity_id: sub.id,
+        detail: `${sub.code} → ${newName}`,
+        new_state: { assignee_id: newId || null },
+      });
+      if (newId && newId !== sub.assignee_id) {
+        await notify({
+          userIds: [newId],
+          type: "magazzino_da_preparare",
+          message: `Ti è stata assegnata: ${sub.code} · ${DEPT_LABEL[sub.dept]} (${order.code})`,
+          order_id: order.id,
+          link: "/produzione/board",
+          is_urgent: order.priorita !== "normale",
+        });
+      }
+      await refreshOrders();
+      toast.success("Assegnatario aggiornato");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore aggiornamento assegnatario");
+    } finally {
+      setSavingAssignee(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -471,6 +471,7 @@ const Flow = () => {
                           <CommessaCard
                             key={c.id}
                             commessa={c}
+                            color={colorByCommessa.get(c.id)}
                             onOpen={() => { setDetailCommessa(c); setDetailOpen(true); }}
                             onDelete={() => handleDelete(c.id)}
                             canDelete={isAdmin}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Plus, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X, MapPin, Package, Wrench, Send, Link2 } from "lucide-react";
+import { CalendarDays, Plus, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X, MapPin, Package, Wrench, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -225,6 +225,35 @@ export const PianificazioneSection = ({
     // eslint-disable-next-line
   }, []);
 
+  /** Compose info block (address + tools + materials) for notifications */
+  const buildProjectInfoBlock = () => {
+    const toolsTxt = (projectTools ?? []).length > 0 ? `\n🧰 Attrezzi:\n${(projectTools ?? []).map((t) => `• ${t.name}${t.qty ? ` ×${t.qty}` : ""}`).join("\n")}` : "";
+    const matTxt = (projectMaterials ?? []).length > 0 ? `\n📦 Materiali:\n${(projectMaterials ?? []).map((m) => `• ${m.name}${m.qty ? ` ×${m.qty}${m.unit ? ` ${m.unit}` : ""}` : ""}`).join("\n")}` : "";
+    const addrTxt = projectAddress ? `\n📍 ${projectAddress}` : "";
+    return `${addrTxt}${toolsTxt}${matTxt}`;
+  };
+
+  /** Trova userId collegato a un operator */
+  const userIdForOperator = (operatorId: string): string | undefined => {
+    const op = operators.find((o) => o.id === operatorId);
+    return op?.userId;
+  };
+
+  /** Notifica automatica all'operaio collegato */
+  const autoNotify = async (operatorId: string, action: "creata" | "aggiornata" | "eliminata", info: { date: string; hours: number; cantiere: string }) => {
+    const userId = userIdForOperator(operatorId);
+    if (!userId) return; // operaio non collegato: niente notifica
+    const dateLabel = new Date(info.date).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" });
+    const verbo = action === "creata" ? "📅 Nuovo impegno" : action === "aggiornata" ? "✏️ Impegno aggiornato" : "❌ Impegno annullato";
+    const message = `${verbo} — ${dateLabel}\nCantiere: ${info.cantiere} (${info.hours}h)${action !== "eliminata" ? buildProjectInfoBlock() : ""}`;
+    await supabase.from("prod_notifications").insert({
+      user_id: userId,
+      type: "chat_messaggio",
+      message,
+      is_urgent: false,
+    });
+  };
+
   const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => {
     if (!user) return toast.error("Non autenticato");
     if (payload.id) {
@@ -237,6 +266,7 @@ export const PianificazioneSection = ({
         notes: payload.notes ?? null,
       }).eq("id", payload.id);
       if (error) return toast.error(error.message);
+      autoNotify(payload.operator_id, "aggiornata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
     } else {
       const { error } = await supabase.from("montaggi_planning").insert({
         operator_id: payload.operator_id,
@@ -248,14 +278,36 @@ export const PianificazioneSection = ({
         created_by: user.id,
       });
       if (error) return toast.error(error.message);
+      autoNotify(payload.operator_id, "creata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
     }
     setEditing(null);
     loadAssignments();
   };
 
+  /** Quick assign: click sul + → crea subito 8h sul cantiere corrente, senza dialog */
+  const quickAssign = async (operatorId: string, date: string) => {
+    if (!user) return toast.error("Non autenticato");
+    const cantiere = view === "progetto" ? cantiereLabel : "Cantiere";
+    const commessaId = view === "progetto" ? draftId : null;
+    const { error } = await supabase.from("montaggi_planning").insert({
+      operator_id: operatorId,
+      date,
+      hours: 8,
+      commessa_id: commessaId,
+      cantiere_label: cantiere,
+      notes: null,
+      created_by: user.id,
+    });
+    if (error) return toast.error(error.message);
+    autoNotify(operatorId, "creata", { date, hours: 8, cantiere });
+    loadAssignments();
+  };
+
   const deleteAssignment = async (id: string) => {
+    const target = assignments.find((a) => a.id === id);
     const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
     if (error) return toast.error(error.message);
+    if (target) autoNotify(target.operator_id, "eliminata", { date: target.date, hours: target.hours, cantiere: target.cantiere_label });
     loadAssignments();
   };
 
@@ -269,7 +321,7 @@ export const PianificazioneSection = ({
     const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string }> = [];
     const cur = new Date(from);
     while (cur <= to) {
-      const dow = (cur.getDay() + 6) % 7; // lun=0..dom=6
+      const dow = (cur.getDay() + 6) % 7;
       if (bulk.includeWeekends || dow < 5) {
         rows.push({
           operator_id: bulk.operatorId,
@@ -285,47 +337,32 @@ export const PianificazioneSection = ({
     if (rows.length === 0) return toast.info("Nessun giorno selezionato");
     const { error } = await supabase.from("montaggi_planning").insert(rows);
     if (error) return toast.error(error.message);
+    // Notifica riassuntiva
+    const userId = userIdForOperator(bulk.operatorId);
+    if (userId) {
+      const dateList = rows.map((r) => new Date(r.date).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
+      await supabase.from("prod_notifications").insert({
+        user_id: userId,
+        type: "chat_messaggio",
+        message: `📅 Nuovi impegni — Cantiere: ${cantiereLabel} (${bulk.hours}h/giorno)\nGiornate: ${dateList}${buildProjectInfoBlock()}`,
+        is_urgent: false,
+      });
+    }
     toast.success(`Aggiunte ${rows.length} giornate`);
     loadAssignments();
   };
 
-  /** Linking & notifiche */
+  /** Linking (manuale) */
   const updateExtraOperator = (id: string, patch: Partial<Operator>) => {
     const cur = extras.state ?? [];
     const found = cur.find((o) => o.id === id);
     if (!found) {
-      // promote default worker to extras to persist link
       const op = projectOperators.find((o) => o.id === id);
       if (!op) return;
       extras.setState([...cur, { ...op, ...patch }]);
     } else {
       extras.setState(cur.map((o) => o.id === id ? { ...o, ...patch } : o));
     }
-  };
-
-  const sendNotificationToOperator = async (op: Operator) => {
-    if (!op.userId) { toast.info("Collega prima un utente a questo operaio"); setLinkingOp(op); return; }
-    if (!user) return toast.error("Non autenticato");
-    const todayStr = fmtDate(new Date());
-    const horizon = fmtDate(addDays(new Date(), 14));
-    const myAssigns = assignments
-      .filter((a) => a.operator_id === op.id && a.date >= todayStr && a.date <= horizon)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const projAssigns = myAssigns.filter((a) => a.commessa_id === draftId || a.cantiere_label === cantiereLabel);
-    const days = projAssigns.length > 0 ? projAssigns : myAssigns;
-    const daysTxt = days.length === 0 ? "Nessuna giornata pianificata nei prossimi 14 giorni." : days.map((a) => `• ${new Date(a.date).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" })} — ${a.cantiere_label} (${a.hours}h)${a.notes ? ` — ${a.notes}` : ""}`).join("\n");
-    const toolsTxt = (projectTools ?? []).length > 0 ? `\n\n🧰 Attrezzi da portare:\n${(projectTools ?? []).map((t) => `• ${t.name}${t.qty ? ` ×${t.qty}` : ""}`).join("\n")}` : "";
-    const matTxt = (projectMaterials ?? []).length > 0 ? `\n\n📦 Materiali in cantiere:\n${(projectMaterials ?? []).map((m) => `• ${m.name}${m.qty ? ` ×${m.qty}${m.unit ? ` ${m.unit}` : ""}` : ""}`).join("\n")}` : "";
-    const addrTxt = projectAddress ? `\n\n📍 Indirizzo: ${projectAddress}` : "";
-    const message = `🛠 Pianificazione cantiere "${cantiereLabel}"\n\n📅 Giornate:\n${daysTxt}${addrTxt}${toolsTxt}${matTxt}`;
-    const { error } = await supabase.from("prod_notifications").insert({
-      user_id: op.userId,
-      type: "chat_messaggio",
-      message,
-      is_urgent: false,
-    });
-    if (error) return toast.error(error.message);
-    toast.success(`Notifica inviata a ${op.name}`);
   };
 
   /** Indici */
@@ -436,7 +473,7 @@ export const PianificazioneSection = ({
                     );
                   })}
                   <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[80px]">Tot h</th>
-                  {view === "progetto" && <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[110px]">Notifica</th>}
+
                 </tr>
               </thead>
               <tbody>
@@ -482,8 +519,10 @@ export const PianificazioneSection = ({
                               })}
                               <button
                                 type="button"
-                                onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                onClick={() => quickAssign(op.id, dateStr)}
+                                onDoubleClick={() => setEditing({ operatorId: op.id, date: dateStr })}
                                 className="w-full px-1.5 py-1 rounded text-[10px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center gap-1"
+                                title="Click: aggiungi 8h sul cantiere corrente · Doppio click: opzioni avanzate"
                               >
                                 <Plus className="h-3 w-3" />
                               </button>
@@ -499,16 +538,10 @@ export const PianificazioneSection = ({
                       <td className={`px-2 py-2 border-b border-l border-border text-center font-mono text-sm ${overloaded ? "text-red-600 font-bold" : total < 20 ? "text-amber-600" : ""}`}>
                         {total}h
                       </td>
-                      {view === "progetto" && (
-                        <td className="px-2 py-2 border-b border-l border-border text-center">
-                          <Button size="sm" variant="outline" onClick={() => sendNotificationToOperator(op)} title="Invia notifica con piano + attrezzi + indirizzo">
-                            <Send className="h-3 w-3" />
-                          </Button>
-                        </td>
-                      )}
                     </tr>
                   );
                 })}
+
               </tbody>
             </table>
           )}

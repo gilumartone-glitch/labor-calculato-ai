@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ShoppingCart, CheckCircle2, User, Film, Calendar, Package, Truck, Building2 } from "lucide-react";
+import { ShoppingCart, CheckCircle2, User, Film, Calendar, Package, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { useProdStore } from "@/lib/produzione/store";

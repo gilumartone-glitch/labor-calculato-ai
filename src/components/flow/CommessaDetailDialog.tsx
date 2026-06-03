@@ -216,6 +216,11 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
           ordine: i,
           note: `Da ordinare: ${m.label}${m.detail ? " · " + m.detail : ""} (rif. ${d.customer_order_ref})`,
           supplier_name: m.supplier_name || null,
+          material_label: m.label,
+          material_qty: m.qty ?? null,
+          material_unit: m.unit ?? null,
+          material_code: m.code ?? null,
+          order_status: "da_ordinare",
           files: [],
         }));
         const { data: acquistiSubs, error: ea } = await supabase

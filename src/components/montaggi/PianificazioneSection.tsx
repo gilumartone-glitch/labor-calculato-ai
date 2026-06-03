@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Plus, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X, MapPin, Package, Wrench, Send, Link2 } from "lucide-react";
+import { CalendarDays, Plus, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X, MapPin, Package, Wrench, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";

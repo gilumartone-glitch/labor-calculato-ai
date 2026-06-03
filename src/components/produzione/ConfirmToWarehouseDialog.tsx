@@ -244,7 +244,7 @@ export const ConfirmToWarehouseDialog = ({
             </div>
             <div className="grid grid-cols-3 gap-2">
               {WORK_DEPTS.map((d) => {
-                const dc = DEPT_COLOR[d];
+                const dc = DEPT_COLOR[d] ?? DEPT_COLOR.altro;
                 const active = workDept === d;
                 return (
                   <button

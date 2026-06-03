@@ -169,6 +169,33 @@ const Flow = () => {
     return m;
   }, [filtered]);
 
+  /** Palette riciclabile per identificare ogni commessa attiva con un colore.
+   *  Le commesse "consegnate" non consumano colore, così torna disponibile per le nuove. */
+  const ORDER_PALETTE: OrderColor[] = useMemo(() => ([
+    { bg: "bg-rose-50",     border: "border-l-rose-500",     chip: "bg-rose-500" },
+    { bg: "bg-amber-50",    border: "border-l-amber-500",    chip: "bg-amber-500" },
+    { bg: "bg-emerald-50",  border: "border-l-emerald-500",  chip: "bg-emerald-500" },
+    { bg: "bg-sky-50",      border: "border-l-sky-500",      chip: "bg-sky-500" },
+    { bg: "bg-violet-50",   border: "border-l-violet-500",   chip: "bg-violet-500" },
+    { bg: "bg-fuchsia-50",  border: "border-l-fuchsia-500",  chip: "bg-fuchsia-500" },
+    { bg: "bg-orange-50",   border: "border-l-orange-500",   chip: "bg-orange-500" },
+    { bg: "bg-teal-50",     border: "border-l-teal-500",     chip: "bg-teal-500" },
+    { bg: "bg-indigo-50",   border: "border-l-indigo-500",   chip: "bg-indigo-500" },
+    { bg: "bg-lime-50",     border: "border-l-lime-600",     chip: "bg-lime-600" },
+    { bg: "bg-cyan-50",     border: "border-l-cyan-500",     chip: "bg-cyan-500" },
+    { bg: "bg-pink-50",     border: "border-l-pink-500",     chip: "bg-pink-500" },
+  ]), []);
+
+  const colorByCommessa = useMemo(() => {
+    const m = new Map<string, OrderColor>();
+    const active = filtered
+      .filter((c) => c.stato !== "consegnato")
+      .slice()
+      .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
+    active.forEach((c, i) => m.set(c.id, ORDER_PALETTE[i % ORDER_PALETTE.length]));
+    return m;
+  }, [filtered, ORDER_PALETTE]);
+
   const handleSave = async (
     data: Omit<Commessa, "id" | "created_by" | "created_at" | "updated_at" | "ordine" | "assegnatari">,
     assegnatariIds: string[],

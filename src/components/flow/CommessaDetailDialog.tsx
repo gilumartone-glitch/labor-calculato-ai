@@ -116,6 +116,27 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  /** id del production_order collegato a questa commessa (se esiste) */
+  const [linkedProdOrderId, setLinkedProdOrderId] = useState<string | null>(null);
+
+  // Verifica se esiste già un production_order collegato (source_commessa_id)
+  useEffect(() => {
+    if (!commessa) {
+      setLinkedProdOrderId(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("production_orders")
+      .select("id")
+      .eq("source_commessa_id", commessa.id)
+      .neq("status", "annullato")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setLinkedProdOrderId(data?.id ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [commessa?.id, open]);
 
   useEffect(() => {
     if (!user) return;

@@ -248,3 +248,24 @@ export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
   acquisti: "Q",
   altro: "X",
 };
+
+/** Colori per identificare a colpo d'occhio il reparto/ufficio
+ *  destinatario di una lavorazione (acquisti vs lavorazione vs magazzino, ecc). */
+export const DEPT_COLOR: Record<ProdDept, {
+  chip: string;     // sfondo + testo per chip pieno
+  border: string;   // bordo colorato
+  soft: string;     // sfondo tenue per banner
+  text: string;     // testo accentuato
+  emoji: string;    // icona breve
+}> = {
+  acquisti:     { chip: "bg-rose-600 text-white",    border: "border-rose-600",    soft: "bg-rose-50",    text: "text-rose-700",    emoji: "🛒" },
+  magazzino:    { chip: "bg-slate-700 text-white",   border: "border-slate-700",   soft: "bg-slate-50",   text: "text-slate-700",   emoji: "📦" },
+  grafica:      { chip: "bg-fuchsia-600 text-white", border: "border-fuchsia-600", soft: "bg-fuchsia-50", text: "text-fuchsia-700", emoji: "🎨" },
+  stampa:       { chip: "bg-blue-600 text-white",    border: "border-blue-600",    soft: "bg-blue-50",    text: "text-blue-700",    emoji: "🖨️" },
+  taglio:       { chip: "bg-cyan-600 text-white",    border: "border-cyan-600",    soft: "bg-cyan-50",    text: "text-cyan-700",    emoji: "✂️" },
+  tappezzeria:  { chip: "bg-emerald-600 text-white", border: "border-emerald-600", soft: "bg-emerald-50", text: "text-emerald-700", emoji: "🪡" },
+  stampa_3d:    { chip: "bg-indigo-600 text-white",  border: "border-indigo-600",  soft: "bg-indigo-50",  text: "text-indigo-700",  emoji: "🧊" },
+  falegnameria: { chip: "bg-amber-700 text-white",   border: "border-amber-700",   soft: "bg-amber-50",   text: "text-amber-800",   emoji: "🪚" },
+  assemblaggio: { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔧" },
+  altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
+};

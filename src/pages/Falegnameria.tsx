@@ -230,8 +230,10 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [section, setSection] = useState<WoodSection>("progetto");
   const [projectReady, setProjectReady] = useState(false);
-  const cloud = useCloudWorkspace<WoodProject | null>("falegnameria_project", null, {
-    localStorageKeys: [STORAGE_KEY, LEGACY_STORAGE_KEY],
+  const draftId = (typeof window !== "undefined" && localStorage.getItem("officina:active-draft")) || "default";
+  const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:${draftId}`;
+  const cloud = useCloudWorkspace<WoodProject | null>(`falegnameria_project:${draftId}`, null, {
+    localStorageKeys: [DRAFT_STORAGE_KEY, STORAGE_KEY, LEGACY_STORAGE_KEY],
     hydrate: (raw) => hydrateProject(raw as WoodProject),
   });
   const lastAppliedRef = useRef<string>("");

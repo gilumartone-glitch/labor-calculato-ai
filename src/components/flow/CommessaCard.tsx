@@ -1,9 +1,17 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Tag, Trash2, GripVertical, AlertTriangle } from "lucide-react";
+import { Calendar, Tag, Trash2, GripVertical, AlertTriangle, Factory } from "lucide-react";
 import { Commessa, REPARTI, PRIORITA_LABEL } from "./types";
 
 export type OrderColor = { bg: string; border: string; chip: string };
+
+export type ProdSubInfo = {
+  id: string;
+  dept: string;
+  status: string;
+  assigneeName: string | null;
+  code: string;
+};
 
 interface Props {
   commessa: Commessa;
@@ -11,6 +19,7 @@ interface Props {
   onDelete: () => void;
   canDelete?: boolean;
   color?: OrderColor;
+  prodSubs?: ProdSubInfo[];
 }
 
 const REPARTO_LABEL: Record<string, string> = Object.fromEntries(REPARTI.map((r) => [r.k, r.label]));

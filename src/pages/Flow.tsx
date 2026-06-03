@@ -16,7 +16,7 @@ import { Calculator, LogOut, Plus, ArrowLeft, Loader2, Filter } from "lucide-rea
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CommessaCard, type OrderColor } from "@/components/flow/CommessaCard";
+import { CommessaCard, type OrderColor, type ProdSubInfo } from "@/components/flow/CommessaCard";
 import { CommessaDialog } from "@/components/flow/CommessaDialog";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";

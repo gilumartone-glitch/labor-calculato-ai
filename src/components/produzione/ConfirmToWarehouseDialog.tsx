@@ -238,7 +238,7 @@ export const ConfirmToWarehouseDialog = ({
           )}
 
           {/* Reparto di LAVORAZIONE — BEN VISIBILE: dice immediatamente dove andrà il lavoro */}
-          <div className={`border-2 ${DEPT_COLOR[workDept].border} rounded-sm p-3 ${DEPT_COLOR[workDept].soft}`}>
+          <div className={`border-2 ${(DEPT_COLOR[workDept] ?? DEPT_COLOR.altro).border} rounded-sm p-3 ${(DEPT_COLOR[workDept] ?? DEPT_COLOR.altro).soft}`}>
             <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold mb-2">
               <Wrench className="w-3.5 h-3.5" /> Reparto di lavorazione
             </div>

@@ -6,32 +6,42 @@ export type ProdDept =
   | "stampa_3d"
   | "falegnameria"
   | "assemblaggio"
+  | "laboratorio"
   | "magazzino"
   | "acquisti"
+  | "vendite"
   | "altro";
 
 export type AppSettore =
   | "grafica" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
-  | "amministrazione" | "logistica" | "magazzino" | "acquisti" | "altro";
+  | "laboratorio" | "amministrazione" | "logistica" | "magazzino" | "acquisti"
+  | "vendite" | "altro";
 
 export const SETTORE_LABEL: Record<AppSettore, string> = {
   grafica: "Grafica",
-  stampa: "Stampa",
-  taglio: "Taglio",
+  stampa: "Laboratorio",
+  taglio: "Laboratorio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Stampa 3D",
-  falegnameria: "Falegnameria",
+  stampa_3d: "Laboratorio",
+  falegnameria: "Laboratorio",
+  laboratorio: "Laboratorio",
   amministrazione: "Amministrazione",
-  logistica: "Logistica",
-  magazzino: "Magazzino",
+  logistica: "Amministrazione",
+  magazzino: "Amministrazione",
   acquisti: "Acquisti",
+  vendite: "Vendite",
   altro: "Altro",
 };
 
 export const ALL_SETTORI: AppSettore[] = [
-  "grafica", "stampa", "taglio", "tappezzeria", "stampa_3d", "falegnameria",
-  "amministrazione", "logistica", "magazzino", "acquisti", "altro",
+  "amministrazione", "acquisti", "vendite",
+  "laboratorio", "tappezzeria", "grafica",
 ];
+
+/** Reparti UFFICIO (chi gestisce, ordina, fattura). */
+export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
+/** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
+export const WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "grafica"];
 export type ProdPriority = "normale" | "urgente" | "bloccante";
 export type ProdDelivery = "spedizione" | "ritiro" | "mezzo_proprio" | "corriere";
 export type ProdOrderStatus = "nuovo" | "in_corso" | "pronto" | "spedito" | "chiuso" | "annullato";

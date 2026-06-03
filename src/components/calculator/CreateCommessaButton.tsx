@@ -328,6 +328,7 @@ export const CreateCommessaButton = ({
           attachments: [],
           nesting_included: false,
           created_by: user.id,
+          source_commessa_id: pendingPayload.commessaId,
           snapshot: pendingPayload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
           production_name: d.production_name || prodName.trim() || null,
@@ -481,6 +482,20 @@ export const CreateCommessaButton = ({
             });
           }
         }
+      }
+
+      const flowAssigneeIds = Array.from(new Set([
+        d.missing?.length ? d.acquisti_assignee_id : null,
+        ...insertedSubs.map((s) => s.assignee),
+      ].filter((id): id is string => !!id)));
+      if (flowAssigneeIds.length > 0) {
+        const { error: assErr } = await supabase
+          .from("commessa_assegnatari")
+          .upsert(
+            flowAssigneeIds.map((uid) => ({ commessa_id: pendingPayload.commessaId, user_id: uid })),
+            { onConflict: "commessa_id,user_id", ignoreDuplicates: true },
+          );
+        if (assErr) throw assErr;
       }
 
       await logAction({

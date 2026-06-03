@@ -10,6 +10,7 @@ import Auth from "./pages/Auth.tsx";
 import Flow from "./pages/Flow.tsx";
 import Falegnameria from "./pages/Falegnameria.tsx";
 import Montaggi from "./pages/Montaggi.tsx";
+import MontaggiPianificazione from "./pages/MontaggiPianificazione.tsx";
 import Contabilita from "./pages/Contabilita.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import Hub from "./pages/Hub.tsx";

@@ -73,7 +73,7 @@ const PROD_DEPT_KEYS = new Set<ProdDept>(Object.keys(DEPT_LABEL) as ProdDept[]);
 const ProdBoard = () => {
   const { user } = useAuth();
   const { isAdmin, roles } = usePermissions();
-  const { orders, subs, refreshOrders } = useProdStore();
+  const { orders, subs, profiles, refreshOrders } = useProdStore();
   const [launch, setLaunch] = useState(false);
   const [launchWarehouse, setLaunchWarehouse] = useState(false);
   const [filterDept, setFilterDept] = useState<ProdDept | "all">("all");

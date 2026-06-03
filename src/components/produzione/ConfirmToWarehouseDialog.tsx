@@ -237,11 +237,40 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           )}
 
-          {/* Responsabile magazzino: collapsed se già impostato */}
+          {/* Reparto di LAVORAZIONE — BEN VISIBILE: dice immediatamente dove andrà il lavoro */}
+          <div className={`border-2 ${DEPT_COLOR[workDept].border} rounded-sm p-3 ${DEPT_COLOR[workDept].soft}`}>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold mb-2">
+              <Wrench className="w-3.5 h-3.5" /> Reparto di lavorazione
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {WORK_DEPTS.map((d) => {
+                const dc = DEPT_COLOR[d];
+                const active = workDept === d;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setWorkDept(d)}
+                    className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-sm border-2 transition-all ${active ? `${dc.chip} ${dc.border} font-bold scale-[1.02]` : "bg-paper border-ink/15 hover:border-ink/30 text-ink/70"}`}
+                  >
+                    <span className="text-lg leading-none">{dc.emoji}</span>
+                    <span className="text-[11px] uppercase tracking-wider">{DEPT_LABEL[d]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {suggestedWorkDept && suggestedWorkDept !== workDept && (
+              <div className="mt-2 text-[10px] font-mono text-muted-foreground">
+                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(suggestedWorkDept)} className="underline font-bold">{DEPT_LABEL[suggestedWorkDept]}</button>
+              </div>
+            )}
+          </div>
+
+          {/* Responsabile lavorazione */}
           {!editAssignee && assignee && !loading ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
-                <span className="text-muted-foreground uppercase tracking-wider">Responsabile mag.</span>{" "}
+                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {DEPT_LABEL[workDept].toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
               <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
@@ -250,12 +279,12 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           ) : (
             <div>
-              <Label>Responsabile magazzino *</Label>
+              <Label>Responsabile {DEPT_LABEL[workDept].toLowerCase()} *</Label>
               {loading ? (
                 <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
               ) : users.length === 0 ? (
                 <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
-                  Nessun utente con settore "magazzino". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> → riga utente → colonna Settori → clicca "Magazzino".
+                  Nessun utente approvato disponibile.
                 </div>
               ) : (
                 <select

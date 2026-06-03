@@ -608,18 +608,20 @@ export const DepartmentView = ({
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {perPieceTotals.map(
-                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total }, i) => {
+                    ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total, overridden }, i) => {
                       const name = piece.productName?.trim() || `Pezzo ${i + 1}`;
                       const sfrido = initialScrap;
                       const scarto = work.scrap;
                       const lavorazione = work.total - scarto;
-                      const rows: { label: string; value: number }[] = [
-                        { label: "Materiale", value: material },
-                        { label: "Sfrido iniziale", value: sfrido },
-                        { label: "Sfrido lastre", value: nestingScrap },
-                        { label: "Lavorazione", value: lavorazione },
-                        { label: "Scarto", value: scarto },
-                      ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
+                      const rows: { label: string; value: number }[] = overridden
+                        ? [{ label: "Prezzo livellato", value: material }]
+                        : [
+                            { label: "Materiale", value: material },
+                            { label: "Sfrido iniziale", value: sfrido },
+                            { label: "Sfrido lastre", value: nestingScrap },
+                            { label: "Lavorazione", value: lavorazione },
+                            { label: "Scarto", value: scarto },
+                          ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
                       const unitPrice = qty > 0 ? total / qty : total;
                       // Prezzo per metro quadro: si calcola sul singolo pezzo
                       // (unitPrice = prezzo di una copia) diviso l'area del pezzo in m².

@@ -259,6 +259,30 @@ export const DepartmentView = ({
 
   type Tab = "lavorazioni" | "nesting" | "magazzino" | "listini";
   const [tab, setTab] = useState<Tab>("lavorazioni");
+  const [levelInput, setLevelInput] = useState<string>("");
+  const hasOverride = pieces.some((p) => Number(p.priceOverridePerSqm ?? 0) > 0);
+
+  const applyLevelPrice = () => {
+    const v = parseFloat(levelInput.replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0) {
+      toast.error("Inserisci un €/m² valido");
+      return;
+    }
+    setState({
+      ...state,
+      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: v })),
+    });
+    toast.success(`Prezzi livellati a ${v.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²`);
+  };
+
+  const resetLevelPrice = () => {
+    setState({
+      ...state,
+      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: null })),
+    });
+    setLevelInput("");
+    toast.success("Prezzi ripristinati al calcolo automatico");
+  };
 
   const addMaterial = () => {
     const newLine: MaterialLine = {

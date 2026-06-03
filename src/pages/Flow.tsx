@@ -74,6 +74,8 @@ const Flow = () => {
   const isCoordinator = isAdmin || roles.includes("coordinatore");
   const [commesse, setCommesse] = useState<Commessa[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  /** Sub‑ordini di produzione raggruppati per commessa_id (via production_orders.source_commessa_id) */
+  const [prodByCommessa, setProdByCommessa] = useState<Map<string, ProdSubInfo[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Commessa | null>(null);
@@ -95,14 +97,24 @@ const Flow = () => {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [{ data: cs, error: cErr }, { data: ps, error: pErr }, { data: ass, error: aErr }] = await Promise.all([
+      const [
+        { data: cs, error: cErr },
+        { data: ps, error: pErr },
+        { data: ass, error: aErr },
+        { data: pos, error: poErr },
+        { data: subs, error: sErr },
+      ] = await Promise.all([
         supabase.from("commesse").select("*").order("ordine", { ascending: true }),
         supabase.from("profiles").select("id, display_name, avatar_url"),
         supabase.from("commessa_assegnatari").select("commessa_id, user_id"),
+        supabase.from("production_orders").select("id, source_commessa_id, status").not("source_commessa_id", "is", null),
+        supabase.from("production_sub_orders").select("id, order_id, dept, status, assignee_id, code"),
       ]);
       if (cErr) throw cErr;
       if (pErr) throw pErr;
       if (aErr) throw aErr;
+      if (poErr) throw poErr;
+      if (sErr) throw sErr;
 
       const profilesById = new Map((ps ?? []).map((p) => [p.id, p as Profile]));
       const byCommessa = new Map<string, Profile[]>();
@@ -117,8 +129,33 @@ const Flow = () => {
         importo: c.importo === null ? null : Number(c.importo),
         assegnatari: byCommessa.get(c.id) ?? [],
       }));
+
+      // Mappa commessa_id -> info sub-ordini di produzione
+      const orderToCommessa = new Map<string, string>();
+      for (const po of pos ?? []) {
+        if (po.source_commessa_id) orderToCommessa.set(po.id, po.source_commessa_id);
+      }
+      const prodMap = new Map<string, ProdSubInfo[]>();
+      for (const s of subs ?? []) {
+        const commessaId = orderToCommessa.get(s.order_id);
+        if (!commessaId) continue;
+        // Nascondi sub completati per snellire la card
+        if (s.status === "completato") continue;
+        const list = prodMap.get(commessaId) ?? [];
+        const assignee = s.assignee_id ? profilesById.get(s.assignee_id) ?? null : null;
+        list.push({
+          id: s.id,
+          dept: s.dept as string,
+          status: s.status as string,
+          assigneeName: assignee?.display_name ?? null,
+          code: s.code,
+        });
+        prodMap.set(commessaId, list);
+      }
+
       setCommesse(enriched);
       setProfiles((ps ?? []) as Profile[]);
+      setProdByCommessa(prodMap);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Errore di caricamento");
     } finally {

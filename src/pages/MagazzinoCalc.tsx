@@ -1832,6 +1832,9 @@ function SaleProductSection({
   const [heightFilter, setHeightFilter] = useState<string>("");
   const [variantId, setVariantId] = useState("");
   const [qty, setQty] = useState<number>(0);
+  const [customerType, setCustomerType] = useState<CustomerType>("final");
+  const [priceMode, setPriceMode] = useState<PriceMode>("cut");
+  const [saleUnitOverride, setSaleUnitOverride] = useState<SaleUnit | "">("");
   const [cart, setCart] = useState<CartLine[]>(() => readDraftSalesCart(categoryKey));
   useEffect(() => {
     writeDraftSalesCart(categoryKey, cart);

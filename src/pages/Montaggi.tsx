@@ -578,8 +578,26 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       <CardContent className="grid gap-4 md:grid-cols-2">
         <Field label="Nome progetto"><Input value={project.name} onChange={(e) => updateProject({ name: e.target.value })} /></Field>
         <Field label="Cliente"><Input value={project.customer} onChange={(e) => updateProject({ customer: e.target.value })} /></Field>
+        <Field label="Indirizzo cantiere"><Input value={project.address} onChange={(e) => updateProject({ address: e.target.value })} placeholder="Via, città, CAP" /></Field>
         <Field label="Data"><Input type="date" value={project.date} onChange={(e) => updateProject({ date: e.target.value })} /></Field>
-        <Field label="Descrizione"><Input value={project.description} onChange={(e) => updateProject({ description: e.target.value })} /></Field>
+        <div className="md:col-span-2"><Field label="Descrizione"><Input value={project.description} onChange={(e) => updateProject({ description: e.target.value })} /></Field></div>
+      </CardContent>
+    </Card>
+
+    <Card className="border-2 border-dept shadow-soft">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5" />Attrezzi da portare in cantiere</CardTitle>
+        <Button size="sm" onClick={() => updateProject({ tools: [...(project.tools ?? []), { id: uid(), name: "", qty: 1 }] })}><Plus className="h-4 w-4" />Attrezzo</Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {(project.tools ?? []).map((t) => (
+          <div key={t.id} className="grid gap-2 md:grid-cols-[1fr_120px_40px] md:items-end">
+            <Field label="Attrezzo"><Input value={t.name} onChange={(e) => updateProject({ tools: project.tools.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x) })} placeholder="Es. trapano, livella, ponteggio" /></Field>
+            <Field label="Quantità"><NumberInput value={t.qty ?? 1} onChange={(qty) => updateProject({ tools: project.tools.map((x) => x.id === t.id ? { ...x, qty } : x) })} prefix="Qtà" /></Field>
+            <IconButton onClick={() => updateProject({ tools: project.tools.filter((x) => x.id !== t.id) })} />
+          </div>
+        ))}
+        {(!project.tools || project.tools.length === 0) && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">Aggiungi qui gli attrezzi che la squadra deve portare in cantiere. La lista comparirà nella pianificazione e nelle notifiche agli operai.</p>}
       </CardContent>
     </Card>
 

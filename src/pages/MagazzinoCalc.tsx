@@ -1921,22 +1921,48 @@ function SaleProductSection({
     if (typeof m.costPrice === "number") return m.costPrice;
     return Number(m.pricePiece) || 0;
   };
-  const sellOf = (m: any): number => {
-    if (!m) return 0;
-    const base = Number(m.priceCut) || Number(m.pricePiece) || 0;
-    if (typeof m.costPrice === "number") return base; // tappezzeria: prezzo già di vendita
-    const markup = Number(catalog?.markupPct ?? 0);
-    return base * (1 + markup / 100);
+  // Altezza materiale convertita in metri (per conversione m² → ml).
+  const heightMeters = (m: any): number => {
+    const h = Number(m?.height);
+    if (!isFinite(h) || h <= 0) return 0;
+    const u = String(m?.heightUnit || "cm").toLowerCase();
+    if (u === "mm") return h / 1000;
+    if (u === "m") return h;
+    return h / 100;
   };
+  // Prezzo d'acquisto convertito nell'unità di vendita scelta.
+  const purchasePerSaleUnit = (m: any, su: SaleUnit): number => {
+    const p = purchaseOf(m);
+    const bu = unitOf(m);
+    if (!m || bu === su) return p;
+    if (bu === "m²" && su === "m") return p * heightMeters(m); // €/m² × altezza(m) = €/ml
+    if (bu === "m" && su === "m²") {
+      const h = heightMeters(m);
+      return h > 0 ? p / h : p;
+    }
+    return p;
+  };
+  // Prezzo di vendita = acquisto × moltiplicatore (rivenditore/finale × intero/taglio).
+  const sellPerSaleUnit = (m: any, su: SaleUnit): number =>
+    sellPrice(purchasePerSaleUnit(m, su), customerType, priceMode);
 
   const selected = variants.find((v: any) => v.id === variantId) ?? variants[0];
+  const baseUnit: SaleUnit = selected ? unitOf(selected) : defaultUnit;
+  const canSwitchToMl = baseUnit === "m²" && heightMeters(selected) > 0;
+  const effectiveSaleUnit: SaleUnit = saleUnitOverride && (saleUnitOverride === "m" || saleUnitOverride === "m²")
+    ? saleUnitOverride
+    : baseUnit;
+  // Reset override se il nuovo materiale non lo supporta più.
+  useEffect(() => {
+    if (saleUnitOverride && !canSwitchToMl) setSaleUnitOverride("");
+  }, [canSwitchToMl, saleUnitOverride]);
 
   const lineTotal = (line: CartLine) => {
     const m = materials.find((x: any) => x.id === line.materialId);
-    // Se il catalogo non ha il materiale (es. carrello caricato prima del
-    // fetch del catalogo), uso i prezzi salvati nella riga.
-    const sell = m ? sellOf(m) * line.qty : (Number(line.priceSell) || 0) * line.qty;
-    const purchase = m ? purchaseOf(m) * line.qty : (Number(line.pricePurchase) || 0) * line.qty;
+    // Usiamo sempre lo snapshot della riga: il prezzo dipende anche da
+    // cliente/modalità/unità di vendita scelti al momento dell'aggiunta.
+    const sell = (Number(line.priceSell) || 0) * line.qty;
+    const purchase = (Number(line.pricePurchase) || 0) * line.qty;
     return { material: m, sell, purchase };
   };
   const cartTotals = useMemo(() => {
@@ -1953,10 +1979,12 @@ function SaleProductSection({
       qty,
       name: selected.name,
       variant: labelOf(selected),
-      unit: unitOf(selected),
-      priceSell: sellOf(selected),
-      pricePurchase: purchaseOf(selected),
+      unit: effectiveSaleUnit,
+      priceSell: sellPerSaleUnit(selected, effectiveSaleUnit),
+      pricePurchase: purchasePerSaleUnit(selected, effectiveSaleUnit),
       category: categoryKey,
+      customerType,
+      priceMode,
     }]);
     setQty(0);
   };

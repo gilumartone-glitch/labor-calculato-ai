@@ -826,6 +826,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             <Button disabled className="gap-1"><Lock className="w-3 h-3" /> Bloccato</Button>
           )}
         </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

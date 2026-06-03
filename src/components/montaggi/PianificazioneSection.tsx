@@ -91,12 +91,14 @@ type Props = {
   cantiereLabel: string; // nome del progetto Montaggi corrente
   /** "project" = solo vista cantiere corrente (default), "global" = panoramica globale */
   mode?: "project" | "global";
+  /** Lavoratori del tab "Lavoratori": usati come seed di default se l'anagrafica è vuota */
+  defaultWorkers?: Array<{ name: string; role?: string }>;
 };
 
 /** ============================================================
  *  COMPONENTE PRINCIPALE
  *  ============================================================ */
-export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project" }: Props) => {
+export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project", defaultWorkers }: Props) => {
   const { user } = useAuth();
   const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date()));
@@ -113,30 +115,38 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
   useEffect(() => {
     if (!ops.ready || seededRef.__montaggiOpsSeeded) return;
     if (operators.length > 0) { seededRef.__montaggiOpsSeeded = true; return; }
-    const collected = collectWorkersFromArchives();
-    if (collected.length > 0) {
+    let seed: Operator[] = [];
+    if (defaultWorkers && defaultWorkers.length > 0) {
+      const seen = new Set<string>();
+      for (const w of defaultWorkers) {
+        const name = (w.name ?? "").trim();
+        if (!name) continue;
+        const k = name.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        seed.push({ id: uid(), name, role: w.role ?? "" });
+      }
+    }
+    if (seed.length === 0) seed = collectWorkersFromArchives();
+    if (seed.length > 0) {
       seededRef.__montaggiOpsSeeded = true;
-      setOperators(collected);
+      setOperators(seed);
     }
     // eslint-disable-next-line
   }, [ops.ready]);
 
-  /** Merge manuale da Archivio squadre (bottone) */
-  const importFromArchives = () => {
-    const collected = collectWorkersFromArchives();
-    if (collected.length === 0) {
-      toast.info("Nessun nominativo trovato nell'archivio squadre dei progetti Montaggi.");
+  /** Aggiungi un operaio al volo (prompt nome) */
+  const promptAddOperator = () => {
+    const name = window.prompt("Nome operaio")?.trim();
+    if (!name) return;
+    if (operators.some((o) => o.name.trim().toLowerCase() === name.toLowerCase())) {
+      toast.info("Operaio già presente.");
       return;
     }
-    const byName = new Map(operators.map((o) => [o.name.trim().toLowerCase(), o]));
-    let added = 0;
-    for (const w of collected) {
-      const key = w.name.trim().toLowerCase();
-      if (!byName.has(key)) { byName.set(key, w); added++; }
-    }
-    setOperators(Array.from(byName.values()));
-    toast.success(added > 0 ? `${added} operai importati dall'archivio.` : "Nessun nuovo nominativo da importare.");
+    setOperators([...operators, { id: uid(), name, role: "" }]);
   };
+
+
 
 
   /** Carica assegnazioni (range largo: 4 settimane intorno per la panoramica) */
@@ -385,26 +395,14 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
         </CardContent>
       </Card>
 
-      {/* Anagrafica operai */}
-      <Card className="border-2 border-dept shadow-soft">
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5" />Anagrafica operai (condivisa)</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={importFromArchives}><Users className="h-4 w-4" />Importa da Archivio squadre</Button>
-            <Button size="sm" onClick={addOperator}><Plus className="h-4 w-4" />Aggiungi operaio</Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {operators.map((op) => (
-            <div key={op.id} className="flex gap-2 items-center">
-              <Input value={op.name} onChange={(e) => updateOperator(op.id, { name: e.target.value })} placeholder="Nome operaio" className="flex-1" />
-              <Input value={op.role ?? ""} onChange={(e) => updateOperator(op.id, { role: e.target.value })} placeholder="Ruolo" className="flex-1" />
-              <Button size="icon" variant="ghost" onClick={() => removeOperator(op.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-            </div>
-          ))}
-          {operators.length === 0 && <p className="text-sm text-muted-foreground">Nessun operaio in anagrafica. Aggiungine uno per iniziare.</p>}
-        </CardContent>
-      </Card>
+      {/* Aggiungi operaio */}
+      <div className="flex justify-center">
+        <Button size="sm" variant="outline" onClick={promptAddOperator}>
+          <Plus className="h-4 w-4" />Aggiungi operaio
+        </Button>
+      </div>
+
+
 
       {/* Dialog edit */}
       {editing && (

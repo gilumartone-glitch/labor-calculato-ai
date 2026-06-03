@@ -175,6 +175,8 @@ const Flow = () => {
       .channel("commesse-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "commesse" }, () => loadAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "commessa_assegnatari" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, () => loadAll())
       .subscribe();
     return () => {
       supabase.removeChannel(channel);

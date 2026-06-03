@@ -266,6 +266,15 @@ export type PieceLine = {
    *  Quando valorizzato, pieceTotal ignora materiale/lavorazioni/sfridi e
    *  restituisce areaM2 × qty × priceOverridePerSqm. */
   priceOverridePerSqm?: number | null;
+  /** Margini manuali in cm da aggiungere alle dimensioni del pezzo per il
+   *  calcolo del materiale. Quando `manualMargins` è true, queste sostituiscono
+   *  completamente l'allowance automatica derivata dalle lavorazioni perimetrali. */
+  marginExtraWCm?: number;
+  marginExtraHCm?: number;
+  /** Se true, usa i margini manuali (marginExtraWCm / marginExtraHCm) invece di
+   *  calcolare l'abbondanza in base alle lavorazioni. Impostato automaticamente
+   *  nei pezzi del reparto Tappezzeria. */
+  manualMargins?: boolean;
   note?: string;
 };
 

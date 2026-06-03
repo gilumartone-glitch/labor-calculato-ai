@@ -1779,6 +1779,8 @@ type CartLine = {
   priceSell?: number;
   pricePurchase?: number;
   category?: SaleCategory;
+  customerType?: CustomerType;
+  priceMode?: PriceMode;
 };
 
 const DRAFT_STATE_KEY = "officina:state";

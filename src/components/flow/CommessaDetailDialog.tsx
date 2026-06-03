@@ -241,27 +241,42 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
         });
       }
 
+      // Sub-ordine principale di LAVORAZIONE (reparto scelto dall'utente)
+      const baseOrdine = d.missing?.length ?? 0;
+      const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
       const { error: e2 } = await supabase.from("production_sub_orders").insert({
         order_id: order.id,
-        code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-        dept: "magazzino",
-        ordine: (d.missing?.length ?? 0),
-        note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
+        code: subCode(code, workSuffix, 1),
+        dept: d.work_dept,
+        ordine: baseOrdine,
+        note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa materiali (${d.missing.length})` : ""),
         files: [],
         depends_on: firstAcquistiId,
         assignee_id: d.assignee_id || null,
       });
       if (e2) throw e2;
 
-      // 4) Notifica al responsabile magazzino scelto
+      // Sub-ordine opzionale di chiusura Amministrazione (bolla/spedizione)
+      if (d.create_admin_closure) {
+        await supabase.from("production_sub_orders").insert({
+          order_id: order.id,
+          code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 2),
+          dept: "magazzino",
+          ordine: baseOrdine + 1,
+          note: `Chiusura/bolla — ordine cliente ${d.customer_order_ref}`,
+          files: [],
+        });
+      }
+
+      // 4) Notifica al responsabile della lavorazione
       await notify({
         userIds: [d.assignee_id],
         type: "magazzino_da_preparare",
         message: d.missing?.length
-          ? `In attesa acquisti — ${code} · ${clienteName} (${d.missing.length} materiali da ricevere)`
-          : `Da preparare: ${code} · ${clienteName} (Ordine ${d.customer_order_ref})`,
+          ? `In attesa materiali — ${code} · ${clienteName} (${d.missing.length} da ricevere)`
+          : `Da lavorare: ${code} · ${clienteName} (Ordine ${d.customer_order_ref})`,
         order_id: order.id,
-        link: "/produzione/preparazione",
+        link: "/produzione/board",
         is_urgent: commessa.priorita === "alta",
       });
 

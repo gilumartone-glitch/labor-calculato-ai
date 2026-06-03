@@ -16,7 +16,7 @@ import { Commessa, CommessaStato, REPARTI, PRIORITA_LABEL } from "./types";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";
-import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
+import { SUB_DEPT_SUFFIX, toWorkDept } from "@/lib/produzione/types";
 import { TechnicalDrawing, DrawingSide } from "@/components/calculator/TechnicalDrawing";
 import type { Catalog, DepartmentState, PieceLine, PerimeterSide } from "@/components/calculator/types";
 import { autoMatchMaterial } from "@/lib/material-match";

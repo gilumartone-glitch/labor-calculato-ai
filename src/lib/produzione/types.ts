@@ -250,14 +250,16 @@ export const SUB_STATUS_LABEL: Record<ProdSubStatus, string> = {
 
 export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
   grafica: "G",
-  stampa: "S",
-  taglio: "T",
+  stampa: "L",
+  taglio: "L",
   tappezzeria: "P",
-  stampa_3d: "3",
-  falegnameria: "F",
-  assemblaggio: "A",
+  stampa_3d: "L",
+  falegnameria: "L",
+  assemblaggio: "L",
+  laboratorio: "L",
   magazzino: "M",
   acquisti: "Q",
+  vendite: "V",
   altro: "X",
 };
 

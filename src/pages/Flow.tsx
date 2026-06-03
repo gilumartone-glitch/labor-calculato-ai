@@ -82,6 +82,9 @@ const Flow = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filterReparto, setFilterReparto] = useState<string>("all");
   const [mobileStato, setMobileStato] = useState<CommessaStato>("da_fare");
+  // "mine" = solo i miei compiti (default per tutti, anche coordinatori).
+  // "all"  = panoramica completa (selezionabile solo da coordinatori/admin).
+  const [scope, setScope] = useState<"mine" | "all">("mine");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 

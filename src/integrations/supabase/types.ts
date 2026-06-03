@@ -1258,6 +1258,7 @@ export type Database = {
         | "acquisti"
         | "laboratorio"
         | "vendite"
+        | "progettazione"
       checklist_item_status: "todo" | "done" | "skipped"
       commessa_priorita: "bassa" | "media" | "alta"
       commessa_reparto:
@@ -1268,6 +1269,9 @@ export type Database = {
         | "amministrazione"
         | "logistica"
         | "acquisti"
+        | "progettazione"
+        | "vendite"
+        | "lavorazione"
       commessa_stato:
         | "da_fare"
         | "preventivo"
@@ -1292,6 +1296,8 @@ export type Database = {
         | "acquisti"
         | "laboratorio"
         | "vendite"
+        | "progettazione"
+        | "lavorazione"
       prod_notif_type:
         | "ordine_creato"
         | "subordine_assegnato"
@@ -1469,6 +1475,7 @@ export const Constants = {
         "acquisti",
         "laboratorio",
         "vendite",
+        "progettazione",
       ],
       checklist_item_status: ["todo", "done", "skipped"],
       commessa_priorita: ["bassa", "media", "alta"],
@@ -1480,6 +1487,9 @@ export const Constants = {
         "amministrazione",
         "logistica",
         "acquisti",
+        "progettazione",
+        "vendite",
+        "lavorazione",
       ],
       commessa_stato: [
         "da_fare",
@@ -1506,6 +1516,8 @@ export const Constants = {
         "acquisti",
         "laboratorio",
         "vendite",
+        "progettazione",
+        "lavorazione",
       ],
       prod_notif_type: [
         "ordine_creato",

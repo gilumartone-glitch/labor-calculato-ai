@@ -17,7 +17,7 @@ import {
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";
 
 const DEPTS: ProdDept[] = [
-  "grafica", "stampa", "taglio", "tappezzeria", "stampa_3d", "falegnameria", "assemblaggio", "altro",
+  "progettazione", "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "assemblaggio", "altro",
 ];
 
 type UploadedFile = { name: string; type: string; path: string; size: number };

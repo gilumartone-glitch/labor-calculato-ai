@@ -82,6 +82,9 @@ const Flow = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filterReparto, setFilterReparto] = useState<string>("all");
   const [mobileStato, setMobileStato] = useState<CommessaStato>("da_fare");
+  // "mine" = solo i miei compiti (default per tutti, anche coordinatori).
+  // "all"  = panoramica completa (selezionabile solo da coordinatori/admin).
+  const [scope, setScope] = useState<"mine" | "all">("mine");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -146,12 +149,13 @@ const Flow = () => {
     () =>
       commesse.filter((c) => {
         if (filterReparto !== "all" && c.reparto !== filterReparto) return false;
-        if (isCoordinator) return true;
+        // Coordinatori/admin: vedono tutto solo se scope === "all".
+        if (isCoordinator && scope === "all") return true;
         if (!user) return false;
         if (c.created_by === user.id) return true;
         return (c.assegnatari ?? []).some((a) => a.id === user.id);
       }),
-    [commesse, filterReparto, isCoordinator, user],
+    [commesse, filterReparto, isCoordinator, scope, user],
   );
 
   const byStato = useMemo(() => {
@@ -312,6 +316,37 @@ const Flow = () => {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            {/* Toggle ambito: i miei compiti vs tutti (solo coordinatori/admin) */}
+            {isCoordinator ? (
+              <div className="inline-flex items-stretch border-2 border-ink/30 rounded-sm overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setScope("mine")}
+                  className={`px-2.5 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors ${
+                    scope === "mine" ? "bg-ink text-paper" : "bg-paper text-ink/60 hover:text-ink"
+                  }`}
+                  title="Mostra solo le commesse che ho creato o che mi sono assegnate"
+                >
+                  I miei
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScope("all")}
+                  className={`px-2.5 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors border-l border-ink/20 ${
+                    scope === "all" ? "bg-ink text-paper" : "bg-paper text-ink/60 hover:text-ink"
+                  }`}
+                  title="Mostra tutte le commesse di tutti gli utenti (coordinatori)"
+                >
+                  Tutti
+                </button>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border-2 border-ink/15 rounded-sm text-[11px] uppercase tracking-wider font-bold text-ink/60 bg-paper" title="Vedi solo i compiti a te assegnati">
+                I miei compiti
+              </div>
+            )}
+
+
             {/* Filtro reparto */}
             <div className="inline-flex items-center gap-1.5 border-2 border-ink/30 rounded-sm overflow-hidden">
               <span className="px-2 text-ink/50">

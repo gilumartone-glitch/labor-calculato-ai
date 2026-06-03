@@ -124,12 +124,6 @@ const Flow = () => {
         if (prof) list.push(prof);
         byCommessa.set(a.commessa_id, list);
       }
-      const enriched = (cs ?? []).map((c) => ({
-        ...(c as Commessa),
-        importo: c.importo === null ? null : Number(c.importo),
-        assegnatari: byCommessa.get(c.id) ?? [],
-      }));
-
       // Mappa commessa_id -> info sub-ordini di produzione
       const orderToCommessa = new Map<string, string>();
       for (const po of pos ?? []) {
@@ -153,6 +147,20 @@ const Flow = () => {
         });
         prodMap.set(commessaId, list);
       }
+
+      const enriched = (cs ?? []).map((c) => {
+        const flowAssignees = byCommessa.get(c.id) ?? [];
+        const productionAssignees = (prodMap.get(c.id) ?? [])
+          .map((s) => (s.assigneeId ? profilesById.get(s.assigneeId) ?? null : null))
+          .filter((p): p is Profile => !!p);
+        const uniqueAssignees = new Map<string, Profile>();
+        for (const p of [...flowAssignees, ...productionAssignees]) uniqueAssignees.set(p.id, p);
+        return {
+          ...(c as Commessa),
+          importo: c.importo === null ? null : Number(c.importo),
+          assegnatari: Array.from(uniqueAssignees.values()),
+        };
+      });
 
       setCommesse(enriched);
       setProfiles((ps ?? []) as Profile[]);

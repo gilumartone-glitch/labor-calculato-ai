@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, PackageCheck, ShoppingCart, Pencil } from "lucide-react";
+import { Loader2, PackageCheck, ShoppingCart, Pencil, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { ProdDept, WORK_DEPTS, DEPT_LABEL, DEPT_COLOR } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;
@@ -38,6 +39,10 @@ export type WarehouseConfirmData = {
   missing: MissingMaterial[];
   acquisti_assignee_id?: string | null;
   acquisti_assignee_name?: string | null;
+  /** Reparto di LAVORAZIONE scelto (laboratorio / tappezzeria / grafica). */
+  work_dept: ProdDept;
+  /** Se true, viene creato anche un sub-ordine "Amministrazione" per la chiusura/bolla. */
+  create_admin_closure: boolean;
 };
 
 type MagazzinoUser = { id: string; display_name: string | null };

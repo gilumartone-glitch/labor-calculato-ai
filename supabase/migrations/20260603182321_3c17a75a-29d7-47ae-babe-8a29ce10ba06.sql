@@ -1,0 +1,1 @@
+ALTER TABLE public.montaggi_planning ALTER COLUMN operator_id TYPE text USING operator_id::text;

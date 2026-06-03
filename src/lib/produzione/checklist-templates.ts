@@ -2,12 +2,13 @@ import { ProdDept } from "./types";
 
 /** Template di checklist per reparto. Vengono creati al primo apertura del sub se è vuota. */
 export const CHECKLIST_TEMPLATES: Record<ProdDept, string[]> = {
-  grafica: [
+  progettazione: [
     "Verifica brief e misure ricevute",
     "Conferma file sorgente del cliente",
+    "Disegno tecnico / esecutivo",
     "Imposta colori (CMYK / RAL / Pantone)",
     "Esporta esecutivo e nesting",
-    "Salva file pronto stampa nella commessa",
+    "Salva file pronto produzione nella commessa",
   ],
   stampa: [
     "Controlla nesting e disposizione",

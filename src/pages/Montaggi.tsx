@@ -74,10 +74,13 @@ type DrawingElement = {
 };
 type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "pianificazione";
 
+type ToolLine = { id: string; name: string; qty?: number };
+
 type WoodProject = {
   name: string;
   description: string;
   customer: string;
+  address: string;
   date: string;
   workers: WorkerProfile[];
   labor: LaborLine[];
@@ -86,6 +89,7 @@ type WoodProject = {
   materials: MaterialLine[];
   marginPct: number;
   elements: DrawingElement[];
+  tools: ToolLine[];
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };
@@ -108,6 +112,7 @@ const initialProject = (): WoodProject => ({
   name: "Nuovo montaggio",
   description: "",
   customer: "",
+  address: "",
   date: new Date().toISOString().slice(0, 10),
   workers: defaultWorkers,
   labor: [{ id: uid(), workerId: defaultWorkers[0].id, hours: 1 }],
@@ -116,6 +121,7 @@ const initialProject = (): WoodProject => ({
   materials: [],
   marginPct: 30,
   elements: [],
+  tools: [],
 });
 
 const categoryLabel: Record<MaterialCategory, string> = {
@@ -166,6 +172,8 @@ const hydrateProject = (rawProject: StoredWoodProject): WoodProject => {
   return {
     ...base,
     ...rawProject,
+    address: rawProject.address ?? "",
+    tools: Array.isArray(rawProject.tools) ? rawProject.tools : [],
     workers: rawProject.workers?.length ? rawProject.workers : base.workers,
     labor: rawProject.labor?.length ? rawProject.labor : base.labor,
     transports: Array.isArray(rawProject.transports) ? rawProject.transports : [],
@@ -448,7 +456,17 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
-          {section === "pianificazione" && <PianificazioneSection draftId={draftId} cantiereLabel={project.name || "Cantiere senza nome"} defaultWorkers={project.workers.map((w) => ({ name: w.name }))} />}
+          {section === "pianificazione" && <PianificazioneSection
+            draftId={draftId}
+            cantiereLabel={project.name || "Cantiere senza nome"}
+            defaultWorkers={project.workers.map((w) => ({ name: w.name }))}
+            projectAddress={project.address}
+            projectMaterials={project.materials.map((line) => {
+              const item = project.materialCatalog.find((m) => m.id === line.materialId);
+              return { name: item ? `${item.name}${item.detail ? ` · ${item.detail}` : ""}` : "Materiale", qty: line.quantity, unit: item?.unit };
+            })}
+            projectTools={(project.tools ?? []).filter((t) => t.name.trim()).map((t) => ({ name: t.name, qty: t.qty }))}
+          />}
           {section === "disegno" && (
             <Card className="border-2 border-dept shadow-soft print:hidden">
               <CardHeader className="flex-row items-center justify-between gap-4">
@@ -570,8 +588,26 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       <CardContent className="grid gap-4 md:grid-cols-2">
         <Field label="Nome progetto"><Input value={project.name} onChange={(e) => updateProject({ name: e.target.value })} /></Field>
         <Field label="Cliente"><Input value={project.customer} onChange={(e) => updateProject({ customer: e.target.value })} /></Field>
+        <Field label="Indirizzo cantiere"><Input value={project.address} onChange={(e) => updateProject({ address: e.target.value })} placeholder="Via, città, CAP" /></Field>
         <Field label="Data"><Input type="date" value={project.date} onChange={(e) => updateProject({ date: e.target.value })} /></Field>
-        <Field label="Descrizione"><Input value={project.description} onChange={(e) => updateProject({ description: e.target.value })} /></Field>
+        <div className="md:col-span-2"><Field label="Descrizione"><Input value={project.description} onChange={(e) => updateProject({ description: e.target.value })} /></Field></div>
+      </CardContent>
+    </Card>
+
+    <Card className="border-2 border-dept shadow-soft">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5" />Attrezzi da portare in cantiere</CardTitle>
+        <Button size="sm" onClick={() => updateProject({ tools: [...(project.tools ?? []), { id: uid(), name: "", qty: 1 }] })}><Plus className="h-4 w-4" />Attrezzo</Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {(project.tools ?? []).map((t) => (
+          <div key={t.id} className="grid gap-2 md:grid-cols-[1fr_120px_40px] md:items-end">
+            <Field label="Attrezzo"><Input value={t.name} onChange={(e) => updateProject({ tools: project.tools.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x) })} placeholder="Es. trapano, livella, ponteggio" /></Field>
+            <Field label="Quantità"><NumberInput value={t.qty ?? 1} onChange={(qty) => updateProject({ tools: project.tools.map((x) => x.id === t.id ? { ...x, qty } : x) })} prefix="Qtà" /></Field>
+            <IconButton onClick={() => updateProject({ tools: project.tools.filter((x) => x.id !== t.id) })} />
+          </div>
+        ))}
+        {(!project.tools || project.tools.length === 0) && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">Aggiungi qui gli attrezzi che la squadra deve portare in cantiere. La lista comparirà nella pianificazione e nelle notifiche agli operai.</p>}
       </CardContent>
     </Card>
 

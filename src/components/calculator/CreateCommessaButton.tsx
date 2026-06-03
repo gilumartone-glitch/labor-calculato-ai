@@ -372,29 +372,42 @@ export const CreateCommessaButton = ({
       const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
 
       if (isWarehouse) {
-        // Solo magazzino: un unico sub magazzino dipendente dagli acquisti
+        // Solo lavorazione: un unico sub del reparto scelto, dipendente dagli acquisti
         const baseOrdine = d.missing?.length ?? 0;
-        const { data: magSub, error: e2 } = await supabase.from("production_sub_orders").insert({
+        const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
+        const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
-          code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 1),
-          dept: "magazzino",
+          code: subCode(code, workSuffix, 1),
+          dept: d.work_dept,
           ordine: baseOrdine,
-          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa acquisti (${d.missing.length})` : ""),
+          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa materiali (${d.missing.length})` : ""),
           files: [],
           depends_on: firstAcquistiId,
           assignee_id: d.assignee_id || null,
         } as any).select("id").single();
         if (e2) throw e2;
-        if (d.assignee_id) insertedSubs.push({ id: magSub.id, dept: "magazzino", assignee: d.assignee_id });
+        if (d.assignee_id) insertedSubs.push({ id: workSub.id, dept: d.work_dept, assignee: d.assignee_id });
+
+        // Sub Amministrazione opzionale (chiusura/bolla)
+        if (d.create_admin_closure) {
+          await supabase.from("production_sub_orders").insert({
+            order_id: pord.id,
+            code: subCode(code, SUB_DEPT_SUFFIX["magazzino"], 2),
+            dept: "magazzino",
+            ordine: baseOrdine + 1,
+            note: `Chiusura/bolla — ordine cliente ${d.customer_order_ref}`,
+            files: [],
+          } as any);
+        }
 
         await notify({
           userIds: [d.assignee_id],
           type: "magazzino_da_preparare",
           message: d.missing?.length
-            ? `In attesa acquisti — ${code} · ${pendingPayload.clienteName} (${d.missing.length} materiali)`
-            : `Da preparare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
+            ? `In attesa materiali — ${code} · ${pendingPayload.clienteName} (${d.missing.length})`
+            : `Da lavorare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
           order_id: pord.id,
-          link: "/produzione/preparazione",
+          link: "/produzione/board",
           is_urgent: prodPrio !== "normale",
         });
       } else {

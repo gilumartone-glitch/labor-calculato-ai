@@ -132,9 +132,9 @@ const categoryDefaults: Record<MaterialCategory, Partial<WoodMaterial>> = {
 
 const sectionTabs: { key: WoodSection; label: string; icon: typeof FileText }[] = [
   { key: "progetto", label: "Progetto", icon: FileText },
-  { key: "pianificazione", label: "Pianificazione", icon: CalendarDays },
   { key: "materiali", label: "Materiali", icon: Package },
   { key: "lavoratori", label: "Lavoratori", icon: Users },
+  { key: "pianificazione", label: "Pianificazione", icon: CalendarDays },
   { key: "disegno", label: "Disegnatore", icon: Ruler },
 ];
 
@@ -446,9 +446,9 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
             <ProjectSection project={project} updateProject={updateProject} updateMaterialLine={updateMaterialLine} addMaterialLine={addMaterialLine} />
           )}
 
-          {section === "pianificazione" && <PianificazioneSection />}
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
+          {section === "pianificazione" && <PianificazioneSection draftId={draftId} cantiereLabel={project.name || "Cantiere senza nome"} />}
           {section === "disegno" && (
             <Card className="border-2 border-dept shadow-soft print:hidden">
               <CardHeader className="flex-row items-center justify-between gap-4">

@@ -105,6 +105,8 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
+    setWorkDept(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+    setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
     setAvailable(init);
@@ -112,8 +114,10 @@ export const ConfirmToWarehouseDialog = ({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      // Carichiamo TUTTI i profili approvati: il responsabile lavorazione può essere
+      // chiunque (l'amministratore poi potrà filtrare per settore se vuole).
       const [{ data: m }, { data: a }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name").eq("approved", true).order("display_name", { ascending: true }),
         supabase.from("profiles").select("id, display_name").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
       ]);
       if (cancelled) return;
@@ -142,7 +146,7 @@ export const ConfirmToWarehouseDialog = ({
 
   const handle = async () => {
     if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); setEditRef(true); return; }
-    if (!assignee) { toast.error("Seleziona il responsabile magazzino"); return; }
+    if (!assignee) { toast.error("Seleziona il responsabile della lavorazione"); return; }
     if (hasMissing && !acquistiAssignee) { toast.error("Seleziona il responsabile acquisti per i materiali mancanti"); return; }
     if (hasMissing) {
       const noSupplier = missing.find((m) => !m.supplier_name);
@@ -156,6 +160,8 @@ export const ConfirmToWarehouseDialog = ({
       missing,
       acquisti_assignee_id: hasMissing ? acquistiAssignee : null,
       acquisti_assignee_name: hasMissing ? acquistiAssigneeName : null,
+      work_dept: workDept,
+      create_admin_closure: createAdminClosure,
     });
   };
 

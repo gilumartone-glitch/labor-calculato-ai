@@ -70,6 +70,24 @@ const STAGES: { key: string; label: string; match: (o: ProdOrder, subs: ProdSubO
 
 const PROD_DEPT_KEYS = new Set<ProdDept>(Object.keys(DEPT_LABEL) as ProdDept[]);
 
+/** Palette riciclabile: ogni commessa attiva sul board ottiene un colore distinto.
+ *  Quando l'ordine viene spedito/chiuso ed esce dalla vista, il colore torna
+ *  disponibile per i nuovi ordini. */
+const ORDER_PALETTE: { bg: string; border: string; chip: string }[] = [
+  { bg: "bg-rose-50",     border: "border-l-rose-500",     chip: "bg-rose-500" },
+  { bg: "bg-amber-50",    border: "border-l-amber-500",    chip: "bg-amber-500" },
+  { bg: "bg-emerald-50",  border: "border-l-emerald-500",  chip: "bg-emerald-500" },
+  { bg: "bg-sky-50",      border: "border-l-sky-500",      chip: "bg-sky-500" },
+  { bg: "bg-violet-50",   border: "border-l-violet-500",   chip: "bg-violet-500" },
+  { bg: "bg-fuchsia-50",  border: "border-l-fuchsia-500",  chip: "bg-fuchsia-500" },
+  { bg: "bg-orange-50",   border: "border-l-orange-500",   chip: "bg-orange-500" },
+  { bg: "bg-teal-50",     border: "border-l-teal-500",     chip: "bg-teal-500" },
+  { bg: "bg-indigo-50",   border: "border-l-indigo-500",   chip: "bg-indigo-500" },
+  { bg: "bg-lime-50",     border: "border-l-lime-600",     chip: "bg-lime-600" },
+  { bg: "bg-cyan-50",     border: "border-l-cyan-500",     chip: "bg-cyan-500" },
+  { bg: "bg-pink-50",     border: "border-l-pink-500",     chip: "bg-pink-500" },
+];
+
 const ProdBoard = () => {
   const { user } = useAuth();
   const { isAdmin, roles } = usePermissions();

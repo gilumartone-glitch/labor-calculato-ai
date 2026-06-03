@@ -39,11 +39,14 @@ export const STATI: { k: CommessaStato; label: string; sub: string }[] = [
 ];
 
 export const REPARTI: { k: CommessaReparto; label: string }[] = [
-  { k: "tappezzeria", label: "Tappezzeria" },
-  { k: "stampa", label: "Laboratorio" },
-  { k: "falegnameria", label: "Falegnameria" },
+  { k: "progettazione", label: "Progettazione" },
+  { k: "lavorazione", label: "Lavorazione" },
+  { k: "tappezzeria", label: "→ Tappezzeria" },
+  { k: "stampa", label: "→ Stampa" },
+  { k: "falegnameria", label: "→ Falegnameria" },
   { k: "amministrazione", label: "Amministrazione" },
   { k: "acquisti", label: "Acquisti" },
+  { k: "vendite", label: "Vendite" },
   { k: "logistica", label: "Logistica" },
   { k: "generale", label: "Generale" },
 ];

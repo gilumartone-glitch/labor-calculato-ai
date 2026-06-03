@@ -456,7 +456,17 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
-          {section === "pianificazione" && <PianificazioneSection draftId={draftId} cantiereLabel={project.name || "Cantiere senza nome"} defaultWorkers={project.workers.map((w) => ({ name: w.name }))} />}
+          {section === "pianificazione" && <PianificazioneSection
+            draftId={draftId}
+            cantiereLabel={project.name || "Cantiere senza nome"}
+            defaultWorkers={project.workers.map((w) => ({ name: w.name }))}
+            projectAddress={project.address}
+            projectMaterials={project.materials.map((line) => {
+              const item = project.materialCatalog.find((m) => m.id === line.materialId);
+              return { name: item ? `${item.name}${item.detail ? ` · ${item.detail}` : ""}` : "Materiale", qty: line.quantity, unit: item?.unit };
+            })}
+            projectTools={(project.tools ?? []).filter((t) => t.name.trim()).map((t) => ({ name: t.name, qty: t.qty }))}
+          />}
           {section === "disegno" && (
             <Card className="border-2 border-dept shadow-soft print:hidden">
               <CardHeader className="flex-row items-center justify-between gap-4">

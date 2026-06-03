@@ -115,6 +115,12 @@ export const NotificationsBell = () => {
             </button>
           </div>
         )}
+        {!pushAvailableHere() && typeof window !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
+          <div className="px-3 py-2 border-b bg-amber-50 text-[10px] text-amber-900 leading-snug">
+            <div className="font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1"><Smartphone className="w-3 h-3" /> iPhone: installa l'app</div>
+            Per ricevere notifiche su iPhone tocca <span className="font-mono">Condividi</span> → <span className="font-mono">Aggiungi a Home</span>, poi apri l'app dall'icona e torna qui per attivare le push.
+          </div>
+        )}
         {pushStatus === "denied" && (
           <div className="px-3 py-2 border-b bg-destructive/10 text-[10px] text-destructive">
             Notifiche bloccate dal browser. Sbloccale dalle impostazioni del sito.

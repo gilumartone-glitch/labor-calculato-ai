@@ -212,14 +212,16 @@ export const SCRAP_STATUS_LABEL: Record<ScrapPieceStatus, string> = {
 
 export const DEPT_LABEL: Record<ProdDept, string> = {
   grafica: "Grafica",
-  stampa: "Stampa",
-  taglio: "Taglio",
+  stampa: "Laboratorio",
+  taglio: "Laboratorio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Stampa 3D",
-  falegnameria: "Falegnameria",
-  assemblaggio: "Assemblaggio",
-  magazzino: "Magazzino",
+  stampa_3d: "Laboratorio",
+  falegnameria: "Laboratorio",
+  assemblaggio: "Laboratorio",
+  laboratorio: "Laboratorio",
+  magazzino: "Amministrazione",
   acquisti: "Acquisti",
+  vendite: "Vendite",
   altro: "Altro",
 };
 

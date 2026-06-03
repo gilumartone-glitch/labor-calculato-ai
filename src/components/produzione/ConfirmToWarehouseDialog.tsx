@@ -50,10 +50,11 @@ type MagazzinoUser = { id: string; display_name: string | null };
 export const ConfirmToWarehouseDialog = ({
   open,
   onOpenChange,
-  title = "Conferma e invia al magazzino",
+  title = "Conferma e invia in lavorazione",
   defaultRef = "",
   defaultProductionName = "",
   materials = [],
+  suggestedWorkDept,
   onConfirm,
   saving,
 }: {
@@ -63,6 +64,8 @@ export const ConfirmToWarehouseDialog = ({
   defaultRef?: string;
   defaultProductionName?: string;
   materials?: WarehouseMaterialItem[];
+  /** Reparto di lavorazione suggerito (auto-rilevato dal preventivo). */
+  suggestedWorkDept?: ProdDept;
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {
@@ -75,6 +78,8 @@ export const ConfirmToWarehouseDialog = ({
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
+  const [workDept, setWorkDept] = useState<ProdDept>(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+  const [createAdminClosure, setCreateAdminClosure] = useState(false);
 
   // Sezioni richiuse di default quando già valorizzate
   const [editRef, setEditRef] = useState(false);

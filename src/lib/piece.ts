@@ -413,13 +413,15 @@ export const computePieceMaterial = (
     }
     return purchase * SCRAP_SELL_MULT;
   };
-  const clientCostForPlan = (plan: OrientationPlan, unit: number): number => {
+  const clientCostForPlan = (plan: OrientationPlan, unit: number, isRot = false): number => {
     const format = plan.material.format ?? "rotolo";
     const priceUnit = materialPriceUnit(plan.material);
     // In Tappezzeria (catalog marcato con __skipInitialScrap) NON addebitiamo
     // lo sfrido iniziale e vendiamo il rotolo a metri lineari reali usati.
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
-    if (format === "rotolo" && skipInitialScrap) {
+    if (format === "rotolo" && !!catalog.__skipInitialScrap) {
+      const planPieceWM = isRot ? pieceHM : pieceWM;
+      const planPieceHM = isRot ? pieceWM : pieceHM;
       // Nesting interno alla card: più copie dello stesso pezzo possono
       // affiancarsi sulla larghezza del rotolo. Calcoliamo i metri lineari
       // totali del rotolo necessari per TUTTE le copie e poi dividiamo per
@@ -429,17 +431,17 @@ export const computePieceMaterial = (
       // BUGFIX: se il pezzo è più largo del rullo servono più teli per coprirlo.
       // In quel caso usiamo i metri lineari totali calcolati dal piano (plan.totalMetersM)
       // invece di assumere che il pezzo entri nella larghezza del rullo.
-      if (plan.rollWidthM > 0 && pieceWM > plan.rollWidthM) {
+      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
         if (priceUnit === "ml") return plan.totalMetersM * unit;
         // priceUnit === "mq": area effettivamente consumata dai teli
         return plan.totalMetersM * plan.rollWidthM * unit;
       }
       const piecesPerShelf =
-        plan.rollWidthM > 0 && pieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / pieceWM))
+        plan.rollWidthM > 0 && planPieceWM > 0
+          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
           : 1;
       const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * pieceHM;
+      const nestedTotalMetersM = shelves * planPieceHM;
       return (nestedTotalMetersM * unit) / qty;
     }
     if (format === "rotolo" && priceUnit === "mq") {
@@ -474,11 +476,13 @@ export const computePieceMaterial = (
     const purchase = purchaseUnit(plan.material);
     const priceUnit = materialPriceUnit(plan.material);
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
-    if (format === "rotolo" && skipInitialScrap) {
+    if (format === "rotolo" && !!catalog.__skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
+      const planPieceWM = plan === rotatedRaw ? pieceHM : pieceWM;
+      const planPieceHM = plan === rotatedRaw ? pieceWM : pieceHM;
       // BUGFIX coerente con clientCostForPlan: pezzi più larghi del rullo
       // richiedono più teli — usa plan.totalMetersM invece di pieceHM.
-      if (plan.rollWidthM > 0 && pieceWM > plan.rollWidthM) {
+      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
         const cost =
           priceUnit === "ml"
             ? plan.totalMetersM * purchase
@@ -486,11 +490,11 @@ export const computePieceMaterial = (
         return { cost, scrap: 0, scrapSell: 0 };
       }
       const piecesPerShelf =
-        plan.rollWidthM > 0 && pieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / pieceWM))
+        plan.rollWidthM > 0 && planPieceWM > 0
+          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
           : 1;
       const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * pieceHM;
+      const nestedTotalMetersM = shelves * planPieceHM;
       return { cost: (nestedTotalMetersM * purchase) / qty, scrap: 0, scrapSell: 0 };
     }
     if (format !== "rotolo" || plan.rollWidthM <= 0) {

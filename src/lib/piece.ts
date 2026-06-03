@@ -394,7 +394,7 @@ export const computePieceMaterial = (
       const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
       return (op?.category ?? "") === "stampa";
     });
-  const noPrintNoScrap = !hasPrintWork;
+  const noPrintNoScrap = !hasPrintWork && !piece.chargeScrap;
   // Prezzo d'ACQUISTO unitario (per calcolo sfrido a costo). Per il nuovo schema
   // Tappezzeria (manual sell prices) il costo è in `costPrice`. Per lo schema legacy
   // "molt. automatici" il costo è già in pricePiece/priceCut (= prezzo d'acquisto).

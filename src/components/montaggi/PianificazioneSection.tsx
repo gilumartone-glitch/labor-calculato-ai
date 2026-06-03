@@ -395,26 +395,14 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
         </CardContent>
       </Card>
 
-      {/* Anagrafica operai */}
-      <Card className="border-2 border-dept shadow-soft">
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5" />Anagrafica operai (condivisa)</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={importFromArchives}><Users className="h-4 w-4" />Importa da Archivio squadre</Button>
-            <Button size="sm" onClick={addOperator}><Plus className="h-4 w-4" />Aggiungi operaio</Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {operators.map((op) => (
-            <div key={op.id} className="flex gap-2 items-center">
-              <Input value={op.name} onChange={(e) => updateOperator(op.id, { name: e.target.value })} placeholder="Nome operaio" className="flex-1" />
-              <Input value={op.role ?? ""} onChange={(e) => updateOperator(op.id, { role: e.target.value })} placeholder="Ruolo" className="flex-1" />
-              <Button size="icon" variant="ghost" onClick={() => removeOperator(op.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-            </div>
-          ))}
-          {operators.length === 0 && <p className="text-sm text-muted-foreground">Nessun operaio in anagrafica. Aggiungine uno per iniziare.</p>}
-        </CardContent>
-      </Card>
+      {/* Aggiungi operaio */}
+      <div className="flex justify-center">
+        <Button size="sm" variant="outline" onClick={promptAddOperator}>
+          <Plus className="h-4 w-4" />Aggiungi operaio
+        </Button>
+      </div>
+
+
 
       {/* Dialog edit */}
       {editing && (

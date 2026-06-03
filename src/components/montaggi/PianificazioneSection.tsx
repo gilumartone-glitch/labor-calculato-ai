@@ -519,8 +519,10 @@ export const PianificazioneSection = ({
                               })}
                               <button
                                 type="button"
-                                onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                onClick={() => quickAssign(op.id, dateStr)}
+                                onDoubleClick={() => setEditing({ operatorId: op.id, date: dateStr })}
                                 className="w-full px-1.5 py-1 rounded text-[10px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center gap-1"
+                                title="Click: aggiungi 8h sul cantiere corrente · Doppio click: opzioni avanzate"
                               >
                                 <Plus className="h-3 w-3" />
                               </button>
@@ -536,16 +538,10 @@ export const PianificazioneSection = ({
                       <td className={`px-2 py-2 border-b border-l border-border text-center font-mono text-sm ${overloaded ? "text-red-600 font-bold" : total < 20 ? "text-amber-600" : ""}`}>
                         {total}h
                       </td>
-                      {view === "progetto" && (
-                        <td className="px-2 py-2 border-b border-l border-border text-center">
-                          <Button size="sm" variant="outline" onClick={() => sendNotificationToOperator(op)} title="Invia notifica con piano + attrezzi + indirizzo">
-                            <Send className="h-3 w-3" />
-                          </Button>
-                        </td>
-                      )}
                     </tr>
                   );
                 })}
+
               </tbody>
             </table>
           )}

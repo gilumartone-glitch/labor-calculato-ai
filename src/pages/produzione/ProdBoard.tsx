@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2 } from "lucide-react";
+import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { LaunchOrderDialog } from "@/components/produzione/LaunchOrderDialog";
@@ -9,7 +9,7 @@ import { RejectSubDialog, RejectScope } from "@/components/produzione/RejectSubD
 import { useProdStore } from "@/lib/produzione/store";
 import { Button } from "@/components/ui/button";
 import {
-  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL,
+  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL, DEPT_COLOR,
   ProdSubStatus, ProdDept, ProdOrder, ProdSubOrder, NotifType,
 } from "@/lib/produzione/types";
 import { orderProgress, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";
@@ -73,7 +73,7 @@ const PROD_DEPT_KEYS = new Set<ProdDept>(Object.keys(DEPT_LABEL) as ProdDept[]);
 const ProdBoard = () => {
   const { user } = useAuth();
   const { isAdmin, roles } = usePermissions();
-  const { orders, subs, refreshOrders } = useProdStore();
+  const { orders, subs, profiles, refreshOrders } = useProdStore();
   const [launch, setLaunch] = useState(false);
   const [launchWarehouse, setLaunchWarehouse] = useState(false);
   const [filterDept, setFilterDept] = useState<ProdDept | "all">("all");
@@ -431,6 +431,8 @@ const ProdBoard = () => {
                             s.status === "in_lavorazione" ? "◐" :
                             s.status === "rimandato" ? "↩" :
                             s.status === "bloccato" ? "✕" : "○";
+                          const dc = DEPT_COLOR[s.dept];
+                          const assignee = s.assignee_id ? profiles.find((p) => p.id === s.assignee_id) : null;
                           return (
                             <div
                               key={s.id}
@@ -438,15 +440,26 @@ const ProdBoard = () => {
                               tabIndex={0}
                               onClick={() => setDetail(s)}
                               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(s); } }}
-                              className={`group cursor-pointer border rounded-sm p-1.5 transition-colors ${statusBg}`}
+                              className={`group cursor-pointer border rounded-sm transition-colors overflow-hidden ${statusBg}`}
                               title="Apri dettaglio lavorazione"
                             >
+                              {/* Header colorato del reparto */}
+                              <div className={`${dc.chip} px-1.5 py-0.5 flex items-center justify-between gap-1`}>
+                                <div className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider min-w-0">
+                                  <span className="text-[11px]" aria-hidden>{dc.emoji}</span>
+                                  <span className="truncate">{DEPT_LABEL[s.dept]}</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-[9px] font-mono opacity-90 shrink-0">
+                                  <User className="w-2.5 h-2.5" />
+                                  <span className="truncate max-w-[80px]">{assignee?.display_name ?? "Non assegnato"}</span>
+                                </div>
+                              </div>
+                              <div className="p-1.5">
                               <div className="flex items-center justify-between gap-1 text-[10px] font-mono">
                                 <div className="flex items-center gap-1 min-w-0 flex-1">
                                   {isSubLocked(s) && <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />}
                                   <Eye className="w-2.5 h-2.5 opacity-50 shrink-0 group-hover:opacity-100" />
                                   <span className="font-bold truncate">{s.code}</span>
-                                  <span className="text-ink/70 truncate">· {DEPT_LABEL[s.dept]}</span>
                                   {pieceCount > 0 && (
                                     <span className="text-ink/60 shrink-0">({pieceCount}p)</span>
                                   )}
@@ -464,6 +477,7 @@ const ProdBoard = () => {
                                   {s.status === "bloccato" && <option value="bloccato">✕ Bloccato</option>}
                                 </select>
                               </div>
+
                               {s.note && (
                                 <div className="text-[9px] text-ink/60 italic mt-0.5 truncate">{s.note}</div>
                               )}
@@ -502,7 +516,9 @@ const ProdBoard = () => {
                                   </div>
                                 );
                               })()}
+                              </div>
                             </div>
+
                           );
                         })}
                       </div>

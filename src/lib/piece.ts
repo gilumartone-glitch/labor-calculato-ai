@@ -84,6 +84,15 @@ export const pieceHemAllowanceM = (
   piece: PieceLine,
   catalog: Catalog,
 ): { addW: number; addH: number } => {
+  // Modalità manuale (es. Tappezzeria): l'utente inserisce i cm di abbondanza
+  // su larghezza (B) e altezza (H). Nessun calcolo automatico in base alle
+  // lavorazioni perimetrali. La rotazione del materiale è gestita a valle
+  // (il pezzo viene scambiato b↔h, e di conseguenza anche addW/addH).
+  if (piece.manualMargins) {
+    const addW = Math.max(0, Number(piece.marginExtraWCm) || 0) / 100;
+    const addH = Math.max(0, Number(piece.marginExtraHCm) || 0) / 100;
+    return { addW, addH };
+  }
   const ops = catalog?.perimeterOps ?? [];
   if (ops.length === 0) return { addW: 0, addH: 0 };
   const opById = new Map<string, { name: string }>();

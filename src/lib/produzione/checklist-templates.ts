@@ -52,6 +52,14 @@ export const CHECKLIST_TEMPLATES: Record<ProdDept, string[]> = {
     "Controllo funzionale",
     "Imballo per consegna",
   ],
+  laboratorio: [
+    "Lettura ordine e istruzioni",
+    "Verifica materiale disponibile",
+    "Preparazione macchinari/utensili",
+    "Esecuzione lavorazione",
+    "Controllo qualità",
+    "Imballo / pronto per consegna",
+  ],
   magazzino: [
     "Verifica disponibilità materiale",
     "Prelievo articoli da magazzino",
@@ -65,6 +73,12 @@ export const CHECKLIST_TEMPLATES: Record<ProdDept, string[]> = {
     "Attesa consegna materiale",
     "Ricezione e controllo merce",
     "Carico a magazzino",
+  ],
+  vendite: [
+    "Conferma ordine cliente",
+    "Verifica condizioni commerciali",
+    "Coordinamento con produzione",
+    "Comunicazione con il cliente",
   ],
   altro: [
     "Verifica istruzioni",

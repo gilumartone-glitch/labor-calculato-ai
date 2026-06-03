@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, PackageCheck, ShoppingCart, Pencil } from "lucide-react";
+import { Loader2, PackageCheck, ShoppingCart, Pencil, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { ProdDept, WORK_DEPTS, DEPT_LABEL, DEPT_COLOR } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;
@@ -38,6 +39,10 @@ export type WarehouseConfirmData = {
   missing: MissingMaterial[];
   acquisti_assignee_id?: string | null;
   acquisti_assignee_name?: string | null;
+  /** Reparto di LAVORAZIONE scelto (laboratorio / tappezzeria / grafica). */
+  work_dept: ProdDept;
+  /** Se true, viene creato anche un sub-ordine "Amministrazione" per la chiusura/bolla. */
+  create_admin_closure: boolean;
 };
 
 type MagazzinoUser = { id: string; display_name: string | null };
@@ -45,10 +50,11 @@ type MagazzinoUser = { id: string; display_name: string | null };
 export const ConfirmToWarehouseDialog = ({
   open,
   onOpenChange,
-  title = "Conferma e invia al magazzino",
+  title = "Conferma e invia in lavorazione",
   defaultRef = "",
   defaultProductionName = "",
   materials = [],
+  suggestedWorkDept,
   onConfirm,
   saving,
 }: {
@@ -58,6 +64,8 @@ export const ConfirmToWarehouseDialog = ({
   defaultRef?: string;
   defaultProductionName?: string;
   materials?: WarehouseMaterialItem[];
+  /** Reparto di lavorazione suggerito (auto-rilevato dal preventivo). */
+  suggestedWorkDept?: ProdDept;
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {
@@ -70,6 +78,8 @@ export const ConfirmToWarehouseDialog = ({
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
+  const [workDept, setWorkDept] = useState<ProdDept>(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+  const [createAdminClosure, setCreateAdminClosure] = useState(false);
 
   // Sezioni richiuse di default quando già valorizzate
   const [editRef, setEditRef] = useState(false);
@@ -95,6 +105,8 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
+    setWorkDept(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+    setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
     setAvailable(init);
@@ -102,8 +114,10 @@ export const ConfirmToWarehouseDialog = ({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      // Carichiamo TUTTI i profili approvati: il responsabile lavorazione può essere
+      // chiunque (l'amministratore poi potrà filtrare per settore se vuole).
       const [{ data: m }, { data: a }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").contains("settori", ["magazzino"]).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name").eq("approved", true).order("display_name", { ascending: true }),
         supabase.from("profiles").select("id, display_name").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
       ]);
       if (cancelled) return;
@@ -132,7 +146,7 @@ export const ConfirmToWarehouseDialog = ({
 
   const handle = async () => {
     if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); setEditRef(true); return; }
-    if (!assignee) { toast.error("Seleziona il responsabile magazzino"); return; }
+    if (!assignee) { toast.error("Seleziona il responsabile della lavorazione"); return; }
     if (hasMissing && !acquistiAssignee) { toast.error("Seleziona il responsabile acquisti per i materiali mancanti"); return; }
     if (hasMissing) {
       const noSupplier = missing.find((m) => !m.supplier_name);
@@ -146,6 +160,8 @@ export const ConfirmToWarehouseDialog = ({
       missing,
       acquisti_assignee_id: hasMissing ? acquistiAssignee : null,
       acquisti_assignee_name: hasMissing ? acquistiAssigneeName : null,
+      work_dept: workDept,
+      create_admin_closure: createAdminClosure,
     });
   };
 
@@ -221,11 +237,40 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           )}
 
-          {/* Responsabile magazzino: collapsed se già impostato */}
+          {/* Reparto di LAVORAZIONE — BEN VISIBILE: dice immediatamente dove andrà il lavoro */}
+          <div className={`border-2 ${DEPT_COLOR[workDept].border} rounded-sm p-3 ${DEPT_COLOR[workDept].soft}`}>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold mb-2">
+              <Wrench className="w-3.5 h-3.5" /> Reparto di lavorazione
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {WORK_DEPTS.map((d) => {
+                const dc = DEPT_COLOR[d];
+                const active = workDept === d;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setWorkDept(d)}
+                    className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-sm border-2 transition-all ${active ? `${dc.chip} ${dc.border} font-bold scale-[1.02]` : "bg-paper border-ink/15 hover:border-ink/30 text-ink/70"}`}
+                  >
+                    <span className="text-lg leading-none">{dc.emoji}</span>
+                    <span className="text-[11px] uppercase tracking-wider">{DEPT_LABEL[d]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {suggestedWorkDept && suggestedWorkDept !== workDept && (
+              <div className="mt-2 text-[10px] font-mono text-muted-foreground">
+                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(suggestedWorkDept)} className="underline font-bold">{DEPT_LABEL[suggestedWorkDept]}</button>
+              </div>
+            )}
+          </div>
+
+          {/* Responsabile lavorazione */}
           {!editAssignee && assignee && !loading ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
-                <span className="text-muted-foreground uppercase tracking-wider">Responsabile mag.</span>{" "}
+                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {DEPT_LABEL[workDept].toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
               <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
@@ -234,12 +279,12 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           ) : (
             <div>
-              <Label>Responsabile magazzino *</Label>
+              <Label>Responsabile {DEPT_LABEL[workDept].toLowerCase()} *</Label>
               {loading ? (
                 <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
               ) : users.length === 0 ? (
                 <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
-                  Nessun utente con settore "magazzino". Vai in <a href="/admin/utenti" className="underline font-bold">Gestione utenti</a> → riga utente → colonna Settori → clicca "Magazzino".
+                  Nessun utente approvato disponibile.
                 </div>
               ) : (
                 <select
@@ -291,10 +336,26 @@ export const ConfirmToWarehouseDialog = ({
                 </>
               )}
               <div className="text-[10px] font-mono text-amber-900">
-                La preparazione magazzino sarà sbloccata quando tutti i materiali risulteranno arrivati.
+                La lavorazione sarà sbloccata quando tutti i materiali risulteranno arrivati.
               </div>
             </div>
           )}
+
+          {/* Sub Amministrazione opzionale (chiusura/bolla) */}
+          <label className="flex items-start gap-2 cursor-pointer border border-dashed border-ink/20 rounded-sm px-3 py-2 hover:bg-muted/30 transition-colors">
+            <input
+              type="checkbox"
+              checked={createAdminClosure}
+              onChange={(e) => setCreateAdminClosure(e.target.checked)}
+              className="mt-0.5"
+            />
+            <div className="flex-1">
+              <div className="text-[12px] font-semibold text-ink">Crea anche sub Amministrazione</div>
+              <div className="text-[10px] font-mono text-muted-foreground">
+                Per chiusura/bolla/spedizione a fine lavorazione. Disattivalo se non serve.
+              </div>
+            </div>
+          </label>
 
           <div className="text-[10px] font-mono text-muted-foreground border-t border-dashed border-ink/20 pt-2">
             I responsabili riceveranno una notifica con il dettaglio dell'ordine.

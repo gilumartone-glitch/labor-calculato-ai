@@ -6,32 +6,42 @@ export type ProdDept =
   | "stampa_3d"
   | "falegnameria"
   | "assemblaggio"
+  | "laboratorio"
   | "magazzino"
   | "acquisti"
+  | "vendite"
   | "altro";
 
 export type AppSettore =
   | "grafica" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
-  | "amministrazione" | "logistica" | "magazzino" | "acquisti" | "altro";
+  | "laboratorio" | "amministrazione" | "logistica" | "magazzino" | "acquisti"
+  | "vendite" | "altro";
 
 export const SETTORE_LABEL: Record<AppSettore, string> = {
   grafica: "Grafica",
-  stampa: "Stampa",
-  taglio: "Taglio",
+  stampa: "Laboratorio",
+  taglio: "Laboratorio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Stampa 3D",
-  falegnameria: "Falegnameria",
+  stampa_3d: "Laboratorio",
+  falegnameria: "Laboratorio",
+  laboratorio: "Laboratorio",
   amministrazione: "Amministrazione",
-  logistica: "Logistica",
-  magazzino: "Magazzino",
+  logistica: "Amministrazione",
+  magazzino: "Amministrazione",
   acquisti: "Acquisti",
+  vendite: "Vendite",
   altro: "Altro",
 };
 
 export const ALL_SETTORI: AppSettore[] = [
-  "grafica", "stampa", "taglio", "tappezzeria", "stampa_3d", "falegnameria",
-  "amministrazione", "logistica", "magazzino", "acquisti", "altro",
+  "amministrazione", "acquisti", "vendite",
+  "laboratorio", "tappezzeria", "grafica",
 ];
+
+/** Reparti UFFICIO (chi gestisce, ordina, fattura). */
+export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
+/** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
+export const WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "grafica"];
 export type ProdPriority = "normale" | "urgente" | "bloccante";
 export type ProdDelivery = "spedizione" | "ritiro" | "mezzo_proprio" | "corriere";
 export type ProdOrderStatus = "nuovo" | "in_corso" | "pronto" | "spedito" | "chiuso" | "annullato";
@@ -202,14 +212,16 @@ export const SCRAP_STATUS_LABEL: Record<ScrapPieceStatus, string> = {
 
 export const DEPT_LABEL: Record<ProdDept, string> = {
   grafica: "Grafica",
-  stampa: "Stampa",
-  taglio: "Taglio",
+  stampa: "Laboratorio",
+  taglio: "Laboratorio",
   tappezzeria: "Tappezzeria",
-  stampa_3d: "Stampa 3D",
-  falegnameria: "Falegnameria",
-  assemblaggio: "Assemblaggio",
-  magazzino: "Magazzino",
+  stampa_3d: "Laboratorio",
+  falegnameria: "Laboratorio",
+  assemblaggio: "Laboratorio",
+  laboratorio: "Laboratorio",
+  magazzino: "Amministrazione",
   acquisti: "Acquisti",
+  vendite: "Vendite",
   altro: "Altro",
 };
 
@@ -238,14 +250,16 @@ export const SUB_STATUS_LABEL: Record<ProdSubStatus, string> = {
 
 export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
   grafica: "G",
-  stampa: "S",
-  taglio: "T",
+  stampa: "L",
+  taglio: "L",
   tappezzeria: "P",
-  stampa_3d: "3",
-  falegnameria: "F",
-  assemblaggio: "A",
+  stampa_3d: "L",
+  falegnameria: "L",
+  assemblaggio: "L",
+  laboratorio: "L",
   magazzino: "M",
   acquisti: "Q",
+  vendite: "V",
   altro: "X",
 };
 
@@ -267,5 +281,17 @@ export const DEPT_COLOR: Record<ProdDept, {
   stampa_3d:    { chip: "bg-indigo-600 text-white",  border: "border-indigo-600",  soft: "bg-indigo-50",  text: "text-indigo-700",  emoji: "🧊" },
   falegnameria: { chip: "bg-amber-700 text-white",   border: "border-amber-700",   soft: "bg-amber-50",   text: "text-amber-800",   emoji: "🪚" },
   assemblaggio: { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔧" },
+  laboratorio:  { chip: "bg-blue-600 text-white",    border: "border-blue-600",    soft: "bg-blue-50",    text: "text-blue-700",    emoji: "🔬" },
+  vendite:      { chip: "bg-purple-600 text-white",  border: "border-purple-600",  soft: "bg-purple-50",  text: "text-purple-700",  emoji: "💼" },
   altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
+};
+/** Mappa un nome reparto "legacy" (dal preventivo o vecchi sub) sul reparto
+ *  di lavorazione corrente (Laboratorio / Tappezzeria / Grafica).
+ *  Default: laboratorio. */
+export const toWorkDept = (legacy?: string | null): ProdDept => {
+  const k = (legacy ?? "").toLowerCase().trim();
+  if (!k) return "laboratorio";
+  if (k.includes("tappezz")) return "tappezzeria";
+  if (k.includes("grafica")) return "grafica";
+  return "laboratorio";
 };

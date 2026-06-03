@@ -473,7 +473,7 @@ export const PianificazioneSection = ({
                     );
                   })}
                   <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[80px]">Tot h</th>
-                  {view === "progetto" && <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[110px]">Notifica</th>}
+
                 </tr>
               </thead>
               <tbody>

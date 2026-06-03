@@ -413,21 +413,41 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   if (!sub || !order) return null;
 
+  const dc = DEPT_COLOR[sub.dept];
+  const assignee = sub.assignee_id ? profiles.find((p) => p.id === sub.assignee_id) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">
+        {/* Banner reparto/ufficio — colorato, BEN VISIBILE: dice immediatamente
+            a quale ufficio è destinata la lavorazione e a chi è assegnata. */}
+        <div className={`${dc.chip} px-5 py-4 rounded-t-lg`}>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="text-3xl leading-none" aria-hidden>{dc.emoji}</div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono uppercase tracking-[0.25em] opacity-80">Ufficio destinatario</div>
+              <div className="font-display text-2xl font-bold leading-tight">{DEPT_LABEL[sub.dept]}</div>
+            </div>
+            <div className="ml-auto flex items-center gap-2 flex-wrap">
+              <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-3 h-3" />
+                {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
+              </div>
+              {order.priorita !== "normale" && (
+                <div className="bg-white/95 text-destructive border border-white rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> {PRIORITY_LABEL[order.priorita]}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
         <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-2 flex-wrap">
-            <Badge className="font-mono">{sub.code}</Badge>
-            <span className="text-base">{DEPT_LABEL[sub.dept]}</span>
-            <span className="text-muted-foreground text-sm">·</span>
+          <DialogTitle className="font-display flex items-center gap-2 flex-wrap pt-3">
+            <Badge variant="outline" className={`font-mono ${dc.text} ${dc.border}`}>{sub.code}</Badge>
             <span className="font-mono text-sm text-primary">{order.code}</span>
             <span className="text-base">{order.cliente}</span>
-            {order.priorita !== "normale" && (
-              <Badge variant="destructive" className="ml-2 gap-1">
-                <AlertTriangle className="w-3 h-3" /> {PRIORITY_LABEL[order.priorita]}
-              </Badge>
-            )}
           </DialogTitle>
           {(order.production_name || order.customer_order_ref) && (
             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -447,6 +467,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             Dettaglio completo della lavorazione assegnata. Scarica i file, controlla materiali e istruzioni.
           </DialogDescription>
         </DialogHeader>
+
 
         {/* Banner LOCK */}
         {isLocked && predecessor && (

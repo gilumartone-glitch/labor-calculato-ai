@@ -514,15 +514,11 @@ export const computePieceMaterial = (
 
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
   const natural = planOrientation(variants, pieceWM, pieceHM);
-  // Rotazione consentita SOLO se:
-  //  - il pezzo lo permette (allowRotation)
-  //  - c'è un solo pezzo (quantity ≤ 1): più copie identiche non si possono ruotare
-  //    indipendentemente
-  //  - la cucitura non risulta orizzontale: nel piano ruotato i teli si affiancano
-  //    sull'altezza del pezzo, quindi le cuciture diventano orizzontali quando
-  //    ci sono più di 1 telo. Vietato.
-  const pieceQty = Math.max(1, Number(piece.quantity ?? 1) || 1);
-  const rotationAllowed = !!piece.allowRotation && pieceQty === 1;
+  // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
+  // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
+  // Manteniamo invece il vincolo che il piano ruotato sia accettato solo quando
+  // evita davvero le cuciture (1 telo), così non introduciamo cuciture orizzontali.
+  const rotationAllowed = !!piece.allowRotation;
   const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM) : null;
   const rotated = rotatedRaw && rotatedRaw.panels <= 1 ? rotatedRaw : null;
 

@@ -231,6 +231,38 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
               </span>
             </div>
           )}
+
+          {/* Sub‑ordini di produzione: chi sta lavorando in fabbrica, in tempo reale */}
+          {prodSubs && prodSubs.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed border-ink/15">
+              <div className="flex items-center gap-1 mb-1">
+                <Factory className="w-3 h-3 text-ink/50" />
+                <span className="font-mono text-[9px] uppercase tracking-wider text-ink/50 font-bold">
+                  In produzione · {prodSubs.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {prodSubs.map((s) => {
+                  const chip = PROD_DEPT_CHIP[s.dept] ?? PROD_DEPT_CHIP.altro;
+                  return (
+                    <span
+                      key={s.id}
+                      title={`${s.code} · ${s.status}${s.assigneeName ? ` · ${s.assigneeName}` : ""}`}
+                      className={`inline-flex items-center gap-1 pl-1 pr-1.5 py-0.5 rounded-sm text-[10px] font-bold ${chip.cls} ${s.status === "in_lavorazione" ? "ring-2 ring-ink/30" : ""}`}
+                    >
+                      <span aria-hidden>{chip.icon}</span>
+                      <span className="font-mono uppercase tracking-wider">{chip.label}</span>
+                      {s.assigneeName ? (
+                        <span className="opacity-90">· {s.assigneeName.split(" ")[0]}</span>
+                      ) : (
+                        <span className="opacity-70 italic">· libero</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

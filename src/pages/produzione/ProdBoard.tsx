@@ -398,13 +398,16 @@ const ProdBoard = () => {
                   const urgent = o.priorita !== "normale";
                   const pcByDept = piecesCountByDept(o);
                   const totalPieces = Object.values(pcByDept).reduce((a, b) => a + (b ?? 0), 0);
+                  const oc = orderColor.get(o.id);
+                  const tintBg = oc?.bg ?? "bg-paper";
+                  const leftBorder = oc?.border ?? "border-l-ink/30";
                   return (
                     <div
                       key={o.id}
-                      className={`bg-paper border-2 rounded-sm p-2.5 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
+                      className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-2.5 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-[11px] font-bold">{o.code}</span>
+                        <span className={`font-mono text-[11px] font-bold text-white px-1.5 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
                         <div className="flex items-center gap-1">
                           <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
                             {PRIORITY_LABEL[o.priorita]}

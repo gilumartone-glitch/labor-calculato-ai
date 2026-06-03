@@ -225,6 +225,21 @@ export const DepartmentView = ({
     // 3) Distribuisco lo sfrido proporzionalmente. Per i pezzi senza key
     //    (sfrido non applicabile, es. lastre) lo sfrido resta 0.
     return base.map((b) => {
+      const override = Number(b.piece.priceOverridePerSqm ?? 0);
+      if (override > 0) {
+        const total = b.areaTot * override;
+        return {
+          piece: b.piece,
+          qty: b.qty,
+          material: total,
+          initialScrap: 0,
+          leftoverScrap: 0,
+          nestingScrap: 0,
+          work: { stampa: 0, taglio: 0, perimetrale: 0, altre: 0, seam: 0, custom: 0, print: 0, scrap: 0, total: 0 },
+          total,
+          overridden: true as const,
+        };
+      }
       let initialScrap = 0;
       if (b.key) {
         const g = groupScrap.get(b.key);
@@ -246,6 +261,7 @@ export const DepartmentView = ({
         nestingScrap,
         work: b.wb,
         total,
+        overridden: false as const,
       };
     });
   })();

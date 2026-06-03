@@ -9,6 +9,7 @@ export type ProdSubInfo = {
   id: string;
   dept: string;
   status: string;
+  assigneeId: string | null;
   assigneeName: string | null;
   code: string;
 };
@@ -85,8 +86,17 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
 
   const overdue = isOverdue(commessa.data_scadenza, commessa.stato);
   const dateLabel = formatDate(commessa.data_scadenza);
-  const meta = REPARTO_META[commessa.reparto] ?? REPARTO_META.generale;
-  const repartoLabel = REPARTO_LABEL[commessa.reparto] ?? commessa.reparto;
+  const activeProdDepts = (prodSubs ?? [])
+    .map((s) => s.dept)
+    .filter((d, i, arr) => arr.indexOf(d) === i);
+  const primaryProdDept = activeProdDepts.find((d) => !["acquisti", "magazzino"].includes(d)) ?? activeProdDepts[0];
+  const displayDept = primaryProdDept ?? commessa.reparto;
+  const meta = REPARTO_META[displayDept] ?? REPARTO_META[commessa.reparto] ?? REPARTO_META.generale;
+  const repartoLabel = primaryProdDept
+    ? `${PROD_DEPT_CHIP[primaryProdDept]?.label ?? primaryProdDept}${activeProdDepts.length > 1 ? ` +${activeProdDepts.length - 1}` : ""}`
+    : REPARTO_LABEL[commessa.reparto] ?? commessa.reparto;
+  const assignees = commessa.assegnatari ?? [];
+  const hasProdAssignees = (prodSubs ?? []).some((s) => !!s.assigneeName);
 
   const orderBg = color?.bg ?? "bg-paper";
   const orderBorder = color?.border ?? "border-l-ink/30";
@@ -205,10 +215,10 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
             )}
           </div>
 
-          {commessa.assegnatari && commessa.assegnatari.length > 0 ? (
+            {assignees.length > 0 ? (
             <div className="flex items-center flex-wrap gap-1 mt-2">
               <span className="font-mono text-[9px] uppercase tracking-wider text-ink/40">A:</span>
-              {commessa.assegnatari.slice(0, 3).map((a) => (
+              {assignees.slice(0, 3).map((a) => (
                 <span
                   key={a.id}
                   className="inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 bg-ink text-paper rounded-full text-[10px] font-bold"
@@ -220,9 +230,15 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
                   <span>{(a.display_name ?? "Utente").split(" ")[0]}</span>
                 </span>
               ))}
-              {commessa.assegnatari.length > 3 && (
-                <span className="text-[9px] font-mono text-ink/60">+{commessa.assegnatari.length - 3}</span>
+              {assignees.length > 3 && (
+                <span className="text-[9px] font-mono text-ink/60">+{assignees.length - 3}</span>
               )}
+            </div>
+          ) : prodSubs && prodSubs.length > 0 ? (
+            <div className="mt-2">
+              <span className={`inline-flex items-center px-1.5 py-0.5 border border-dashed text-[9px] font-mono uppercase tracking-wider rounded-sm ${hasProdAssignees ? "border-primary/40 text-primary" : "border-amber-500/50 text-amber-700"}`}>
+                {hasProdAssignees ? "Assegnato in Flow Board" : "Da assegnare in Flow Board"}
+              </span>
             </div>
           ) : (
             <div className="mt-2">

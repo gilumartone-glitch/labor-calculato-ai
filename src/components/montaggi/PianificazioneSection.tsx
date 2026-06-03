@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Plus, Trash2, Users, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X } from "lucide-react";
+import { CalendarDays, Plus, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Globe, Hammer, X, MapPin, Package, Wrench, Send, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,24 +16,19 @@ import { uid } from "@/lib/format";
 /** ============================================================
  *  TIPI E COSTANTI
  *  ============================================================ */
-type Operator = { id: string; name: string; role?: string; color?: string };
+type Operator = { id: string; name: string; role?: string; color?: string; userId?: string };
 type Assignment = {
   id: string;
   commessa_id: string | null;
   cantiere_label: string;
   operator_id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   hours: number;
   notes: string | null;
   created_by: string;
 };
 
 const OPERATORS_KEY = "montaggi:operai:v1";
-const DEFAULT_OPERATORS: Operator[] = [
-  { id: uid(), name: "Operaio 1", role: "Montatore" },
-  { id: uid(), name: "Operaio 2", role: "Montatore" },
-  { id: uid(), name: "Operaio 3", role: "Aiutante" },
-];
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
 const colorForCantiere = (label: string) => {
@@ -46,7 +41,7 @@ const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 const dayLabel = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const startOfWeek = (d: Date) => {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7; // lun=0
+  const day = (x.getDay() + 6) % 7;
   x.setDate(x.getDate() - day);
   x.setHours(0, 0, 0, 0);
   return x;
@@ -57,9 +52,6 @@ const addDays = (d: Date, n: number) => {
   return x;
 };
 
-/** ============================================================
- *  IMPORT DA ARCHIVIO SQUADRE (localStorage dei progetti Montaggi)
- *  ============================================================ */
 const collectWorkersFromArchives = (): Operator[] => {
   if (typeof window === "undefined") return [];
   const out = new Map<string, Operator>();
@@ -89,31 +81,50 @@ const collectWorkersFromArchives = (): Operator[] => {
  *  ============================================================ */
 type Props = {
   draftId: string;
-  cantiereLabel: string; // nome del progetto Montaggi corrente
-  /** "project" = solo vista cantiere corrente (default), "global" = panoramica globale */
+  cantiereLabel: string;
   mode?: "project" | "global";
-  /** Lavoratori del tab "Lavoratori": usati come seed di default se l'anagrafica è vuota */
   defaultWorkers?: Array<{ name: string; role?: string }>;
+  projectAddress?: string;
+  projectMaterials?: Array<{ name: string; qty?: number; unit?: string }>;
+  projectTools?: Array<{ name: string; qty?: number }>;
 };
+
+type ProfileLite = { id: string; display_name: string | null };
 
 /** ============================================================
  *  COMPONENTE PRINCIPALE
  *  ============================================================ */
-export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project", defaultWorkers }: Props) => {
+export const PianificazioneSection = ({
+  draftId,
+  cantiereLabel,
+  mode = "project",
+  defaultWorkers,
+  projectAddress,
+  projectMaterials,
+  projectTools,
+}: Props) => {
   const { user } = useAuth();
   const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date()));
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
+  const [profiles, setProfiles] = useState<ProfileLite[]>([]);
+  const [linkingOp, setLinkingOp] = useState<Operator | null>(null);
 
-  // --- GLOBAL mode: anagrafica condivisa sul cloud ---
+  // Inline add operator
+  const [newOpNames, setNewOpNames] = useState("");
+  // Bulk range
+  const [bulk, setBulk] = useState<{ operatorId: string; from: string; to: string; hours: number; includeWeekends: boolean }>(() => ({
+    operatorId: "",
+    from: fmtDate(new Date()),
+    to: fmtDate(addDays(new Date(), 2)),
+    hours: 8,
+    includeWeekends: false,
+  }));
+
   const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, []);
-  // --- PROJECT mode: lavoratori = quelli del tab Lavoratori + extra ad-hoc per draft ---
-  const extras = useCloudWorkspace<Operator[]>(
-    `montaggi:planning-extras:${draftId}`,
-    [],
-  );
+  const extras = useCloudWorkspace<Operator[]>(`montaggi:planning-extras:${draftId}`, []);
 
   const slugName = (name: string) => `proj:${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
@@ -121,6 +132,15 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     if (view !== "progetto") return [];
     const out: Operator[] = [];
     const seen = new Set<string>();
+    // extras first (so linked userId etc. is preserved)
+    for (const e of extras.state ?? []) {
+      const name = (e.name ?? "").trim();
+      if (!name) continue;
+      const k = name.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ id: e.id || slugName(name), name, role: e.role ?? "", userId: e.userId });
+    }
     for (const w of defaultWorkers ?? []) {
       const name = (w.name ?? "").trim();
       if (!name) continue;
@@ -129,20 +149,12 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
       seen.add(k);
       out.push({ id: slugName(name), name, role: w.role ?? "" });
     }
-    for (const e of extras.state ?? []) {
-      const name = (e.name ?? "").trim();
-      if (!name) continue;
-      const k = name.toLowerCase();
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push({ id: e.id || slugName(name), name, role: e.role ?? "" });
-    }
     return out;
   }, [view, defaultWorkers, extras.state]);
 
   const operators = view === "progetto" ? projectOperators : ops.state;
 
-  /** Seed automatico (solo modalità globale) la prima volta che l'anagrafica è vuota */
+  /** Seed in global mode */
   const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };
   useEffect(() => {
     if (view !== "panoramica") return;
@@ -156,25 +168,34 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     // eslint-disable-next-line
   }, [ops.ready, view]);
 
-  /** Aggiungi un operaio al volo (prompt nome) */
-  const promptAddOperator = () => {
-    const name = window.prompt("Nome operaio")?.trim();
-    if (!name) return;
-    if (operators.some((o) => o.name.trim().toLowerCase() === name.toLowerCase())) {
-      toast.info("Operaio già presente.");
-      return;
-    }
+  /** Aggiungi uno o più operai (anche separati da virgola o invio) */
+  const addOperatorsInline = () => {
+    const names = newOpNames.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) { toast.info("Inserisci almeno un nome"); return; }
+    const existing = new Set(operators.map((o) => o.name.trim().toLowerCase()));
+    const fresh = names.filter((n) => !existing.has(n.toLowerCase()));
+    if (fresh.length === 0) { toast.info("Tutti i nomi sono già presenti"); return; }
     if (view === "progetto") {
-      extras.setState([...(extras.state ?? []), { id: slugName(name), name, role: "" }]);
+      const additions = fresh.map((name) => ({ id: slugName(name), name, role: "" } as Operator));
+      extras.setState([...(extras.state ?? []), ...additions]);
     } else {
-      ops.setState([...ops.state, { id: uid(), name, role: "" }]);
+      const additions = fresh.map((name) => ({ id: uid(), name, role: "" } as Operator));
+      ops.setState([...ops.state, ...additions]);
     }
+    setNewOpNames("");
+    toast.success(`Aggiunti ${fresh.length} operai`);
   };
 
+  /** Profili (per linking + notifiche) */
+  useEffect(() => {
+    if (view !== "progetto") return;
+    (async () => {
+      const { data } = await supabase.from("profiles").select("id, display_name").order("display_name");
+      setProfiles((data ?? []) as ProfileLite[]);
+    })();
+  }, [view]);
 
-
-
-  /** Carica assegnazioni (range largo: 4 settimane intorno per la panoramica) */
+  /** Carica assegnazioni */
   const loadAssignments = async () => {
     setLoading(true);
     const from = fmtDate(addDays(weekStart, -7));
@@ -196,18 +217,14 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
 
   useEffect(() => { loadAssignments(); /* eslint-disable-next-line */ }, [weekStart.getTime()]);
 
-  /** Realtime: ogni modifica si propaga ad entrambe le viste */
   useEffect(() => {
     const ch = supabase.channel(`montaggi_planning_${draftId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => {
-        loadAssignments();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => loadAssignments())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
   }, []);
 
-  /** Salva (upsert) un assegnamento */
   const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => {
     if (!user) return toast.error("Non autenticato");
     if (payload.id) {
@@ -242,7 +259,76 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     loadAssignments();
   };
 
-  /** Index: operatorId → date → assegnazioni */
+  /** Bulk range assignment */
+  const applyBulkRange = async () => {
+    if (!user) return toast.error("Non autenticato");
+    if (!bulk.operatorId) return toast.info("Seleziona un operaio");
+    const from = new Date(bulk.from);
+    const to = new Date(bulk.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return toast.error("Intervallo date non valido");
+    const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string }> = [];
+    const cur = new Date(from);
+    while (cur <= to) {
+      const dow = (cur.getDay() + 6) % 7; // lun=0..dom=6
+      if (bulk.includeWeekends || dow < 5) {
+        rows.push({
+          operator_id: bulk.operatorId,
+          date: fmtDate(cur),
+          hours: bulk.hours,
+          commessa_id: view === "progetto" ? draftId : null,
+          cantiere_label: cantiereLabel,
+          created_by: user.id,
+        });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (rows.length === 0) return toast.info("Nessun giorno selezionato");
+    const { error } = await supabase.from("montaggi_planning").insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success(`Aggiunte ${rows.length} giornate`);
+    loadAssignments();
+  };
+
+  /** Linking & notifiche */
+  const updateExtraOperator = (id: string, patch: Partial<Operator>) => {
+    const cur = extras.state ?? [];
+    const found = cur.find((o) => o.id === id);
+    if (!found) {
+      // promote default worker to extras to persist link
+      const op = projectOperators.find((o) => o.id === id);
+      if (!op) return;
+      extras.setState([...cur, { ...op, ...patch }]);
+    } else {
+      extras.setState(cur.map((o) => o.id === id ? { ...o, ...patch } : o));
+    }
+  };
+
+  const sendNotificationToOperator = async (op: Operator) => {
+    if (!op.userId) { toast.info("Collega prima un utente a questo operaio"); setLinkingOp(op); return; }
+    if (!user) return toast.error("Non autenticato");
+    const todayStr = fmtDate(new Date());
+    const horizon = fmtDate(addDays(new Date(), 14));
+    const myAssigns = assignments
+      .filter((a) => a.operator_id === op.id && a.date >= todayStr && a.date <= horizon)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const projAssigns = myAssigns.filter((a) => a.commessa_id === draftId || a.cantiere_label === cantiereLabel);
+    const days = projAssigns.length > 0 ? projAssigns : myAssigns;
+    const daysTxt = days.length === 0 ? "Nessuna giornata pianificata nei prossimi 14 giorni." : days.map((a) => `• ${new Date(a.date).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" })} — ${a.cantiere_label} (${a.hours}h)${a.notes ? ` — ${a.notes}` : ""}`).join("\n");
+    const toolsTxt = (projectTools ?? []).length > 0 ? `\n\n🧰 Attrezzi da portare:\n${(projectTools ?? []).map((t) => `• ${t.name}${t.qty ? ` ×${t.qty}` : ""}`).join("\n")}` : "";
+    const matTxt = (projectMaterials ?? []).length > 0 ? `\n\n📦 Materiali in cantiere:\n${(projectMaterials ?? []).map((m) => `• ${m.name}${m.qty ? ` ×${m.qty}${m.unit ? ` ${m.unit}` : ""}` : ""}`).join("\n")}` : "";
+    const addrTxt = projectAddress ? `\n\n📍 Indirizzo: ${projectAddress}` : "";
+    const message = `🛠 Pianificazione cantiere "${cantiereLabel}"\n\n📅 Giornate:\n${daysTxt}${addrTxt}${toolsTxt}${matTxt}`;
+    const { error } = await supabase.from("prod_notifications").insert({
+      user_id: op.userId,
+      type: "ordine_aggiornato" as never,
+      message,
+      is_urgent: false,
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`Notifica inviata a ${op.name}`);
+  };
+
+  /** Indici */
   const indexMap = useMemo(() => {
     const map = new Map<string, Map<string, Assignment[]>>();
     for (const a of assignments) {
@@ -257,7 +343,6 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
-  /** Carico operatorio settimanale per ogni operaio */
   const weeklyLoad = useMemo(() => {
     const map = new Map<string, number>();
     for (const op of operators) {
@@ -271,13 +356,45 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
     return map;
   }, [operators, weekDays, indexMap]);
 
-
   /** ============================================================
    *  RENDER
    *  ============================================================ */
   return (
     <div className="space-y-6">
-      {/* Header: toggle vista + navigazione settimana */}
+      {/* Info cantiere (solo in project mode) */}
+      {view === "progetto" && (projectAddress || (projectMaterials && projectMaterials.length > 0) || (projectTools && projectTools.length > 0)) && (
+        <Card className="border-2 border-dept shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Hammer className="h-4 w-4" />Info cantiere — {cantiereLabel}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider"><MapPin className="h-3 w-3" />Indirizzo</Label>
+              <p className="text-sm">{projectAddress || <span className="text-muted-foreground">Da indicare nel tab Progetto</span>}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider"><Package className="h-3 w-3" />Materiali ({projectMaterials?.length ?? 0})</Label>
+              <ul className="space-y-0.5 text-xs max-h-32 overflow-auto">
+                {(projectMaterials ?? []).map((m, i) => (
+                  <li key={i} className="text-sm">• {m.name}{m.qty ? <span className="font-mono text-muted-foreground"> ×{m.qty}{m.unit ? ` ${m.unit}` : ""}</span> : null}</li>
+                ))}
+                {(!projectMaterials || projectMaterials.length === 0) && <li className="text-muted-foreground">Nessun materiale</li>}
+              </ul>
+            </div>
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider"><Wrench className="h-3 w-3" />Attrezzi ({projectTools?.length ?? 0})</Label>
+              <ul className="space-y-0.5 text-xs max-h-32 overflow-auto">
+                {(projectTools ?? []).map((t, i) => (
+                  <li key={i} className="text-sm">• {t.name}{t.qty ? <span className="font-mono text-muted-foreground"> ×{t.qty}</span> : null}</li>
+                ))}
+                {(!projectTools || projectTools.length === 0) && <li className="text-muted-foreground">Nessun attrezzo</li>}
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Header */}
       <Card className="border-2 border-dept shadow-soft">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Pianificazione montaggi</CardTitle>
@@ -303,12 +420,12 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
           {loading ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : operators.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">Nessun operaio. Aggiungine uno dall'anagrafica qui sotto.</div>
+            <div className="p-6 text-sm text-muted-foreground">Nessun operaio. Aggiungine uno qui sotto.</div>
           ) : (
             <table className="w-full border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left text-xs uppercase tracking-wider border-b border-border w-[200px]">Operaio</th>
+                  <th className="px-3 py-2 text-left text-xs uppercase tracking-wider border-b border-border w-[220px]">Operaio</th>
                   {weekDays.map((d, i) => {
                     const isToday = fmtDate(d) === fmtDate(new Date());
                     return (
@@ -319,17 +436,25 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
                     );
                   })}
                   <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[80px]">Tot h</th>
+                  {view === "progetto" && <th className="px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border w-[110px]">Notifica</th>}
                 </tr>
               </thead>
               <tbody>
                 {operators.map((op) => {
                   const total = weeklyLoad.get(op.id) ?? 0;
                   const overloaded = total > 45;
+                  const linkedProfile = op.userId ? profiles.find((p) => p.id === op.userId) : null;
                   return (
                     <tr key={op.id} className="hover:bg-muted/30">
                       <td className="px-3 py-2 border-b border-border">
                         <div className="font-medium text-sm">{op.name}</div>
                         {op.role && <div className="text-[10px] text-muted-foreground">{op.role}</div>}
+                        {view === "progetto" && (
+                          <button type="button" onClick={() => setLinkingOp(op)} className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-dept">
+                            <Link2 className="h-2.5 w-2.5" />
+                            {linkedProfile ? linkedProfile.display_name ?? "Utente collegato" : "Collega utente"}
+                          </button>
+                        )}
                       </td>
                       {weekDays.map((d) => {
                         const dateStr = fmtDate(d);
@@ -374,6 +499,13 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
                       <td className={`px-2 py-2 border-b border-l border-border text-center font-mono text-sm ${overloaded ? "text-red-600 font-bold" : total < 20 ? "text-amber-600" : ""}`}>
                         {total}h
                       </td>
+                      {view === "progetto" && (
+                        <td className="px-2 py-2 border-b border-l border-border text-center">
+                          <Button size="sm" variant="outline" onClick={() => sendNotificationToOperator(op)} title="Invia notifica con piano + attrezzi + indirizzo">
+                            <Send className="h-3 w-3" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -383,7 +515,31 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
         </CardContent>
       </Card>
 
-      {/* Riepilogo cantieri della settimana */}
+      {/* Assegnazione rapida per intervallo */}
+      {view === "progetto" && (
+        <Card className="border-2 border-dept shadow-soft">
+          <CardHeader><CardTitle className="text-base">Assegna intervallo veloce</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_100px_auto_auto]">
+              <div className="space-y-1">
+                <Label className="text-xs">Operaio</Label>
+                <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={bulk.operatorId} onChange={(e) => setBulk({ ...bulk, operatorId: e.target.value })}>
+                  <option value="">Seleziona…</option>
+                  {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1"><Label className="text-xs">Dal</Label><Input type="date" value={bulk.from} onChange={(e) => setBulk({ ...bulk, from: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Al</Label><Input type="date" value={bulk.to} onChange={(e) => setBulk({ ...bulk, to: e.target.value })} /></div>
+              <div className="space-y-1"><Label className="text-xs">Ore/giorno</Label><Input type="number" min={0} max={24} step={0.5} value={bulk.hours} onChange={(e) => setBulk({ ...bulk, hours: Number(e.target.value) })} /></div>
+              <label className="flex items-end gap-2 text-xs pb-2"><input type="checkbox" checked={bulk.includeWeekends} onChange={(e) => setBulk({ ...bulk, includeWeekends: e.target.checked })} />Sab/Dom</label>
+              <div className="flex items-end"><Button onClick={applyBulkRange}><Plus className="h-4 w-4" />Aggiungi</Button></div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">Crea assegnazioni multiple per il cantiere corrente. Per impegni in altri cantieri, usa il <span className="font-semibold">+</span> in calendario.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cantieri attivi */}
       <Card className="border-2 border-dept shadow-soft">
         <CardHeader>
           <CardTitle className="text-base">Cantieri attivi questa settimana</CardTitle>
@@ -410,14 +566,24 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
         </CardContent>
       </Card>
 
-      {/* Aggiungi operaio */}
-      <div className="flex justify-center">
-        <Button size="sm" variant="outline" onClick={promptAddOperator}>
-          <Plus className="h-4 w-4" />Aggiungi operaio
-        </Button>
-      </div>
-
-
+      {/* Aggiungi operai inline (sotto l'ultimo lavoratore) */}
+      <Card className="border-2 border-dept shadow-soft border-dashed">
+        <CardHeader><CardTitle className="text-base">Aggiungi uno o più operai</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[260px] space-y-1">
+              <Label className="text-xs">Nomi (separa con virgola per aggiungerne più di uno)</Label>
+              <Input
+                placeholder="Es. Mario Rossi, Luigi Bianchi"
+                value={newOpNames}
+                onChange={(e) => setNewOpNames(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOperatorsInline(); } }}
+              />
+            </div>
+            <Button onClick={addOperatorsInline}><Plus className="h-4 w-4" />Aggiungi</Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Dialog edit */}
       {editing && (
@@ -426,11 +592,38 @@ export const PianificazioneSection = ({ draftId, cantiereLabel, mode = "project"
           operators={operators}
           defaultCantiere={cantiereLabel}
           defaultCommessaId={draftId}
+          lockCantiere={view === "progetto"}
           onClose={() => setEditing(null)}
           onSave={saveAssignment}
           onDelete={editing.existing ? () => deleteAssignment(editing.existing!.id) : undefined}
           allCantieri={Array.from(new Set([cantiereLabel, ...assignments.map((a) => a.cantiere_label)])).filter(Boolean)}
         />
+      )}
+
+      {/* Dialog linking utente */}
+      {linkingOp && (
+        <Dialog open onOpenChange={() => setLinkingOp(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Collega utente a {linkingOp.name}</DialogTitle></DialogHeader>
+            <div className="space-y-2 py-2">
+              <Label>Utente</Label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                defaultValue={linkingOp.userId ?? ""}
+                onChange={(e) => {
+                  updateExtraOperator(linkingOp.id, { userId: e.target.value || undefined });
+                }}
+              >
+                <option value="">— Nessun utente —</option>
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name ?? p.id.slice(0, 8)}</option>)}
+              </select>
+              <p className="text-[11px] text-muted-foreground">Solo gli operai collegati a un utente possono ricevere le notifiche con il piano di lavoro, gli attrezzi e l'indirizzo.</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLinkingOp(null)}>Chiudi</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -445,12 +638,13 @@ type DialogProps = {
   defaultCantiere: string;
   defaultCommessaId: string;
   allCantieri: string[];
+  lockCantiere?: boolean;
   onClose: () => void;
   onSave: (p: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => void;
   onDelete?: () => void;
 };
 
-const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessaId, allCantieri, onClose, onSave, onDelete }: DialogProps) => {
+const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessaId, allCantieri, lockCantiere, onClose, onSave, onDelete }: DialogProps) => {
   const ex = editing.existing;
   const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
   const [date, setDate] = useState(ex?.date ?? editing.date);
@@ -458,7 +652,10 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
   const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? defaultCantiere);
   const [notes, setNotes] = useState(ex?.notes ?? "");
 
-  const isCurrentProject = cantiere === defaultCantiere;
+  // Se siamo in project mode e l'esistente è del cantiere corrente (o è nuovo), il cantiere si blocca automaticamente.
+  const canLock = lockCantiere && (!ex || ex.cantiere_label === defaultCantiere);
+  const effectiveCantiere = canLock ? defaultCantiere : cantiere;
+  const isCurrentProject = effectiveCantiere === defaultCantiere;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -483,14 +680,21 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
               <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Cantiere</Label>
-            <Input list="cantieri-list" value={cantiere} onChange={(e) => setCantiere(e.target.value)} placeholder="Nome cantiere o progetto" />
-            <datalist id="cantieri-list">
-              {allCantieri.map((c) => <option key={c} value={c} />)}
-            </datalist>
-            <p className="text-[10px] text-muted-foreground">Inizia digitando per usare un cantiere esistente o crearne uno nuovo. Il progetto Montaggi corrente è <span className="font-semibold">{defaultCantiere}</span>.</p>
-          </div>
+          {!canLock && (
+            <div className="space-y-1.5">
+              <Label>Cantiere</Label>
+              <Input list="cantieri-list" value={cantiere} onChange={(e) => setCantiere(e.target.value)} placeholder="Nome cantiere o progetto" />
+              <datalist id="cantieri-list">
+                {allCantieri.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              <p className="text-[10px] text-muted-foreground">Cantiere corrente: <span className="font-semibold">{defaultCantiere}</span>.</p>
+            </div>
+          )}
+          {canLock && (
+            <div className="rounded-sm border border-border bg-muted/40 p-2 text-xs">
+              <span className="text-muted-foreground">Cantiere:</span> <span className="font-semibold">{defaultCantiere}</span>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Note (opzionale)</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Es. ritrovo ore 7, trasferta…" />
@@ -506,7 +710,7 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
             date,
             hours,
             commessa_id: isCurrentProject ? defaultCommessaId : null,
-            cantiere_label: cantiere.trim() || defaultCantiere,
+            cantiere_label: effectiveCantiere.trim() || defaultCantiere,
             notes: notes.trim() || null,
           })}>Salva</Button>
         </DialogFooter>

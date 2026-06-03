@@ -285,3 +285,13 @@ export const DEPT_COLOR: Record<ProdDept, {
   vendite:      { chip: "bg-purple-600 text-white",  border: "border-purple-600",  soft: "bg-purple-50",  text: "text-purple-700",  emoji: "💼" },
   altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
 };
+/** Mappa un nome reparto "legacy" (dal preventivo o vecchi sub) sul reparto
+ *  di lavorazione corrente (Laboratorio / Tappezzeria / Grafica).
+ *  Default: laboratorio. */
+export const toWorkDept = (legacy?: string | null): ProdDept => {
+  const k = (legacy ?? "").toLowerCase().trim();
+  if (!k) return "laboratorio";
+  if (k.includes("tappezz")) return "tappezzeria";
+  if (k.includes("grafica")) return "grafica";
+  return "laboratorio";
+};

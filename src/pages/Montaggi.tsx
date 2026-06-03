@@ -74,10 +74,13 @@ type DrawingElement = {
 };
 type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "pianificazione";
 
+type ToolLine = { id: string; name: string; qty?: number };
+
 type WoodProject = {
   name: string;
   description: string;
   customer: string;
+  address: string;
   date: string;
   workers: WorkerProfile[];
   labor: LaborLine[];
@@ -86,6 +89,7 @@ type WoodProject = {
   materials: MaterialLine[];
   marginPct: number;
   elements: DrawingElement[];
+  tools: ToolLine[];
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };

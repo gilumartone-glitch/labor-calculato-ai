@@ -516,11 +516,9 @@ export const computePieceMaterial = (
   const natural = planOrientation(variants, pieceWM, pieceHM);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
-  // Manteniamo invece il vincolo che il piano ruotato sia accettato solo quando
-  // evita davvero le cuciture (1 telo), così non introduciamo cuciture orizzontali.
   const rotationAllowed = !!piece.allowRotation;
   const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM) : null;
-  const rotated = rotatedRaw && rotatedRaw.panels <= 1 ? rotatedRaw : null;
+  const rotated = rotatedRaw;
 
   type FullPlan = {
     plan: OrientationPlan;

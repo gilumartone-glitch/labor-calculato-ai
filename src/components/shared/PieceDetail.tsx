@@ -33,7 +33,7 @@ export type PieceDetailProps = {
   catalog?: Catalog;
   index: number;
   /** Reparto operatore: se valorizzato, mostra solo le lavorazioni pertinenti. */
-  filterDept?: "stampa" | "taglio" | "tappezzeria" | "falegnameria" | "grafica" | "stampa_3d" | "altro";
+  filterDept?: "stampa" | "taglio" | "tappezzeria" | "falegnameria" | "progettazione" | "stampa_3d" | "altro";
 };
 
 /** Card pezzo riusabile da Flow + Produzione. */

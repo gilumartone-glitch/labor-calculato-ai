@@ -82,6 +82,15 @@ export type ProdOrder = {
   customer_order_ref?: string | null;
 };
 
+export type ProdOrderStatusForAcquisti = "da_ordinare" | "ordinato" | "in_transito" | "arrivato";
+
+export const ORDER_STATUS_LABEL_ACQUISTI: Record<ProdOrderStatusForAcquisti, string> = {
+  da_ordinare: "Da ordinare",
+  ordinato: "Ordinato",
+  in_transito: "In transito",
+  arrivato: "Arrivato",
+};
+
 export type ProdSubOrder = {
   id: string;
   order_id: string;
@@ -104,6 +113,13 @@ export type ProdSubOrder = {
   supplier_name?: string | null;
   /** Operatore assegnato a questa lavorazione. */
   assignee_id?: string | null;
+  // Campi acquisti — popolati solo quando dept === 'acquisti'
+  material_qty?: number | null;
+  material_unit?: string | null;
+  material_code?: string | null;
+  material_label?: string | null;
+  due_date?: string | null;
+  order_status?: ProdOrderStatusForAcquisti | null;
 };
 
 export type InvItem = {

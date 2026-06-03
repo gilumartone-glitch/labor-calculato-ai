@@ -1,22 +1,33 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, User, Tag, Briefcase, Trash2, GripVertical } from "lucide-react";
+import { Calendar, Tag, Trash2, GripVertical, AlertTriangle } from "lucide-react";
 import { Commessa, REPARTI, PRIORITA_LABEL } from "./types";
+
+export type OrderColor = { bg: string; border: string; chip: string };
 
 interface Props {
   commessa: Commessa;
   onOpen: () => void;
   onDelete: () => void;
   canDelete?: boolean;
+  color?: OrderColor;
 }
 
-const PRIORITY_STYLES: Record<string, string> = {
-  alta: "border-l-destructive bg-destructive/5",
-  media: "border-l-primary bg-paper",
-  bassa: "border-l-ink/20 bg-paper",
-};
-
 const REPARTO_LABEL: Record<string, string> = Object.fromEntries(REPARTI.map((r) => [r.k, r.label]));
+
+/** Mappa reparto -> tipo (ufficio vs lavorazione) + colore identificativo + icona */
+const REPARTO_META: Record<string, { kind: "ufficio" | "lavorazione" | "altro"; cls: string; icon: string; short: string }> = {
+  amministrazione: { kind: "ufficio",     cls: "bg-slate-700 text-white border-slate-700",    icon: "📋", short: "AMM" },
+  acquisti:        { kind: "ufficio",     cls: "bg-blue-600 text-white border-blue-600",      icon: "🛒", short: "ACQ" },
+  vendite:         { kind: "ufficio",     cls: "bg-cyan-600 text-white border-cyan-600",      icon: "💼", short: "VEN" },
+  laboratorio:     { kind: "lavorazione", cls: "bg-emerald-600 text-white border-emerald-600", icon: "🔬", short: "LAB" },
+  stampa:          { kind: "lavorazione", cls: "bg-emerald-600 text-white border-emerald-600", icon: "🔬", short: "LAB" },
+  falegnameria:    { kind: "lavorazione", cls: "bg-amber-700 text-white border-amber-700",     icon: "🪚", short: "FAL" },
+  tappezzeria:     { kind: "lavorazione", cls: "bg-rose-600 text-white border-rose-600",       icon: "🪡", short: "TAP" },
+  grafica:         { kind: "lavorazione", cls: "bg-fuchsia-600 text-white border-fuchsia-600", icon: "🎨", short: "GRA" },
+  logistica:       { kind: "ufficio",     cls: "bg-slate-500 text-white border-slate-500",    icon: "📦", short: "LOG" },
+  generale:        { kind: "altro",       cls: "bg-ink/70 text-paper border-ink/70",          icon: "•",  short: "GEN" },
+};
 
 const eur = (n: number) =>
   n.toLocaleString("it-IT", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });

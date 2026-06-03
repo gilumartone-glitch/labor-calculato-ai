@@ -9,7 +9,7 @@ import { RejectSubDialog, RejectScope } from "@/components/produzione/RejectSubD
 import { useProdStore } from "@/lib/produzione/store";
 import { Button } from "@/components/ui/button";
 import {
-  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL,
+  DEPT_LABEL, PRIORITY_LABEL, SUB_STATUS_LABEL, DEPT_COLOR,
   ProdSubStatus, ProdDept, ProdOrder, ProdSubOrder, NotifType,
 } from "@/lib/produzione/types";
 import { orderProgress, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";

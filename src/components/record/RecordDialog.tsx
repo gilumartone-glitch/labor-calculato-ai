@@ -137,16 +137,30 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
         <div className="space-y-4">
           <div>
             <Label>Contatto (cliente o fornitore)</Label>
-            <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Es. APA Srl" autoFocus />
-            {contactSuggestions.length > 0 && (
-              <div className="mt-1 border rounded-sm bg-popover">
+            <Input
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              onFocus={() => setContactFocused(true)}
+              onBlur={() => setTimeout(() => setContactFocused(false), 150)}
+              placeholder="Cerca o digita un nuovo contatto"
+              autoFocus
+            />
+            {contactFocused && contactSuggestions.length > 0 && (
+              <div className="mt-1 border rounded-sm bg-popover max-h-48 overflow-y-auto">
                 {contactSuggestions.map((c) => (
-                  <button key={c.name} type="button" onClick={() => { setContactName(c.name); setContactKind(c.kind); }}
+                  <button key={c.name} type="button" onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setContactName(c.name); setContactKind(c.kind); setContactFocused(false); }}
                     className="block w-full text-left px-2 py-1 text-sm hover:bg-muted">
                     {c.name} <span className="text-xs text-muted-foreground">· {c.kind}</span>
                   </button>
                 ))}
               </div>
+            )}
+            {isNewContact && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                <Checkbox checked={saveToAnagrafica} onCheckedChange={(c) => setSaveToAnagrafica(!!c)} />
+                Nuovo contatto — salva anche nell'anagrafica
+              </label>
             )}
           </div>
 

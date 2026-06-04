@@ -185,7 +185,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
   const scheduleLoad = useCallback(() => {
     if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = window.setTimeout(() => { load(); }, 600);
+    loadTimerRef.current = window.setTimeout(() => { load(); }, 1500);
   }, [load]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);

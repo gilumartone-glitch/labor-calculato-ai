@@ -132,14 +132,7 @@ export const CantieriStrip = ({ onChanged }: { onChanged?: () => void }) => {
         onOpenChange={setDetailOpen}
         commessa={selected}
         onChanged={() => { load(); onChanged?.(); }}
-        onEdit={() => { setDetailOpen(false); setEditOpen(true); }}
-      />
-      <CommessaDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        commessa={selected}
-        profiles={profiles}
-        onSaved={async () => { await load(); onChanged?.(); }}
+        onEdit={() => { /* edit handled in main page */ }}
       />
     </>
   );

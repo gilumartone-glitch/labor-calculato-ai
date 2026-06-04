@@ -82,8 +82,12 @@ const colorForCantiere = (label: string) => {
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
   return COLORS[h % COLORS.length];
 };
-// Colore del chip = reparto (tipo di impegno); accento sinistra = cantiere
+// Colore del chip = cantiere (per distinguere chiaramente impegni diversi)
+// Accento sul bordo sinistro = reparto (tipo di impegno)
 const chipColorForAssignment = (a: Pick<Assignment, "reparto" | "cantiere_label">) => {
+  return colorForCantiere(a.cantiere_label);
+};
+const repartoAccent = (a: Pick<Assignment, "reparto">) => {
   const r = (a.reparto ?? "montaggi") as Reparto;
   return REPARTO_BG[r] ?? REPARTO_BG.altro;
 };

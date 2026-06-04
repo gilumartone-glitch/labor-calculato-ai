@@ -1894,14 +1894,30 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
           }}
           onBlur={() => { setTimeout(() => commit(), 120); }}
           placeholder={placeholder ?? "aggiungi…"}
-          className="h-7 text-[11px]"
+          className="h-8 text-[12px]"
         />
-        <Button type="button" size="sm" variant="outline" onClick={() => commit()} className="h-7 px-2 text-[11px]">
-          <Plus className="w-3 h-3" />
+        <Button
+          type="button"
+          size="sm"
+          onMouseDown={(e) => { e.preventDefault(); commit(); }}
+          className="h-8 px-2 text-[11px]"
+        >
+          <Plus className="w-3 h-3 mr-1" />Aggiungi
         </Button>
       </div>
-      {open && remaining.length > 0 && (
+      {open && (draft.trim() || remaining.length > 0) && (
         <ul className="absolute z-30 left-0 right-0 top-full mt-1 bg-paper border-2 border-ink rounded-sm shadow-lg max-h-44 overflow-y-auto">
+          {draft.trim() && !value.includes(draft.trim()) && !remaining.some((o) => norm(o) === norm(draft)) && (
+            <li>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(draft); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-[12px] font-semibold bg-dept-soft/40 hover:bg-ink hover:text-paper"
+              >
+                + Crea "{draft.trim()}"
+              </button>
+            </li>
+          )}
           {remaining.slice(0, 12).map((o) => (
             <li key={o}>
               <button

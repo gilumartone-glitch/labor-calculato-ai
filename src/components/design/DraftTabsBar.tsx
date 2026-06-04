@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL, toMacroDept } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";

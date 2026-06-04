@@ -481,9 +481,15 @@ export const CalendarGlobalView = () => {
                               {list.map((a) => {
                                 const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
-                                  <div key={a.id} className="px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate" title={`${opName} · ${a.hours}h`}>
+                                  <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
+                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate hover:bg-dept/10 transition"
+                                    title={`${opName} · ${a.hours}h · clic per modificare`}
+                                  >
                                     {opName} {a.hours}h
-                                  </div>
+                                  </button>
                                 );
                               })}
                               {list.length === 0 && !isWeekend && <div className="text-[9px] text-muted-foreground/40 text-center">—</div>}

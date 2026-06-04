@@ -284,8 +284,10 @@ export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
   magazzino: "M",
   acquisti: "Q",
   vendite: "V",
+  montaggi: "MO",
   altro: "X",
 };
+
 
 /** Colori per identificare a colpo d'occhio il reparto/ufficio
  *  destinatario di una lavorazione (acquisti vs lavorazione vs magazzino, ecc). */

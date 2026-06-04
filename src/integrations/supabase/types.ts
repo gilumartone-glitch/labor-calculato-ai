@@ -183,10 +183,13 @@ export type Database = {
           descrizione: string | null
           id: string
           importo: number | null
+          macro_reparto: string | null
           note: string | null
+          operator_ids: string[]
           ordine: number
           priorita: Database["public"]["Enums"]["commessa_priorita"]
           reparto: Database["public"]["Enums"]["commessa_reparto"]
+          responsabile_id: string | null
           snapshot: Json | null
           stato: Database["public"]["Enums"]["commessa_stato"]
           tipo: Database["public"]["Enums"]["commessa_tipo"]
@@ -201,10 +204,13 @@ export type Database = {
           descrizione?: string | null
           id?: string
           importo?: number | null
+          macro_reparto?: string | null
           note?: string | null
+          operator_ids?: string[]
           ordine?: number
           priorita?: Database["public"]["Enums"]["commessa_priorita"]
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
+          responsabile_id?: string | null
           snapshot?: Json | null
           stato?: Database["public"]["Enums"]["commessa_stato"]
           tipo?: Database["public"]["Enums"]["commessa_tipo"]
@@ -219,10 +225,13 @@ export type Database = {
           descrizione?: string | null
           id?: string
           importo?: number | null
+          macro_reparto?: string | null
           note?: string | null
+          operator_ids?: string[]
           ordine?: number
           priorita?: Database["public"]["Enums"]["commessa_priorita"]
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
+          responsabile_id?: string | null
           snapshot?: Json | null
           stato?: Database["public"]["Enums"]["commessa_stato"]
           tipo?: Database["public"]["Enums"]["commessa_tipo"]
@@ -1216,11 +1225,13 @@ export type Database = {
           due_date: string | null
           files: Json
           id: string
+          macro_reparto: string | null
           material_code: string | null
           material_label: string | null
           material_qty: number | null
           material_unit: string | null
           note: string | null
+          operator_ids: string[]
           order_id: string
           order_status: string | null
           ordine: number
@@ -1243,11 +1254,13 @@ export type Database = {
           due_date?: string | null
           files?: Json
           id?: string
+          macro_reparto?: string | null
           material_code?: string | null
           material_label?: string | null
           material_qty?: number | null
           material_unit?: string | null
           note?: string | null
+          operator_ids?: string[]
           order_id: string
           order_status?: string | null
           ordine?: number
@@ -1270,11 +1283,13 @@ export type Database = {
           due_date?: string | null
           files?: Json
           id?: string
+          macro_reparto?: string | null
           material_code?: string | null
           material_label?: string | null
           material_qty?: number | null
           material_unit?: string | null
           note?: string | null
+          operator_ids?: string[]
           order_id?: string
           order_status?: string | null
           ordine?: number

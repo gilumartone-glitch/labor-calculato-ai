@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Commessa, CommessaStato, REPARTI, PRIORITA_LABEL } from "./types";
+import { CommessaUpdatesTab } from "./CommessaUpdatesTab";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";
@@ -645,7 +646,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
 
 
         <Tabs defaultValue="overview" className="mt-2">
-          <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-1" : "grid-cols-3"}`}>
+          <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-2" : "grid-cols-4"}`}>
             <TabsTrigger value="overview">Dettaglio</TabsTrigger>
             {commessa.tipo !== "task" && (
               <>
@@ -653,6 +654,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 <TabsTrigger value="materials">Materiali ({aggregated.length})</TabsTrigger>
               </>
             )}
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW */}
@@ -828,6 +830,10 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="timeline">
+            <CommessaUpdatesTab commessaId={commessa.id} onCommessaChanged={onChanged} />
           </TabsContent>
 
         </Tabs>

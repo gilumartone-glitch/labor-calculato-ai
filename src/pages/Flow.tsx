@@ -21,6 +21,7 @@ import { CommessaDialog } from "@/components/flow/CommessaDialog";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { CommessaDetailDialog } from "@/components/flow/CommessaDetailDialog";
+import { CantieriStrip } from "@/components/flow/CantieriStrip";
 import { Commessa, CommessaStato, Profile, REPARTI, STATI } from "@/components/flow/types";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -495,7 +496,8 @@ const Flow = () => {
       {/* Kanban orizzontale: solo coordinatori su desktop */}
       {isCoordinator && (
       <main className="flex-1 overflow-x-auto overflow-y-hidden hidden md:block">
-        <div className="px-6 py-6 h-full">
+        <div className="px-6 py-6 h-full space-y-4">
+          <CantieriStrip onChanged={loadAll} />
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}

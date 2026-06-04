@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { collectSnapshotDepartments } from "@/lib/produzione/snapshot";
+import { CantieriStrip } from "@/components/flow/CantieriStrip";
 
 /** Conta pezzi dello snapshot per ProdDept. */
 const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> => {
@@ -381,6 +382,8 @@ const ProdBoard = () => {
             </div>
           )}
         </div>
+
+        <CantieriStrip />
 
         <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
           {stages.map((st) => (

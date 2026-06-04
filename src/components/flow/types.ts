@@ -1,7 +1,7 @@
 export type CommessaStato = "da_fare" | "preventivo" | "in_produzione" | "pronto" | "consegnato";
 export type CommessaPriorita = "bassa" | "media" | "alta";
 export type CommessaTipo = "commessa" | "task";
-export type CommessaReparto = "tappezzeria" | "stampa" | "falegnameria" | "amministrazione" | "acquisti" | "logistica" | "generale" | "progettazione" | "lavorazione" | "vendite";
+export type CommessaReparto = "tappezzeria" | "stampa" | "falegnameria" | "amministrazione" | "acquisti" | "logistica" | "generale" | "progettazione" | "lavorazione" | "vendite" | "montaggi";
 
 export type Profile = {
   id: string;
@@ -48,6 +48,7 @@ export const REPARTI: { k: CommessaReparto; label: string }[] = [
   { k: "acquisti", label: "Acquisti" },
   { k: "vendite", label: "Vendite" },
   { k: "logistica", label: "Logistica" },
+  { k: "montaggi", label: "→ Montaggi" },
   { k: "generale", label: "Generale" },
 ];
 

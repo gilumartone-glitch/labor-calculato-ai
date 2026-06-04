@@ -1,84 +1,60 @@
 ## Obiettivo
-Trasformare la sezione Montaggi in uno strumento di pianificazione risorse:
-- **Calendario globale** con vista a griglia (operai × giorni e cantieri × giorni, con toggle) per vedere a colpo d'occhio sovraccarichi e tempi morti.
-- **Dentro a ogni progetto**: due tab — "Progetto" (preventivo/stima attuale) e "Assegnazione" (pianificazione reale del lavoro).
-- **Catalogo cloud** di attrezzi e materiali, riutilizzabile.
-- Pulsante **Riprendi da progetto** in Assegnazione che precompila lavoratori, date e attrezzi/materiali.
+Integrare i **Montaggi** in Flow e nella Board di Produzione come cantieri di prima classe, con un **responsabile cantiere** (un assegnatario marcato) che gestisce una **timeline** di note/aggiornamenti, dichiara il cantiere completo o richiede un prolungamento (con approvazione admin).
 
-## 1. Database (Lovable Cloud)
+## 1. Database
 
-Nuove tabelle:
-- `montaggi_attrezzi` — `id, nome, categoria, descrizione, unita, note, created_by, created_at, updated_at`
-- `montaggi_materiali` — `id, nome, categoria, unita, descrizione, note, created_by, created_at, updated_at`
-- `montaggi_assignment_items` — riga per ogni attrezzo/materiale assegnato a un progetto/cantiere: `id, commessa_id, kind ('attrezzo'|'materiale'), ref_id, qty, note, created_by, ts`
+**Migrazione unica:**
+- `commessa_reparto` enum: aggiungo valore `montaggi`.
+- `commessa_assegnatari`: aggiungo colonna `responsabile boolean NOT NULL DEFAULT false` + indice parziale unico `(commessa_id) WHERE responsabile`.
+- Nuova tabella `commessa_updates`:
+  - `id, commessa_id, author_id, tipo` (`nota | aggiornamento | completamento | richiesta_prolungamento | risposta_admin`)
+  - `body text`, `proposed_date date NULL`, `status text` (`pending|approvato|rifiutato` per le richieste; null altrimenti)
+  - `decided_by uuid NULL`, `decided_at timestamptz NULL`
+  - `created_at, updated_at` + trigger `update_updated_at_column`
+- GRANT su `authenticated` + `service_role`; RLS:
+  - SELECT: tutti gli autenticati (allineato alle altre tabelle commesse)
+  - INSERT: solo autore = `auth.uid()` ed essere assegnatario della commessa o admin/coordinatore
+  - UPDATE/DELETE: autore o admin; le richieste di prolungamento possono essere decise solo da admin (logica nel client + check policy `decided_by = auth.uid() AND has_role(admin)`).
 
-RLS: lettura per utenti autenticati con permesso `flow:read` o `produzione:read`; scrittura con `write`. Admin pieno controllo. GRANT espliciti a `authenticated` e `service_role` (come da regola di progetto).
+## 2. Frontend — Flow
 
-`montaggi_planning` resta invariato — è già la fonte dati del calendario.
+- `types.ts`: aggiungo `montaggi` a `CommessaReparto` e `REPARTI` (label "→ Montaggi", colore proprio già gestito via design tokens).
+- `Flow.tsx`: filtro reparto già automatico via `REPARTI`. Aggiungo sezione **Cantieri attivi** sopra la kanban, che mostra le commesse con `reparto = montaggi` **oppure** quelle con almeno una entry in `montaggi_planning` nei prossimi 14 gg. Card compatta con responsabile, scadenza, prossimo giorno pianificato.
 
-## 2. Calendario globale (`/montaggi/pianificazione`)
+## 3. Frontend — Board produzione
 
-Riscrittura di `PianificazioneSection` in modalità `mode="global"`:
-- Header con range 2 settimane (pulsanti ‹ Oggi ›) e toggle **Per operaio / Per cantiere**.
-- **Per operaio**: righe = operai, colonne = 14 giorni. In ogni cella i chip dei cantieri con ore. Footer riga con totale ore/settimana e indicatore colore (sotto/in linea/sovraccarico vs 40h).
-- **Per cantiere**: righe = cantieri (commesse attive), colonne = 14 giorni. Celle con avatar operai assegnati. Riga footer con totale operai-giorno.
-- Click su cella → dialog rapido per aggiungere/modificare assegnazione (operaio, ore, cantiere, ruolo, note).
-- Filtri: cantiere, ruolo, mostra solo conflitti.
+- `ProdBoard.tsx`: nuova fascia **Cantieri (Montaggi)** affiancata alle colonne reparto. Stessa query della sezione Flow. Click → apre `CommessaDetailDialog` sul tab Timeline.
 
-## 3. Dentro al progetto: tab Progetto / Assegnazione
+## 4. CommessaDetailDialog — Timeline & responsabile
 
-In `Montaggi.tsx` (vista singolo progetto) introdurre due tab:
-- **Progetto**: contenuto attuale (preventivo, stima operai, attrezzi/materiali pianificati come parte del calcolo).
-- **Assegnazione**: nuova vista
-  - Header con pulsante **Riprendi da progetto** (copia lavoratori previsti, date stimate, attrezzi e materiali dalla scheda Progetto nelle entry reali).
-  - **Selettore lavoratore con vista 2 settimane**: quando assegno, vedo per ciascun candidato la sua agenda nei prossimi 14 giorni (chip cantieri + giorni liberi). Così capisco subito se è disponibile.
-  - Tabella assegnazioni del cantiere (giorno × operaio).
-  - Sezione **Attrezzi**: lista con autocomplete sul catalogo + pulsante "Nuovo attrezzo" che salva nel database condiviso. Quantità modificabile per riga.
-  - Sezione **Materiali**: stessa UX.
-
-## 4. Catalogo attrezzi e materiali
-
-Nuovo componente `CatalogoMontaggiDialog` raggiungibile da:
-- pulsante "Gestisci catalogo" nella sezione Assegnazione,
-- e nuova voce nell'hub admin (opzionale).
-
-CRUD completo, ricerca, categorie. Riutilizzato dal selettore autocomplete in Assegnazione.
+- Nuovo tab **Timeline** dentro al dialog. Mostra:
+  - Lista cronologica degli updates con avatar/nome autore, tipo (badge), corpo, eventuale data proposta, stato richiesta.
+  - Form in fondo: textarea + selettore tipo (Nota / Aggiornamento / Completamento / Richiedi prolungamento — in quest'ultimo caso compare un date picker `proposed_date`).
+- Tra gli assegnatari: icona ⭐ per impostare/togliere il **responsabile cantiere** (solo admin/coordinatore o lo stesso responsabile attuale).
+- Permessi UI:
+  - Tutti gli assegnatari + admin/coord vedono il form note/aggiornamento.
+  - "Completamento" e "Richiedi prolungamento" visibili al responsabile + admin/coord.
+  - Per ogni richiesta di prolungamento in stato `pending`, gli admin vedono i bottoni **Approva** (imposta `commesse.data_scadenza = proposed_date` e crea `risposta_admin`) / **Rifiuta** (solo risposta).
+- Su "Completamento" eseguo `commesse.stato = 'consegnato'` (configurabile) + entry timeline.
+- Notifiche `prod_notifications` per: richiesta prolungamento (→ tutti gli admin via `get_admin_user_ids()`); decisione admin (→ responsabile).
 
 ## 5. File toccati
 
 ```text
-NEW   supabase/migrations/<ts>_montaggi_catalog.sql
-NEW   src/components/montaggi/CalendarGlobalView.tsx
-NEW   src/components/montaggi/AssegnazioneSection.tsx
-NEW   src/components/montaggi/WorkerAvailabilityPicker.tsx
-NEW   src/components/montaggi/CatalogoMontaggiDialog.tsx
-NEW   src/components/montaggi/AttrezziMaterialiPicker.tsx
-NEW   src/lib/montaggi/catalog.ts        (hook + types)
-NEW   src/lib/montaggi/planning.ts       (queries riusabili)
-EDIT  src/components/montaggi/PianificazioneSection.tsx  (mode globale → usa CalendarGlobalView)
-EDIT  src/pages/Montaggi.tsx             (tab Progetto / Assegnazione)
-EDIT  src/pages/MontaggiPianificazione.tsx (passa a nuovo calendario)
+NEW   supabase/migrations/<ts>_montaggi_in_flow.sql
+NEW   src/components/flow/CommessaUpdatesTab.tsx
+NEW   src/components/flow/CantieriStrip.tsx     (riusato in Flow e ProdBoard)
+NEW   src/lib/flow/updates.ts                   (hook useCommessaUpdates + tipi)
+EDIT  src/components/flow/types.ts              (enum + REPARTI)
+EDIT  src/components/flow/CommessaDetailDialog.tsx (tab Timeline + stella responsabile)
+EDIT  src/pages/Flow.tsx                        (montaggio CantieriStrip)
+EDIT  src/pages/produzione/ProdBoard.tsx        (montaggio CantieriStrip)
 ```
 
-## 6. Dettagli tecnici
+## Note tecniche
 
-- **Disponibilità operaio**: query `montaggi_planning` filtrata per `operator_id` e range date, raggruppata per data, somma `hours`. Operatore "libero" se totale < 8h. Soglia configurabile in costante.
-- **Vista per operaio**: 1 SELECT su `montaggi_planning` joinata con `profiles` (per nome/avatar) e `commesse` (per cantiere label/colore).
-- **Vista per cantiere**: stessa SELECT, pivot lato client. Le commesse senza assegnazioni nei 14gg vengono comunque elencate se attive.
-- **Dialog cella rapido**: usa upsert su `montaggi_planning` (chiave naturale: operator_id+date+commessa_id).
-- **Riprendi da progetto**: legge `commesse.snapshot.montaggi` (struttura attuale del preventivo) e fa bulk insert in `montaggi_planning` + `montaggi_assignment_items`.
-- **Catalogo**: hook `useMontaggiCatalog()` con cache `zustand` o `react-query`; autocomplete client-side.
-- Tutti i pulsanti, dialog e tabelle usano i token semantici esistenti (`dept`, `paper`, ecc.) — niente colori hard-coded.
+- Il `responsabile` su `commessa_assegnatari` è un flag, non un nuovo ruolo: chi è già assegnato può essere promosso. L'admin può cambiarlo in qualsiasi momento.
+- Per "richiesta prolungamento", il client manda anche `proposed_date`; alla decisione admin l'update originale resta in timeline, e ne viene aggiunto uno di tipo `risposta_admin` linkato (`body` con motivo).
+- Tutte le query sfruttano RLS esistenti; nessuna nuova GRANT su `anon`.
 
-## 7. Ordine di esecuzione
-
-1. Migrazione DB (3 tabelle + RLS + GRANT).
-2. Catalogo + dialog gestione (base riutilizzabile).
-3. Tab Progetto/Assegnazione + AssegnazioneSection con picker disponibilità + attrezzi/materiali + "Riprendi da progetto".
-4. Calendario globale dual-view.
-5. QA: scenari operaio sovraccarico, cantiere senza operai, riprendi su progetto vuoto.
-
-## Note
-
-- Lavoro ampio: lo splitto in due step di consegna se preferisci (prima Assegnazione + catalogo, poi Calendario globale). Dimmi se va bene in un'unica passata.
-- Non tocco logica preventivo/contabilità — solo presentazione + nuove tabelle.
+Procedo in un unico passaggio. Confermi?

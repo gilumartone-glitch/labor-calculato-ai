@@ -96,16 +96,19 @@ export type Database = {
         Row: {
           assigned_at: string
           commessa_id: string
+          responsabile: boolean
           user_id: string
         }
         Insert: {
           assigned_at?: string
           commessa_id: string
+          responsabile?: boolean
           user_id: string
         }
         Update: {
           assigned_at?: string
           commessa_id?: string
+          responsabile?: boolean
           user_id?: string
         }
         Relationships: [
@@ -114,6 +117,59 @@ export type Database = {
             columns: ["commessa_id"]
             isOneToOne: false
             referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commessa_updates: {
+        Row: {
+          author_id: string
+          body: string
+          commessa_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          parent_id: string | null
+          proposed_date: string | null
+          status: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body?: string
+          commessa_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          parent_id?: string | null
+          proposed_date?: string | null
+          status?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          commessa_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          parent_id?: string | null
+          proposed_date?: string | null
+          status?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commessa_updates_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "commessa_updates"
             referencedColumns: ["id"]
           },
         ]
@@ -1386,6 +1442,7 @@ export type Database = {
         | "progettazione"
         | "vendite"
         | "lavorazione"
+        | "montaggi"
       commessa_stato:
         | "da_fare"
         | "preventivo"
@@ -1604,6 +1661,7 @@ export const Constants = {
         "progettazione",
         "vendite",
         "lavorazione",
+        "montaggi",
       ],
       commessa_stato: [
         "da_fare",

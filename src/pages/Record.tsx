@@ -66,13 +66,15 @@ const RecordPage = () => {
   }, [records, q, typeFilter, statusFilter, scope, user]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, PersonalRecord[]>();
+    const m = new Map<string, { display: string; items: PersonalRecord[] }>();
     filtered.forEach((r) => {
-      const key = r.contact_name;
-      if (!m.has(key)) m.set(key, []);
-      m.get(key)!.push(r);
+      const key = (r.contact_name ?? "").trim().toLowerCase();
+      if (!m.has(key)) m.set(key, { display: r.contact_name.trim(), items: [] });
+      m.get(key)!.items.push(r);
     });
-    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return Array.from(m.values())
+      .map((g) => [g.display, g.items] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered]);
 
   if (authLoading) return <div className="min-h-screen grid place-items-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;

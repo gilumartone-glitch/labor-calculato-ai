@@ -173,6 +173,8 @@ const hydrate = (raw: unknown): MagState => {
         finishCoats: f.finishCoats != null ? Math.max(1, Number(f.finishCoats)) : undefined,
         colorCanPrices: (f.colorCanPrices && typeof f.colorCanPrices === "object") ? f.colorCanPrices : undefined,
         colorFinishCanPrices: (f.colorFinishCanPrices && typeof f.colorFinishCanPrices === "object") ? f.colorFinishCanPrices : undefined,
+        colorSurcharges: (f.colorSurcharges && typeof f.colorSurcharges === "object") ? f.colorSurcharges : undefined,
+        colorFinishSurcharges: (f.colorFinishSurcharges && typeof f.colorFinishSurcharges === "object") ? f.colorFinishSurcharges : undefined,
         note: f.note,
       }))
     : [];

@@ -1674,78 +1674,30 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
         <Field label="Mani"><Input type="number" min="1" step="1" value={p.coats || ""} onChange={(e) => update({ coats: Math.max(1, Number(e.target.value)) })} className="h-8 text-[12px]" /></Field>
       </div>
 
-      <div>
-        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">Formati latte & prezzi (kg · €)</div>
-        <div className="space-y-1">
-          {cans.map((c, i) => {
-            const computed = parseKgExpr(c.label);
-            return (
-            <div key={c.id} className="grid grid-cols-[140px,1fr,90px,32px] gap-2 items-center">
-              <Input
-                type="text"
-                inputMode="text"
-                value={c.label}
-                onChange={(e) => syncCans(cans.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
-                list={`cans-${p.id}`}
-                className="h-7 text-[11px]"
-                placeholder='es. 5  oppure  10+3'
-              />
-              <Input
-                type="number"
-                step="0.01"
-                value={c.price}
-                onChange={(e) => syncCans(cans.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
-                className="h-7 text-[11px]"
-                placeholder="€ prezzo latta"
-              />
-              <div className="text-[10px] text-muted-foreground font-mono text-right pr-1">
-                {computed > 0 ? `= ${fmt(computed)} kg` : ""}
-              </div>
-              <button
-                type="button"
-                onClick={() => syncCans(cans.filter((_, j) => j !== i))}
-                className="text-ink/40 hover:text-destructive p-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+      {hasFinish ? (
+        <Tabs defaultValue="base" className="w-full">
+          <TabsList className="h-8">
+            <TabsTrigger value="base" className="text-[11px]">Base</TabsTrigger>
+            <TabsTrigger value="finitura" className="text-[11px]">Finitura</TabsTrigger>
+          </TabsList>
+          <TabsContent value="base" className="space-y-3 pt-2">
+            {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte BASE & prezzi (kg · €)")}
+            {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe BASE & consumo (kg/m²)")}
+          </TabsContent>
+          <TabsContent value="finitura" className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Mani finitura"><Input type="number" min="1" step="1" value={p.finishCoats || ""} onChange={(e) => update({ finishCoats: Math.max(1, Number(e.target.value)) })} className="h-8 text-[12px]" placeholder="es. 1" /></Field>
             </div>
-            );
-          })}
-          <datalist id={`cans-${p.id}`}>{canLabelOptions.map((o) => <option key={o} value={o} />)}</datalist>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => syncCans([...cans, { id: uid(), label: "", price: "" }])}
-            className="h-7 px-2 text-[11px]"
-          >
-            <Plus className="w-3 h-3 mr-1" />Aggiungi formato
-          </Button>
-          <div className="text-[10px] text-muted-foreground">
-            Suggerimento: per le confezioni promozionali tipo <strong>10+3</strong> o <strong>5+2</strong> scrivi l'espressione completa: il sistema sommerà automaticamente i kg.
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">Classi ignifughe & consumo (kg/m²)</div>
-        <div className="space-y-1">
-          {(p.classes ?? []).map((c) => (
-            <div key={c.id} className="grid grid-cols-[1fr,110px,32px] gap-2 items-center">
-              <SelectWithAdd
-                value={c.className}
-                onChange={(v) => update({ classes: (p.classes ?? []).map((x) => x.id === c.id ? { ...x, className: v } : x) })}
-                options={classOptions}
-                placeholder="es. Cl. 1"
-                emptyLabel="—"
-              />
-              <Input type="number" step="0.01" value={c.consumptionKgPerM2 || ""} onChange={(e) => update({ classes: (p.classes ?? []).map((x) => x.id === c.id ? { ...x, consumptionKgPerM2: Number(e.target.value) } : x) })} className="h-7 text-[11px] text-right" placeholder="kg/m²" />
-              <button onClick={() => update({ classes: (p.classes ?? []).filter((x) => x.id !== c.id) })} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
-            </div>
-          ))}
-          <Button size="sm" variant="outline" onClick={() => update({ classes: [...(p.classes ?? []), { id: uid(), className: "", consumptionKgPerM2: 0 }] })} className="h-7 px-2 text-[11px]"><Plus className="w-3 h-3 mr-1" />Aggiungi classe</Button>
-        </div>
-      </div>
+            {renderCansBlock(finishCans, syncFinishCans, `cans-fin-${p.id}`, "Formati latte FINITURA & prezzi (kg · €)")}
+            {renderClassesBlock(p.finishClasses, (next) => update({ finishClasses: next }), "Consumo FINITURA (kg/m²)")}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <>
+          {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte & prezzi (kg · €)")}
+          {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe & consumo (kg/m²)")}
+        </>
+      )}
 
       <div><div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">Finiture disponibili</div><div className="flex gap-2">{(["opaca", "satinata", "lucida"] as FireFinish[]).map((f) => { const on = (p.finishes ?? []).includes(f); return <button key={f} onClick={() => update({ finishes: on ? (p.finishes ?? []).filter((x) => x !== f) : [...(p.finishes ?? []), f] })} className={`px-2 py-1 text-[11px] capitalize border rounded-sm ${on ? "bg-dept text-dept-foreground border-dept" : "border-ink/20 hover:bg-muted"}`}>{f}</button>; })}</div></div>
     </div>

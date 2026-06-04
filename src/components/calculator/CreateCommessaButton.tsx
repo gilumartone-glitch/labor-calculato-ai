@@ -750,6 +750,9 @@ export const CreateCommessaButton = ({
       materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
       defaultRef={refNumber ? `${refType}-${refNumber}` : ""}
       defaultProductionName={prodName}
+      availableMacros={pendingPayload?.depts && pendingPayload.depts.length > 0
+        ? Array.from(new Set(pendingPayload.depts.map(toMacroDept)))
+        : undefined}
       onConfirm={onWarehouseConfirm}
       saving={saving}
     />

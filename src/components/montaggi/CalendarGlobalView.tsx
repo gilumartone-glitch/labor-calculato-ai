@@ -237,6 +237,38 @@ export const CalendarGlobalView = () => {
     patchOperator(op.id, { reparti: Array.from(cur) as Reparto[] });
   };
 
+  // === Save / Delete assignment dal calendario globale ===
+  const saveAssignment = async (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => {
+    if (!user) return toast.error("Non autenticato");
+    if (!p.cantiere_label.trim()) return toast.error("Inserisci il nome del cantiere");
+    if (p.id) {
+      const { error } = await supabase.from("montaggi_planning").update({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+      }).eq("id", p.id);
+      if (error) return toast.error(error.message);
+      toast.success("Impegno aggiornato");
+    } else {
+      const { error } = await supabase.from("montaggi_planning").insert({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+        commessa_id: null, created_by: user.id,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("Impegno aggiunto");
+    }
+    setEditing(null);
+    load();
+  };
+  const deleteAssignment = async (id: string) => {
+    const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Impegno eliminato");
+    setEditing(null);
+    load();
+  };
+  const allCantieriList = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [assignments]);
+
   return (
     <div className="space-y-4">
       {/* === Header navigazione === */}

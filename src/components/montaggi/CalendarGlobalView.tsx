@@ -378,14 +378,16 @@ export const CalendarGlobalView = () => {
                           <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}>
                             <div className="space-y-0.5 min-h-[42px]">
                               {list.map((a) => (
-                                <div
+                                <button
                                   key={a.id}
-                                  className="px-1 py-0.5 rounded text-[9px] font-medium text-white truncate"
+                                  type="button"
+                                  onClick={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                  className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition"
                                   style={{ backgroundColor: colorForCantiere(a.cantiere_label) }}
-                                  title={`${a.cantiere_label} · ${a.hours}h · ${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]}${a.notes ? ` · ${a.notes}` : ""}`}
+                                  title={`${a.cantiere_label} · ${a.hours}h · clic per modificare`}
                                 >
                                   {a.cantiere_label.slice(0, 10)} {a.hours}h
-                                </div>
+                                </button>
                               ))}
                               {prodList.map((s) => {
                                 const r = (s.dept as Reparto) in REPARTO_BG ? (s.dept as Reparto) : "altro";
@@ -397,6 +399,14 @@ export const CalendarGlobalView = () => {
                                   </div>
                                 );
                               })}
+                              <button
+                                type="button"
+                                onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
+                                title="Aggiungi impegno"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </button>
                               {dayHours > TARGET_HOURS_PER_DAY + 1 && (
                                 <div className="flex items-center gap-0.5 text-[9px] text-rose-600">
                                   <AlertTriangle className="h-2 w-2" />{dayHours}h

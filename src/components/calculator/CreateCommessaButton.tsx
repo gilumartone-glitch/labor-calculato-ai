@@ -171,14 +171,13 @@ export const CreateCommessaButton = ({
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
-  // Snapshot usato per l'inferenza dei reparti rilevati. Per default è la prop
-  // statica `snapshot`; se è fornita `getSnapshot` (es. Progettazione), viene
-  // popolato all'apertura del dialog con lo snapshot "live" del calcolatore.
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
-  const inferredDepts: ProdDept[] = useMemo(
-    () => inferProdDeptsFromSnapshot(inferenceSnapshot as any),
-    [inferenceSnapshot],
-  );
+  const [montaggiActive, setMontaggiActive] = useState<boolean>(false);
+  const inferredDepts: ProdDept[] = useMemo(() => {
+    const base = inferProdDeptsFromSnapshot(inferenceSnapshot as any);
+    if (montaggiActive && !base.includes("montaggi")) base.push("montaggi");
+    return base;
+  }, [inferenceSnapshot, montaggiActive]);
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     // Solo reparti realmente rilevati (con lavorazioni/materiali). Niente fallback

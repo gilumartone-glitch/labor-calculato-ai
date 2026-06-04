@@ -61,8 +61,10 @@ export default function Dipendenti() {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterMacro, setFilterMacro] = useState<MacroReparto | "">("");
+  useRepartiConfig(); // mantiene il componente sincronizzato con i reparti
 
   const canWrite = isAdmin || can("dipendenti", "write") || can("flow", "write");
+
 
   const load = async () => {
     setLoading(true);

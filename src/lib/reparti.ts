@@ -1,7 +1,14 @@
-// Mappa macro → microreparti. Allineata ai valori usati in profiles.settori.
-export type MacroReparto = "laboratorio" | "tappezzeria" | "montaggi" | "uffici" | "magazzino";
+// Macro → micro reparti. Caricati dinamicamente da reparti_config (Supabase).
+// Le costanti `MACRO_REPARTI` e `MICRO_BY_MACRO` sono mutabili: contengono
+// i valori di default e vengono sostituite quando il caricamento da DB completa.
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-export const MACRO_REPARTI: { k: MacroReparto; label: string }[] = [
+export type MacroReparto = string;
+export type MicroItem = { k: string; label: string };
+export type MacroItem = { k: MacroReparto; label: string };
+
+const DEFAULT_MACROS: MacroItem[] = [
   { k: "laboratorio", label: "Laboratorio" },
   { k: "tappezzeria", label: "Tappezzeria" },
   { k: "montaggi", label: "Montaggi" },
@@ -9,7 +16,7 @@ export const MACRO_REPARTI: { k: MacroReparto; label: string }[] = [
   { k: "magazzino", label: "Magazzino" },
 ];
 
-export const MICRO_BY_MACRO: Record<MacroReparto, { k: string; label: string }[]> = {
+const DEFAULT_MICROS: Record<string, MicroItem[]> = {
   laboratorio: [
     { k: "grafica", label: "Grafica" },
     { k: "stampa", label: "Stampa" },
@@ -39,9 +46,84 @@ export const MICRO_BY_MACRO: Record<MacroReparto, { k: string; label: string }[]
   ],
 };
 
+export const MACRO_REPARTI: MacroItem[] = [...DEFAULT_MACROS];
+export const MICRO_BY_MACRO: Record<string, MicroItem[]> = JSON.parse(JSON.stringify(DEFAULT_MICROS));
 
+type Listener = () => void;
+const listeners = new Set<Listener>();
+let version = 0;
+const notify = () => { version++; listeners.forEach((l) => l()); };
 
-export const microsOf = (m: MacroReparto) => MICRO_BY_MACRO[m].map((x) => x.k);
+const applyData = (rows: { kind: string; key: string; label: string; macro_key: string | null; ordine: number }[]) => {
+  const macros = rows.filter((r) => r.kind === "macro").sort((a, b) => a.ordine - b.ordine || a.label.localeCompare(b.label));
+  const micros = rows.filter((r) => r.kind === "micro");
+  // sostituisci array in-place per preservare riferimento
+  MACRO_REPARTI.length = 0;
+  macros.forEach((m) => MACRO_REPARTI.push({ k: m.key, label: m.label }));
+  Object.keys(MICRO_BY_MACRO).forEach((k) => delete MICRO_BY_MACRO[k]);
+  macros.forEach((m) => { MICRO_BY_MACRO[m.key] = []; });
+  micros
+    .filter((m) => m.macro_key && MICRO_BY_MACRO[m.macro_key] !== undefined)
+    .sort((a, b) => a.ordine - b.ordine || a.label.localeCompare(b.label))
+    .forEach((m) => MICRO_BY_MACRO[m.macro_key as string].push({ k: m.key, label: m.label }));
+  notify();
+};
+
+let loadPromise: Promise<void> | null = null;
+export const loadRepartiConfig = (force = false) => {
+  if (loadPromise && !force) return loadPromise;
+  loadPromise = (async () => {
+    const { data, error } = await supabase
+      .from("reparti_config" as any)
+      .select("kind, key, label, macro_key, ordine");
+    if (error) {
+      console.warn("[reparti] load error", error.message);
+      return;
+    }
+    if (data && data.length) applyData(data as any);
+  })();
+  return loadPromise;
+};
+
+export const reloadRepartiConfig = () => {
+  loadPromise = null;
+  return loadRepartiConfig(true);
+};
+
+export const useRepartiConfig = () => {
+  const [, setV] = useState(version);
+  useEffect(() => {
+    loadRepartiConfig();
+    const cb = () => setV(version);
+    listeners.add(cb);
+    return () => { listeners.delete(cb); };
+  }, []);
+  return { macros: MACRO_REPARTI, microsByMacro: MICRO_BY_MACRO, reload: reloadRepartiConfig };
+};
+
+export const addMacroReparto = async (key: string, label: string) => {
+  const { error } = await supabase.from("reparti_config" as any).insert({
+    kind: "macro", key, label, ordine: MACRO_REPARTI.length + 1,
+  });
+  if (error) throw error;
+  await reloadRepartiConfig();
+};
+
+export const addMicroReparto = async (macroKey: string, key: string, label: string) => {
+  const { error } = await supabase.from("reparti_config" as any).insert({
+    kind: "micro", key, label, macro_key: macroKey, ordine: (MICRO_BY_MACRO[macroKey]?.length ?? 0) + 1,
+  });
+  if (error) throw error;
+  await reloadRepartiConfig();
+};
+
+export const deleteRepartoConfig = async (kind: "macro" | "micro", key: string) => {
+  const { error } = await supabase.from("reparti_config" as any).delete().eq("kind", kind).eq("key", key);
+  if (error) throw error;
+  await reloadRepartiConfig();
+};
+
+export const microsOf = (m: MacroReparto) => (MICRO_BY_MACRO[m] ?? []).map((x) => x.k);
 
 export const microLabel = (k: string): string => {
   for (const m of Object.values(MICRO_BY_MACRO)) {

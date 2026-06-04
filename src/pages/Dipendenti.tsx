@@ -258,7 +258,7 @@ export default function Dipendenti() {
                         ))}
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground font-mono">
-                        Costo azienda/h: <strong>{eur(workerHourlyCost(d))}</strong> · Paga: {eur(d.hourly_rate)}/h
+                        Costo azienda/h: <strong>{eur(dipHourlyCost(d))}</strong> · Paga: {eur(d.hourly_rate)}/h
                         {d.email && <> · {d.email}</>}
                         {d.telefono && <> · {d.telefono}</>}
                       </div>
@@ -355,7 +355,7 @@ export default function Dipendenti() {
                   <div><Label className="text-[10px]">Ore annue</Label><Input type="number" value={editing.annual_hours} onChange={(e) => setEditing({ ...editing, annual_hours: Number(e.target.value) || 1720 })} /></div>
                   <div className="col-span-2">
                     <Label className="text-[10px]">Costo azienda calcolato</Label>
-                    <div className="h-10 px-3 flex items-center rounded-md border bg-muted font-mono text-sm font-bold">{eur(workerHourlyCost(editing))}/h · {eur(workerCompanyCost(editing))}/anno</div>
+                    <div className="h-10 px-3 flex items-center rounded-md border bg-muted font-mono text-sm font-bold">{eur(dipHourlyCost(editing))}/h · {eur(dipCompanyCost(editing))}/anno</div>
                   </div>
                 </div>
               </div>

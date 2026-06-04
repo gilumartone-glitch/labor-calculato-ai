@@ -11,8 +11,8 @@ export default function MontaggiPianificazione() {
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><HardHat className="h-5 w-5" /></div>
             <div>
-              <h1 className="font-display text-2xl font-semibold leading-none">Montaggi · Calendario</h1>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panoramica risorse: chi lavora dove, su 2 settimane</p>
+              <h1 className="font-display text-2xl font-semibold leading-none">Pianificazione</h1>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Operai, cantieri e impegni di laboratorio/tappezzeria su 2 settimane</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

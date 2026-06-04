@@ -16,7 +16,8 @@ import { uid } from "@/lib/format";
 /** ============================================================
  *  TIPI E COSTANTI
  *  ============================================================ */
-type Operator = { id: string; name: string; role?: string; color?: string; userId?: string };
+type Operator = { id: string; name: string; role?: string; color?: string; userId?: string; reparti?: string[] };
+type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "falegnameria" | "altro";
 type Assignment = {
   id: string;
   commessa_id: string | null;
@@ -26,6 +27,7 @@ type Assignment = {
   hours: number;
   notes: string | null;
   created_by: string;
+  reparto?: Reparto;
 };
 
 const OPERATORS_KEY = "montaggi:operai:v1";
@@ -257,7 +259,7 @@ export const PianificazioneSection = ({
     });
   };
 
-  const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => {
+  const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; reparto?: Reparto; id?: string }) => {
     if (!user) return toast.error("Non autenticato");
     if (payload.id) {
       const { error } = await supabase.from("montaggi_planning").update({
@@ -267,6 +269,7 @@ export const PianificazioneSection = ({
         commessa_id: payload.commessa_id,
         cantiere_label: payload.cantiere_label,
         notes: payload.notes ?? null,
+        reparto: payload.reparto ?? "montaggi",
       }).eq("id", payload.id);
       if (error) return toast.error(error.message);
       autoNotify(payload.operator_id, "aggiornata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
@@ -278,6 +281,7 @@ export const PianificazioneSection = ({
         commessa_id: payload.commessa_id,
         cantiere_label: payload.cantiere_label,
         notes: payload.notes ?? null,
+        reparto: payload.reparto ?? "montaggi",
         created_by: user.id,
       });
       if (error) return toast.error(error.message);
@@ -299,6 +303,7 @@ export const PianificazioneSection = ({
       commessa_id: commessaId,
       cantiere_label: cantiere,
       notes: null,
+      reparto: "montaggi",
       created_by: user.id,
     });
     if (error) return toast.error(error.message);
@@ -321,7 +326,7 @@ export const PianificazioneSection = ({
     const from = new Date(bulk.from);
     const to = new Date(bulk.to);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return toast.error("Intervallo date non valido");
-    const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string }> = [];
+    const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string; reparto: Reparto }> = [];
     const cur = new Date(from);
     while (cur <= to) {
       const dow = (cur.getDay() + 6) % 7;
@@ -333,6 +338,7 @@ export const PianificazioneSection = ({
           commessa_id: view === "progetto" ? draftId : null,
           cantiere_label: cantiereLabel,
           created_by: user.id,
+          reparto: "montaggi",
         });
       }
       cur.setDate(cur.getDate() + 1);
@@ -676,7 +682,7 @@ type DialogProps = {
   allCantieri: string[];
   lockCantiere?: boolean;
   onClose: () => void;
-  onSave: (p: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => void;
+  onSave: (p: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; reparto?: Reparto; id?: string }) => void;
   onDelete?: () => void;
 };
 
@@ -687,8 +693,8 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
   const [hours, setHours] = useState(ex?.hours ?? 8);
   const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? defaultCantiere);
   const [notes, setNotes] = useState(ex?.notes ?? "");
+  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? "montaggi");
 
-  // Se siamo in project mode e l'esistente è del cantiere corrente (o è nuovo), il cantiere si blocca automaticamente.
   const canLock = lockCantiere && (!ex || ex.cantiere_label === defaultCantiere);
   const effectiveCantiere = canLock ? defaultCantiere : cantiere;
   const isCurrentProject = effectiveCantiere === defaultCantiere;
@@ -715,6 +721,16 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
               <Label>Ore</Label>
               <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reparto</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
+              <option value="montaggi">Montaggi</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="tappezzeria">Tappezzeria</option>
+              <option value="falegnameria">Falegnameria</option>
+              <option value="altro">Altro</option>
+            </select>
           </div>
           {!canLock && (
             <div className="space-y-1.5">
@@ -748,6 +764,7 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
             commessa_id: isCurrentProject ? defaultCommessaId : null,
             cantiere_label: effectiveCantiere.trim() || defaultCantiere,
             notes: notes.trim() || null,
+            reparto,
           })}>Salva</Button>
         </DialogFooter>
       </DialogContent>

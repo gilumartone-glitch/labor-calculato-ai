@@ -807,7 +807,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
           className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
           style={{
             backgroundColor: chipColorForAssignment(a),
-            borderLeftColor: colorForCantiere(a.cantiere_label),
+            borderLeftColor: repartoAccent(a),
             opacity: isDragging ? 0.4 : 1,
           }}
           title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}

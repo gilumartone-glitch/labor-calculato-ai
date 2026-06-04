@@ -33,6 +33,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
+  loadSharedWorkshopWorkers,
+  saveSharedWorkshopWorkers,
   starterWorkshopMaterials,
   workerBaseRal,
   workerHourlyCost,

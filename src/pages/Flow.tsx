@@ -106,7 +106,7 @@ const Flow = () => {
         { data: subs, error: sErr },
       ] = await Promise.all([
         supabase.from("commesse").select("*").order("ordine", { ascending: true }),
-        supabase.from("profiles").select("id, display_name, avatar_url"),
+        supabase.from("profiles").select("id, display_name, avatar_url, settori"),
         supabase.from("commessa_assegnatari").select("commessa_id, user_id"),
         supabase.from("production_orders").select("id, source_commessa_id, status").not("source_commessa_id", "is", null),
         supabase.from("production_sub_orders").select("id, order_id, dept, status, assignee_id, code"),

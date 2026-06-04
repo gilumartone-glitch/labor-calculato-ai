@@ -28,6 +28,10 @@ export type Commessa = {
   updated_at: string;
   /** Calcolato lato client unendo commessa_assegnatari */
   assegnatari?: Profile[];
+  /** Lavorazione guidata (macro/micro reparti, responsabile, operatori) */
+  macro_reparto?: string | null;
+  responsabile_id?: string | null;
+  operator_ids?: string[] | null;
 };
 
 export const STATI: { k: CommessaStato; label: string; sub: string }[] = [

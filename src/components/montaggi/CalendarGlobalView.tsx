@@ -330,11 +330,6 @@ export const CalendarGlobalView = () => {
                       <td className="px-3 py-1.5 border-b border-border align-top">
                         <div className="font-medium text-sm">{op.name}</div>
                         {op.role && <div className="text-[10px] text-muted-foreground">{op.role}</div>}
-                        <div className="flex gap-1 mt-0.5 flex-wrap">
-                          {(op.reparti ?? ["montaggi"]).map((r) => (
-                            <span key={r} className="text-[9px] px-1 rounded" style={{ backgroundColor: `${REPARTO_BG[r]}22`, color: REPARTO_BG[r] }}>{REPARTO_LABEL[r]}</span>
-                          ))}
-                        </div>
                       </td>
                       {days.map((d, i) => {
                         const dateStr = fmtDate(d);

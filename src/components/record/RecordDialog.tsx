@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { createRecord, updateRecord, shareRecord, unshareRecord, listSharesForRecords, listProfiles, type UserLite } from "@/lib/record/api";
+import { createRecord, updateRecord, shareRecord, unshareRecord, listSharesForRecords, listProfiles, addMarketingContact, type UserLite } from "@/lib/record/api";
 import { RECORD_TYPE_META, type ContactKind, type PersonalRecord, type RecordType, type RecordVisibility } from "@/lib/record/types";
 
 type Props = {
@@ -35,6 +35,8 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
   const [profiles, setProfiles] = useState<UserLite[]>([]);
   const [shareWith, setShareWith] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [contactFocused, setContactFocused] = useState(false);
+  const [saveToAnagrafica, setSaveToAnagrafica] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -60,10 +62,18 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
 
   const meta = RECORD_TYPE_META[recordType];
 
-  const contactSuggestions = useMemo(
-    () => knownContacts.filter((c) => contactName.length >= 2 && c.name.toLowerCase().includes(contactName.toLowerCase())).slice(0, 6),
-    [contactName, knownContacts],
-  );
+  const contactSuggestions = useMemo(() => {
+    const q = contactName.trim().toLowerCase();
+    const list = q
+      ? knownContacts.filter((c) => c.name.toLowerCase().includes(q))
+      : knownContacts;
+    return list.slice(0, 20);
+  }, [contactName, knownContacts]);
+
+  const isNewContact = useMemo(() => {
+    const q = contactName.trim().toLowerCase();
+    return !!q && !knownContacts.some((c) => c.name.toLowerCase() === q);
+  }, [contactName, knownContacts]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -104,6 +114,9 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
         const existingShares = await listSharesForRecords([rec.id]);
         for (const s of existingShares) await unshareRecord(rec.id, s.shared_with);
       }
+      if (saveToAnagrafica && isNewContact) {
+        try { await addMarketingContact(contactName.trim()); } catch {}
+      }
       toast({ title: existing ? "Record aggiornato" : "Record creato" });
       onSaved();
       onOpenChange(false);
@@ -124,16 +137,30 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
         <div className="space-y-4">
           <div>
             <Label>Contatto (cliente o fornitore)</Label>
-            <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Es. APA Srl" autoFocus />
-            {contactSuggestions.length > 0 && (
-              <div className="mt-1 border rounded-sm bg-popover">
+            <Input
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              onFocus={() => setContactFocused(true)}
+              onBlur={() => setTimeout(() => setContactFocused(false), 150)}
+              placeholder="Cerca o digita un nuovo contatto"
+              autoFocus
+            />
+            {contactFocused && contactSuggestions.length > 0 && (
+              <div className="mt-1 border rounded-sm bg-popover max-h-48 overflow-y-auto">
                 {contactSuggestions.map((c) => (
-                  <button key={c.name} type="button" onClick={() => { setContactName(c.name); setContactKind(c.kind); }}
+                  <button key={c.name} type="button" onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setContactName(c.name); setContactKind(c.kind); setContactFocused(false); }}
                     className="block w-full text-left px-2 py-1 text-sm hover:bg-muted">
                     {c.name} <span className="text-xs text-muted-foreground">· {c.kind}</span>
                   </button>
                 ))}
               </div>
+            )}
+            {isNewContact && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                <Checkbox checked={saveToAnagrafica} onCheckedChange={(c) => setSaveToAnagrafica(!!c)} />
+                Nuovo contatto — salva anche nell'anagrafica
+              </label>
             )}
           </div>
 

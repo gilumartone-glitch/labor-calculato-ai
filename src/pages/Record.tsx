@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { listRecords, deleteRecord, updateRecord, markShareRead } from "@/lib/record/api";
+import { listRecords, deleteRecord, updateRecord, markShareRead, listContacts, type ContactSuggestion } from "@/lib/record/api";
 import { RECORD_TYPE_META, type PersonalRecord, type RecordType } from "@/lib/record/types";
 import { eur } from "@/lib/format";
 import RecordDialog from "@/components/record/RecordDialog";
@@ -15,6 +15,7 @@ import RecordDialog from "@/components/record/RecordDialog";
 const RecordPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [dbContacts, setDbContacts] = useState<ContactSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | RecordType>("all");
@@ -37,14 +38,20 @@ const RecordPage = () => {
 
   useEffect(() => { if (user) refresh(); }, [user]);
 
+  useEffect(() => { if (user) listContacts().then(setDbContacts).catch(() => {}); }, [user]);
+
   const knownContacts = useMemo(() => {
     const m = new Map<string, { name: string; kind: PersonalRecord["contact_kind"] }>();
     records.filter((r) => r.owner_id === user?.id).forEach((r) => {
-      const k = r.contact_name.toLowerCase();
-      if (!m.has(k)) m.set(k, { name: r.contact_name, kind: r.contact_kind });
+      const k = r.contact_name.trim().toLowerCase();
+      if (k && !m.has(k)) m.set(k, { name: r.contact_name.trim(), kind: r.contact_kind });
     });
-    return Array.from(m.values());
-  }, [records, user]);
+    dbContacts.forEach((c) => {
+      const k = c.name.trim().toLowerCase();
+      if (k && !m.has(k)) m.set(k, { name: c.name.trim(), kind: c.kind });
+    });
+    return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records, dbContacts, user]);
 
   const filtered = useMemo(() => {
     const ql = q.toLowerCase();
@@ -59,13 +66,15 @@ const RecordPage = () => {
   }, [records, q, typeFilter, statusFilter, scope, user]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, PersonalRecord[]>();
+    const m = new Map<string, { display: string; items: PersonalRecord[] }>();
     filtered.forEach((r) => {
-      const key = r.contact_name;
-      if (!m.has(key)) m.set(key, []);
-      m.get(key)!.push(r);
+      const key = (r.contact_name ?? "").trim().toLowerCase();
+      if (!m.has(key)) m.set(key, { display: r.contact_name.trim(), items: [] });
+      m.get(key)!.items.push(r);
     });
-    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return Array.from(m.values())
+      .map((g) => [g.display, g.items] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered]);
 
   if (authLoading) return <div className="min-h-screen grid place-items-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;

@@ -45,6 +45,8 @@ import {
 } from "@/lib/workshop-shared";
 import { AssegnazioneSection } from "@/components/montaggi/AssegnazioneSection";
 import { ClipboardCheck } from "lucide-react";
+import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
+
 
 type WorkerProfile = {
   id: string;

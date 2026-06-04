@@ -144,24 +144,22 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     setLoading(true);
     const firstDay = dayStrs[0];
     const lastDay = dayStrs[dayStrs.length - 1];
-    const planQ = supabase.from("montaggi_planning")
-      .select("*").gte("date", firstDay).lte("date", lastDay).order("date");
-    // Limita i sub-ordini: solo quelli che intersecano la finestra (escludendo i completati molto vecchi)
-    const subQ = supabase.from("production_sub_orders")
+    const planP = supabase.from("montaggi_planning")
+      .select("*").gte("date", firstDay).lte("date", lastDay).order("date").then((r) => r);
+    const subP = supabase.from("production_sub_orders")
       .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
-      .or(`status.neq.completato,completed_at.gte.${firstDay}`);
-    const queries: Promise<any>[] = [planQ, subQ];
-    if (!profilesLoadedRef.current) {
-      queries.push(supabase.from("profiles").select("id, display_name, settori").order("display_name"));
-    }
-    const results = await Promise.all(queries);
-    const planData = results[0]?.data; const e1 = results[0]?.error;
-    const subData = results[1]?.data;
+      .or(`status.neq.completato,completed_at.gte.${firstDay}`).then((r) => r);
+    const profP = profilesLoadedRef.current
+      ? null
+      : supabase.from("profiles").select("id, display_name, settori").order("display_name").then((r) => r);
+    const [planRes, subRes, profRes] = await Promise.all([planP, subP, profP]);
+    const planData = planRes?.data; const e1 = planRes?.error;
+    const subData = subRes?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
     setAssignments((planData ?? []) as Assignment[]);
     setProdSubs((subData ?? []) as ProdSub[]);
-    if (results[2]) {
-      setProfiles((results[2].data ?? []) as ProfileLite[]);
+    if (profRes) {
+      setProfiles((profRes.data ?? []) as ProfileLite[]);
       profilesLoadedRef.current = true;
     }
     setLoading(false);

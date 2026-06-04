@@ -96,8 +96,12 @@ const prettyOpName = (raw: string) => {
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
-export const CalendarGlobalView = () => {
+type CalendarGlobalViewProps = { mode?: CalendarMode };
+
+export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProps) => {
   const { user } = useAuth();
+  const allowedReparti = useMemo(() => MODE_REPARTI[mode], [mode]);
+  const defaultReparto = allowedReparti[0];
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -110,6 +114,12 @@ export const CalendarGlobalView = () => {
   const [filterText, setFilterText] = useState("");
   const [filterReparto, setFilterReparto] = useState<"all" | Reparto>("all");
   const [filterCantiere, setFilterCantiere] = useState<string>("all");
+
+  // Reset filtro reparto quando cambia modalità
+  useEffect(() => { setFilterReparto("all"); }, [mode]);
+
+  // Sensors per drag&drop (distance:4 → click normali non attivano il drag)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   // Gestione operai (con buffer locale + salva esplicito)
   const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, []);

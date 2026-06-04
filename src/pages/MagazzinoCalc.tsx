@@ -1587,7 +1587,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                         </Button>
                         <div className="text-[10px] font-mono text-muted-foreground">
                           {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
-                          {calc.pct ? ` · +${fmt(calc.pct)}% maggiorazione colore` : ""}
+                          {calc.hasOverride ? ` · prezzi specifici per questo colore` : ""}
                         </div>
                       </div>
                     </>

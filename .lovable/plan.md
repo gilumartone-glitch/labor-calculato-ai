@@ -1,60 +1,79 @@
-## Obiettivo
-Integrare i **Montaggi** in Flow e nella Board di Produzione come cantieri di prima classe, con un **responsabile cantiere** (un assegnatario marcato) che gestisce una **timeline** di note/aggiornamenti, dichiara il cantiere completo o richiede un prolungamento (con approvazione admin).
+# Nuova sezione "Record" personale
 
-## 1. Database
+Una scheda personale nell'Hub dove ogni utente registra promemoria su clienti e fornitori (anche non ancora in anagrafica). Ogni record è privato per default, ma può essere condiviso con altri utenti o con tutti.
 
-**Migrazione unica:**
-- `commessa_reparto` enum: aggiungo valore `montaggi`.
-- `commessa_assegnatari`: aggiungo colonna `responsabile boolean NOT NULL DEFAULT false` + indice parziale unico `(commessa_id) WHERE responsabile`.
-- Nuova tabella `commessa_updates`:
-  - `id, commessa_id, author_id, tipo` (`nota | aggiornamento | completamento | richiesta_prolungamento | risposta_admin`)
-  - `body text`, `proposed_date date NULL`, `status text` (`pending|approvato|rifiutato` per le richieste; null altrimenti)
-  - `decided_by uuid NULL`, `decided_at timestamptz NULL`
-  - `created_at, updated_at` + trigger `update_updated_at_column`
-- GRANT su `authenticated` + `service_role`; RLS:
-  - SELECT: tutti gli autenticati (allineato alle altre tabelle commesse)
-  - INSERT: solo autore = `auth.uid()` ed essere assegnatario della commessa o admin/coordinatore
-  - UPDATE/DELETE: autore o admin; le richieste di prolungamento possono essere decise solo da admin (logica nel client + check policy `decided_by = auth.uid() AND has_role(admin)`).
+## Cosa l'utente vede
 
-## 2. Frontend — Flow
+**Tile in Hub** "Record" (icona BookMarked) — visibile a tutti gli utenti approvati, non serve un permesso specifico.
 
-- `types.ts`: aggiungo `montaggi` a `CommessaReparto` e `REPARTI` (label "→ Montaggi", colore proprio già gestito via design tokens).
-- `Flow.tsx`: filtro reparto già automatico via `REPARTI`. Aggiungo sezione **Cantieri attivi** sopra la kanban, che mostra le commesse con `reparto = montaggi` **oppure** quelle con almeno una entry in `montaggi_planning` nei prossimi 14 gg. Card compatta con responsabile, scadenza, prossimo giorno pianificato.
+**Pagina /record** con:
+- Barra in alto: ricerca per nome contatto/testo, filtri per **tipo** (Pagamento ricevuto · Da pagare · Da incassare · Promemoria · Nota) e **stato** (aperto / chiuso), toggle "Solo miei" / "Condivisi con me".
+- Lista raggruppata per **contatto** (cliente/fornitore). Su ogni gruppo: badge con totale aperto € a debito/credito.
+- Pulsante "+ Nuovo record" che apre un dialog guidato:
+  1. **Contatto**: autocomplete sui contatti già usati dall'utente; se non esiste, lo crea al volo (nome + tipo cliente/fornitore/entrambi opzionale).
+  2. **Tipo record** (radio guidato, ognuno con icona):
+     - Pagamento ricevuto (entrata, importo, data)
+     - Da incassare (importo, scadenza)
+     - Pagamento fatto (uscita, importo, data)
+     - Da pagare (importo, scadenza)
+     - Promemoria (data/ora opzionale)
+     - Nota libera
+  3. **Dettagli**: importo (se monetario), data, titolo breve, descrizione libera, tag opzionali.
+  4. **Condivisione**: privato (default) · utenti specifici · tutti.
+- Click su un record → dialog dettaglio con: modifica, segna come chiuso/saldato, elimina, condividi/aggiorna condivisioni, cronologia condivisione.
+- Azione "Invia a…" su ogni record: scegli uno o più utenti; il record appare nella loro lista come "Condiviso da X" (non possono modificarlo, solo segnare come letto / copiare nella propria lista).
 
-## 3. Frontend — Board produzione
+## Modello dati (Lovable Cloud)
 
-- `ProdBoard.tsx`: nuova fascia **Cantieri (Montaggi)** affiancata alle colonne reparto. Stessa query della sezione Flow. Click → apre `CommessaDetailDialog` sul tab Timeline.
+Tabelle nuove in `public`:
 
-## 4. CommessaDetailDialog — Timeline & responsabile
+- `personal_records`
+  - `id uuid pk`
+  - `owner_id uuid` (auth.users)
+  - `contact_name text` (denormalizzato, sempre presente)
+  - `contact_kind text` check in (`cliente`,`fornitore`,`entrambi`,`altro`)
+  - `record_type text` check in (`pagamento_ricevuto`,`da_incassare`,`pagamento_fatto`,`da_pagare`,`promemoria`,`nota`)
+  - `title text`, `description text`
+  - `amount numeric` null, `currency text default 'EUR'`
+  - `due_date date` null, `event_at timestamptz` null
+  - `status text default 'aperto'` (`aperto`,`chiuso`)
+  - `tags text[] default '{}'`
+  - `visibility text default 'private'` (`private`,`shared`,`all`)
+  - `created_at`, `updated_at` (+ trigger updated_at)
 
-- Nuovo tab **Timeline** dentro al dialog. Mostra:
-  - Lista cronologica degli updates con avatar/nome autore, tipo (badge), corpo, eventuale data proposta, stato richiesta.
-  - Form in fondo: textarea + selettore tipo (Nota / Aggiornamento / Completamento / Richiedi prolungamento — in quest'ultimo caso compare un date picker `proposed_date`).
-- Tra gli assegnatari: icona ⭐ per impostare/togliere il **responsabile cantiere** (solo admin/coordinatore o lo stesso responsabile attuale).
-- Permessi UI:
-  - Tutti gli assegnatari + admin/coord vedono il form note/aggiornamento.
-  - "Completamento" e "Richiedi prolungamento" visibili al responsabile + admin/coord.
-  - Per ogni richiesta di prolungamento in stato `pending`, gli admin vedono i bottoni **Approva** (imposta `commesse.data_scadenza = proposed_date` e crea `risposta_admin`) / **Rifiuta** (solo risposta).
-- Su "Completamento" eseguo `commesse.stato = 'consegnato'` (configurabile) + entry timeline.
-- Notifiche `prod_notifications` per: richiesta prolungamento (→ tutti gli admin via `get_admin_user_ids()`); decisione admin (→ responsabile).
+- `personal_record_shares`
+  - `record_id uuid` fk → personal_records on delete cascade
+  - `shared_with uuid` (auth.users) — null se `visibility='all'`
+  - `shared_by uuid`, `created_at`
+  - `read_at timestamptz` null
+  - pk (record_id, shared_with)
 
-## 5. File toccati
+GRANT su entrambe a `authenticated` + `service_role`.
 
-```text
-NEW   supabase/migrations/<ts>_montaggi_in_flow.sql
-NEW   src/components/flow/CommessaUpdatesTab.tsx
-NEW   src/components/flow/CantieriStrip.tsx     (riusato in Flow e ProdBoard)
-NEW   src/lib/flow/updates.ts                   (hook useCommessaUpdates + tipi)
-EDIT  src/components/flow/types.ts              (enum + REPARTI)
-EDIT  src/components/flow/CommessaDetailDialog.tsx (tab Timeline + stella responsabile)
-EDIT  src/pages/Flow.tsx                        (montaggio CantieriStrip)
-EDIT  src/pages/produzione/ProdBoard.tsx        (montaggio CantieriStrip)
-```
+### RLS
+- `personal_records`
+  - SELECT: `owner_id = auth.uid()` OR `visibility='all'` OR exists share `shared_with=auth.uid()`
+  - INSERT: `owner_id = auth.uid()`
+  - UPDATE/DELETE: `owner_id = auth.uid()` (o admin)
+- `personal_record_shares`
+  - SELECT: `shared_with = auth.uid()` OR owner del record (via security definer helper o subselect)
+  - INSERT/DELETE: owner del record
+  - UPDATE (read_at): `shared_with = auth.uid()`
 
-## Note tecniche
+Per evitare ricorsione: helper `public.is_record_owner(_record_id uuid)` security definer.
 
-- Il `responsabile` su `commessa_assegnatari` è un flag, non un nuovo ruolo: chi è già assegnato può essere promosso. L'admin può cambiarlo in qualsiasi momento.
-- Per "richiesta prolungamento", il client manda anche `proposed_date`; alla decisione admin l'update originale resta in timeline, e ne viene aggiunto uno di tipo `risposta_admin` linkato (`body` con motivo).
-- Tutte le query sfruttano RLS esistenti; nessuna nuova GRANT su `anon`.
+## File toccati
 
-Procedo in un unico passaggio. Confermi?
+- nuovo `supabase/migrations/...` — tabelle, grants, RLS, helper, trigger updated_at
+- `src/pages/Record.tsx` — pagina
+- `src/components/record/RecordList.tsx`, `RecordDialog.tsx`, `ShareDialog.tsx`, `ContactPicker.tsx`
+- `src/lib/record/types.ts`, `src/lib/record/api.ts`
+- `src/pages/Hub.tsx` — aggiungere tile "Record" (visibile a tutti gli utenti approvati, come Magazzino)
+- `src/App.tsx` — route `/record` (no RouteGuard per pagina, basta essere autenticati e approvati; gate interno)
+
+Nessuna modifica al sistema permessi (`user_permissions`): Record è personale, non legato a `PageKey`.
+
+## Note
+- Il dialog guidato propone i tipi monetari con campo importo; per "Promemoria"/"Nota" l'importo è nascosto.
+- Autocomplete contatti: query distinct su `personal_records.contact_name` dell'utente + suggerimenti opzionali da `marketing_contacts` solo per nomi (no PII condivisa qui).
+- Realtime opzionale (fase 2): per ora refetch on focus.

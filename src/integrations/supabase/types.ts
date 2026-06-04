@@ -874,6 +874,95 @@ export type Database = {
         }
         Relationships: []
       }
+      personal_record_shares: {
+        Row: {
+          created_at: string
+          read_at: string | null
+          record_id: string
+          shared_by: string
+          shared_with: string
+        }
+        Insert: {
+          created_at?: string
+          read_at?: string | null
+          record_id: string
+          shared_by: string
+          shared_with: string
+        }
+        Update: {
+          created_at?: string
+          read_at?: string | null
+          record_id?: string
+          shared_by?: string
+          shared_with?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_record_shares_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "personal_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_records: {
+        Row: {
+          amount: number | null
+          contact_kind: string
+          contact_name: string
+          created_at: string
+          currency: string
+          description: string | null
+          due_date: string | null
+          event_at: string | null
+          id: string
+          owner_id: string
+          record_type: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          amount?: number | null
+          contact_kind?: string
+          contact_name: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          event_at?: string | null
+          id?: string
+          owner_id: string
+          record_type: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          amount?: number | null
+          contact_kind?: string
+          contact_name?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          event_at?: string | null
+          id?: string
+          owner_id?: string
+          record_type?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       prod_chat_channels: {
         Row: {
           created_at: string
@@ -1397,6 +1486,11 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_record_owner: { Args: { _record_id: string }; Returns: boolean }
+      is_record_shared_with_me: {
+        Args: { _record_id: string }
         Returns: boolean
       }
       next_production_order_code: { Args: never; Returns: string }

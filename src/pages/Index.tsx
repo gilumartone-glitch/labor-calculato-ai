@@ -642,7 +642,7 @@ const Index = () => {
       </main>
 
       <footer className="border-t-2 border-ink bg-paper">
-        <div className="container py-5 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-5 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           <div className="flex items-center gap-2">
             <Calculator className="w-3 h-3" />
             <span>© Officina · Preventivi</span>

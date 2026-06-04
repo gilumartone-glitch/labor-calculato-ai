@@ -1430,6 +1430,8 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const [needCoats, setNeedCoats] = useState<number>(0);
   const [surface, setSurface] = useState<number>(0);
   const [classId, setClassId] = useState<string>("");
+  const [finishClassId, setFinishClassId] = useState<string>("");
+  const [layer, setLayer] = useState<"base" | "finitura" | "both">("base");
 
   const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
@@ -1446,8 +1448,18 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
     return mOk && cOk && clOk && bOk && fOk;
   }), [products, needMaterial, needColor, needClass, needBase, needFinish]);
   const selected = products.find((p) => p.id === selectedId) ?? filtered[0] ?? products[0];
+  const hasFinish = selected?.baseType === "base_finitura";
+  // Auto-reset layer when switching product
+  useEffect(() => {
+    setLayer(hasFinish ? "both" : "base");
+    setClassId("");
+    setFinishClassId("");
+  }, [selected?.id, hasFinish]);
+
   const activeClass = selected?.classes?.find((c) => c.id === classId) ?? selected?.classes?.[0];
+  const activeFinishClass = selected?.finishClasses?.find((c) => c.id === finishClassId) ?? selected?.finishClasses?.[0];
   const coats = Math.max(1, Number(needCoats || selected?.coats || 1));
+  const finishCoats = Math.max(1, Number(selected?.finishCoats || 1));
 
   const add = () => {
     const p: FireProduct = {
@@ -1471,35 +1483,65 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
     });
   };
 
+  type LayerCalc = {
+    key: "base" | "finitura";
+    label: string;
+    kgNeeded: number;
+    plan: NonNullable<ReturnType<typeof planCans>>;
+    hasOverride: boolean;
+    coats: number;
+    klass: FireClass;
+  };
+
   const calc = useMemo(() => {
-    if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
-    if (!selected.cans?.length) return null;
+    if (!selected || surface <= 0) return null;
     const colorKey = needColor.trim();
-    const ov = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
-    const effectiveCans = applyColorOverrides(selected.cans, ov);
-    const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
-    const plan = planCans(effectiveCans, kgNeeded);
-    if (!plan) return null;
-    return { kgNeeded, plan, hasOverride: !!ov && Object.keys(ov).length > 0 };
-  }, [selected, surface, coats, activeClass, needColor]);
+    const layers: LayerCalc[] = [];
+    const wantBase = layer === "base" || layer === "both";
+    const wantFin = (layer === "finitura" || layer === "both") && hasFinish;
+
+    if (wantBase && activeClass && activeClass.consumptionKgPerM2 > 0 && selected.cans?.length) {
+      const ov = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
+      const eff = applyColorOverrides(selected.cans, ov);
+      const kg = surface * coats * activeClass.consumptionKgPerM2;
+      const plan = planCans(eff, kg);
+      if (plan) layers.push({ key: "base", label: "Base", kgNeeded: kg, plan, hasOverride: !!ov && Object.keys(ov).length > 0, coats, klass: activeClass });
+    }
+    if (wantFin && activeFinishClass && activeFinishClass.consumptionKgPerM2 > 0 && selected.finishCans?.length) {
+      const ov = colorKey ? selected.colorFinishCanPrices?.[colorKey] : undefined;
+      const eff = applyColorOverrides(selected.finishCans, ov);
+      const kg = surface * finishCoats * activeFinishClass.consumptionKgPerM2;
+      const plan = planCans(eff, kg);
+      if (plan) layers.push({ key: "finitura", label: "Finitura", kgNeeded: kg, plan, hasOverride: !!ov && Object.keys(ov).length > 0, coats: finishCoats, klass: activeFinishClass });
+    }
+    if (!layers.length) return null;
+    const totalKgNeeded = layers.reduce((s, l) => s + l.kgNeeded, 0);
+    const totalCost = layers.reduce((s, l) => s + l.plan.totalCost, 0);
+    const totalCans = layers.reduce((s, l) => s + l.plan.totalCans, 0);
+    return { layers, totalKgNeeded, totalCost, totalCans };
+  }, [selected, surface, coats, finishCoats, activeClass, activeFinishClass, needColor, layer, hasFinish]);
 
   const addToCart = () => {
     if (!selected || !calc) return;
     const cart = readDraftSalesCart("ignifugo");
     const colorTag = needColor.trim();
-    const klass = activeClass?.className || "";
-    const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""}${klass ? ` · ${klass}` : ""}`;
-    const newLines: CartLine[] = calc.plan.items.map((it) => ({
-      id: uid(),
-      materialId: "",
-      qty: it.count,
-      name: `${baseLabel} — latta ${it.can.label} kg`,
-      variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
-      unit: "latte" as any,
-      priceSell: it.can.price,
-      pricePurchase: it.can.price,
-      category: "ignifugo",
-    }));
+    const newLines: CartLine[] = [];
+    for (const L of calc.layers) {
+      const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""} · ${L.label}${L.klass.className ? ` · ${L.klass.className}` : ""}`;
+      for (const it of L.plan.items) {
+        newLines.push({
+          id: uid(),
+          materialId: "",
+          qty: it.count,
+          name: `${baseLabel} — latta ${it.can.label} kg`,
+          variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
+          unit: "latte" as any,
+          priceSell: it.can.price,
+          pricePurchase: it.can.price,
+          category: "ignifugo",
+        });
+      }
+    }
     writeDraftSalesCart("ignifugo", [...cart, ...newLines]);
     try { toast.success(`Aggiunto al carrello: ${newLines.length} riga/e per ${selected.name}`); } catch {}
   };
@@ -1554,45 +1596,68 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 
             {!selected ? <div className="text-[12px] text-muted-foreground">Seleziona un prodotto disponibile.</div> : (
               <>
-                <div className="text-[12px]">Prodotto: <strong>{selected.name}</strong>{selected.base && <> · base {selected.base}</>} · {coats} mani</div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(selected.classes?.length ?? 0) > 0 && <Field label="Classe ignifuga richiesta"><select value={activeClass?.id ?? ""} onChange={(e) => setClassId(e.target.value)} className="h-9 text-[12px] w-full border rounded-sm px-2 bg-background">{(selected.classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.className} — {fmt(c.consumptionKgPerM2)} kg/m²</option>)}</select></Field>}
-                  <Field label="Superficie da trattare (m²)"><Input type="number" step="0.1" value={surface || ""} onChange={(e) => setSurface(Number(e.target.value))} placeholder="es. 120" /></Field>
-                  <Field label="Mani applicate"><div className="h-10 flex items-center rounded-md border border-input bg-muted px-3 text-sm font-semibold">{coats}</div></Field>
+                <div className="text-[12px] flex items-center justify-between flex-wrap gap-2">
+                  <div>Prodotto: <strong>{selected.name}</strong>{selected.base && <> · base {selected.base}</>} · {coats} mani base{hasFinish ? ` · ${finishCoats} mani finitura` : ""}</div>
+                  {hasFinish && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] uppercase font-mono text-muted-foreground">Applica:</span>
+                      {(["base","finitura","both"] as const).map((v) => (
+                        <button key={v} type="button" onClick={() => setLayer(v)}
+                          className={`px-2 py-0.5 text-[11px] border rounded-sm ${layer === v ? "bg-dept text-dept-foreground border-dept" : "border-ink/20 hover:bg-muted"}`}>
+                          {v === "base" ? "Solo base" : v === "finitura" ? "Solo finitura" : "Base + Finitura"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {calc ? (() => {
-                  const { kgNeeded, plan } = calc;
-                  const planLabel = plan.items.map((it) => `${it.count} × ${it.can.label} kg`).join(" + ");
-                  return (
-                    <>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-                        <KPI label="Kg necessari" value={`${fmt(kgNeeded)} kg`} hint={`${fmt(surface)} m² × ${coats} mani × ${fmt(activeClass!.consumptionKgPerM2)} kg/m²`} />
-                        <KPI label="Mix consigliato" value={planLabel || "—"} hint={`${plan.totalCans} latta/e — ${fmt(plan.totalKg)} kg totali`} highlight />
-                        <KPI label="Avanzo" value={`${fmt(plan.leftoverKg)} kg`} hint={`vernice in più rispetto al fabbisogno`} />
-                        <KPI label="Prezzo totale" value={eur(plan.totalCost)} hint={plan.items.map((it) => `${it.count}×${eur(it.can.price)}`).join(" + ") || "prezzi mancanti"} highlight />
-                      </div>
-                      <div className="border border-ink/15 rounded-sm divide-y mt-2">
-                        {plan.items.map((it) => (
-                          <div key={it.can.id} className="grid grid-cols-[1fr,80px,100px,120px] gap-2 px-3 py-2 text-[11px] items-center">
-                            <div><strong className="font-semibold">Latta da {it.can.label} kg</strong>{it.can.label !== String(it.can.kg) && <span className="text-muted-foreground"> (= {fmt(it.can.kg)} kg)</span>}</div>
-                            <div className="text-right font-mono">× {it.count}</div>
-                            <div className="text-right font-mono">{eur(it.can.price)}</div>
-                            <div className="text-right font-mono font-bold">{eur(it.can.price * it.count)}</div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(layer === "base" || layer === "both") && (selected.classes?.length ?? 0) > 0 && (
+                    <Field label={hasFinish ? "Classe ignifuga (BASE)" : "Classe ignifuga richiesta"}><select value={activeClass?.id ?? ""} onChange={(e) => setClassId(e.target.value)} className="h-9 text-[12px] w-full border rounded-sm px-2 bg-background">{(selected.classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.className} — {fmt(c.consumptionKgPerM2)} kg/m²</option>)}</select></Field>
+                  )}
+                  {hasFinish && (layer === "finitura" || layer === "both") && (selected.finishClasses?.length ?? 0) > 0 && (
+                    <Field label="Classe / consumo (FINITURA)"><select value={activeFinishClass?.id ?? ""} onChange={(e) => setFinishClassId(e.target.value)} className="h-9 text-[12px] w-full border rounded-sm px-2 bg-background">{(selected.finishClasses ?? []).map((c) => <option key={c.id} value={c.id}>{c.className || "Finitura"} — {fmt(c.consumptionKgPerM2)} kg/m²</option>)}</select></Field>
+                  )}
+                  <Field label="Superficie da trattare (m²)"><Input type="number" step="0.1" value={surface || ""} onChange={(e) => setSurface(Number(e.target.value))} placeholder="es. 120" /></Field>
+                </div>
+                {calc ? (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                      <KPI label="Kg necessari (totale)" value={`${fmt(calc.totalKgNeeded)} kg`} hint={calc.layers.map((l) => `${l.label}: ${fmt(l.kgNeeded)} kg`).join(" + ")} />
+                      <KPI label="Latte totali" value={`${calc.totalCans}`} hint={calc.layers.map((l) => `${l.label}: ${l.plan.totalCans}`).join(" · ")} highlight />
+                      <KPI label="Prezzo totale" value={eur(calc.totalCost)} hint={calc.layers.map((l) => `${l.label}: ${eur(l.plan.totalCost)}`).join(" + ")} highlight />
+                    </div>
+                    {calc.layers.map((L) => {
+                      const planLabel = L.plan.items.map((it) => `${it.count} × ${it.can.label} kg`).join(" + ");
+                      return (
+                        <div key={L.key} className="border border-ink/15 rounded-sm mt-2">
+                          <div className="px-3 py-1.5 bg-muted/40 border-b flex items-center justify-between">
+                            <div className="font-mono text-[10px] uppercase tracking-widest">Layer · {L.label} ({L.coats} mani · {L.klass.className || "—"})</div>
+                            <div className="text-[10px] font-mono text-muted-foreground">{planLabel || "—"} · avanzo {fmt(L.plan.leftoverKg)} kg</div>
                           </div>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center pt-2">
-                        <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
-                          <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi al carrello ordine
-                        </Button>
-                        <div className="text-[10px] font-mono text-muted-foreground">
-                          {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
-                          {calc.hasOverride ? ` · prezzi specifici per questo colore` : ""}
+                          <div className="divide-y">
+                            {L.plan.items.map((it) => (
+                              <div key={it.can.id} className="grid grid-cols-[1fr,80px,100px,120px] gap-2 px-3 py-2 text-[11px] items-center">
+                                <div><strong className="font-semibold">Latta da {it.can.label} kg</strong>{it.can.label !== String(it.can.kg) && <span className="text-muted-foreground"> (= {fmt(it.can.kg)} kg)</span>}</div>
+                                <div className="text-right font-mono">× {it.count}</div>
+                                <div className="text-right font-mono">{eur(it.can.price)}</div>
+                                <div className="text-right font-mono font-bold">{eur(it.can.price * it.count)}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
+                      );
+                    })}
+                    <div className="flex flex-wrap gap-2 items-center pt-2">
+                      <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
+                        <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi al carrello ordine
+                      </Button>
+                      <div className="text-[10px] font-mono text-muted-foreground">
+                        {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
+                        {calc.layers.some((l) => l.hasOverride) ? ` · override colore attivo` : ""}
                       </div>
-                    </>
-                  );
-                })() : <div className="text-[11px] text-muted-foreground">Inserisci classe e superficie: il sistema sceglierà automaticamente il miglior formato (e quante latte servono).</div>}
+                    </div>
+                  </>
+                ) : <div className="text-[11px] text-muted-foreground">{hasFinish ? "Seleziona layer (base/finitura), classe e superficie per calcolare." : "Inserisci classe e superficie: il sistema sceglierà il miglior formato."}</div>}
               </>
             )}
           </div>

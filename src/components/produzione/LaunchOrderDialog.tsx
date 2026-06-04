@@ -15,6 +15,7 @@ import {
   ProdDept, ProdPriority, ProdDelivery, DEPT_LABEL, PRIORITY_LABEL, SUB_DEPT_SUFFIX,
 } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";
+import { MACRO_REPARTI, MacroReparto } from "@/lib/reparti";
 
 const DEPTS: ProdDept[] = [
   "progettazione", "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "assemblaggio", "altro",
@@ -37,6 +38,7 @@ type FormState = {
   delivery: ProdDelivery;
   warehouseOnly: boolean;
   magazzinoNote: string;
+  macroReparto: MacroReparto | "";
 };
 
 const STORAGE_KEY = "prod:launch-order";
@@ -52,6 +54,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     depts: [], deptNotes: {}, deptAssignees: {}, attachments: [], nesting: false,
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
+    macroReparto: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>(STORAGE_KEY, initial);
   const [uploading, setUploading] = useState(false);

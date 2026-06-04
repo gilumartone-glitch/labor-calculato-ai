@@ -64,6 +64,22 @@ const readDesignState = (): Record<string, unknown> => {
   }
 };
 
+/** Restituisce true se per la draft attiva esiste contenuto nel modulo Montaggi. */
+const hasMontaggiContentForActiveDraft = (): boolean => {
+  try {
+    const draftId = localStorage.getItem("officina:active-draft");
+    if (!draftId) return false;
+    const raw = localStorage.getItem(`officina:montaggi-module:v2:${draftId}`);
+    if (!raw) return false;
+    const p = JSON.parse(raw);
+    return (p?.labor?.length ?? 0) > 0
+      || (p?.materials?.length ?? 0) > 0
+      || (p?.tools?.length ?? 0) > 0
+      || (p?.transports?.length ?? 0) > 0
+      || (p?.elements?.length ?? 0) > 0;
+  } catch { return false; }
+};
+
 interface CreateCommessaButtonProps {
   /** Etichetta del bottone (es. "Crea commessa") */
   label?: string;
@@ -155,14 +171,13 @@ export const CreateCommessaButton = ({
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
 
-  // Snapshot usato per l'inferenza dei reparti rilevati. Per default è la prop
-  // statica `snapshot`; se è fornita `getSnapshot` (es. Progettazione), viene
-  // popolato all'apertura del dialog con lo snapshot "live" del calcolatore.
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
-  const inferredDepts: ProdDept[] = useMemo(
-    () => inferProdDeptsFromSnapshot(inferenceSnapshot as any),
-    [inferenceSnapshot],
-  );
+  const [montaggiActive, setMontaggiActive] = useState<boolean>(false);
+  const inferredDepts: ProdDept[] = useMemo(() => {
+    const base = inferProdDeptsFromSnapshot(inferenceSnapshot as any);
+    if (montaggiActive && !base.includes("montaggi")) base.push("montaggi");
+    return base;
+  }, [inferenceSnapshot, montaggiActive]);
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     // Solo reparti realmente rilevati (con lavorazioni/materiali). Niente fallback
@@ -207,6 +222,7 @@ export const CreateCommessaButton = ({
       } else {
         setInferenceSnapshot(snapshot);
       }
+      setMontaggiActive(hasMontaggiContentForActiveDraft());
       if (defaultTitle && defaultTitle.trim()) {
         // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
         // L'utente può comunque modificarlo successivamente.
@@ -289,10 +305,14 @@ export const CreateCommessaButton = ({
 
       // Flusso normale: usa i reparti rilevati; se nessuno, fallback al reparto scelto nel form.
       const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
+      const hasMontaggi = hasMontaggiContentForActiveDraft();
       let depts: ProdDept[] = inferred.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+      if (hasMontaggi && !depts.includes("montaggi") && !excludedDepts.includes("montaggi")) {
+        depts.push("montaggi");
+      }
       if (depts.length === 0) {
         const manual = REPARTO_TO_PROD[reparto];
-        if (manual) {
+        if (manual && manual !== "altro") {
           depts = [manual];
         } else {
           toast.error("Nessun reparto con lavorazioni o prodotti da lanciare");
@@ -300,6 +320,7 @@ export const CreateCommessaButton = ({
           return;
         }
       }
+
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
       setPendingPayload({ mode: "normal", commessaId, clienteName, productionSnapshot, depts });
       setConfirmOpen(true);

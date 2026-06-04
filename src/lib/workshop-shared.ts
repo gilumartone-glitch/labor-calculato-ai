@@ -5,6 +5,7 @@ export const WORK_HOURS_PER_DAY = 8;
 export const WORK_DAYS_PER_MONTH = 22;
 export const SALARY_MONTHS = 13;
 export const SHARED_WORKSHOP_MATERIALS_KEY = "officina:materiali-accessori-comuni:v1";
+export const SHARED_WORKSHOP_WORKERS_KEY = "officina:squadre-comuni:v1";
 
 export type WorkshopMaterialCategory = "legno" | "plastica" | "accessori";
 export type WorkshopMaterial = {
@@ -59,6 +60,25 @@ export const loadSharedWorkshopMaterials = <T extends WorkshopMaterial>(fallback
 export const saveSharedWorkshopMaterials = <T extends WorkshopMaterial>(materials: T[]) => {
   try {
     localStorage.setItem(SHARED_WORKSHOP_MATERIALS_KEY, JSON.stringify(materials));
+  } catch {
+    // ignore storage failures
+  }
+};
+
+export const loadSharedWorkshopWorkers = <T extends WorkshopWorker & { id: string; name: string }>(fallback: T[]): T[] => {
+  try {
+    const raw = localStorage.getItem(SHARED_WORKSHOP_WORKERS_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+export const saveSharedWorkshopWorkers = <T extends WorkshopWorker & { id: string; name: string }>(workers: T[]) => {
+  try {
+    localStorage.setItem(SHARED_WORKSHOP_WORKERS_KEY, JSON.stringify(workers));
   } catch {
     // ignore storage failures
   }

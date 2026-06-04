@@ -33,6 +33,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
+  loadSharedWorkshopWorkers,
+  saveSharedWorkshopWorkers,
   starterWorkshopMaterials,
   workerBaseRal,
   workerHourlyCost,
@@ -253,10 +255,18 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
       const serialized = JSON.stringify(cloud.state);
       if (serialized !== lastAppliedRef.current) {
         lastAppliedRef.current = serialized;
-        setProject({ ...cloud.state, materialCatalog: loadSharedWorkshopMaterials(starterMaterials()) });
+        setProject({
+          ...cloud.state,
+          materialCatalog: loadSharedWorkshopMaterials(starterMaterials()),
+          workers: loadSharedWorkshopWorkers(cloud.state.workers?.length ? cloud.state.workers : defaultWorkers),
+        });
       }
     } else {
-      setProject((p) => ({ ...p, materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog) }));
+      setProject((p) => ({
+        ...p,
+        materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog),
+        workers: loadSharedWorkshopWorkers(p.workers),
+      }));
     }
     setProjectReady(true);
   }, [cloud.ready, cloud.state]);
@@ -264,6 +274,7 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   useEffect(() => {
     if (!projectReady) return;
     saveSharedWorkshopMaterials(project.materialCatalog);
+    saveSharedWorkshopWorkers(project.workers);
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     window.dispatchEvent(new Event("workshop-summary-updated"));
     const serialized = JSON.stringify(project);
@@ -527,17 +538,6 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
               <Summary label="Markup" value={totals.markupPct} suffix="%" />
               <div className="rounded-sm bg-dept p-4 text-dept-foreground"><div className="text-xs uppercase tracking-[0.2em] opacity-80">Prezzo vendita consigliato</div><div className="font-mono text-3xl font-bold">{eur(totals.sale)}</div></div>
               <div className="flex flex-wrap gap-2 print:hidden"><Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Anteprima stampabile</Button></div>
-            </CardContent>
-          </Card>
-          <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
-            <CardContent>
-              <LavorazioneGuidedForm
-                value={project.guided ?? emptyGuided()}
-                onChange={(guided) => updateProject({ guided })}
-                users={profiles}
-                compact
-              />
             </CardContent>
           </Card>
         </aside>

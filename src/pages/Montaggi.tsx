@@ -32,6 +32,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
+  loadSharedWorkshopWorkers,
+  saveSharedWorkshopWorkers,
   starterWorkshopMaterials,
   workerBaseRal,
   workerHourlyCost,
@@ -264,10 +266,18 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
       const serialized = JSON.stringify(cloud.state);
       if (serialized !== lastAppliedRef.current) {
         lastAppliedRef.current = serialized;
-        setProject({ ...cloud.state, materialCatalog: loadSharedWorkshopMaterials(starterMaterials()) });
+        setProject({
+          ...cloud.state,
+          materialCatalog: loadSharedWorkshopMaterials(starterMaterials()),
+          workers: loadSharedWorkshopWorkers(cloud.state.workers?.length ? cloud.state.workers : defaultWorkers),
+        });
       }
     } else {
-      setProject((p) => ({ ...p, materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog) }));
+      setProject((p) => ({
+        ...p,
+        materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog),
+        workers: loadSharedWorkshopWorkers(p.workers),
+      }));
     }
     setProjectReady(true);
   }, [cloud.ready, cloud.state]);
@@ -275,6 +285,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   useEffect(() => {
     if (!projectReady) return;
     saveSharedWorkshopMaterials(project.materialCatalog);
+    saveSharedWorkshopWorkers(project.workers);
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     window.dispatchEvent(new Event("workshop-summary-updated"));
     const serialized = JSON.stringify(project);
@@ -538,15 +549,8 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
         <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
           <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <LavorazioneGuidedForm
-                value={project.guided ?? emptyGuided()}
-                onChange={(guided) => updateProject({ guided })}
-                users={profiles}
-                compact
-              />
-              <div className="flex flex-wrap gap-2 print:hidden border-t border-border pt-3">
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-2 print:hidden">
                 <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
               </div>
             </CardContent>

@@ -184,8 +184,12 @@ export const CreateCommessaButton = ({
     // se lo snapshot non ha contenuto per quel reparto.
     return inferredDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
   }, [inferredDepts, materialOnlyDepts, excludedDepts]);
-  const operatorsForDept = (d: ProdDept) =>
-    profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
+  const operatorsForDept = (d: ProdDept) => {
+    const filtered = profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
+    // Fallback: se nessuno ha il settore (es. "montaggi" non ancora assegnato),
+    // mostra comunque tutti i profili approvati per non bloccare il flusso.
+    return filtered.length > 0 ? filtered : profiles;
+  };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | {

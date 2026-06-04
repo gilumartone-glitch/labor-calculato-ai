@@ -76,3 +76,35 @@ export async function listProfiles(): Promise<UserLite[]> {
   if (error) throw error;
   return (data ?? []) as UserLite[];
 }
+
+export type ContactSuggestion = { name: string; kind: "cliente" | "fornitore" | "entrambi" | "altro"; source: "marketing" | "commessa" | "produzione" | "record" };
+
+export async function listContacts(): Promise<ContactSuggestion[]> {
+  const out: ContactSuggestion[] = [];
+  const [mc, co, po] = await Promise.all([
+    supabase.from("marketing_contacts").select("nome, azienda"),
+    supabase.from("commesse").select("cliente"),
+    supabase.from("production_orders").select("cliente"),
+  ]);
+  (mc.data ?? []).forEach((r: any) => {
+    const name = (r.azienda || r.nome || "").trim();
+    if (name) out.push({ name, kind: "cliente", source: "marketing" });
+  });
+  (co.data ?? []).forEach((r: any) => {
+    const name = (r.cliente || "").trim();
+    if (name) out.push({ name, kind: "cliente", source: "commessa" });
+  });
+  (po.data ?? []).forEach((r: any) => {
+    const name = (r.cliente || "").trim();
+    if (name) out.push({ name, kind: "cliente", source: "produzione" });
+  });
+  return out;
+}
+
+export async function addMarketingContact(name: string) {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) throw new Error("Non autenticato");
+  const { error } = await supabase.from("marketing_contacts").insert({ nome: name, created_by: uid });
+  if (error) throw error;
+}

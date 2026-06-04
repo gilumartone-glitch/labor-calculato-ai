@@ -838,6 +838,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       onOpenChange={setConfirmOpen}
       title="Conferma preventivo → Lavorazione"
       materials={extractMaterialsFromSnapshot(snapshot)}
+      defaultRef={commessa ? `CM-${commessa.id.slice(0, 8).toUpperCase()}` : ""}
       defaultProductionName={commessa?.titolo ?? ""}
       suggestedWorkDept={toWorkDept((commessa as any)?.reparto ?? (snapshot as any)?.departments?.[0]?.key)}
       onConfirm={handleConfirmToWarehouse}

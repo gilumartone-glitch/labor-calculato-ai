@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Commessa, CommessaPriorita, CommessaReparto, CommessaStato, CommessaTipo, Profile, REPARTI, STATI } from "./types";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { LavorazioneGuidedForm, GuidedValue, emptyGuided } from "@/components/shared/LavorazioneGuidedForm";
+import { MacroReparto } from "@/lib/reparti";
 
 interface Props {
   open: boolean;
@@ -36,6 +38,7 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
   const [note, setNote] = useState("");
   const [fornitore, setFornitore] = useState("");
   const [assegnatariIds, setAssegnatariIds] = useState<string[]>([]);
+  const [guided, setGuided] = useState<GuidedValue>(emptyGuided());
   const [saving, setSaving] = useState(false);
 
   const FORN_RE = /^Fornitore:\s*(.+?)\n?\n?/;
@@ -56,6 +59,11 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
       setTipo((initial?.tipo as CommessaTipo) ?? "commessa");
       setNote(initial?.note ?? "");
       setAssegnatariIds(initial?.assegnatari?.map((a) => a.id) ?? []);
+      setGuided({
+        macro_reparto: (initial?.macro_reparto as MacroReparto | null) ?? null,
+        responsabile_id: initial?.responsabile_id ?? null,
+        micros: [], // dipendenze sono nelle sub-orders, qui mostriamo solo a livello di commessa
+      });
     }
   }, [open, initial]);
 

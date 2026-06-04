@@ -119,7 +119,7 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
-    setWorkDept(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+    setWorkDept(initialDept);
     setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });

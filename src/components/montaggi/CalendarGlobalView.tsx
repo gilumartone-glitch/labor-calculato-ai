@@ -82,8 +82,12 @@ const colorForCantiere = (label: string) => {
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
   return COLORS[h % COLORS.length];
 };
-// Colore del chip = reparto (tipo di impegno); accento sinistra = cantiere
+// Colore del chip = cantiere (per distinguere chiaramente impegni diversi)
+// Accento sul bordo sinistro = reparto (tipo di impegno)
 const chipColorForAssignment = (a: Pick<Assignment, "reparto" | "cantiere_label">) => {
+  return colorForCantiere(a.cantiere_label);
+};
+const repartoAccent = (a: Pick<Assignment, "reparto">) => {
   const r = (a.reparto ?? "montaggi") as Reparto;
   return REPARTO_BG[r] ?? REPARTO_BG.altro;
 };
@@ -101,6 +105,10 @@ const prettyOpName = (raw: string) => {
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
+// Cache di modulo per evitare loading blank al re-mount (cambio tab)
+type CacheEntry = { assignments: Assignment[]; prodSubs: ProdSub[]; profiles: ProfileLite[]; startKey: string };
+const dataCache = new Map<string, CacheEntry>();
+
 type CalendarGlobalViewProps = { mode?: CalendarMode };
 
 export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProps) => {
@@ -109,10 +117,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const defaultReparto = allowedReparti[0];
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [prodSubs, setProdSubs] = useState<ProdSub[]>([]);
-  const [profiles, setProfiles] = useState<ProfileLite[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Inizializza dalla cache di modulo per evitare flash al re-mount
+  const initialCache = dataCache.get(`${mode}|${fmtDate(startOfWeek(new Date()))}`);
+  const [assignments, setAssignments] = useState<Assignment[]>(initialCache?.assignments ?? []);
+  const [prodSubs, setProdSubs] = useState<ProdSub[]>(initialCache?.prodSubs ?? []);
+  const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
+  const [loading, setLoading] = useState(!initialCache);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
 
   // Filtri
@@ -138,10 +148,13 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   // Carica solo la finestra corrente, debounced.
   // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
   const loadTimerRef = useRef<number | null>(null);
-  const profilesLoadedRef = useRef(false);
+  const profilesLoadedRef = useRef(initialCache ? true : false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const cacheKey = `${mode}|${dayStrs[0]}`;
+    const cached = dataCache.get(cacheKey);
+    // Mostra "Caricamento…" solo se non abbiamo dati visibili
+    if (!cached) setLoading(true);
     const firstDay = dayStrs[0];
     const lastDay = dayStrs[dayStrs.length - 1];
     const planP = supabase.from("montaggi_planning")
@@ -156,18 +169,23 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const planData = planRes?.data; const e1 = planRes?.error;
     const subData = subRes?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
-    setAssignments((planData ?? []) as Assignment[]);
-    setProdSubs((subData ?? []) as ProdSub[]);
+    const nextAssignments = (planData ?? []) as Assignment[];
+    const nextProdSubs = (subData ?? []) as ProdSub[];
+    setAssignments(nextAssignments);
+    setProdSubs(nextProdSubs);
+    let nextProfiles = profiles;
     if (profRes) {
-      setProfiles((profRes.data ?? []) as ProfileLite[]);
+      nextProfiles = (profRes.data ?? []) as ProfileLite[];
+      setProfiles(nextProfiles);
       profilesLoadedRef.current = true;
     }
+    dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [dayStrs]);
+  }, [dayStrs, mode, profiles]);
 
   const scheduleLoad = useCallback(() => {
     if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = window.setTimeout(() => { load(); }, 600);
+    loadTimerRef.current = window.setTimeout(() => { load(); }, 1500);
   }, [load]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
@@ -655,7 +673,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition border-l-[3px]"
                                     style={{
                                       backgroundColor: chipColorForAssignment(a),
-                                      borderLeftColor: colorForCantiere(a.cantiere_label),
+                                      borderLeftColor: repartoAccent(a),
                                     }}
                                     title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
@@ -803,7 +821,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
           className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
           style={{
             backgroundColor: chipColorForAssignment(a),
-            borderLeftColor: colorForCantiere(a.cantiere_label),
+            borderLeftColor: repartoAccent(a),
             opacity: isDragging ? 0.4 : 1,
           }}
           title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}

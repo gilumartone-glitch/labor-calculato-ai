@@ -241,12 +241,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   }, [displayedOps, filterText, filterReparto]);
 
   const filteredAssignments = useMemo(() => {
-    return assignments.filter((a) => {
+    return modeAssignments.filter((a) => {
       if (filterCantiere !== "all" && a.cantiere_label !== filterCantiere) return false;
       if (filterReparto !== "all" && (a.reparto ?? "montaggi") !== filterReparto) return false;
       return true;
     });
-  }, [assignments, filterReparto, filterCantiere]);
+  }, [modeAssignments, filterReparto, filterCantiere]);
 
   const byOp = useMemo(() => {
     const m = new Map<string, Map<string, Assignment[]>>();

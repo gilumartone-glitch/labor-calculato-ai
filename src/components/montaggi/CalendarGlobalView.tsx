@@ -127,7 +127,7 @@ export const CalendarGlobalView = () => {
     const known = new Set(allOperators.map((o) => o.id));
     const out: Operator[] = [];
     for (const id of byOp.keys()) {
-      if (!known.has(id)) out.push({ id, name: id, role: "" });
+      if (!known.has(id)) out.push({ id, name: prettyOpName(id), role: "" });
     }
     return out;
   }, [allOperators, byOp]);

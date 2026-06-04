@@ -38,14 +38,20 @@ const RecordPage = () => {
 
   useEffect(() => { if (user) refresh(); }, [user]);
 
+  useEffect(() => { if (user) listContacts().then(setDbContacts).catch(() => {}); }, [user]);
+
   const knownContacts = useMemo(() => {
     const m = new Map<string, { name: string; kind: PersonalRecord["contact_kind"] }>();
     records.filter((r) => r.owner_id === user?.id).forEach((r) => {
-      const k = r.contact_name.toLowerCase();
-      if (!m.has(k)) m.set(k, { name: r.contact_name, kind: r.contact_kind });
+      const k = r.contact_name.trim().toLowerCase();
+      if (k && !m.has(k)) m.set(k, { name: r.contact_name.trim(), kind: r.contact_kind });
     });
-    return Array.from(m.values());
-  }, [records, user]);
+    dbContacts.forEach((c) => {
+      const k = c.name.trim().toLowerCase();
+      if (k && !m.has(k)) m.set(k, { name: c.name.trim(), kind: c.kind });
+    });
+    return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records, dbContacts, user]);
 
   const filtered = useMemo(() => {
     const ql = q.toLowerCase();

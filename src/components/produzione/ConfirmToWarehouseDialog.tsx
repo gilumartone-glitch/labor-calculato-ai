@@ -81,7 +81,18 @@ export const ConfirmToWarehouseDialog = ({
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
-  const [workDept, setWorkDept] = useState<ProdDept>(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+  const macros = useMemo(() => {
+    const list = (availableMacros && availableMacros.length > 0)
+      ? MACRO_WORK_DEPTS.filter((m) => availableMacros.map(toMacroDept).includes(m))
+      : MACRO_WORK_DEPTS;
+    return list.length > 0 ? list : MACRO_WORK_DEPTS;
+  }, [availableMacros]);
+  const initialDept = (() => {
+    const m = suggestedWorkDept ? toMacroDept(suggestedWorkDept) : undefined;
+    if (m && macros.includes(m)) return m;
+    return macros[0] ?? "laboratorio";
+  })();
+  const [workDept, setWorkDept] = useState<ProdDept>(initialDept);
   const [createAdminClosure, setCreateAdminClosure] = useState(false);
 
   // Sezioni richiuse di default quando già valorizzate

@@ -55,6 +55,7 @@ export const ConfirmToWarehouseDialog = ({
   defaultProductionName = "",
   materials = [],
   suggestedWorkDept,
+  availableMacros,
   onConfirm,
   saving,
 }: {
@@ -66,6 +67,8 @@ export const ConfirmToWarehouseDialog = ({
   materials?: WarehouseMaterialItem[];
   /** Reparto di lavorazione suggerito (auto-rilevato dal preventivo). */
   suggestedWorkDept?: ProdDept;
+  /** Macro-reparti attivati nel progetto (filtro selettore). Se undefined, mostra tutte le macro. */
+  availableMacros?: ProdDept[];
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {

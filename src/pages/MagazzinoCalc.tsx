@@ -1729,7 +1729,6 @@ function CansBlock({
 
 function FireProductEditor({ product: p, update, colorOptions, baseOptions, materialOptions, classOptions, canLabelOptions }: { product: FireProduct; update: (patch: Partial<FireProduct>) => void; colorOptions: string[]; baseOptions: string[]; materialOptions: string[]; classOptions: string[]; canLabelOptions: string[] }) {
   // Stato locale per latte: l'utente digita "10+3" come label e calcoliamo kg.
-  type LocalCan = { id: string; label: string; price: string };
   const toLocal = (arr?: FireCan[]) => (arr ?? []).map((c) => ({ id: c.id || uid(), label: c.label || (c.kg ? String(c.kg) : ""), price: c.price ? String(c.price) : "" }));
   const fromLocal = (next: LocalCan[]): FireCan[] => {
     const out: FireCan[] = [];

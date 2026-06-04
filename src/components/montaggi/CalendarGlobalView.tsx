@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 
@@ -75,12 +77,14 @@ const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
 export const CalendarGlobalView = () => {
+  const { user } = useAuth();
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [prodSubs, setProdSubs] = useState<ProdSub[]>([]);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
 
   // Filtri
   const [filterText, setFilterText] = useState("");
@@ -233,6 +237,38 @@ export const CalendarGlobalView = () => {
     patchOperator(op.id, { reparti: Array.from(cur) as Reparto[] });
   };
 
+  // === Save / Delete assignment dal calendario globale ===
+  const saveAssignment = async (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => {
+    if (!user) return toast.error("Non autenticato");
+    if (!p.cantiere_label.trim()) return toast.error("Inserisci il nome del cantiere");
+    if (p.id) {
+      const { error } = await supabase.from("montaggi_planning").update({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+      }).eq("id", p.id);
+      if (error) return toast.error(error.message);
+      toast.success("Impegno aggiornato");
+    } else {
+      const { error } = await supabase.from("montaggi_planning").insert({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+        commessa_id: null, created_by: user.id,
+      });
+      if (error) return toast.error(error.message);
+      toast.success("Impegno aggiunto");
+    }
+    setEditing(null);
+    load();
+  };
+  const deleteAssignment = async (id: string) => {
+    const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Impegno eliminato");
+    setEditing(null);
+    load();
+  };
+  const allCantieriList = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [assignments]);
+
   return (
     <div className="space-y-4">
       {/* === Header navigazione === */}
@@ -342,14 +378,16 @@ export const CalendarGlobalView = () => {
                           <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}>
                             <div className="space-y-0.5 min-h-[42px]">
                               {list.map((a) => (
-                                <div
+                                <button
                                   key={a.id}
-                                  className="px-1 py-0.5 rounded text-[9px] font-medium text-white truncate"
+                                  type="button"
+                                  onClick={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                  className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition"
                                   style={{ backgroundColor: colorForCantiere(a.cantiere_label) }}
-                                  title={`${a.cantiere_label} · ${a.hours}h · ${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]}${a.notes ? ` · ${a.notes}` : ""}`}
+                                  title={`${a.cantiere_label} · ${a.hours}h · clic per modificare`}
                                 >
                                   {a.cantiere_label.slice(0, 10)} {a.hours}h
-                                </div>
+                                </button>
                               ))}
                               {prodList.map((s) => {
                                 const r = (s.dept as Reparto) in REPARTO_BG ? (s.dept as Reparto) : "altro";
@@ -361,6 +399,14 @@ export const CalendarGlobalView = () => {
                                   </div>
                                 );
                               })}
+                              <button
+                                type="button"
+                                onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
+                                title="Aggiungi impegno"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </button>
                               {dayHours > TARGET_HOURS_PER_DAY + 1 && (
                                 <div className="flex items-center gap-0.5 text-[9px] text-rose-600">
                                   <AlertTriangle className="h-2 w-2" />{dayHours}h
@@ -435,9 +481,15 @@ export const CalendarGlobalView = () => {
                               {list.map((a) => {
                                 const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
-                                  <div key={a.id} className="px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate" title={`${opName} · ${a.hours}h`}>
+                                  <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
+                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate hover:bg-dept/10 transition"
+                                    title={`${opName} · ${a.hours}h · clic per modificare`}
+                                  >
                                     {opName} {a.hours}h
-                                  </div>
+                                  </button>
                                 );
                               })}
                               {list.length === 0 && !isWeekend && <div className="text-[9px] text-muted-foreground/40 text-center">—</div>}
@@ -522,6 +574,98 @@ export const CalendarGlobalView = () => {
           <span className="text-muted-foreground ml-auto">Gli impegni di laboratorio/tappezzeria provengono dai sub-ordini di produzione assegnati.</span>
         </CardContent>
       </Card>
+
+      {/* === Dialog modifica/aggiunta impegno === */}
+      {editing && (
+        <EditAssignmentDialog
+          editing={editing}
+          operators={displayedOps}
+          allCantieri={allCantieriList}
+          onClose={() => setEditing(null)}
+          onSave={saveAssignment}
+          onDelete={editing.existing ? () => deleteAssignment(editing.existing!.id) : undefined}
+        />
+      )}
     </div>
+  );
+};
+
+/** Dialog inline per modificare/aggiungere un impegno dal calendario globale */
+type EditDialogProps = {
+  editing: { operatorId: string; date: string; existing?: Assignment };
+  operators: Operator[];
+  allCantieri: string[];
+  onClose: () => void;
+  onSave: (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => void;
+  onDelete?: () => void;
+};
+
+const EditAssignmentDialog = ({ editing, operators, allCantieri, onClose, onSave, onDelete }: EditDialogProps) => {
+  const ex = editing.existing;
+  const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
+  const [date, setDate] = useState(ex?.date ?? editing.date);
+  const [hours, setHours] = useState<number>(ex?.hours ?? 8);
+  const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? "");
+  const [notes, setNotes] = useState(ex?.notes ?? "");
+  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? "montaggi");
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{ex ? "Modifica impegno" : "Nuovo impegno"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label>Operaio</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={operatorId} onChange={(e) => setOperatorId(e.target.value)}>
+              {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Data</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ore</Label>
+              <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Cantiere</Label>
+            <Input list="cantieri-list-global" placeholder="Nome cantiere" value={cantiere} onChange={(e) => setCantiere(e.target.value)} />
+            <datalist id="cantieri-list-global">
+              {allCantieri.map((c) => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reparto</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
+              <option value="montaggi">Montaggi</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="tappezzeria">Tappezzeria</option>
+              <option value="falegnameria">Falegnameria</option>
+              <option value="altro">Altro</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Note</Label>
+            <Input value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali" />
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          {onDelete && (
+            <Button variant="destructive" onClick={onDelete} className="mr-auto">
+              <Trash2 className="h-4 w-4" />Elimina
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button onClick={() => onSave({ id: ex?.id, operator_id: operatorId, date, hours, cantiere_label: cantiere, notes, reparto })}>
+            <Save className="h-4 w-4" />Salva
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

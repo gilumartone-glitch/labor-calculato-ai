@@ -481,7 +481,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       {/* === Calendario === */}
       <Card className="border-2 border-dept shadow-soft overflow-hidden">
         <CardContent className="p-0 overflow-x-auto">
-          {loading ? (
+          {loading && assignments.length === 0 && prodSubs.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : view === "operai" ? (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>

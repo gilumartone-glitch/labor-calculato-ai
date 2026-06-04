@@ -786,14 +786,15 @@ type DraggableChipProps = {
   onPatch: (patch: Partial<Pick<Assignment, "date" | "hours" | "operator_id">>) => void;
   onDelete: () => void;
   onPropagate: (from: string, to: string) => void;
+  onDragState: (id: string | null) => void;
 };
 
-const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropagate }: DraggableChipProps) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: a.id });
+const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropagate, onDragState }: DraggableChipProps) => {
   const [open, setOpen] = useState(false);
   const [hours, setHours] = useState<number>(a.hours);
   const [from, setFrom] = useState<string>(a.date);
   const [to, setTo] = useState<string>(a.date);
+  const [isDragging, setIsDragging] = useState(false);
   useEffect(() => { setHours(a.hours); setFrom(a.date); setTo(a.date); }, [a.id, a.hours, a.date]);
 
   const shiftDate = (delta: number) => {
@@ -806,10 +807,10 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          ref={setNodeRef}
           type="button"
-          {...attributes}
-          {...listeners}
+          draggable
+          onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
+          onDragEnd={() => { setIsDragging(false); onDragState(null); }}
           onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
           className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
           style={{

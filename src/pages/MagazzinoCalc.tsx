@@ -168,6 +168,8 @@ const hydrate = (raw: unknown): MagState => {
           ? f.finishClasses.map((c: any) => ({ id: c.id ?? uid(), className: c.className ?? "", consumptionKgPerM2: Number(c.consumptionKgPerM2 ?? 0) }))
           : undefined,
         finishCoats: f.finishCoats != null ? Math.max(1, Number(f.finishCoats)) : undefined,
+        colorCanPrices: (f.colorCanPrices && typeof f.colorCanPrices === "object") ? f.colorCanPrices : undefined,
+        colorFinishCanPrices: (f.colorFinishCanPrices && typeof f.colorFinishCanPrices === "object") ? f.colorFinishCanPrices : undefined,
         note: f.note,
       }))
     : [];

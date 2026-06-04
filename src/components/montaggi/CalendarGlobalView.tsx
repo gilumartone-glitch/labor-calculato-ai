@@ -438,100 +438,113 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
           {loading ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : view === "operai" ? (
-            <table className="w-full border-collapse min-w-[1100px]">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left text-xs uppercase tracking-wider border-b border-border w-[220px]">Operaio</th>
-                  {days.map((d, i) => {
-                    const isToday = fmtDate(d) === todayStr;
-                    const isWeekStart = i === 7;
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <table className="w-full border-collapse min-w-[1100px]">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="px-3 py-2 text-left text-xs uppercase tracking-wider border-b border-border w-[220px]">Operaio</th>
+                    {days.map((d, i) => {
+                      const isToday = fmtDate(d) === todayStr;
+                      const isWeekStart = i === 7;
+                      return (
+                        <th key={i} className={`px-1 py-2 text-center text-xs border-b border-border ${isToday ? "bg-dept-soft" : ""} ${isWeekStart ? "border-l-2 border-l-dept" : ""}`}>
+                          <div className="font-semibold">{dayLabel[i % 7]}</div>
+                          <div className="font-mono text-[10px] text-muted-foreground">{d.getDate()}/{d.getMonth() + 1}</div>
+                        </th>
+                      );
+                    })}
+                    <th className="px-2 py-2 text-center text-xs uppercase border-b border-border border-l-2 border-l-dept w-[70px]">Tot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOps.length === 0 ? (
+                    <tr><td colSpan={DAYS + 2} className="p-6 text-center text-sm text-muted-foreground">Nessun operaio corrispondente ai filtri.</td></tr>
+                  ) : filteredOps.map((op) => {
+                    const dayMap = byOp.get(op.id) ?? new Map();
+                    const prodMap = op.userId ? (prodByUserDay.get(op.userId) ?? new Map()) : new Map();
+                    let total = 0;
+                    for (const d of dayStrs) {
+                      const list = (dayMap.get(d) ?? []) as Assignment[];
+                      total += list.reduce((s, a) => s + Number(a.hours || 0), 0);
+                    }
+                    const targetWeek = TARGET_HOURS_PER_DAY * 5 * 2;
+                    const overload = total > targetWeek + 10;
+                    const underload = total < targetWeek - 16;
                     return (
-                      <th key={i} className={`px-1 py-2 text-center text-xs border-b border-border ${isToday ? "bg-dept-soft" : ""} ${isWeekStart ? "border-l-2 border-l-dept" : ""}`}>
-                        <div className="font-semibold">{dayLabel[i % 7]}</div>
-                        <div className="font-mono text-[10px] text-muted-foreground">{d.getDate()}/{d.getMonth() + 1}</div>
-                      </th>
+                      <tr key={op.id} className="hover:bg-muted/20">
+                        <td className="px-3 py-1.5 border-b border-border align-top">
+                          <div className="font-medium text-sm">{op.name}</div>
+                          {op.role && <div className="text-[10px] text-muted-foreground">{op.role}</div>}
+                        </td>
+                        {days.map((d, i) => {
+                          const dateStr = fmtDate(d);
+                          const list = (dayMap.get(dateStr) ?? []) as Assignment[];
+                          const prodList = (prodMap.get(dateStr) ?? []) as ProdSub[];
+                          const dayHours = list.reduce((s, a) => s + Number(a.hours || 0), 0);
+                          const isWeekStart = i === 7;
+                          const isToday = dateStr === todayStr;
+                          return (
+                            <DroppableCell
+                              key={dateStr}
+                              id={`${op.id}|${dateStr}`}
+                              className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}
+                            >
+                              <div className="space-y-0.5 min-h-[42px]">
+                                {list.map((a) => (
+                                  <DraggableChip
+                                    key={a.id}
+                                    assignment={a}
+                                    onOpenDialog={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                    onPatch={(patch) => saveAssignment({
+                                      id: a.id,
+                                      operator_id: a.operator_id,
+                                      date: a.date,
+                                      hours: a.hours,
+                                      cantiere_label: a.cantiere_label,
+                                      notes: a.notes,
+                                      reparto: a.reparto,
+                                      ...patch,
+                                    }, { silent: true, closeDialog: false })}
+                                    onDelete={() => deleteAssignment(a.id)}
+                                    onPropagate={(from, to) => propagateAssignment(a, from, to)}
+                                  />
+                                ))}
+                                {prodList.map((s) => {
+                                  const r = (s.dept as Reparto) in REPARTO_BG ? (s.dept as Reparto) : "altro";
+                                  return (
+                                    <div key={s.id} className="px-1 py-0.5 rounded text-[9px] font-medium text-white truncate flex items-center gap-0.5"
+                                      style={{ backgroundColor: REPARTO_BG[r], opacity: 0.85 }}
+                                      title={`${REPARTO_LABEL[r]} · ${s.status}`}>
+                                      <Factory className="h-2 w-2" />{REPARTO_LABEL[r].slice(0, 8)}
+                                    </div>
+                                  );
+                                })}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                  className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
+                                  title="Aggiungi impegno"
+                                >
+                                  <Plus className="h-2.5 w-2.5" />
+                                </button>
+                                {dayHours > TARGET_HOURS_PER_DAY + 1 && (
+                                  <div className="flex items-center gap-0.5 text-[9px] text-rose-600">
+                                    <AlertTriangle className="h-2 w-2" />{dayHours}h
+                                  </div>
+                                )}
+                              </div>
+                            </DroppableCell>
+                          );
+                        })}
+                        <td className={`px-2 py-1.5 border-b border-l-2 border-l-dept text-center font-mono text-sm ${overload ? "text-rose-600 font-bold" : underload ? "text-amber-600" : ""}`}>
+                          {total}h
+                        </td>
+                      </tr>
                     );
                   })}
-                  <th className="px-2 py-2 text-center text-xs uppercase border-b border-border border-l-2 border-l-dept w-[70px]">Tot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOps.length === 0 ? (
-                  <tr><td colSpan={DAYS + 2} className="p-6 text-center text-sm text-muted-foreground">Nessun operaio corrispondente ai filtri.</td></tr>
-                ) : filteredOps.map((op) => {
-                  const dayMap = byOp.get(op.id) ?? new Map();
-                  const prodMap = op.userId ? (prodByUserDay.get(op.userId) ?? new Map()) : new Map();
-                  let total = 0;
-                  for (const d of dayStrs) {
-                    const list = (dayMap.get(d) ?? []) as Assignment[];
-                    total += list.reduce((s, a) => s + Number(a.hours || 0), 0);
-                  }
-                  const targetWeek = TARGET_HOURS_PER_DAY * 5 * 2;
-                  const overload = total > targetWeek + 10;
-                  const underload = total < targetWeek - 16;
-                  return (
-                    <tr key={op.id} className="hover:bg-muted/20">
-                      <td className="px-3 py-1.5 border-b border-border align-top">
-                        <div className="font-medium text-sm">{op.name}</div>
-                        {op.role && <div className="text-[10px] text-muted-foreground">{op.role}</div>}
-                      </td>
-                      {days.map((d, i) => {
-                        const dateStr = fmtDate(d);
-                        const list = (dayMap.get(dateStr) ?? []) as Assignment[];
-                        const prodList = (prodMap.get(dateStr) ?? []) as ProdSub[];
-                        const dayHours = list.reduce((s, a) => s + Number(a.hours || 0), 0);
-                        const isWeekStart = i === 7;
-                        const isToday = dateStr === todayStr;
-                        return (
-                          <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}>
-                            <div className="space-y-0.5 min-h-[42px]">
-                              {list.map((a) => (
-                                <button
-                                  key={a.id}
-                                  type="button"
-                                  onClick={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
-                                  className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition"
-                                  style={{ backgroundColor: colorForCantiere(a.cantiere_label) }}
-                                  title={`${a.cantiere_label} · ${a.hours}h · clic per modificare`}
-                                >
-                                  {a.cantiere_label.slice(0, 10)} {a.hours}h
-                                </button>
-                              ))}
-                              {prodList.map((s) => {
-                                const r = (s.dept as Reparto) in REPARTO_BG ? (s.dept as Reparto) : "altro";
-                                return (
-                                  <div key={s.id} className="px-1 py-0.5 rounded text-[9px] font-medium text-white truncate flex items-center gap-0.5"
-                                    style={{ backgroundColor: REPARTO_BG[r], opacity: 0.85 }}
-                                    title={`${REPARTO_LABEL[r]} · ${s.status}`}>
-                                    <Factory className="h-2 w-2" />{REPARTO_LABEL[r].slice(0, 8)}
-                                  </div>
-                                );
-                              })}
-                              <button
-                                type="button"
-                                onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
-                                className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
-                                title="Aggiungi impegno"
-                              >
-                                <Plus className="h-2.5 w-2.5" />
-                              </button>
-                              {dayHours > TARGET_HOURS_PER_DAY + 1 && (
-                                <div className="flex items-center gap-0.5 text-[9px] text-rose-600">
-                                  <AlertTriangle className="h-2 w-2" />{dayHours}h
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className={`px-2 py-1.5 border-b border-l-2 border-l-dept text-center font-mono text-sm ${overload ? "text-rose-600 font-bold" : underload ? "text-amber-600" : ""}`}>
-                        {total}h
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </DndContext>
           ) : (
             <table className="w-full border-collapse min-w-[1100px]">
               <thead>

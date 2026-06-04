@@ -659,7 +659,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition border-l-[3px]"
                                     style={{
                                       backgroundColor: chipColorForAssignment(a),
-                                      borderLeftColor: colorForCantiere(a.cantiere_label),
+                                      borderLeftColor: repartoAccent(a),
                                     }}
                                     title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >

@@ -78,12 +78,15 @@ export const loadRepartiConfig = (force = false) => {
       .select("kind, key, label, macro_key, ordine");
     if (error) {
       console.warn("[reparti] load error", error.message);
+      loadPromise = null; // permetti retry
       return;
     }
     if (data && data.length) applyData(data as any);
+    else loadPromise = null;
   })();
   return loadPromise;
 };
+
 
 export const reloadRepartiConfig = () => {
   loadPromise = null;

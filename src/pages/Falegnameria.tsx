@@ -529,17 +529,6 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
               <div className="flex flex-wrap gap-2 print:hidden"><Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Anteprima stampabile</Button></div>
             </CardContent>
           </Card>
-          <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
-            <CardContent>
-              <LavorazioneGuidedForm
-                value={project.guided ?? emptyGuided()}
-                onChange={(guided) => updateProject({ guided })}
-                users={profiles}
-                compact
-              />
-            </CardContent>
-          </Card>
         </aside>
       </main>
     </>

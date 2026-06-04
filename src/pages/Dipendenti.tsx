@@ -392,3 +392,123 @@ export default function Dipendenti() {
     </div>
   );
 }
+
+const slugify = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+
+function RepartiManager() {
+  const { macros, microsByMacro, reload } = useRepartiConfig();
+  const [open, setOpen] = useState(false);
+  const [newMacroLabel, setNewMacroLabel] = useState("");
+  const [newMicroMacro, setNewMicroMacro] = useState<string>("");
+  const [newMicroLabel, setNewMicroLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const onAddMacro = async () => {
+    const label = newMacroLabel.trim();
+    if (!label) { toast.error("Inserisci un nome"); return; }
+    const key = slugify(label);
+    if (!key) { toast.error("Nome non valido"); return; }
+    setBusy(true);
+    try {
+      await addMacroReparto(key, label);
+      setNewMacroLabel("");
+      toast.success("Macroreparto aggiunto");
+    } catch (e: any) {
+      toast.error("Errore", { description: e.message ?? "Impossibile aggiungere" });
+    } finally { setBusy(false); }
+  };
+
+  const onAddMicro = async () => {
+    if (!newMicroMacro) { toast.error("Scegli un macroreparto"); return; }
+    const label = newMicroLabel.trim();
+    if (!label) { toast.error("Inserisci un nome"); return; }
+    const key = slugify(label);
+    if (!key) { toast.error("Nome non valido"); return; }
+    setBusy(true);
+    try {
+      await addMicroReparto(newMicroMacro, key, label);
+      setNewMicroLabel("");
+      toast.success("Reparto aggiunto");
+    } catch (e: any) {
+      toast.error("Errore", { description: e.message ?? "Impossibile aggiungere" });
+    } finally { setBusy(false); }
+  };
+
+  const onDelete = async (kind: "macro" | "micro", key: string) => {
+    if (!confirm("Eliminare definitivamente?")) return;
+    setBusy(true);
+    try {
+      await deleteRepartoConfig(kind, key);
+      toast.success("Eliminato");
+    } catch (e: any) {
+      toast.error("Errore", { description: e.message ?? "Impossibile eliminare" });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="border-2 border-ink/20 bg-paper">
+      <CardHeader className="pb-3">
+        <button className="w-full flex items-center justify-between gap-2" onClick={() => setOpen((v) => !v)}>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Gestione macroreparti e reparti
+          </CardTitle>
+          <span className="text-xs text-muted-foreground">{open ? "Chiudi" : "Apri"}</span>
+        </button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Aggiungi macroreparto</Label>
+            <div className="flex gap-2">
+              <Input value={newMacroLabel} onChange={(e) => setNewMacroLabel(e.target.value)} placeholder="Es. Logistica" disabled={busy} />
+              <Button onClick={onAddMacro} disabled={busy}><Plus className="w-4 h-4" /> Aggiungi</Button>
+            </div>
+            <div className="flex flex-wrap gap-1 pt-2">
+              {macros.map((m) => (
+                <span key={m.k} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-ink text-paper rounded-sm">
+                  {m.label}
+                  <button onClick={() => onDelete("macro", m.k)} disabled={busy} className="hover:text-destructive opacity-70 hover:opacity-100" title="Elimina">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <Label>Aggiungi reparto a un macroreparto</Label>
+            <div className="flex flex-wrap gap-2">
+              <select className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[160px]" value={newMicroMacro} onChange={(e) => setNewMicroMacro(e.target.value)} disabled={busy}>
+                <option value="">— Macroreparto —</option>
+                {macros.map((m) => <option key={m.k} value={m.k}>{m.label}</option>)}
+              </select>
+              <Input className="flex-1 min-w-[160px]" value={newMicroLabel} onChange={(e) => setNewMicroLabel(e.target.value)} placeholder="Es. Verniciatura" disabled={busy} />
+              <Button onClick={onAddMicro} disabled={busy}><Plus className="w-4 h-4" /> Aggiungi</Button>
+            </div>
+            <div className="space-y-2 pt-2">
+              {macros.map((m) => (
+                <div key={m.k} className="text-xs">
+                  <div className="font-bold uppercase tracking-wider text-muted-foreground mb-1">{m.label}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(microsByMacro[m.k] ?? []).map((mi) => (
+                      <span key={mi.k} className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-ink/80 rounded-sm">
+                        {mi.label}
+                        <button onClick={() => onDelete("micro", mi.k)} disabled={busy} className="hover:text-destructive opacity-70 hover:opacity-100" title="Elimina">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {(microsByMacro[m.k] ?? []).length === 0 && <span className="text-muted-foreground italic">Nessuno</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+

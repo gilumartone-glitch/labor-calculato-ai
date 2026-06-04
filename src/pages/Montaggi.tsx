@@ -90,6 +90,7 @@ type WoodProject = {
   marginPct: number;
   elements: DrawingElement[];
   tools: ToolLine[];
+  guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };

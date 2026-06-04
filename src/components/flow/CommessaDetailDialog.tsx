@@ -17,7 +17,8 @@ import { CommessaUpdatesTab } from "./CommessaUpdatesTab";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";
-import { SUB_DEPT_SUFFIX, toWorkDept } from "@/lib/produzione/types";
+import { SUB_DEPT_SUFFIX, toWorkDept, toMacroDept, ProdDept } from "@/lib/produzione/types";
+import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { TechnicalDrawing, DrawingSide } from "@/components/calculator/TechnicalDrawing";
 import type { Catalog, DepartmentState, PieceLine, PerimeterSide } from "@/components/calculator/types";
 import { autoMatchMaterial } from "@/lib/material-match";
@@ -847,6 +848,12 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       defaultRef={commessa ? `CM-${commessa.id.slice(0, 8).toUpperCase()}` : ""}
       defaultProductionName={commessa?.titolo ?? ""}
       suggestedWorkDept={toWorkDept((commessa as any)?.reparto ?? (snapshot as any)?.departments?.[0]?.key)}
+      availableMacros={(() => {
+        const inferred = inferProdDeptsFromSnapshot(snapshot as any);
+        const macros = new Set<ProdDept>(inferred.map(toMacroDept));
+        if ((commessa as any)?.reparto === "montaggi") macros.add("montaggi");
+        return macros.size > 0 ? Array.from(macros) : undefined;
+      })()}
       onConfirm={handleConfirmToWarehouse}
       saving={confirmBusy}
     />

@@ -81,6 +81,13 @@ export const CHECKLIST_TEMPLATES: Record<ProdDept, string[]> = {
     "Coordinamento con produzione",
     "Comunicazione con il cliente",
   ],
+  montaggi: [
+    "Verifica luogo di montaggio e accessi",
+    "Carico attrezzi e materiali",
+    "Trasferta squadra",
+    "Montaggio in cantiere",
+    "Controllo finale e consegna cliente",
+  ],
   altro: [
     "Verifica istruzioni",
     "Esecuzione lavorazione",

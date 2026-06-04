@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL, toMacroDept } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
@@ -750,6 +750,9 @@ export const CreateCommessaButton = ({
       materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
       defaultRef={refNumber ? `${refType}-${refNumber}` : ""}
       defaultProductionName={prodName}
+      availableMacros={pendingPayload?.depts && pendingPayload.depts.length > 0
+        ? Array.from(new Set(pendingPayload.depts.map(toMacroDept)))
+        : undefined}
       onConfirm={onWarehouseConfirm}
       saving={saving}
     />

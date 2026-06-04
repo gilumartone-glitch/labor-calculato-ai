@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
-import { ProdDept, WORK_DEPTS, DEPT_LABEL, DEPT_COLOR } from "@/lib/produzione/types";
+import { ProdDept, WORK_DEPTS, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;
@@ -55,6 +55,7 @@ export const ConfirmToWarehouseDialog = ({
   defaultProductionName = "",
   materials = [],
   suggestedWorkDept,
+  availableMacros,
   onConfirm,
   saving,
 }: {
@@ -66,6 +67,8 @@ export const ConfirmToWarehouseDialog = ({
   materials?: WarehouseMaterialItem[];
   /** Reparto di lavorazione suggerito (auto-rilevato dal preventivo). */
   suggestedWorkDept?: ProdDept;
+  /** Macro-reparti attivati nel progetto (filtro selettore). Se undefined, mostra tutte le macro. */
+  availableMacros?: ProdDept[];
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {
@@ -78,7 +81,18 @@ export const ConfirmToWarehouseDialog = ({
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
-  const [workDept, setWorkDept] = useState<ProdDept>(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+  const macros = useMemo(() => {
+    const list = (availableMacros && availableMacros.length > 0)
+      ? MACRO_WORK_DEPTS.filter((m) => availableMacros.map(toMacroDept).includes(m))
+      : MACRO_WORK_DEPTS;
+    return list.length > 0 ? list : MACRO_WORK_DEPTS;
+  }, [availableMacros]);
+  const initialDept = (() => {
+    const m = suggestedWorkDept ? toMacroDept(suggestedWorkDept) : undefined;
+    if (m && macros.includes(m)) return m;
+    return macros[0] ?? "laboratorio";
+  })();
+  const [workDept, setWorkDept] = useState<ProdDept>(initialDept);
   const [createAdminClosure, setCreateAdminClosure] = useState(false);
 
   // Sezioni richiuse di default quando già valorizzate
@@ -105,7 +119,7 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
-    setWorkDept(suggestedWorkDept && WORK_DEPTS.includes(suggestedWorkDept) ? suggestedWorkDept : "laboratorio");
+    setWorkDept(initialDept);
     setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
@@ -242,10 +256,11 @@ export const ConfirmToWarehouseDialog = ({
             <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold mb-2">
               <Wrench className="w-3.5 h-3.5" /> Reparto di lavorazione
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {WORK_DEPTS.map((d) => {
+            <div className={`grid gap-2 ${macros.length >= 3 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
+              {macros.map((d) => {
                 const dc = DEPT_COLOR[d] ?? DEPT_COLOR.altro;
                 const active = workDept === d;
+                const label = MACRO_WORK_LABEL[d] ?? DEPT_LABEL[d];
                 return (
                   <button
                     key={d}
@@ -254,14 +269,14 @@ export const ConfirmToWarehouseDialog = ({
                     className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-sm border-2 transition-all ${active ? `${dc.chip} ${dc.border} font-bold scale-[1.02]` : "bg-paper border-ink/15 hover:border-ink/30 text-ink/70"}`}
                   >
                     <span className="text-lg leading-none">{dc.emoji}</span>
-                    <span className="text-[11px] uppercase tracking-wider">{DEPT_LABEL[d]}</span>
+                    <span className="text-[11px] uppercase tracking-wider">{label}</span>
                   </button>
                 );
               })}
             </div>
-            {suggestedWorkDept && suggestedWorkDept !== workDept && (
+            {suggestedWorkDept && toMacroDept(suggestedWorkDept) !== workDept && macros.includes(toMacroDept(suggestedWorkDept)) && (
               <div className="mt-2 text-[10px] font-mono text-muted-foreground">
-                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(suggestedWorkDept)} className="underline font-bold">{DEPT_LABEL[suggestedWorkDept]}</button>
+                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(toMacroDept(suggestedWorkDept))} className="underline font-bold">{MACRO_WORK_LABEL[toMacroDept(suggestedWorkDept)]}</button>
               </div>
             )}
           </div>
@@ -270,7 +285,7 @@ export const ConfirmToWarehouseDialog = ({
           {!editAssignee && assignee && !loading ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
-                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {DEPT_LABEL[workDept].toLowerCase()}</span>{" "}
+                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
               <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
@@ -279,7 +294,7 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           ) : (
             <div>
-              <Label>Responsabile {DEPT_LABEL[workDept].toLowerCase()} *</Label>
+              <Label>Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()} *</Label>
               {loading ? (
                 <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
               ) : users.length === 0 ? (

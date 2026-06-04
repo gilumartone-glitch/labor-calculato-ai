@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
-import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL } from "@/lib/produzione/types";
+import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL, toMacroDept } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
@@ -81,6 +81,29 @@ const CALC_DEPTS = [
   { key: "tappezzeria", label: "Tappezzeria" },
   { key: "falegnameria", label: "Falegnameria" },
 ] as const;
+
+/** Restituisce le macro-categorie effettivamente attive in un progetto.
+ *  - Mappa i reparti tecnici inferiti dallo snapshot sulle 4 macro.
+ *  - Verifica `montaggi` leggendo il modulo Montaggi salvato per la draft attiva. */
+const deriveAvailableMacros = (depts: ProdDept[], draftId: string | null): ProdDept[] => {
+  const macros = new Set<ProdDept>();
+  for (const d of depts) macros.add(toMacroDept(d));
+  if (draftId) {
+    try {
+      const raw = localStorage.getItem(`officina:montaggi-module:v2:${draftId}`);
+      if (raw) {
+        const p = JSON.parse(raw);
+        const hasContent = (p?.labor?.length ?? 0) > 0
+          || (p?.materials?.length ?? 0) > 0
+          || (p?.tools?.length ?? 0) > 0
+          || (p?.transports?.length ?? 0) > 0
+          || (p?.elements?.length ?? 0) > 0;
+        if (hasContent) macros.add("montaggi");
+      }
+    } catch { /* ignore */ }
+  }
+  return Array.from(macros);
+};
 
 const hasDeptContent = (state: any) =>
   (state?.pieces?.length ?? 0) > 0 ||
@@ -1008,6 +1031,7 @@ export const DraftTabsBar = () => {
         defaultRef={pendingPayload?.titolo ?? ""}
         defaultProductionName={pendingPayload?.titolo ?? ""}
         materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
+        availableMacros={pendingPayload ? deriveAvailableMacros(pendingPayload.depts, activeId) : undefined}
         onConfirm={onWarehouseConfirm}
         saving={sendBusy}
       />

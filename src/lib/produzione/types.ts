@@ -10,7 +10,9 @@ export type ProdDept =
   | "magazzino"
   | "acquisti"
   | "vendite"
+  | "montaggi"
   | "altro";
+
 
 export type AppSettore =
   | "progettazione" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
@@ -43,6 +45,23 @@ export const ALL_SETTORI: AppSettore[] = [
 export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
 /** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
 export const WORK_DEPTS: ProdDept[] = ["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "progettazione"];
+/** Macro-categorie di lavorazione esposte all'utente finale.
+ *  Ogni macro raggruppa i reparti tecnici di dettaglio. */
+export const MACRO_WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "magazzino", "montaggi"];
+export const MACRO_WORK_LABEL: Record<string, string> = {
+  laboratorio: "Laboratorio",
+  tappezzeria: "Tappezzeria",
+  magazzino: "Vendite",
+  montaggi: "Montaggi",
+};
+/** Mappa un reparto tecnico (es. "stampa") sulla sua macro-categoria. */
+export const toMacroDept = (d: ProdDept): ProdDept => {
+  if (d === "tappezzeria") return "tappezzeria";
+  if (d === "montaggi") return "montaggi";
+  if (d === "magazzino" || d === "vendite") return "magazzino";
+  return "laboratorio";
+};
+
 
 /** Gerarchia di reparto per i selettori (Lavorazione contiene i sotto-reparti). */
 export type DeptGroup = {
@@ -242,8 +261,10 @@ export const DEPT_LABEL: Record<ProdDept, string> = {
   magazzino: "Amministrazione",
   acquisti: "Acquisti",
   vendite: "Vendite",
+  montaggi: "Montaggi",
   altro: "Altro",
 };
+
 
 export const PRIORITY_LABEL: Record<ProdPriority, string> = {
   normale: "Normale",
@@ -280,8 +301,10 @@ export const SUB_DEPT_SUFFIX: Record<ProdDept, string> = {
   magazzino: "M",
   acquisti: "Q",
   vendite: "V",
+  montaggi: "MO",
   altro: "X",
 };
+
 
 /** Colori per identificare a colpo d'occhio il reparto/ufficio
  *  destinatario di una lavorazione (acquisti vs lavorazione vs magazzino, ecc). */
@@ -303,6 +326,7 @@ export const DEPT_COLOR: Record<ProdDept, {
   assemblaggio: { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔧" },
   laboratorio:  { chip: "bg-blue-600 text-white",    border: "border-blue-600",    soft: "bg-blue-50",    text: "text-blue-700",    emoji: "🔬" },
   vendite:      { chip: "bg-purple-600 text-white",  border: "border-purple-600",  soft: "bg-purple-50",  text: "text-purple-700",  emoji: "💼" },
+  montaggi:     { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔩" },
   altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
 };
 /** Mappa un nome reparto "legacy" (dal preventivo o vecchi sub) sul reparto

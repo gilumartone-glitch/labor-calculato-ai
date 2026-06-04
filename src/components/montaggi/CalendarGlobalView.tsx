@@ -871,11 +871,17 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
 /** ============================================================
  *  DroppableCell — cella calendario che accetta i chip
  *  ============================================================ */
-type DroppableCellProps = { id: string; className?: string; children: ReactNode };
-const DroppableCell = ({ id, className, children }: DroppableCellProps) => {
-  const { setNodeRef, isOver } = useDroppable({ id });
+type DroppableCellProps = { id: string; className?: string; children: ReactNode; draggingId: string | null; onDropAssignment: (dragId: string) => void };
+const DroppableCell = ({ id, className, children, draggingId, onDropAssignment }: DroppableCellProps) => {
+  const [isOver, setIsOver] = useState(false);
   return (
-    <td ref={setNodeRef} className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-primary bg-primary/10" : ""}`}>
+    <td
+      onDragOver={(e: DragEvent<HTMLTableCellElement>) => { if (!draggingId) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+      onDragEnter={() => { if (draggingId) setIsOver(true); }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(e: DragEvent<HTMLTableCellElement>) => { e.preventDefault(); setIsOver(false); const dragId = e.dataTransfer.getData("text/plain"); if (dragId) onDropAssignment(dragId); }}
+      className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-primary bg-primary/10" : ""}`}
+    >
       {children}
     </td>
   );

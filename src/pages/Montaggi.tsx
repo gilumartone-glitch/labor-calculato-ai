@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  ArrowUp,
+  // (CalendarDays removed)
   Download,
   FileText,
   Wrench,

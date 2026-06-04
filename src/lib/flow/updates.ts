@@ -39,7 +39,7 @@ export const useCommessaUpdates = (commessaId: string | null | undefined) => {
     if (!commessaId) { setItems([]); setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
-      .from("commessa_updates" as never)
+      .from("commessa_updates")
       .select("*")
       .eq("commessa_id", commessaId)
       .order("created_at", { ascending: false });
@@ -76,7 +76,7 @@ export const useCommessaUpdates = (commessaId: string | null | undefined) => {
       parent_id: input.parent_id ?? null,
       status: input.tipo === "richiesta_prolungamento" ? "pending" : null,
     };
-    const { error } = await supabase.from("commessa_updates" as never).insert(payload);
+    const { error } = await supabase.from("commessa_updates").insert(payload);
     if (error) throw error;
     await load();
   };
@@ -85,13 +85,13 @@ export const useCommessaUpdates = (commessaId: string | null | undefined) => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) throw new Error("Non autenticato");
     const { error } = await supabase
-      .from("commessa_updates" as never)
+      .from("commessa_updates")
       .update({ status: decision, decided_by: u.user.id, decided_at: new Date().toISOString() } as any)
       .eq("id", id);
     if (error) throw error;
     // crea risposta admin con il motivo
     if (reason && reason.trim()) {
-      await supabase.from("commessa_updates" as never).insert({
+      await supabase.from("commessa_updates").insert({
         commessa_id: items.find((x) => x.id === id)?.commessa_id,
         author_id: u.user.id,
         tipo: "risposta_admin",
@@ -103,7 +103,7 @@ export const useCommessaUpdates = (commessaId: string | null | undefined) => {
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from("commessa_updates" as never).delete().eq("id", id);
+    const { error } = await supabase.from("commessa_updates").delete().eq("id", id);
     if (error) throw error;
     await load();
   };

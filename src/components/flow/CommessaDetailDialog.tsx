@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Commessa, CommessaStato, REPARTI, PRIORITA_LABEL } from "./types";
+import { CommessaUpdatesTab } from "./CommessaUpdatesTab";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/helpers";

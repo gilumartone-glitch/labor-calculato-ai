@@ -45,6 +45,7 @@ const REPARTO_TO_PROD: Record<CommessaReparto, ProdDept> = {
   progettazione: "progettazione",
   lavorazione: "laboratorio",
   vendite: "vendite",
+  montaggi: "altro",
 };
 const PRIO_TO_PROD: Record<CommessaPriorita, ProdPriority> = {
   bassa: "normale",

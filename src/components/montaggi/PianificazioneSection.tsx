@@ -93,7 +93,7 @@ type Props = {
   daysCount?: number;
 };
 
-type ProfileLite = { id: string; display_name: string | null };
+type ProfileLite = { id: string; display_name: string | null; settori?: string[] | null };
 
 /** ============================================================
  *  COMPONENTE PRINCIPALE

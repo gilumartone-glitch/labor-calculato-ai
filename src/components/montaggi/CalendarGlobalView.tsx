@@ -37,7 +37,7 @@ type ProdSub = {
   due_date: string | null;
   order_id: string;
 };
-type ProfileLite = { id: string; display_name: string | null };
+type ProfileLite = { id: string; display_name: string | null; settori?: string[] | null };
 
 const OPERATORS_KEY = "montaggi:operai:v1";
 
@@ -105,7 +105,7 @@ export const CalendarGlobalView = () => {
     const [{ data: planData, error: e1 }, { data: subData }, { data: profData }] = await Promise.all([
       supabase.from("montaggi_planning").select("*").gte("date", dayStrs[0]).lte("date", dayStrs[dayStrs.length - 1]).order("date"),
       supabase.from("production_sub_orders").select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id"),
-      supabase.from("profiles").select("id, display_name").order("display_name"),
+      supabase.from("profiles").select("id, display_name, settori").order("display_name"),
     ]);
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
     setAssignments((planData ?? []) as Assignment[]);
@@ -138,7 +138,21 @@ export const CalendarGlobalView = () => {
     assignments.forEach((a) => { if (!known.has(a.operator_id)) set.add(a.operator_id); });
     return Array.from(set).map((id) => ({ id, name: prettyOpName(id), role: "", reparti: ["montaggi" as Reparto] } as Operator));
   }, [allOperators, assignments]);
-  const displayedOps = [...allOperators, ...orphanOps];
+
+  // Operai dal personale (profili) che hanno il settore "montaggi" assegnato
+  const profileOps = useMemo(() => {
+    const known = new Set([...allOperators.map((o) => o.id), ...orphanOps.map((o) => o.id)]);
+    return profiles
+      .filter((p) => Array.isArray(p.settori) && p.settori.includes("montaggi") && !known.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        name: p.display_name ?? prettyOpName(p.id),
+        role: "",
+        reparti: ["montaggi" as Reparto],
+      } as Operator));
+  }, [profiles, allOperators, orphanOps]);
+
+  const displayedOps = [...allOperators, ...orphanOps, ...profileOps];
 
   const allCantieriSet = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label))).sort(), [assignments]);
 

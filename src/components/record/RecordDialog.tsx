@@ -62,10 +62,18 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
 
   const meta = RECORD_TYPE_META[recordType];
 
-  const contactSuggestions = useMemo(
-    () => knownContacts.filter((c) => contactName.length >= 2 && c.name.toLowerCase().includes(contactName.toLowerCase())).slice(0, 6),
-    [contactName, knownContacts],
-  );
+  const contactSuggestions = useMemo(() => {
+    const q = contactName.trim().toLowerCase();
+    const list = q
+      ? knownContacts.filter((c) => c.name.toLowerCase().includes(q))
+      : knownContacts;
+    return list.slice(0, 20);
+  }, [contactName, knownContacts]);
+
+  const isNewContact = useMemo(() => {
+    const q = contactName.trim().toLowerCase();
+    return !!q && !knownContacts.some((c) => c.name.toLowerCase() === q);
+  }, [contactName, knownContacts]);
 
   const handleSave = async () => {
     if (!user) return;

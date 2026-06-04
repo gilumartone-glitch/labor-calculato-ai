@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,15 +14,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  useDroppable,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 
 type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "altro";
 type CalendarMode = "montaggi" | "lavorazioni";
@@ -76,11 +67,13 @@ const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
   lavorazioni: ["laboratorio", "tappezzeria", "vendite"],
 };
 
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
 const colorForCantiere = (label: string) => {
   let h = 0;
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
-  return COLORS[h % COLORS.length];
+  const hue = h % 360;
+  const saturation = 70 + ((h >>> 8) % 12);
+  const lightness = 32 + ((h >>> 16) % 10);
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
 };
 // Colore del chip = cantiere (per distinguere chiaramente impegni diversi)
 // Accento sul bordo sinistro = reparto (tipo di impegno)
@@ -133,8 +126,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   // Reset filtro reparto quando cambia modalità
   useEffect(() => { setFilterReparto("all"); }, [mode]);
 
-  // Sensors per drag&drop (distance:4 → click normali non attivano il drag)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Gestione operai (con buffer locale + salva esplicito)
   const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, []);

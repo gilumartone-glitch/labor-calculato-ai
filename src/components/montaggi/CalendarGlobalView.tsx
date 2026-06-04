@@ -574,6 +574,98 @@ export const CalendarGlobalView = () => {
           <span className="text-muted-foreground ml-auto">Gli impegni di laboratorio/tappezzeria provengono dai sub-ordini di produzione assegnati.</span>
         </CardContent>
       </Card>
+
+      {/* === Dialog modifica/aggiunta impegno === */}
+      {editing && (
+        <EditAssignmentDialog
+          editing={editing}
+          operators={displayedOps}
+          allCantieri={allCantieriList}
+          onClose={() => setEditing(null)}
+          onSave={saveAssignment}
+          onDelete={editing.existing ? () => deleteAssignment(editing.existing!.id) : undefined}
+        />
+      )}
     </div>
+  );
+};
+
+/** Dialog inline per modificare/aggiungere un impegno dal calendario globale */
+type EditDialogProps = {
+  editing: { operatorId: string; date: string; existing?: Assignment };
+  operators: Operator[];
+  allCantieri: string[];
+  onClose: () => void;
+  onSave: (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => void;
+  onDelete?: () => void;
+};
+
+const EditAssignmentDialog = ({ editing, operators, allCantieri, onClose, onSave, onDelete }: EditDialogProps) => {
+  const ex = editing.existing;
+  const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
+  const [date, setDate] = useState(ex?.date ?? editing.date);
+  const [hours, setHours] = useState<number>(ex?.hours ?? 8);
+  const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? "");
+  const [notes, setNotes] = useState(ex?.notes ?? "");
+  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? "montaggi");
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{ex ? "Modifica impegno" : "Nuovo impegno"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label>Operaio</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={operatorId} onChange={(e) => setOperatorId(e.target.value)}>
+              {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Data</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ore</Label>
+              <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Cantiere</Label>
+            <Input list="cantieri-list-global" placeholder="Nome cantiere" value={cantiere} onChange={(e) => setCantiere(e.target.value)} />
+            <datalist id="cantieri-list-global">
+              {allCantieri.map((c) => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reparto</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
+              <option value="montaggi">Montaggi</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="tappezzeria">Tappezzeria</option>
+              <option value="falegnameria">Falegnameria</option>
+              <option value="altro">Altro</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Note</Label>
+            <Input value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali" />
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          {onDelete && (
+            <Button variant="destructive" onClick={onDelete} className="mr-auto">
+              <Trash2 className="h-4 w-4" />Elimina
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button onClick={() => onSave({ id: ex?.id, operator_id: operatorId, date, hours, cantiere_label: cantiere, notes, reparto })}>
+            <Save className="h-4 w-4" />Salva
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

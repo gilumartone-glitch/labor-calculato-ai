@@ -586,7 +586,7 @@ const Index = () => {
       <DraftTabsBar />
 
       {/* Body */}
-      <main className="container py-8 pb-20">
+      <main className="w-full px-3 sm:px-6 lg:px-8 py-4 md:py-8 pb-20">
         <AnimatePresence mode="wait">
           <motion.div
             key={`${activeTab}:${resetNonce}:${draftReloadNonce}`}

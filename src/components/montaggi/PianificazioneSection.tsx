@@ -326,7 +326,7 @@ export const PianificazioneSection = ({
     const from = new Date(bulk.from);
     const to = new Date(bulk.to);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return toast.error("Intervallo date non valido");
-    const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string }> = [];
+    const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string; reparto: Reparto }> = [];
     const cur = new Date(from);
     while (cur <= to) {
       const dow = (cur.getDay() + 6) % 7;
@@ -338,6 +338,7 @@ export const PianificazioneSection = ({
           commessa_id: view === "progetto" ? draftId : null,
           cantiere_label: cantiereLabel,
           created_by: user.id,
+          reparto: "montaggi",
         });
       }
       cur.setDate(cur.getDate() + 1);
@@ -692,8 +693,8 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
   const [hours, setHours] = useState(ex?.hours ?? 8);
   const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? defaultCantiere);
   const [notes, setNotes] = useState(ex?.notes ?? "");
+  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? "montaggi");
 
-  // Se siamo in project mode e l'esistente è del cantiere corrente (o è nuovo), il cantiere si blocca automaticamente.
   const canLock = lockCantiere && (!ex || ex.cantiere_label === defaultCantiere);
   const effectiveCantiere = canLock ? defaultCantiere : cantiere;
   const isCurrentProject = effectiveCantiere === defaultCantiere;
@@ -720,6 +721,16 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
               <Label>Ore</Label>
               <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reparto</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
+              <option value="montaggi">Montaggi</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="tappezzeria">Tappezzeria</option>
+              <option value="falegnameria">Falegnameria</option>
+              <option value="altro">Altro</option>
+            </select>
           </div>
           {!canLock && (
             <div className="space-y-1.5">
@@ -753,6 +764,7 @@ const AssignmentDialog = ({ editing, operators, defaultCantiere, defaultCommessa
             commessa_id: isCurrentProject ? defaultCommessaId : null,
             cantiere_label: effectiveCantiere.trim() || defaultCantiere,
             notes: notes.trim() || null,
+            reparto,
           })}>Salva</Button>
         </DialogFooter>
       </DialogContent>

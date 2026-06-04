@@ -104,6 +104,7 @@ export const PianificazioneSection = ({
   projectAddress,
   projectMaterials,
   projectTools,
+  daysCount = 7,
 }: Props) => {
   const { user } = useAuth();
   const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
@@ -380,7 +381,7 @@ export const PianificazioneSection = ({
     return map;
   }, [assignments]);
 
-  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const weekDays = useMemo(() => Array.from({ length: daysCount }, (_, i) => addDays(weekStart, i)), [weekStart, daysCount]);
 
   const weeklyLoad = useMemo(() => {
     const map = new Map<string, number>();

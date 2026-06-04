@@ -156,7 +156,7 @@ export function useSharedCloudState<T>(
   useEffect(() => {
     if (!ready) return;
     const channel = supabase
-      .channel(`shared-${key}`)
+      .channel(`shared-${key}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "catalogs", filter: `dept=eq.${key}` },

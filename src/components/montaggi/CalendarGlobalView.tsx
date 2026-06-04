@@ -105,7 +105,7 @@ export const CalendarGlobalView = () => {
     const [{ data: planData, error: e1 }, { data: subData }, { data: profData }] = await Promise.all([
       supabase.from("montaggi_planning").select("*").gte("date", dayStrs[0]).lte("date", dayStrs[dayStrs.length - 1]).order("date"),
       supabase.from("production_sub_orders").select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id"),
-      supabase.from("profiles").select("id, display_name").order("display_name"),
+      supabase.from("profiles").select("id, display_name, settori").order("display_name"),
     ]);
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
     setAssignments((planData ?? []) as Assignment[]);

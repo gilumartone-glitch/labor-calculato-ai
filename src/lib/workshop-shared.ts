@@ -5,6 +5,7 @@ export const WORK_HOURS_PER_DAY = 8;
 export const WORK_DAYS_PER_MONTH = 22;
 export const SALARY_MONTHS = 13;
 export const SHARED_WORKSHOP_MATERIALS_KEY = "officina:materiali-accessori-comuni:v1";
+export const SHARED_WORKSHOP_WORKERS_KEY = "officina:squadre-comuni:v1";
 
 export type WorkshopMaterialCategory = "legno" | "plastica" | "accessori";
 export type WorkshopMaterial = {

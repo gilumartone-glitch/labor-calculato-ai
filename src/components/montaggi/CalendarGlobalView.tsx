@@ -169,14 +169,19 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const planData = planRes?.data; const e1 = planRes?.error;
     const subData = subRes?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
-    setAssignments((planData ?? []) as Assignment[]);
-    setProdSubs((subData ?? []) as ProdSub[]);
+    const nextAssignments = (planData ?? []) as Assignment[];
+    const nextProdSubs = (subData ?? []) as ProdSub[];
+    setAssignments(nextAssignments);
+    setProdSubs(nextProdSubs);
+    let nextProfiles = profiles;
     if (profRes) {
-      setProfiles((profRes.data ?? []) as ProfileLite[]);
+      nextProfiles = (profRes.data ?? []) as ProfileLite[];
+      setProfiles(nextProfiles);
       profilesLoadedRef.current = true;
     }
+    dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [dayStrs]);
+  }, [dayStrs, mode, profiles]);
 
   const scheduleLoad = useCallback(() => {
     if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);

@@ -1711,6 +1711,71 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
     </div>
   );
 
+  const renderColorPricesBlock = (
+    canList: FireCan[],
+    overrides: Record<string, Record<string, number>> | undefined,
+    onChange: (next: Record<string, Record<string, number>>) => void,
+    title: string,
+  ) => {
+    const colors = p.colors ?? [];
+    if (colors.length === 0 || canList.length === 0) return null;
+    const setPrice = (color: string, canId: string, value: string) => {
+      const next: Record<string, Record<string, number>> = { ...(overrides || {}) };
+      const row = { ...(next[color] || {}) };
+      const n = Number(String(value).replace(",", "."));
+      if (!value || !Number.isFinite(n) || n <= 0) delete row[canId];
+      else row[canId] = n;
+      if (Object.keys(row).length === 0) delete next[color];
+      else next[color] = row;
+      onChange(next);
+    };
+    return (
+      <div className="border border-ink/15 rounded-sm p-2 bg-muted/20">
+        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-2">{title}</div>
+        <div className="text-[10px] text-muted-foreground mb-2">
+          Lascia vuoto per usare il prezzo base della latta. Inserisci un valore solo dove il colore costa diversamente.
+        </div>
+        <div className="overflow-x-auto">
+          <table className="text-[11px] w-full">
+            <thead>
+              <tr className="text-[10px] font-mono uppercase text-muted-foreground">
+                <th className="text-left pb-1 pr-2 sticky left-0 bg-muted/20">Colore</th>
+                {canList.map((c) => (
+                  <th key={c.id} className="text-right pb-1 px-2 whitespace-nowrap">
+                    {c.label} kg
+                    <div className="text-[9px] text-muted-foreground/70 normal-case">base {eur(c.price)}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {colors.map((col) => (
+                <tr key={col} className="border-t border-ink/10">
+                  <td className="py-1 pr-2 font-semibold sticky left-0 bg-muted/20">{col}</td>
+                  {canList.map((c) => {
+                    const ov = overrides?.[col]?.[c.id];
+                    return (
+                      <td key={c.id} className="py-1 px-2">
+                        <Input
+                          type="number" step="0.01"
+                          value={ov != null && ov > 0 ? String(ov) : ""}
+                          onChange={(e) => setPrice(col, c.id, e.target.value)}
+                          placeholder={`= ${c.price ? fmt(c.price) : "—"}`}
+                          className="h-7 text-[11px] text-right"
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+
   return (
     <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-2 gap-2">

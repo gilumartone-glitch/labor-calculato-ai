@@ -1576,6 +1576,15 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                           </div>
                         ))}
                       </div>
+                      <div className="flex flex-wrap gap-2 items-center pt-2">
+                        <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
+                          <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi al carrello ordine
+                        </Button>
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
+                          {needColor.trim() && selected.colorCanPrices?.[needColor.trim()] ? " · override attivo" : ""}
+                        </div>
+                      </div>
                     </>
                   );
                 })() : <div className="text-[11px] text-muted-foreground">Inserisci classe e superficie: il sistema sceglierà automaticamente il miglior formato (e quante latte servono).</div>}

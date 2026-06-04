@@ -40,7 +40,6 @@ import {
   type WorkshopMaterial,
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
-import { PianificazioneSection } from "@/components/montaggi/PianificazioneSection";
 import { AssegnazioneSection } from "@/components/montaggi/AssegnazioneSection";
 import { ClipboardCheck } from "lucide-react";
 

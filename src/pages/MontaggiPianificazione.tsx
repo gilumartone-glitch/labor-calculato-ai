@@ -1,7 +1,7 @@
 import { HardHat } from "lucide-react";
 import { HubLink } from "@/components/HubLink";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
-import { PianificazioneSection } from "@/components/montaggi/PianificazioneSection";
+import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
 
 export default function MontaggiPianificazione() {
   return (
@@ -11,8 +11,8 @@ export default function MontaggiPianificazione() {
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><HardHat className="h-5 w-5" /></div>
             <div>
-              <h1 className="font-display text-2xl font-semibold leading-none">Montaggi</h1>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panoramica cantieri, operai e calendario settimanale</p>
+              <h1 className="font-display text-2xl font-semibold leading-none">Montaggi · Calendario</h1>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panoramica risorse: chi lavora dove, su 2 settimane</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -23,7 +23,7 @@ export default function MontaggiPianificazione() {
       </header>
 
       <main className="container py-8">
-        <PianificazioneSection draftId="global" cantiereLabel="Globale" mode="global" />
+        <CalendarGlobalView />
       </main>
     </div>
   );

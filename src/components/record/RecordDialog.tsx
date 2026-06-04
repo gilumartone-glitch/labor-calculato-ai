@@ -114,6 +114,9 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
         const existingShares = await listSharesForRecords([rec.id]);
         for (const s of existingShares) await unshareRecord(rec.id, s.shared_with);
       }
+      if (saveToAnagrafica && isNewContact) {
+        try { await addMarketingContact(contactName.trim()); } catch {}
+      }
       toast({ title: existing ? "Record aggiornato" : "Record creato" });
       onSaved();
       onOpenChange(false);

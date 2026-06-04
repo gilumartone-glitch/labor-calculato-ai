@@ -16,7 +16,8 @@ import { uid } from "@/lib/format";
 /** ============================================================
  *  TIPI E COSTANTI
  *  ============================================================ */
-type Operator = { id: string; name: string; role?: string; color?: string; userId?: string };
+type Operator = { id: string; name: string; role?: string; color?: string; userId?: string; reparti?: string[] };
+type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "falegnameria" | "altro";
 type Assignment = {
   id: string;
   commessa_id: string | null;
@@ -26,6 +27,7 @@ type Assignment = {
   hours: number;
   notes: string | null;
   created_by: string;
+  reparto?: Reparto;
 };
 
 const OPERATORS_KEY = "montaggi:operai:v1";
@@ -257,7 +259,7 @@ export const PianificazioneSection = ({
     });
   };
 
-  const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => {
+  const saveAssignment = async (payload: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; reparto?: Reparto; id?: string }) => {
     if (!user) return toast.error("Non autenticato");
     if (payload.id) {
       const { error } = await supabase.from("montaggi_planning").update({
@@ -267,6 +269,7 @@ export const PianificazioneSection = ({
         commessa_id: payload.commessa_id,
         cantiere_label: payload.cantiere_label,
         notes: payload.notes ?? null,
+        reparto: payload.reparto ?? "montaggi",
       }).eq("id", payload.id);
       if (error) return toast.error(error.message);
       autoNotify(payload.operator_id, "aggiornata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
@@ -278,6 +281,7 @@ export const PianificazioneSection = ({
         commessa_id: payload.commessa_id,
         cantiere_label: payload.cantiere_label,
         notes: payload.notes ?? null,
+        reparto: payload.reparto ?? "montaggi",
         created_by: user.id,
       });
       if (error) return toast.error(error.message);
@@ -299,6 +303,7 @@ export const PianificazioneSection = ({
       commessa_id: commessaId,
       cantiere_label: cantiere,
       notes: null,
+      reparto: "montaggi",
       created_by: user.id,
     });
     if (error) return toast.error(error.message);

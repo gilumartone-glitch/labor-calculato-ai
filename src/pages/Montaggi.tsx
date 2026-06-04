@@ -663,23 +663,27 @@ const TransportUsageSection = ({ project, updateProject }: { project: WoodProjec
 );
 
 const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
-  const [dips, setDips] = useState<import("@/lib/dipendenti").Dipendente[]>([]);
+  const [dips, setDips] = useState<Dipendente[]>([]);
   useEffect(() => {
     let cancelled = false;
-    import("@/lib/dipendenti").then(({ fetchDipendenti, filterDipendentiByMacro }) =>
-      fetchDipendenti(true).then((all) => {
-        if (!cancelled) setDips(filterDipendentiByMacro(all, "montaggi"));
-      })
-    );
+    fetchDipendenti(true).then((all) => {
+      if (!cancelled) setDips(filterDipendentiByMacro(all, "montaggi"));
+    });
     return () => { cancelled = true; };
   }, []);
-  const { dipendenteHourlyCost } = require("@/lib/dipendenti") as typeof import("@/lib/dipendenti");
   const costOf = (id: string) => {
     const d = dips.find((x) => `dip:${x.id}` === id);
     if (d) return dipendenteHourlyCost(d);
     const w = project.workers.find((x) => x.id === id);
     return w ? workerHourlyCost(w) : 0;
   };
+  const nameOf = (id: string) => {
+    const d = dips.find((x) => `dip:${x.id}` === id);
+    if (d) return d.nome + (d.funzione ? ` · ${d.funzione}` : "");
+    return project.workers.find((x) => x.id === id)?.name ?? "—";
+  };
+  const options = dips.map((d) => ({ id: `dip:${d.id}`, label: `${d.nome}${d.funzione ? ` · ${d.funzione}` : ""} · ${eur(dipendenteHourlyCost(d))}/h` }));
+
   const nameOf = (id: string) => {
     const d = dips.find((x) => `dip:${x.id}` === id);
     if (d) return d.nome + (d.funzione ? ` · ${d.funzione}` : "");

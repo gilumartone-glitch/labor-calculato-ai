@@ -652,8 +652,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     key={a.id}
                                     type="button"
                                     onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
-                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate hover:bg-dept/10 transition"
-                                    title={`${opName} · ${a.hours}h · clic per modificare`}
+                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition border-l-[3px]"
+                                    style={{
+                                      backgroundColor: chipColorForAssignment(a),
+                                      borderLeftColor: colorForCantiere(a.cantiere_label),
+                                    }}
+                                    title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
                                     {opName} {a.hours}h
                                   </button>

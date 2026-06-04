@@ -1496,7 +1496,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
       category: "ignifugo",
     }));
     writeDraftSalesCart("ignifugo", [...cart, ...newLines]);
-    try { toast({ title: "Aggiunto al carrello", description: `${newLines.length} riga/e per ${selected.name}` }); } catch {}
+    try { toast.success(`Aggiunto al carrello: ${newLines.length} riga/e per ${selected.name}`); } catch {}
   };
 
 

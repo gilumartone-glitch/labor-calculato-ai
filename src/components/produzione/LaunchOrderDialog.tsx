@@ -15,6 +15,7 @@ import {
   ProdDept, ProdPriority, ProdDelivery, DEPT_LABEL, PRIORITY_LABEL, SUB_DEPT_SUFFIX,
 } from "@/lib/produzione/types";
 import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters, getMagazzinoUsers } from "@/lib/produzione/helpers";
+import { MACRO_REPARTI, MacroReparto } from "@/lib/reparti";
 
 const DEPTS: ProdDept[] = [
   "progettazione", "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "assemblaggio", "altro",
@@ -37,6 +38,7 @@ type FormState = {
   delivery: ProdDelivery;
   warehouseOnly: boolean;
   magazzinoNote: string;
+  macroReparto: MacroReparto | "";
 };
 
 const STORAGE_KEY = "prod:launch-order";
@@ -52,6 +54,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     depts: [], deptNotes: {}, deptAssignees: {}, attachments: [], nesting: false,
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
+    macroReparto: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>(STORAGE_KEY, initial);
   const [uploading, setUploading] = useState(false);
@@ -146,6 +149,8 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           files: [],
           depends_on: i === 0 ? null : insertedIds[i - 1],
           assignee_id: assignee,
+          macro_reparto: form.macroReparto || null,
+          operator_ids: assignee ? [assignee] : [],
         } as any).select("id").single();
         if (e2) throw e2;
         insertedIds.push(row.id);
@@ -259,9 +264,23 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           </div>
 
           <div>
+            <Label>Macroreparto</Label>
+            <div className="inline-flex border-2 border-ink/20 rounded-sm overflow-hidden flex-wrap mt-1">
+              <button type="button" onClick={() => patch({ macroReparto: "" })}
+                className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold ${form.macroReparto === "" ? "bg-ink text-paper" : "text-ink/60"}`}>—</button>
+              {MACRO_REPARTI.map((m) => (
+                <button key={m.k} type="button" onClick={() => patch({ macroReparto: m.k })}
+                  className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold ${form.macroReparto === m.k ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"}`}>{m.label}</button>
+              ))}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1">Verrà salvato su ogni lavorazione di questo ordine</div>
+          </div>
+
+          <div>
             <Label>Note generali</Label>
             <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} placeholder="Descrivi cosa va fatto, materiali, misure, qualsiasi cosa utile a chi riceverà la lavorazione" />
           </div>
+
 
           {!warehouseOnly && (
           <div>

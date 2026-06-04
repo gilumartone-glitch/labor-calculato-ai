@@ -27,6 +27,8 @@ import { eur, uid } from "@/lib/format";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
+import { LavorazioneGuidedForm, GuidedValue, emptyGuided } from "@/components/shared/LavorazioneGuidedForm";
+import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
@@ -90,6 +92,7 @@ type WoodProject = {
   marginPct: number;
   elements: DrawingElement[];
   tools: ToolLine[];
+  guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };
@@ -249,6 +252,12 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   });
   const lastAppliedRef = useRef<string>("");
 
+  const [profiles, setProfiles] = useState<{ id: string; display_name: string | null; settori?: string[] | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+      if (data) setProfiles(data as never);
+    });
+  }, []);
   useEffect(() => {
     if (!cloud.ready) return;
     if (cloud.state) {
@@ -529,25 +538,24 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
         <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
           <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardHeader><CardTitle>Riepilogo preventivo</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <Summary label="Totale manodopera" value={totals.labor} />
-              <Summary label="Totale trasporti" value={totals.transports} />
-              <Summary label="Totale materie prime" value={totals.rawMaterials} />
-              <Summary label="Totale accessori" value={totals.materialsByCategory.accessori} />
-              <div className="rule-line" />
-              <Summary label="Costo totale produzione" value={totals.production} strong />
-              <Field label="Margine desiderato %"><NumberInput value={project.marginPct} onChange={(marginPct) => updateProject({ marginPct })} prefix="Margine %" /></Field>
-              <Summary label="Margine in euro" value={totals.marginEuro} />
-              <Summary label="Markup" value={totals.markupPct} suffix="%" />
-              <div className="rounded-sm bg-dept p-4 text-dept-foreground"><div className="text-xs uppercase tracking-[0.2em] opacity-80">Prezzo vendita consigliato</div><div className="font-mono text-3xl font-bold">{eur(totals.sale)}</div></div>
-              <div className="flex flex-wrap gap-2 print:hidden"><Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Anteprima stampabile</Button></div>
+              <LavorazioneGuidedForm
+                value={project.guided ?? emptyGuided()}
+                onChange={(guided) => updateProject({ guided })}
+                users={profiles}
+                compact
+              />
+              <div className="flex flex-wrap gap-2 print:hidden border-t border-border pt-3">
+                <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
+              </div>
             </CardContent>
           </Card>
         </aside>
       </main>
     </>
   );
+
 
   return embedded ? content : <div data-dept="montaggi" className="min-h-screen bg-dept-soft/50 text-foreground">{content}</div>;
 }

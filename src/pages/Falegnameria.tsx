@@ -28,6 +28,8 @@ import { eur, uid } from "@/lib/format";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
+import { LavorazioneGuidedForm, emptyGuided } from "@/components/shared/LavorazioneGuidedForm";
+import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
@@ -85,6 +87,7 @@ type WoodProject = {
   materials: MaterialLine[];
   marginPct: number;
   elements: DrawingElement[];
+  guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };
@@ -230,6 +233,12 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [section, setSection] = useState<WoodSection>("progetto");
   const [projectReady, setProjectReady] = useState(false);
+  const [profiles, setProfiles] = useState<{ id: string; display_name: string | null; settori?: string[] | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+      if (data) setProfiles(data as never);
+    });
+  }, []);
   const draftId = (typeof window !== "undefined" && localStorage.getItem("officina:active-draft")) || "default";
   const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:${draftId}`;
   const cloud = useCloudWorkspace<WoodProject | null>(`falegnameria_project:${draftId}`, null, {
@@ -518,6 +527,17 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
               <Summary label="Markup" value={totals.markupPct} suffix="%" />
               <div className="rounded-sm bg-dept p-4 text-dept-foreground"><div className="text-xs uppercase tracking-[0.2em] opacity-80">Prezzo vendita consigliato</div><div className="font-mono text-3xl font-bold">{eur(totals.sale)}</div></div>
               <div className="flex flex-wrap gap-2 print:hidden"><Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Anteprima stampabile</Button></div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 border-dept bg-paper shadow-soft">
+            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
+            <CardContent>
+              <LavorazioneGuidedForm
+                value={project.guided ?? emptyGuided()}
+                onChange={(guided) => updateProject({ guided })}
+                users={profiles}
+                compact
+              />
             </CardContent>
           </Card>
         </aside>

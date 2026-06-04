@@ -796,9 +796,13 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
           {...attributes}
           {...listeners}
           onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
-          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing"
-          style={{ backgroundColor: colorForCantiere(a.cantiere_label), opacity: isDragging ? 0.4 : 1 }}
-          title={`${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
+          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+          style={{
+            backgroundColor: chipColorForAssignment(a),
+            borderLeftColor: colorForCantiere(a.cantiere_label),
+            opacity: isDragging ? 0.4 : 1,
+          }}
+          title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
         >
           {a.cantiere_label.slice(0, 10)} {a.hours}h
         </button>

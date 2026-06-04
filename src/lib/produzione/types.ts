@@ -45,6 +45,23 @@ export const ALL_SETTORI: AppSettore[] = [
 export const OFFICE_DEPTS: ProdDept[] = ["amministrazione" as any, "acquisti", "vendite"];
 /** Reparti di LAVORAZIONE (chi esegue il lavoro materiale). */
 export const WORK_DEPTS: ProdDept[] = ["laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d", "progettazione"];
+/** Macro-categorie di lavorazione esposte all'utente finale.
+ *  Ogni macro raggruppa i reparti tecnici di dettaglio. */
+export const MACRO_WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "magazzino", "montaggi"];
+export const MACRO_WORK_LABEL: Record<string, string> = {
+  laboratorio: "Laboratorio",
+  tappezzeria: "Tappezzeria",
+  magazzino: "Vendite",
+  montaggi: "Montaggi",
+};
+/** Mappa un reparto tecnico (es. "stampa") sulla sua macro-categoria. */
+export const toMacroDept = (d: ProdDept): ProdDept => {
+  if (d === "tappezzeria") return "tappezzeria";
+  if (d === "montaggi") return "montaggi";
+  if (d === "magazzino" || d === "vendite") return "magazzino";
+  return "laboratorio";
+};
+
 
 /** Gerarchia di reparto per i selettori (Lavorazione contiene i sotto-reparti). */
 export type DeptGroup = {

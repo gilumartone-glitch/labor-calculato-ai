@@ -44,6 +44,8 @@ import {
   type WorkshopMaterial,
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
+import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
+
 
 type WorkerProfile = {
   id: string;

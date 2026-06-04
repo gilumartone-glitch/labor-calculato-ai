@@ -155,7 +155,7 @@ export const LavorazioneGuidedForm = ({ value, onChange, users, compact }: Props
             <div className="space-y-2">
               <div className="label-cap">Assegnazioni & dipendenze</div>
               {value.micros.map((row, idx) => {
-                const opts = filterUsersByMicro(users, row.micro);
+                const opts = filterUsersByMicro(allUsers, row.micro);
                 const blockers = value.micros.filter((m) => m.micro !== row.micro);
                 return (
                   <div key={row.micro} className="border border-ink/20 rounded-sm p-2 space-y-2 bg-paper/50">

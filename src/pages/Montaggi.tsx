@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  CalendarDays,
   Download,
   FileText,
   Wrench,
@@ -40,7 +39,8 @@ import {
   type WorkshopMaterial,
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
-import { PianificazioneSection } from "@/components/montaggi/PianificazioneSection";
+import { AssegnazioneSection } from "@/components/montaggi/AssegnazioneSection";
+import { ClipboardCheck } from "lucide-react";
 
 type WorkerProfile = {
   id: string;
@@ -72,7 +72,7 @@ type DrawingElement = {
   unit: "mm" | "cm";
   materialIds: string[];
 };
-type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "pianificazione";
+type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "assegnazione";
 
 type ToolLine = { id: string; name: string; qty?: number };
 
@@ -140,7 +140,7 @@ const sectionTabs: { key: WoodSection; label: string; icon: typeof FileText }[] 
   { key: "progetto", label: "Progetto", icon: FileText },
   { key: "materiali", label: "Materiali", icon: Package },
   { key: "lavoratori", label: "Lavoratori", icon: Users },
-  { key: "pianificazione", label: "Pianificazione", icon: CalendarDays },
+  { key: "assegnazione", label: "Assegnazione", icon: ClipboardCheck },
   { key: "disegno", label: "Disegnatore", icon: Ruler },
 ];
 
@@ -456,16 +456,18 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
-          {section === "pianificazione" && <PianificazioneSection
+          {section === "assegnazione" && <AssegnazioneSection
             draftId={draftId}
             cantiereLabel={project.name || "Cantiere senza nome"}
-            defaultWorkers={project.workers.map((w) => ({ name: w.name }))}
-            projectAddress={project.address}
-            projectMaterials={project.materials.map((line) => {
-              const item = project.materialCatalog.find((m) => m.id === line.materialId);
-              return { name: item ? `${item.name}${item.detail ? ` · ${item.detail}` : ""}` : "Materiale", qty: line.quantity, unit: item?.unit };
-            })}
-            projectTools={(project.tools ?? []).filter((t) => t.name.trim()).map((t) => ({ name: t.name, qty: t.qty }))}
+            project={{
+              workers: project.workers.map((w) => ({ name: w.name })),
+              tools: (project.tools ?? []).filter((t) => t.name.trim()).map((t) => ({ name: t.name, qty: t.qty })),
+              materials: project.materials.map((line) => {
+                const item = project.materialCatalog.find((m) => m.id === line.materialId);
+                return { name: item ? `${item.name}${item.detail ? ` · ${item.detail}` : ""}` : "Materiale", qty: line.quantity, unit: item?.unit };
+              }),
+              address: project.address,
+            }}
           />}
           {section === "disegno" && (
             <Card className="border-2 border-dept shadow-soft print:hidden">

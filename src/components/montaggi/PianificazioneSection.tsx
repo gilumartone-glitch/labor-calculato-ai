@@ -87,6 +87,8 @@ type Props = {
   projectAddress?: string;
   projectMaterials?: Array<{ name: string; qty?: number; unit?: string }>;
   projectTools?: Array<{ name: string; qty?: number }>;
+  /** Numero di giorni mostrati nel calendario (default 7). Usa 14 per panoramica 2 settimane. */
+  daysCount?: number;
 };
 
 type ProfileLite = { id: string; display_name: string | null };
@@ -102,6 +104,7 @@ export const PianificazioneSection = ({
   projectAddress,
   projectMaterials,
   projectTools,
+  daysCount = 7,
 }: Props) => {
   const { user } = useAuth();
   const view: "progetto" | "panoramica" = mode === "global" ? "panoramica" : "progetto";
@@ -378,7 +381,7 @@ export const PianificazioneSection = ({
     return map;
   }, [assignments]);
 
-  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const weekDays = useMemo(() => Array.from({ length: daysCount }, (_, i) => addDays(weekStart, i)), [weekStart, daysCount]);
 
   const weeklyLoad = useMemo(() => {
     const map = new Map<string, number>();
@@ -442,7 +445,7 @@ export const PianificazioneSection = ({
             <div className="flex items-center gap-1">
               <Button size="icon" variant="outline" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
               <div className="px-3 text-sm font-mono">
-                {weekDays[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} – {weekDays[6].toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}
+                {weekDays[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} – {weekDays[weekDays.length - 1].toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}
               </div>
               <Button size="icon" variant="outline" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={() => setWeekStart(startOfWeek(new Date()))}>Oggi</Button>
@@ -467,7 +470,7 @@ export const PianificazioneSection = ({
                     const isToday = fmtDate(d) === fmtDate(new Date());
                     return (
                       <th key={i} className={`px-2 py-2 text-center text-xs uppercase tracking-wider border-b border-border ${isToday ? "bg-dept-soft" : ""}`}>
-                        <div>{dayLabel[i]}</div>
+                        <div>{dayLabel[i % 7]}</div>
                         <div className="font-mono text-[10px] text-muted-foreground">{d.getDate()}/{d.getMonth() + 1}</div>
                       </th>
                     );

@@ -296,36 +296,84 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   };
 
   // === Save / Delete assignment dal calendario globale ===
-  const saveAssignment = async (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => {
+  const saveAssignment = async (
+    p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto },
+    opts?: { silent?: boolean; closeDialog?: boolean },
+  ) => {
     if (!user) return toast.error("Non autenticato");
     if (!p.cantiere_label.trim()) return toast.error("Inserisci il nome del cantiere");
     if (p.id) {
       const { error } = await supabase.from("montaggi_planning").update({
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
       }).eq("id", p.id);
       if (error) return toast.error(error.message);
-      toast.success("Impegno aggiornato");
+      if (!opts?.silent) toast.success("Impegno aggiornato");
     } else {
       const { error } = await supabase.from("montaggi_planning").insert({
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? "montaggi",
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
         commessa_id: null, created_by: user.id,
       });
       if (error) return toast.error(error.message);
-      toast.success("Impegno aggiunto");
+      if (!opts?.silent) toast.success("Impegno aggiunto");
     }
-    setEditing(null);
+    if (opts?.closeDialog !== false) setEditing(null);
     load();
   };
-  const deleteAssignment = async (id: string) => {
+  const deleteAssignment = async (id: string, opts?: { silent?: boolean }) => {
     const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Impegno eliminato");
+    if (!opts?.silent) toast.success("Impegno eliminato");
     setEditing(null);
     load();
   };
-  const allCantieriList = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [assignments]);
+
+  // Propaga un'assegnazione su un intervallo (dal→al inclusi)
+  const propagateAssignment = async (a: Assignment, fromStr: string, toStr: string) => {
+    if (!user) return toast.error("Non autenticato");
+    const from = new Date(fromStr); const to = new Date(toStr);
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || to < from) return toast.error("Intervallo non valido");
+    const rows: Array<{ operator_id: string; date: string; hours: number; cantiere_label: string; notes: string | null; reparto: string; commessa_id: string | null; created_by: string }> = [];
+    const cur = new Date(from);
+    while (cur <= to) {
+      const ds = fmtDate(cur);
+      // Salta il giorno se l'assegnazione esiste già su quello slot
+      const dup = modeAssignments.some((x) => x.operator_id === a.operator_id && x.date === ds && x.cantiere_label === a.cantiere_label);
+      if (!dup) {
+        rows.push({
+          operator_id: a.operator_id, date: ds, hours: a.hours,
+          cantiere_label: a.cantiere_label, notes: a.notes ?? null,
+          reparto: (a.reparto ?? defaultReparto) as string,
+          commessa_id: a.commessa_id, created_by: user.id,
+        });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (rows.length === 0) { toast.info("Nessun giorno da aggiungere"); return; }
+    const { error } = await supabase.from("montaggi_planning").insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success(`Aggiunti ${rows.length} giorni`);
+    load();
+  };
+
+  // === Drag & drop ===
+  const handleDragEnd = (e: DragEndEvent) => {
+    const dragId = String(e.active.id);
+    const overId = e.over?.id ? String(e.over.id) : null;
+    if (!overId) return;
+    const [targetOp, targetDate] = overId.split("|");
+    if (!targetOp || !targetDate) return;
+    const a = modeAssignments.find((x) => x.id === dragId);
+    if (!a) return;
+    if (a.operator_id === targetOp && a.date === targetDate) return;
+    saveAssignment(
+      { id: a.id, operator_id: targetOp, date: targetDate, hours: a.hours, cantiere_label: a.cantiere_label, notes: a.notes, reparto: a.reparto },
+      { silent: true, closeDialog: false },
+    );
+  };
+
+  const allCantieriList = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [modeAssignments]);
 
   return (
     <div className="space-y-4">

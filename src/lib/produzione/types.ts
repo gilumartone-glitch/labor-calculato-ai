@@ -17,7 +17,7 @@ export type ProdDept =
 export type AppSettore =
   | "progettazione" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"
   | "laboratorio" | "amministrazione" | "logistica" | "magazzino" | "acquisti"
-  | "vendite" | "altro";
+  | "vendite" | "montaggi" | "altro";
 
 export const SETTORE_LABEL: Record<AppSettore, string> = {
   progettazione: "Progettazione",
@@ -32,12 +32,14 @@ export const SETTORE_LABEL: Record<AppSettore, string> = {
   magazzino: "Amministrazione",
   acquisti: "Acquisti",
   vendite: "Vendite",
+  montaggi: "Montaggi",
   altro: "Altro",
 };
 
 export const ALL_SETTORI: AppSettore[] = [
   "progettazione",
   "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d",
+  "montaggi",
   "amministrazione", "acquisti", "vendite",
 ];
 

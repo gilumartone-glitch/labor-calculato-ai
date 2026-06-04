@@ -287,13 +287,18 @@ export const CreateCommessaButton = ({
         return;
       }
 
-      // Flusso normale: usa solo i reparti rilevati (no fallback su reparti vuoti).
+      // Flusso normale: usa i reparti rilevati; se nessuno, fallback al reparto scelto nel form.
       const inferred = inferProdDeptsFromSnapshot(productionSnapshot as any);
-      const depts: ProdDept[] = inferred.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
+      let depts: ProdDept[] = inferred.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
       if (depts.length === 0) {
-        toast.error("Nessun reparto con lavorazioni o prodotti da lanciare");
-        setSaving(false);
-        return;
+        const manual = REPARTO_TO_PROD[reparto];
+        if (manual) {
+          depts = [manual];
+        } else {
+          toast.error("Nessun reparto con lavorazioni o prodotti da lanciare");
+          setSaving(false);
+          return;
+        }
       }
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
       setPendingPayload({ mode: "normal", commessaId, clienteName, productionSnapshot, depts });

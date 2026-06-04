@@ -1430,6 +1430,8 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const [needCoats, setNeedCoats] = useState<number>(0);
   const [surface, setSurface] = useState<number>(0);
   const [classId, setClassId] = useState<string>("");
+  const [finishClassId, setFinishClassId] = useState<string>("");
+  const [layer, setLayer] = useState<"base" | "finitura" | "both">("base");
 
   const allColors = useMemo(() => Array.from(new Set(products.flatMap((p) => p.colors ?? []).filter(Boolean))), [products]);
   const allBases = useMemo(() => Array.from(new Set(products.map((p) => p.base).filter(Boolean))), [products]);
@@ -1446,8 +1448,18 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
     return mOk && cOk && clOk && bOk && fOk;
   }), [products, needMaterial, needColor, needClass, needBase, needFinish]);
   const selected = products.find((p) => p.id === selectedId) ?? filtered[0] ?? products[0];
+  const hasFinish = selected?.baseType === "base_finitura";
+  // Auto-reset layer when switching product
+  useEffect(() => {
+    setLayer(hasFinish ? "both" : "base");
+    setClassId("");
+    setFinishClassId("");
+  }, [selected?.id, hasFinish]);
+
   const activeClass = selected?.classes?.find((c) => c.id === classId) ?? selected?.classes?.[0];
+  const activeFinishClass = selected?.finishClasses?.find((c) => c.id === finishClassId) ?? selected?.finishClasses?.[0];
   const coats = Math.max(1, Number(needCoats || selected?.coats || 1));
+  const finishCoats = Math.max(1, Number(selected?.finishCoats || 1));
 
   const add = () => {
     const p: FireProduct = {
@@ -1471,35 +1483,65 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
     });
   };
 
+  type LayerCalc = {
+    key: "base" | "finitura";
+    label: string;
+    kgNeeded: number;
+    plan: NonNullable<ReturnType<typeof planCans>>;
+    hasOverride: boolean;
+    coats: number;
+    klass: FireClass;
+  };
+
   const calc = useMemo(() => {
-    if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
-    if (!selected.cans?.length) return null;
+    if (!selected || surface <= 0) return null;
     const colorKey = needColor.trim();
-    const ov = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
-    const effectiveCans = applyColorOverrides(selected.cans, ov);
-    const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
-    const plan = planCans(effectiveCans, kgNeeded);
-    if (!plan) return null;
-    return { kgNeeded, plan, hasOverride: !!ov && Object.keys(ov).length > 0 };
-  }, [selected, surface, coats, activeClass, needColor]);
+    const layers: LayerCalc[] = [];
+    const wantBase = layer === "base" || layer === "both";
+    const wantFin = (layer === "finitura" || layer === "both") && hasFinish;
+
+    if (wantBase && activeClass && activeClass.consumptionKgPerM2 > 0 && selected.cans?.length) {
+      const ov = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
+      const eff = applyColorOverrides(selected.cans, ov);
+      const kg = surface * coats * activeClass.consumptionKgPerM2;
+      const plan = planCans(eff, kg);
+      if (plan) layers.push({ key: "base", label: "Base", kgNeeded: kg, plan, hasOverride: !!ov && Object.keys(ov).length > 0, coats, klass: activeClass });
+    }
+    if (wantFin && activeFinishClass && activeFinishClass.consumptionKgPerM2 > 0 && selected.finishCans?.length) {
+      const ov = colorKey ? selected.colorFinishCanPrices?.[colorKey] : undefined;
+      const eff = applyColorOverrides(selected.finishCans, ov);
+      const kg = surface * finishCoats * activeFinishClass.consumptionKgPerM2;
+      const plan = planCans(eff, kg);
+      if (plan) layers.push({ key: "finitura", label: "Finitura", kgNeeded: kg, plan, hasOverride: !!ov && Object.keys(ov).length > 0, coats: finishCoats, klass: activeFinishClass });
+    }
+    if (!layers.length) return null;
+    const totalKgNeeded = layers.reduce((s, l) => s + l.kgNeeded, 0);
+    const totalCost = layers.reduce((s, l) => s + l.plan.totalCost, 0);
+    const totalCans = layers.reduce((s, l) => s + l.plan.totalCans, 0);
+    return { layers, totalKgNeeded, totalCost, totalCans };
+  }, [selected, surface, coats, finishCoats, activeClass, activeFinishClass, needColor, layer, hasFinish]);
 
   const addToCart = () => {
     if (!selected || !calc) return;
     const cart = readDraftSalesCart("ignifugo");
     const colorTag = needColor.trim();
-    const klass = activeClass?.className || "";
-    const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""}${klass ? ` · ${klass}` : ""}`;
-    const newLines: CartLine[] = calc.plan.items.map((it) => ({
-      id: uid(),
-      materialId: "",
-      qty: it.count,
-      name: `${baseLabel} — latta ${it.can.label} kg`,
-      variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
-      unit: "latte" as any,
-      priceSell: it.can.price,
-      pricePurchase: it.can.price,
-      category: "ignifugo",
-    }));
+    const newLines: CartLine[] = [];
+    for (const L of calc.layers) {
+      const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""} · ${L.label}${L.klass.className ? ` · ${L.klass.className}` : ""}`;
+      for (const it of L.plan.items) {
+        newLines.push({
+          id: uid(),
+          materialId: "",
+          qty: it.count,
+          name: `${baseLabel} — latta ${it.can.label} kg`,
+          variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
+          unit: "latte" as any,
+          priceSell: it.can.price,
+          pricePurchase: it.can.price,
+          category: "ignifugo",
+        });
+      }
+    }
     writeDraftSalesCart("ignifugo", [...cart, ...newLines]);
     try { toast.success(`Aggiunto al carrello: ${newLines.length} riga/e per ${selected.name}`); } catch {}
   };

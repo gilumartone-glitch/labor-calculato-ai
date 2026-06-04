@@ -626,26 +626,58 @@ const TransportUsageSection = ({ project, updateProject }: { project: WoodProjec
   </Card>
 );
 
-const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => (
+const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
+  const [dips, setDips] = useState<Dipendente[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDipendenti(true).then((all) => {
+      if (!cancelled) setDips(filterDipendentiByMacro(all, "laboratorio"));
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const costOf = (id: string) => {
+    const d = dips.find((x) => `dip:${x.id}` === id);
+    if (d) return dipendenteHourlyCost(d);
+    const w = project.workers.find((x) => x.id === id);
+    return w ? workerHourlyCost(w) : 0;
+  };
+  const nameOf = (id: string) => {
+    const d = dips.find((x) => `dip:${x.id}` === id);
+    if (d) return d.nome + (d.funzione ? ` · ${d.funzione}` : "");
+    return project.workers.find((x) => x.id === id)?.name ?? "—";
+  };
+  const options = dips.map((d) => ({ id: `dip:${d.id}`, label: `${d.nome}${d.funzione ? ` · ${d.funzione}` : ""} · ${eur(dipendenteHourlyCost(d))}/h` }));
+  return (
   <Card className="border-2 border-dept shadow-soft">
-    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Lavoratori e ore</CardTitle><Button size="sm" onClick={() => updateProject({ labor: [...project.labor, { id: uid(), workerId: project.workers[0]?.id ?? "", hours: 1 }] })}><Plus className="h-4 w-4" />Riga</Button></CardHeader>
+    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Lavoratori e ore</CardTitle><Button size="sm" onClick={() => updateProject({ labor: [...project.labor, { id: uid(), workerId: options[0]?.id ?? "", hours: 1 }] })}><Plus className="h-4 w-4" />Riga</Button></CardHeader>
     <CardContent className="space-y-3">
       {project.labor.map((line) => {
-        const worker = project.workers.find((w) => w.id === line.workerId);
+        const hourly = costOf(line.workerId);
         return <div key={line.id} className="rounded-sm border border-border bg-background p-3">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_120px_120px_40px] xl:items-end">
           <Field label="Lavoratore">
-            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.workerId} onChange={(e) => updateProject({ labor: project.labor.map((l) => l.id === line.id ? { ...l, workerId: e.target.value } : l) })}>{project.workers.map((w) => <option key={w.id} value={w.id}>{w.name} · {eur(workerHourlyCost(w))}/h</option>)}</select>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.workerId} onChange={(e) => updateProject({ labor: project.labor.map((l) => l.id === line.id ? { ...l, workerId: e.target.value } : l) })}>
+              <option value="">— Seleziona dipendente —</option>
+              {line.workerId && !options.some((o) => o.id === line.workerId) && (
+                <option value={line.workerId}>{nameOf(line.workerId)} (non più disponibile)</option>
+              )}
+              {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
           </Field>
           <Field label="Ore lavorate"><NumberInput value={line.hours} onChange={(hours) => updateProject({ labor: project.labor.map((l) => l.id === line.id ? { ...l, hours } : l) })} prefix="Ore" /></Field>
-          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(worker ? workerHourlyCost(worker) * line.hours : 0)}</div></Field>
+          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(hourly * line.hours)}</div></Field>
           <IconButton onClick={() => updateProject({ labor: project.labor.filter((l) => l.id !== line.id) })} />
           </div>
         </div>;
       })}
+      {options.length === 0 && (
+        <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">Nessun dipendente assegnato al macroreparto Laboratorio. Aggiungili dalla sezione Dipendenti nell'Hub.</p>
+      )}
     </CardContent>
   </Card>
-);
+  );
+};
+
 
 const WorkersSection = ({ project, updateProject, updateWorker }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateWorker: (id: string, patch: Partial<WorkerProfile>) => void }) => (
   <>

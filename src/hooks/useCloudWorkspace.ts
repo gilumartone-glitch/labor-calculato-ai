@@ -178,7 +178,7 @@ export function useCloudWorkspace<T>(
     const uid = uidRef.current;
     if (!uid) return;
     const channel = supabase
-      .channel(`uw-${key}-${uid}`)
+      .channel(`uw-${key}-${uid}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "user_workspaces", filter: `user_id=eq.${uid}` },

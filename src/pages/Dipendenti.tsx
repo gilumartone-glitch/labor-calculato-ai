@@ -234,6 +234,10 @@ export default function Dipendenti() {
           </CardContent>
         </Card>
 
+        {canWrite && <RepartiManager />}
+
+
+
         {loading ? (
           <div className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
         ) : filtered.length === 0 ? (

@@ -216,7 +216,7 @@ export const PianificazioneSection = ({
   useEffect(() => {
     if (view !== "progetto") return;
     (async () => {
-      const { data } = await supabase.from("profiles").select("id, display_name").order("display_name");
+      const { data } = await supabase.from("profiles").select("id, display_name, settori").order("display_name");
       setProfiles((data ?? []) as ProfileLite[]);
     })();
   }, [view]);

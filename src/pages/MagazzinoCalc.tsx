@@ -1628,6 +1628,105 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   );
 }
 
+type LocalCan = { id: string; label: string; price: string };
+
+function CansBlock({
+  list, onSync, listId, title, canLabelOptions, colors, overrides, onOverridesChange,
+}: {
+  list: LocalCan[];
+  onSync: (n: LocalCan[]) => void;
+  listId: string;
+  title: string;
+  canLabelOptions: string[];
+  colors: string[];
+  overrides?: Record<string, Record<string, number>>;
+  onOverridesChange?: (next: Record<string, Record<string, number>>) => void;
+}) {
+  const [activeColor, setActiveColor] = useState<string>("");
+  const editingColor = activeColor && colors.includes(activeColor) && !!onOverridesChange;
+  const colorRow = editingColor ? (overrides?.[activeColor] || {}) : {};
+  const setColorPrice = (canId: string, value: string) => {
+    if (!onOverridesChange) return;
+    const next: Record<string, Record<string, number>> = { ...(overrides || {}) };
+    const row = { ...(next[activeColor] || {}) };
+    const n = Number(String(value).replace(",", "."));
+    if (!value || !Number.isFinite(n) || n <= 0) delete row[canId];
+    else row[canId] = n;
+    if (Object.keys(row).length === 0) delete next[activeColor];
+    else next[activeColor] = row;
+    onOverridesChange(next);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">{title}</div>
+        {colors.length > 0 && (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase font-mono text-muted-foreground">colore:</span>
+            <select
+              value={activeColor}
+              onChange={(e) => setActiveColor(e.target.value)}
+              className="h-6 text-[11px] border rounded-sm px-1 bg-background"
+            >
+              <option value="">Base (tutti)</option>
+              {colors.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="space-y-1">
+        {list.map((c, i) => {
+          const computed = parseKgExpr(c.label);
+          if (editingColor) {
+            const basePrice = Number(String(c.price).replace(",", "")) || 0;
+            const ov = colorRow[c.id];
+            return (
+              <div key={c.id} className="grid grid-cols-[140px,1fr,90px,32px] gap-2 items-center">
+                <div className="h-7 px-2 flex items-center text-[11px] bg-muted/40 border rounded-sm font-mono">{c.label || "—"}</div>
+                <Input
+                  type="number" step="0.01"
+                  value={ov != null && ov > 0 ? String(ov) : ""}
+                  onChange={(e) => setColorPrice(c.id, e.target.value)}
+                  placeholder={basePrice ? `= ${fmt(basePrice)} (base)` : "€ prezzo latta"}
+                  className="h-7 text-[11px]"
+                />
+                <div className="text-[10px] text-muted-foreground font-mono text-right pr-1">{computed > 0 ? `= ${fmt(computed)} kg` : ""}</div>
+                <span />
+              </div>
+            );
+          }
+          return (
+            <div key={c.id} className="grid grid-cols-[140px,1fr,90px,32px] gap-2 items-center">
+              <Input type="text" inputMode="text" value={c.label}
+                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                list={listId} className="h-7 text-[11px]" placeholder='es. 5  oppure  10+3' />
+              <Input type="number" step="0.01" value={c.price}
+                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
+                className="h-7 text-[11px]" placeholder="€ prezzo latta" />
+              <div className="text-[10px] text-muted-foreground font-mono text-right pr-1">{computed > 0 ? `= ${fmt(computed)} kg` : ""}</div>
+              <button type="button" onClick={() => onSync(list.filter((_, j) => j !== i))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          );
+        })}
+        <datalist id={listId}>{canLabelOptions.map((o) => <option key={o} value={o} />)}</datalist>
+        {!editingColor && (
+          <Button type="button" size="sm" variant="outline"
+            onClick={() => onSync([...list, { id: uid(), label: "", price: "" }])}
+            className="h-7 px-2 text-[11px]">
+            <Plus className="w-3 h-3 mr-1" />Aggiungi formato
+          </Button>
+        )}
+        <div className="text-[10px] text-muted-foreground">
+          {editingColor
+            ? <>Stai modificando i prezzi specifici per <strong>{activeColor}</strong>. Lascia vuoto per usare il prezzo base.</>
+            : <>Suggerimento: per le confezioni promozionali tipo <strong>10+3</strong> o <strong>5+2</strong> scrivi l'espressione completa: il sistema sommerà automaticamente i kg.</>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FireProductEditor({ product: p, update, colorOptions, baseOptions, materialOptions, classOptions, canLabelOptions }: { product: FireProduct; update: (patch: Partial<FireProduct>) => void; colorOptions: string[]; baseOptions: string[]; materialOptions: string[]; classOptions: string[]; canLabelOptions: string[] }) {
   // Stato locale per latte: l'utente digita "10+3" come label e calcoliamo kg.
   type LocalCan = { id: string; label: string; price: string };

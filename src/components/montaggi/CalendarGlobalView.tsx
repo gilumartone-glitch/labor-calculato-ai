@@ -522,18 +522,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     key={a.id}
                                     assignment={a}
                                     onOpenDialog={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
-                                    onPatch={(patch) => saveAssignment({
-                                      id: a.id,
-                                      operator_id: a.operator_id,
-                                      date: a.date,
-                                      hours: a.hours,
-                                      cantiere_label: a.cantiere_label,
-                                      notes: a.notes,
-                                      reparto: a.reparto,
-                                      ...patch,
-                                    }, { silent: true, closeDialog: false })}
-                                    onDelete={() => deleteAssignment(a.id)}
-                                    onPropagate={(from, to) => propagateAssignment(a, from, to)}
                                     onDragState={setDraggingId}
                                   />
                                 ))}
@@ -753,9 +741,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 type DraggableChipProps = {
   assignment: Assignment;
   onOpenDialog: () => void;
-  onPatch: (patch: Partial<Pick<Assignment, "date" | "hours" | "operator_id">>) => void;
-  onDelete: () => void;
-  onPropagate: (from: string, to: string) => void;
   onDragState: (id: string | null) => void;
 };
 

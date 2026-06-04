@@ -222,6 +222,7 @@ export const CreateCommessaButton = ({
       } else {
         setInferenceSnapshot(snapshot);
       }
+      setMontaggiActive(hasMontaggiContentForActiveDraft());
       if (defaultTitle && defaultTitle.trim()) {
         // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
         // L'utente può comunque modificarlo successivamente.

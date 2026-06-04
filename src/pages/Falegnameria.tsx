@@ -28,6 +28,8 @@ import { eur, uid } from "@/lib/format";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
+import { LavorazioneGuidedForm, emptyGuided } from "@/components/shared/LavorazioneGuidedForm";
+import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,
@@ -85,6 +87,7 @@ type WoodProject = {
   materials: MaterialLine[];
   marginPct: number;
   elements: DrawingElement[];
+  guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };

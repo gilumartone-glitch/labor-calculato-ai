@@ -157,7 +157,28 @@ export const PianificazioneSection = ({
     return out;
   }, [view, defaultWorkers, extras.state]);
 
-  const operators = view === "progetto" ? projectOperators : ops.state;
+  // Operai dal personale (profili) con settore "montaggi" assegnato
+  const profileOps = useMemo<Operator[]>(() => {
+    if (view !== "progetto") return [];
+    const seen = new Set(projectOperators.map((o) => (o.name ?? "").trim().toLowerCase()));
+    return profiles
+      .filter((p) => Array.isArray(p.settori) && p.settori.includes("montaggi"))
+      .filter((p) => {
+        const n = (p.display_name ?? "").trim().toLowerCase();
+        if (!n) return false;
+        if (seen.has(n)) return false;
+        seen.add(n);
+        return true;
+      })
+      .map((p) => ({
+        id: p.id,
+        name: p.display_name ?? p.id.slice(0, 8),
+        role: "",
+        userId: p.id,
+      }));
+  }, [profiles, projectOperators, view]);
+
+  const operators = view === "progetto" ? [...projectOperators, ...profileOps] : ops.state;
 
   /** Seed in global mode */
   const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };

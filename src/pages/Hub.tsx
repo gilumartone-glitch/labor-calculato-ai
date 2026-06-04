@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat } from "lucide-react";
+import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat, Hammer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
@@ -18,10 +18,12 @@ type Tile = {
 };
 
 const TILES: Tile[] = [
-  { key: "preventivi",  label: "Progettazione", description: "Schede progetto multiple: calcolo, listini, materiali", to: "/preventivi", Icon: Calculator, color: "bg-[hsl(184_85%_32%)] text-white border-[hsl(184_85%_22%)]", iconBg: "bg-[hsl(184_85%_22%)]" },
-  { key: "flow",        label: "Flow",          description: "Panoramica di tutti i progetti: stato, scadenze, importi",   to: "/flow",       Icon: Workflow,   color: "bg-[hsl(225_58%_42%)] text-white border-[hsl(225_58%_28%)]", iconBg: "bg-[hsl(225_58%_28%)]" },
-  { key: "produzione",  label: "Produzione",    description: "Officina: sub-ordini per reparto, materiali, magazzino, bolle", to: "/produzione", Icon: Factory,    color: "bg-[hsl(28_86%_46%)] text-white border-[hsl(28_86%_32%)]",   iconBg: "bg-[hsl(28_86%_32%)]" },
-  { key: "contabilita", label: "Contabilità",   description: "Cassa, competenza e movimenti",                              to: "/contabilita", Icon: Landmark,   color: "bg-[hsl(145_42%_34%)] text-white border-[hsl(145_42%_22%)]", iconBg: "bg-[hsl(145_42%_22%)]" },
+  { key: "preventivi",   label: "Progettazione", description: "Schede progetto multiple: calcolo, listini, materiali",          to: "/preventivi",   Icon: Calculator, color: "bg-[hsl(184_85%_32%)] text-white border-[hsl(184_85%_22%)]", iconBg: "bg-[hsl(184_85%_22%)]" },
+  { key: "flow",         label: "Flow",          description: "Panoramica di tutti i progetti: stato, scadenze, importi",       to: "/flow",         Icon: Workflow,   color: "bg-[hsl(225_58%_42%)] text-white border-[hsl(225_58%_28%)]", iconBg: "bg-[hsl(225_58%_28%)]" },
+  { key: "produzione",   label: "Produzione",    description: "Officina: sub-ordini per reparto, materiali, magazzino, bolle",  to: "/produzione",   Icon: Factory,    color: "bg-[hsl(28_86%_46%)] text-white border-[hsl(28_86%_32%)]",   iconBg: "bg-[hsl(28_86%_32%)]" },
+  { key: "contabilita",  label: "Contabilità",   description: "Cassa, competenza e movimenti",                                  to: "/contabilita",  Icon: Landmark,   color: "bg-[hsl(145_42%_34%)] text-white border-[hsl(145_42%_22%)]", iconBg: "bg-[hsl(145_42%_22%)]" },
+  { key: "falegnameria", label: "Falegnameria",  description: "Lavorazioni di reparto: pezzi, materiali, nesting",              to: "/falegnameria", Icon: Hammer,     color: "bg-[hsl(20_55%_36%)] text-white border-[hsl(20_55%_22%)]",   iconBg: "bg-[hsl(20_55%_22%)]" },
+  { key: "montaggi",     label: "Montaggi",      description: "Panoramica cantieri, operai e calendario settimanale",          to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
 ];
 
 const Hub = () => {
@@ -115,22 +117,6 @@ const Hub = () => {
                 </div>
                 <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Magazzino</h3>
                 <p className="text-sm text-white/80">Scorte di Laboratorio e Tappezzeria, sotto-soglia e sfridi</p>
-                <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
-              </Link>
-            )}
-            {can("montaggi", "read") && (
-              <Link
-                to="/montaggi-pianificazione"
-                className="group relative border-2 bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
-              >
-                <div className="flex items-start justify-between mb-5">
-                  <div className="w-14 h-14 rounded-sm bg-[hsl(35_80%_28%)] text-white grid place-items-center">
-                    <HardHat className="w-7 h-7" />
-                  </div>
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-white/70">montaggi</span>
-                </div>
-                <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Montaggi</h3>
-                <p className="text-sm text-white/80">Panoramica cantieri, operai e calendario settimanale</p>
                 <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
               </Link>
             )}

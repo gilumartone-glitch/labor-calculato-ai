@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MACRO_REPARTI, MICRO_BY_MACRO, microLabel, type MacroReparto } from "@/lib/reparti";
+import { MACRO_REPARTI, MICRO_BY_MACRO, microLabel, useRepartiConfig, addMacroReparto, addMicroReparto, deleteRepartoConfig, type MacroReparto } from "@/lib/reparti";
 import type { Dipendente } from "@/lib/dipendenti";
 
 const NET_TO_GROSS_RATIO = 0.82;

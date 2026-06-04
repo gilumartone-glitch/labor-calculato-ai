@@ -1654,6 +1654,7 @@ export type Database = {
         | "laboratorio"
         | "vendite"
         | "progettazione"
+        | "montaggi"
       checklist_item_status: "todo" | "done" | "skipped"
       commessa_priorita: "bassa" | "media" | "alta"
       commessa_reparto:
@@ -1873,6 +1874,7 @@ export const Constants = {
         "laboratorio",
         "vendite",
         "progettazione",
+        "montaggi",
       ],
       checklist_item_status: ["todo", "done", "skipped"],
       commessa_priorita: ["bassa", "media", "alta"],

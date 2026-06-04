@@ -1,0 +1,1 @@
+ALTER TYPE public.app_settore ADD VALUE IF NOT EXISTS 'montaggi';

@@ -27,6 +27,8 @@ import { eur, uid } from "@/lib/format";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
+import { LavorazioneGuidedForm, GuidedValue, emptyGuided } from "@/components/shared/LavorazioneGuidedForm";
+import { supabase } from "@/integrations/supabase/client";
 import {
   loadSharedWorkshopMaterials,
   saveSharedWorkshopMaterials,

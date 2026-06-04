@@ -244,8 +244,10 @@ export const DEPT_LABEL: Record<ProdDept, string> = {
   magazzino: "Amministrazione",
   acquisti: "Acquisti",
   vendite: "Vendite",
+  montaggi: "Montaggi",
   altro: "Altro",
 };
+
 
 export const PRIORITY_LABEL: Record<ProdPriority, string> = {
   normale: "Normale",

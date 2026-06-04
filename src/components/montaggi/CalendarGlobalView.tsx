@@ -44,6 +44,15 @@ const startOfWeek = (d: Date) => {
 
 const dayLabel = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
+const prettyOpName = (raw: string) => {
+  const s = raw.startsWith("proj:") ? raw.slice(5) : raw;
+  return s
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
@@ -118,7 +127,7 @@ export const CalendarGlobalView = () => {
     const known = new Set(allOperators.map((o) => o.id));
     const out: Operator[] = [];
     for (const id of byOp.keys()) {
-      if (!known.has(id)) out.push({ id, name: id, role: "" });
+      if (!known.has(id)) out.push({ id, name: prettyOpName(id), role: "" });
     }
     return out;
   }, [allOperators, byOp]);
@@ -279,7 +288,7 @@ export const CalendarGlobalView = () => {
                           <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""} ${isWeekend ? "bg-muted/30" : ""}`}>
                             <div className="space-y-0.5 min-h-[42px]">
                               {list.map((a) => {
-                                const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? a.operator_id.slice(0, 6);
+                                const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
                                   <div
                                     key={a.id}

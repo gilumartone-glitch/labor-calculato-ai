@@ -15,6 +15,7 @@ import RecordDialog from "@/components/record/RecordDialog";
 const RecordPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [dbContacts, setDbContacts] = useState<ContactSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | RecordType>("all");

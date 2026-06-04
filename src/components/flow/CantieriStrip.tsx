@@ -18,8 +18,6 @@ export const CantieriStrip = ({ onChanged }: { onChanged?: () => void }) => {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Commessa | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -34,7 +32,6 @@ export const CantieriStrip = ({ onChanged }: { onChanged?: () => void }) => {
       supabase.from("profiles").select("id, display_name, avatar_url"),
     ]);
     const profById = new Map<string, Profile>((profs ?? []).map((p: any) => [p.id, p as Profile]));
-    setProfiles((profs ?? []) as Profile[]);
 
     const planByCommessa = new Map<string, string>();
     for (const p of plan ?? []) {

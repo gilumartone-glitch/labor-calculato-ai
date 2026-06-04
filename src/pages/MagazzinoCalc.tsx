@@ -1766,23 +1766,20 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
             <TabsTrigger value="finitura" className="text-[11px]">Finitura</TabsTrigger>
           </TabsList>
           <TabsContent value="base" className="space-y-3 pt-2">
-            {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte BASE & prezzi (kg · €)")}
-            {renderColorPricesBlock(fromLocal(cans), p.colorSurcharges, (next) => update({ colorSurcharges: next }), "Maggiorazione % BASE per colore")}
+            {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte BASE & prezzi (kg · €)", p.colorCanPrices, (next) => update({ colorCanPrices: next }))}
             {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe BASE & consumo (kg/m²)")}
           </TabsContent>
           <TabsContent value="finitura" className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-2">
               <Field label="Mani finitura"><Input type="number" min="1" step="1" value={p.finishCoats || ""} onChange={(e) => update({ finishCoats: Math.max(1, Number(e.target.value)) })} className="h-8 text-[12px]" placeholder="es. 1" /></Field>
             </div>
-            {renderCansBlock(finishCans, syncFinishCans, `cans-fin-${p.id}`, "Formati latte FINITURA & prezzi (kg · €)")}
-            {renderColorPricesBlock(fromLocal(finishCans), p.colorFinishSurcharges, (next) => update({ colorFinishSurcharges: next }), "Maggiorazione % FINITURA per colore")}
+            {renderCansBlock(finishCans, syncFinishCans, `cans-fin-${p.id}`, "Formati latte FINITURA & prezzi (kg · €)", p.colorFinishCanPrices, (next) => update({ colorFinishCanPrices: next }))}
             {renderClassesBlock(p.finishClasses, (next) => update({ finishClasses: next }), "Consumo FINITURA (kg/m²)")}
           </TabsContent>
         </Tabs>
       ) : (
         <>
-          {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte & prezzi (kg · €)")}
-          {renderColorPricesBlock(fromLocal(cans), p.colorSurcharges, (next) => update({ colorSurcharges: next }), "Maggiorazione % per colore")}
+          {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte & prezzi (kg · €)", p.colorCanPrices, (next) => update({ colorCanPrices: next }))}
           {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe & consumo (kg/m²)")}
         </>
       )}

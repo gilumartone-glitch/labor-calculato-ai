@@ -838,6 +838,7 @@ export type Database = {
           id: string
           notes: string | null
           operator_id: string
+          reparto: string
           role: string | null
           start_time: string | null
           updated_at: string
@@ -853,6 +854,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator_id: string
+          reparto?: string
           role?: string | null
           start_time?: string | null
           updated_at?: string
@@ -868,6 +870,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator_id?: string
+          reparto?: string
           role?: string | null
           start_time?: string | null
           updated_at?: string

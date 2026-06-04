@@ -148,10 +148,13 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   // Carica solo la finestra corrente, debounced.
   // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
   const loadTimerRef = useRef<number | null>(null);
-  const profilesLoadedRef = useRef(false);
+  const profilesLoadedRef = useRef(initialCache ? true : false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const cacheKey = `${mode}|${dayStrs[0]}`;
+    const cached = dataCache.get(cacheKey);
+    // Mostra "Caricamento…" solo se non abbiamo dati visibili
+    if (!cached) setLoading(true);
     const firstDay = dayStrs[0];
     const lastDay = dayStrs[dayStrs.length - 1];
     const planP = supabase.from("montaggi_planning")

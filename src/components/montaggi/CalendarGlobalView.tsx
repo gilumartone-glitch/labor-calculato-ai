@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -413,13 +413,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     toast.success(`Aggiunti ${rows.length} giorni`);
   };
 
-  // === Drag & drop ===
-  const handleDragEnd = (e: DragEndEvent) => {
-    const dragId = String(e.active.id);
-    const overId = e.over?.id ? String(e.over.id) : null;
-    if (!overId) return;
-    const [targetOp, targetDate] = overId.split("|");
-    if (!targetOp || !targetDate) return;
+  // === Spostamento veloce: drag HTML nativo, molto più leggero di @dnd-kit sulla griglia grande ===
+  const moveAssignment = (dragId: string, targetOp: string, targetDate: string) => {
     const a = modeAssignments.find((x) => x.id === dragId);
     if (!a) return;
     if (a.operator_id === targetOp && a.date === targetDate) return;
@@ -427,6 +422,11 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       { id: a.id, operator_id: targetOp, date: targetDate, hours: a.hours, cantiere_label: a.cantiere_label, notes: a.notes, reparto: a.reparto },
       { silent: true, closeDialog: false },
     );
+  };
+
+  const handleDropAssignment = (dragId: string, targetOp: string, targetDate: string) => {
+    setDraggingId(null);
+    moveAssignment(dragId, targetOp, targetDate);
   };
 
   const allCantieriList = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [modeAssignments]);

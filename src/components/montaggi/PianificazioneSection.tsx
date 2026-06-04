@@ -682,7 +682,7 @@ type DialogProps = {
   allCantieri: string[];
   lockCantiere?: boolean;
   onClose: () => void;
-  onSave: (p: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; id?: string }) => void;
+  onSave: (p: { operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; notes?: string | null; reparto?: Reparto; id?: string }) => void;
   onDelete?: () => void;
 };
 

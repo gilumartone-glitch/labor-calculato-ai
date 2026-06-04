@@ -23,7 +23,7 @@ const TILES: Tile[] = [
   { key: "produzione",   label: "Produzione",    description: "Officina: sub-ordini per reparto, materiali, magazzino, bolle",  to: "/produzione",   Icon: Factory,    color: "bg-[hsl(28_86%_46%)] text-white border-[hsl(28_86%_32%)]",   iconBg: "bg-[hsl(28_86%_32%)]" },
   { key: "contabilita",  label: "Contabilità",   description: "Cassa, competenza e movimenti",                                  to: "/contabilita",  Icon: Landmark,   color: "bg-[hsl(145_42%_34%)] text-white border-[hsl(145_42%_22%)]", iconBg: "bg-[hsl(145_42%_22%)]" },
   
-  { key: "montaggi",     label: "Montaggi",      description: "Panoramica cantieri, operai e calendario settimanale",          to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
+  { key: "montaggi",     label: "Pianificazione", description: "Cantieri, operai e calendario settimanale per montaggi, laboratorio e tappezzeria", to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
 ];
 
 const Hub = () => {

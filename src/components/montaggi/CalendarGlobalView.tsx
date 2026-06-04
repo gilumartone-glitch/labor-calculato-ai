@@ -137,13 +137,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
   const dayStrs = useMemo(() => days.map(fmtDate), [days]);
 
-  // Carica solo la finestra corrente, debounced.
-  // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
-  const loadTimerRef = useRef<number | null>(null);
+  // Carica solo la finestra corrente. Niente realtime su ogni modifica: gli update sono ottimistici
+  // e restano locali, così la griglia non si ricarica continuamente mentre lavori.
   const profilesLoadedRef = useRef(initialCache ? true : false);
+  const cacheKey = useMemo(() => `${mode}|${dayStrs[0]}`, [mode, dayStrs]);
 
   const load = useCallback(async () => {
-    const cacheKey = `${mode}|${dayStrs[0]}`;
     const cached = dataCache.get(cacheKey);
     // Mostra "Caricamento…" solo se non abbiamo dati visibili
     if (!cached) setLoading(true);
@@ -151,9 +150,13 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const lastDay = dayStrs[dayStrs.length - 1];
     const planP = supabase.from("montaggi_planning")
       .select("*").gte("date", firstDay).lte("date", lastDay).order("date").then((r) => r);
-    const subP = supabase.from("production_sub_orders")
-      .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
-      .or(`status.neq.completato,completed_at.gte.${firstDay}`).then((r) => r);
+    const subP = mode === "lavorazioni"
+      ? supabase.from("production_sub_orders")
+        .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
+        .in("dept", allowedReparti)
+        .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay}`)
+        .then((r) => r)
+      : Promise.resolve({ data: [], error: null });
     const profP = profilesLoadedRef.current
       ? null
       : supabase.from("profiles").select("id, display_name, settori").order("display_name").then((r) => r);
@@ -173,26 +176,15 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     }
     dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [dayStrs, mode, profiles]);
-
-  const scheduleLoad = useCallback(() => {
-    if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = window.setTimeout(() => { load(); }, 1500);
-  }, [load]);
+  }, [allowedReparti, cacheKey, dayStrs, mode, profiles]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
 
   useEffect(() => {
-    const ch = supabase.channel(`calendar_global_${mode}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => scheduleLoad())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => scheduleLoad())
-      .subscribe();
-    return () => {
-      if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line
-  }, [mode]);
+    if (!loading || assignments.length > 0 || prodSubs.length > 0 || profiles.length > 0) {
+      dataCache.set(cacheKey, { assignments, prodSubs, profiles, startKey: dayStrs[0] });
+    }
+  }, [assignments, prodSubs, profiles, loading, cacheKey, dayStrs]);
 
   // Indice operatore → giorno → assegnazioni (incluso impegni produzione)
   type CellItem =

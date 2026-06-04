@@ -162,29 +162,43 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
   const allOperators = opsDraft ?? ops.state;
 
-  const orphanOps = useMemo(() => {
-    const known = new Set(allOperators.map((o) => o.id));
-    const set = new Set<string>();
-    assignments.forEach((a) => { if (!known.has(a.operator_id)) set.add(a.operator_id); });
-    return Array.from(set).map((id) => ({ id, name: prettyOpName(id), role: "", reparti: ["montaggi" as Reparto] } as Operator));
-  }, [allOperators, assignments]);
+  // Filtra le assegnazioni per modalità (montaggi vs lavorazioni)
+  const modeAssignments = useMemo(() => {
+    return assignments.filter((a) => allowedReparti.includes((a.reparto ?? "montaggi") as Reparto));
+  }, [assignments, allowedReparti]);
 
-  // Operai dal personale (profili) che hanno il settore "montaggi" assegnato
+  // Solo gli operai usati nelle assegnazioni della modalità corrente vengono considerati "manuali"
+  const allOperatorsForMode = useMemo(() => {
+    return allOperators.filter((o) => {
+      const reps = o.reparti ?? ["montaggi"];
+      return reps.some((r) => allowedReparti.includes(r as Reparto));
+    });
+  }, [allOperators, allowedReparti]);
+
+  const orphanOps = useMemo(() => {
+    const known = new Set(allOperatorsForMode.map((o) => o.id));
+    const set = new Set<string>();
+    modeAssignments.forEach((a) => { if (!known.has(a.operator_id)) set.add(a.operator_id); });
+    return Array.from(set).map((id) => ({ id, name: prettyOpName(id), role: "", reparti: [defaultReparto] } as Operator));
+  }, [allOperatorsForMode, modeAssignments, defaultReparto]);
+
+  // Operai dal personale (profili) che hanno almeno uno dei settori della modalità
   const profileOps = useMemo(() => {
-    const known = new Set([...allOperators.map((o) => o.id), ...orphanOps.map((o) => o.id)]);
+    const known = new Set([...allOperatorsForMode.map((o) => o.id), ...orphanOps.map((o) => o.id)]);
     return profiles
-      .filter((p) => Array.isArray(p.settori) && p.settori.includes("montaggi") && !known.has(p.id))
+      .filter((p) => Array.isArray(p.settori) && p.settori.some((s) => allowedReparti.includes(s as Reparto)) && !known.has(p.id))
       .map((p) => ({
         id: p.id,
         name: p.display_name ?? prettyOpName(p.id),
         role: "",
-        reparti: ["montaggi" as Reparto],
+        userId: p.id,
+        reparti: (p.settori ?? []).filter((s) => allowedReparti.includes(s as Reparto)) as Reparto[],
       } as Operator));
-  }, [profiles, allOperators, orphanOps]);
+  }, [profiles, allOperatorsForMode, orphanOps, allowedReparti]);
 
-  const displayedOps = [...allOperators, ...orphanOps, ...profileOps];
+  const displayedOps = [...allOperatorsForMode, ...orphanOps, ...profileOps];
 
-  const allCantieriSet = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label))).sort(), [assignments]);
+  const allCantieriSet = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label))).sort(), [modeAssignments]);
 
   // Calcola gli impegni "produzione" per (userId, data)
   const prodByUserDay = useMemo(() => {

@@ -277,6 +277,19 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
             />
           </div>
 
+          {/* Lavorazione guidata: macro / responsabile / micro+operatori+dipendenze */}
+          <div className="border-t border-ink/15 pt-3">
+            <div className="label-cap mb-2">Lavorazione</div>
+            <LavorazioneGuidedForm
+              value={guided}
+              onChange={setGuided}
+              users={profiles}
+              compact
+            />
+          </div>
+
+
+
           {profiles.length > 0 && (
             <div>
               <div className="label-cap mb-1">Assegnatari ({assegnatariIds.length})</div>

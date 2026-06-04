@@ -135,30 +135,56 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
   const dayStrs = useMemo(() => days.map(fmtDate), [days]);
 
-  const load = async () => {
+  // Carica solo la finestra corrente, debounced.
+  // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
+  const loadTimerRef = useRef<number | null>(null);
+  const profilesLoadedRef = useRef(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: planData, error: e1 }, { data: subData }, { data: profData }] = await Promise.all([
-      supabase.from("montaggi_planning").select("*").gte("date", dayStrs[0]).lte("date", dayStrs[dayStrs.length - 1]).order("date"),
-      supabase.from("production_sub_orders").select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id"),
-      supabase.from("profiles").select("id, display_name, settori").order("display_name"),
-    ]);
+    const firstDay = dayStrs[0];
+    const lastDay = dayStrs[dayStrs.length - 1];
+    const planQ = supabase.from("montaggi_planning")
+      .select("*").gte("date", firstDay).lte("date", lastDay).order("date");
+    // Limita i sub-ordini: solo quelli che intersecano la finestra (escludendo i completati molto vecchi)
+    const subQ = supabase.from("production_sub_orders")
+      .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
+      .or(`status.neq.completato,completed_at.gte.${firstDay}`);
+    const queries: Promise<any>[] = [planQ, subQ];
+    if (!profilesLoadedRef.current) {
+      queries.push(supabase.from("profiles").select("id, display_name, settori").order("display_name"));
+    }
+    const results = await Promise.all(queries);
+    const planData = results[0]?.data; const e1 = results[0]?.error;
+    const subData = results[1]?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
     setAssignments((planData ?? []) as Assignment[]);
     setProdSubs((subData ?? []) as ProdSub[]);
-    setProfiles((profData ?? []) as ProfileLite[]);
+    if (results[2]) {
+      setProfiles((results[2].data ?? []) as ProfileLite[]);
+      profilesLoadedRef.current = true;
+    }
     setLoading(false);
-  };
+  }, [dayStrs]);
+
+  const scheduleLoad = useCallback(() => {
+    if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = window.setTimeout(() => { load(); }, 600);
+  }, [load]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
 
   useEffect(() => {
-    const ch = supabase.channel("calendar_global")
-      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => load())
+    const ch = supabase.channel(`calendar_global_${mode}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => scheduleLoad())
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => scheduleLoad())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line
-  }, []);
+  }, [mode]);
 
   // Indice operatore → giorno → assegnazioni (incluso impegni produzione)
   type CellItem =

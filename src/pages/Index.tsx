@@ -495,7 +495,7 @@ const Index = () => {
     <div data-dept={activeTab} className="min-h-screen bg-dept-soft/35 transition-colors">
       {/* Header */}
       <header className="app-header border-b-2 border-dept bg-paper sticky top-0 z-20">
-        <div className="container py-2 md:py-5 flex flex-wrap items-center justify-between gap-2 md:gap-6">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-2 md:py-5 flex flex-wrap items-center justify-between gap-2 md:gap-6">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-none">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-dept text-dept-foreground grid place-items-center font-display font-bold text-xl rounded-sm shrink-0">
               ƒ

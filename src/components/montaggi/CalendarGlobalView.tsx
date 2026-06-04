@@ -105,6 +105,10 @@ const prettyOpName = (raw: string) => {
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
+// Cache di modulo per evitare loading blank al re-mount (cambio tab)
+type CacheEntry = { assignments: Assignment[]; prodSubs: ProdSub[]; profiles: ProfileLite[]; startKey: string };
+const dataCache = new Map<string, CacheEntry>();
+
 type CalendarGlobalViewProps = { mode?: CalendarMode };
 
 export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProps) => {

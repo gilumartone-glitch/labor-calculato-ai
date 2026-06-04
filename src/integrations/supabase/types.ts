@@ -1694,6 +1694,7 @@ export type Database = {
         | "vendite"
         | "progettazione"
         | "lavorazione"
+        | "montaggi"
       prod_notif_type:
         | "ordine_creato"
         | "subordine_assegnato"
@@ -1915,6 +1916,7 @@ export const Constants = {
         "vendite",
         "progettazione",
         "lavorazione",
+        "montaggi",
       ],
       prod_notif_type: [
         "ordine_creato",

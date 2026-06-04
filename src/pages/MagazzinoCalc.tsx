@@ -1462,25 +1462,23 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const rm = (id: string) => { setProducts(products.filter((p) => p.id !== id)); if (selectedId === id) setSelectedId(""); };
 
   /** Applica gli override prezzo del colore selezionato (se presente). */
-  const applyColorPrices = (cans: FireCan[] | undefined, overrides?: Record<string, number>): FireCan[] => {
+  const applySurcharge = (cans: FireCan[] | undefined, pct: number): FireCan[] => {
     if (!Array.isArray(cans)) return [];
-    if (!overrides) return cans;
-    return cans.map((c) => {
-      const ov = overrides[c.id];
-      return Number.isFinite(ov) && (ov as number) > 0 ? { ...c, price: Number(ov) } : c;
-    });
+    if (!Number.isFinite(pct) || pct === 0) return cans;
+    const k = 1 + pct / 100;
+    return cans.map((c) => ({ ...c, price: (c.price || 0) * k }));
   };
 
   const calc = useMemo(() => {
     if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
     if (!selected.cans?.length) return null;
     const colorKey = needColor.trim();
-    const ovBase = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
-    const effectiveCans = applyColorPrices(selected.cans, ovBase);
+    const pct = colorKey ? Number(selected.colorSurcharges?.[colorKey] ?? 0) : 0;
+    const effectiveCans = applySurcharge(selected.cans, pct);
     const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
     const plan = planCans(effectiveCans, kgNeeded);
     if (!plan) return null;
-    return { kgNeeded, plan };
+    return { kgNeeded, plan, pct };
   }, [selected, surface, coats, activeClass, needColor]);
 
   const addToCart = () => {

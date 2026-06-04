@@ -1,11 +1,12 @@
 // Mappa macro → microreparti. Allineata ai valori usati in profiles.settori.
-export type MacroReparto = "laboratorio" | "tappezzeria" | "montaggi" | "uffici";
+export type MacroReparto = "laboratorio" | "tappezzeria" | "montaggi" | "uffici" | "magazzino";
 
 export const MACRO_REPARTI: { k: MacroReparto; label: string }[] = [
   { k: "laboratorio", label: "Laboratorio" },
   { k: "tappezzeria", label: "Tappezzeria" },
   { k: "montaggi", label: "Montaggi" },
   { k: "uffici", label: "Uffici" },
+  { k: "magazzino", label: "Magazzino" },
 ];
 
 export const MICRO_BY_MACRO: Record<MacroReparto, { k: string; label: string }[]> = {
@@ -30,7 +31,14 @@ export const MICRO_BY_MACRO: Record<MacroReparto, { k: string; label: string }[]
     { k: "marketing", label: "Marketing" },
     { k: "progettazione", label: "Progettazione" },
   ],
+  magazzino: [
+    { k: "ricezione_merci", label: "Ricezione merci" },
+    { k: "stoccaggio", label: "Stoccaggio" },
+    { k: "spedizioni", label: "Spedizioni" },
+    { k: "inventario", label: "Inventario" },
+  ],
 };
+
 
 
 export const microsOf = (m: MacroReparto) => MICRO_BY_MACRO[m].map((x) => x.k);

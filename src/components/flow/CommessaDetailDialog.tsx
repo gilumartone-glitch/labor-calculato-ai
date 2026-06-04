@@ -832,6 +832,10 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
             )}
           </TabsContent>
 
+          <TabsContent value="timeline">
+            <CommessaUpdatesTab commessaId={commessa.id} onCommessaChanged={onChanged} />
+          </TabsContent>
+
         </Tabs>
       </DialogContent>
     </Dialog>

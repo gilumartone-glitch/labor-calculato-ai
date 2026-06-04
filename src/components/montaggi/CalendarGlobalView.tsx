@@ -44,6 +44,15 @@ const startOfWeek = (d: Date) => {
 
 const dayLabel = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
+const prettyOpName = (raw: string) => {
+  const s = raw.startsWith("proj:") ? raw.slice(5) : raw;
+  return s
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 

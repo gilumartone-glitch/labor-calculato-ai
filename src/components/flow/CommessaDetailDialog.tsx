@@ -646,7 +646,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
 
 
         <Tabs defaultValue="overview" className="mt-2">
-          <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-1" : "grid-cols-3"}`}>
+          <TabsList className={`grid w-full ${commessa.tipo === "task" ? "grid-cols-2" : "grid-cols-4"}`}>
             <TabsTrigger value="overview">Dettaglio</TabsTrigger>
             {commessa.tipo !== "task" && (
               <>
@@ -654,6 +654,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 <TabsTrigger value="materials">Materiali ({aggregated.length})</TabsTrigger>
               </>
             )}
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW */}

@@ -87,6 +87,8 @@ type Props = {
   projectAddress?: string;
   projectMaterials?: Array<{ name: string; qty?: number; unit?: string }>;
   projectTools?: Array<{ name: string; qty?: number }>;
+  /** Numero di giorni mostrati nel calendario (default 7). Usa 14 per panoramica 2 settimane. */
+  daysCount?: number;
 };
 
 type ProfileLite = { id: string; display_name: string | null };

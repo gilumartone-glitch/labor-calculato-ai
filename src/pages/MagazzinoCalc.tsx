@@ -67,8 +67,11 @@ type FireProduct = {
   finishCans?: FireCan[];
   finishClasses?: FireClass[];
   finishCoats?: number;
-  /** Override prezzo per colore: { [colore]: { [canId]: prezzo } }.
-   *  Se assente per quel colore/can, vale il prezzo base della latta. */
+  /** Maggiorazione % per colore (es. 15 = +15% su tutti i formati di latta).
+   *  Default 0 (= prezzo base). */
+  colorSurcharges?: Record<string, number>;
+  colorFinishSurcharges?: Record<string, number>;
+  /** @deprecated vecchio formato matrice colore×latta, ignorato. */
   colorCanPrices?: Record<string, Record<string, number>>;
   colorFinishCanPrices?: Record<string, Record<string, number>>;
   note?: string;
@@ -170,6 +173,8 @@ const hydrate = (raw: unknown): MagState => {
         finishCoats: f.finishCoats != null ? Math.max(1, Number(f.finishCoats)) : undefined,
         colorCanPrices: (f.colorCanPrices && typeof f.colorCanPrices === "object") ? f.colorCanPrices : undefined,
         colorFinishCanPrices: (f.colorFinishCanPrices && typeof f.colorFinishCanPrices === "object") ? f.colorFinishCanPrices : undefined,
+        colorSurcharges: (f.colorSurcharges && typeof f.colorSurcharges === "object") ? f.colorSurcharges : undefined,
+        colorFinishSurcharges: (f.colorFinishSurcharges && typeof f.colorFinishSurcharges === "object") ? f.colorFinishSurcharges : undefined,
         note: f.note,
       }))
     : [];
@@ -1457,25 +1462,23 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const rm = (id: string) => { setProducts(products.filter((p) => p.id !== id)); if (selectedId === id) setSelectedId(""); };
 
   /** Applica gli override prezzo del colore selezionato (se presente). */
-  const applyColorPrices = (cans: FireCan[] | undefined, overrides?: Record<string, number>): FireCan[] => {
+  const applySurcharge = (cans: FireCan[] | undefined, pct: number): FireCan[] => {
     if (!Array.isArray(cans)) return [];
-    if (!overrides) return cans;
-    return cans.map((c) => {
-      const ov = overrides[c.id];
-      return Number.isFinite(ov) && (ov as number) > 0 ? { ...c, price: Number(ov) } : c;
-    });
+    if (!Number.isFinite(pct) || pct === 0) return cans;
+    const k = 1 + pct / 100;
+    return cans.map((c) => ({ ...c, price: (c.price || 0) * k }));
   };
 
   const calc = useMemo(() => {
     if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
     if (!selected.cans?.length) return null;
     const colorKey = needColor.trim();
-    const ovBase = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
-    const effectiveCans = applyColorPrices(selected.cans, ovBase);
+    const pct = colorKey ? Number(selected.colorSurcharges?.[colorKey] ?? 0) : 0;
+    const effectiveCans = applySurcharge(selected.cans, pct);
     const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
     const plan = planCans(effectiveCans, kgNeeded);
     if (!plan) return null;
-    return { kgNeeded, plan };
+    return { kgNeeded, plan, pct };
   }, [selected, surface, coats, activeClass, needColor]);
 
   const addToCart = () => {
@@ -1582,7 +1585,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                         </Button>
                         <div className="text-[10px] font-mono text-muted-foreground">
                           {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
-                          {needColor.trim() && selected.colorCanPrices?.[needColor.trim()] ? " · override attivo" : ""}
+                          {calc.pct ? ` · +${fmt(calc.pct)}% maggiorazione colore` : ""}
                         </div>
                       </div>
                     </>
@@ -1712,68 +1715,50 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
   );
 
   const renderColorPricesBlock = (
-    canList: FireCan[],
-    overrides: Record<string, Record<string, number>> | undefined,
-    onChange: (next: Record<string, Record<string, number>>) => void,
+    _canList: FireCan[],
+    surcharges: Record<string, number> | undefined,
+    onChange: (next: Record<string, number>) => void,
     title: string,
   ) => {
     const colors = p.colors ?? [];
-    if (colors.length === 0 || canList.length === 0) return null;
-    const setPrice = (color: string, canId: string, value: string) => {
-      const next: Record<string, Record<string, number>> = { ...(overrides || {}) };
-      const row = { ...(next[color] || {}) };
+    if (colors.length === 0) return null;
+    const setPct = (color: string, value: string) => {
+      const next: Record<string, number> = { ...(surcharges || {}) };
       const n = Number(String(value).replace(",", "."));
-      if (!value || !Number.isFinite(n) || n <= 0) delete row[canId];
-      else row[canId] = n;
-      if (Object.keys(row).length === 0) delete next[color];
-      else next[color] = row;
+      if (!value || !Number.isFinite(n) || n === 0) delete next[color];
+      else next[color] = n;
       onChange(next);
     };
     return (
       <div className="border border-ink/15 rounded-sm p-2 bg-muted/20">
-        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-2">{title}</div>
+        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">{title}</div>
         <div className="text-[10px] text-muted-foreground mb-2">
-          Lascia vuoto per usare il prezzo base della latta. Inserisci un valore solo dove il colore costa diversamente.
+          Una sola maggiorazione (%) per colore, applicata a tutti i formati di latta. Lascia vuoto o 0 per usare il prezzo base.
         </div>
-        <div className="overflow-x-auto">
-          <table className="text-[11px] w-full">
-            <thead>
-              <tr className="text-[10px] font-mono uppercase text-muted-foreground">
-                <th className="text-left pb-1 pr-2 sticky left-0 bg-muted/20">Colore</th>
-                {canList.map((c) => (
-                  <th key={c.id} className="text-right pb-1 px-2 whitespace-nowrap">
-                    {c.label} kg
-                    <div className="text-[9px] text-muted-foreground/70 normal-case">base {eur(c.price)}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {colors.map((col) => (
-                <tr key={col} className="border-t border-ink/10">
-                  <td className="py-1 pr-2 font-semibold sticky left-0 bg-muted/20">{col}</td>
-                  {canList.map((c) => {
-                    const ov = overrides?.[col]?.[c.id];
-                    return (
-                      <td key={c.id} className="py-1 px-2">
-                        <Input
-                          type="number" step="0.01"
-                          value={ov != null && ov > 0 ? String(ov) : ""}
-                          onChange={(e) => setPrice(col, c.id, e.target.value)}
-                          placeholder={`= ${c.price ? fmt(c.price) : "—"}`}
-                          className="h-7 text-[11px] text-right"
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-1">
+          {colors.map((col) => {
+            const cur = surcharges?.[col];
+            return (
+              <div key={col} className="grid grid-cols-[1fr,120px] gap-2 items-center">
+                <div className="text-[12px] font-semibold">{col}</div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number" step="1"
+                    value={cur != null && cur !== 0 ? String(cur) : ""}
+                    onChange={(e) => setPct(col, e.target.value)}
+                    placeholder="0"
+                    className="h-7 text-[11px] text-right"
+                  />
+                  <span className="text-[11px] text-muted-foreground">%</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
+
 
 
   return (
@@ -1797,7 +1782,7 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
           </TabsList>
           <TabsContent value="base" className="space-y-3 pt-2">
             {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte BASE & prezzi (kg · €)")}
-            {renderColorPricesBlock(fromLocal(cans), p.colorCanPrices, (next) => update({ colorCanPrices: next }), "Prezzi BASE per colore (override €/latta)")}
+            {renderColorPricesBlock(fromLocal(cans), p.colorSurcharges, (next) => update({ colorSurcharges: next }), "Maggiorazione % BASE per colore")}
             {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe BASE & consumo (kg/m²)")}
           </TabsContent>
           <TabsContent value="finitura" className="space-y-3 pt-2">
@@ -1805,14 +1790,14 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
               <Field label="Mani finitura"><Input type="number" min="1" step="1" value={p.finishCoats || ""} onChange={(e) => update({ finishCoats: Math.max(1, Number(e.target.value)) })} className="h-8 text-[12px]" placeholder="es. 1" /></Field>
             </div>
             {renderCansBlock(finishCans, syncFinishCans, `cans-fin-${p.id}`, "Formati latte FINITURA & prezzi (kg · €)")}
-            {renderColorPricesBlock(fromLocal(finishCans), p.colorFinishCanPrices, (next) => update({ colorFinishCanPrices: next }), "Prezzi FINITURA per colore (override €/latta)")}
+            {renderColorPricesBlock(fromLocal(finishCans), p.colorFinishSurcharges, (next) => update({ colorFinishSurcharges: next }), "Maggiorazione % FINITURA per colore")}
             {renderClassesBlock(p.finishClasses, (next) => update({ finishClasses: next }), "Consumo FINITURA (kg/m²)")}
           </TabsContent>
         </Tabs>
       ) : (
         <>
           {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte & prezzi (kg · €)")}
-          {renderColorPricesBlock(fromLocal(cans), p.colorCanPrices, (next) => update({ colorCanPrices: next }), "Prezzi per colore (override €/latta)")}
+          {renderColorPricesBlock(fromLocal(cans), p.colorSurcharges, (next) => update({ colorSurcharges: next }), "Maggiorazione % per colore")}
           {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe & consumo (kg/m²)")}
         </>
       )}

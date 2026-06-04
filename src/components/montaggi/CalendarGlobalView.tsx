@@ -230,7 +230,7 @@ export const CalendarGlobalView = () => {
     const cur = new Set(op.reparti ?? ["montaggi"]);
     if (cur.has(r)) cur.delete(r); else cur.add(r);
     if (cur.size === 0) cur.add("montaggi");
-    patchOperator(op.id, { reparti: Array.from(cur) });
+    patchOperator(op.id, { reparti: Array.from(cur) as Reparto[] });
   };
 
   return (

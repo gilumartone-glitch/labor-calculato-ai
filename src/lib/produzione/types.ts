@@ -10,7 +10,9 @@ export type ProdDept =
   | "magazzino"
   | "acquisti"
   | "vendite"
+  | "montaggi"
   | "altro";
+
 
 export type AppSettore =
   | "progettazione" | "stampa" | "taglio" | "tappezzeria" | "stampa_3d" | "falegnameria"

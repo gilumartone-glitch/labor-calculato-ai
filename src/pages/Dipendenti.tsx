@@ -79,25 +79,6 @@ export default function Dipendenti() {
     if (!authLoading && user) load();
   }, [authLoading, user]);
 
-  if (authLoading || permLoading) {
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/auth" replace />;
-  if (!can("dipendenti", "read") && !isAdmin) {
-    return (
-      <div className="min-h-screen grid place-items-center px-6">
-        <div className="max-w-md text-center border-2 border-ink bg-paper p-8 rounded-sm">
-          <h1 className="font-display text-2xl font-semibold mb-2">Accesso non consentito</h1>
-          <p className="text-sm text-muted-foreground">Non hai i permessi per gestire i dipendenti.</p>
-        </div>
-      </div>
-    );
-  }
-
   const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
     return items.filter((d) => {
@@ -106,6 +87,7 @@ export default function Dipendenti() {
       return (d.nome + " " + (d.funzione ?? "")).toLowerCase().includes(f);
     });
   }, [items, filter, filterMacro]);
+
 
   const startNew = () => setEditing(empty());
   const startEdit = (d: Dipendente) => setEditing({ ...d });

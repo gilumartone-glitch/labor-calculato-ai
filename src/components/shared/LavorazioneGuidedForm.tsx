@@ -4,6 +4,7 @@ import {
   MACRO_REPARTI, MICRO_BY_MACRO, MacroReparto, UserLite,
   filterUsersByMacro, filterUsersByMicro, microLabel,
 } from "@/lib/reparti";
+import { fetchDipendenti, dipendenteAsUser, type Dipendente } from "@/lib/dipendenti";
 
 export type GuidedMicro = {
   micro: string;
@@ -30,10 +31,24 @@ interface Props {
 }
 
 export const LavorazioneGuidedForm = ({ value, onChange, users, compact }: Props) => {
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+  useEffect(() => {
+    fetchDipendenti(true).then(setDipendenti);
+  }, []);
+
+  const allUsers = useMemo<UserLite[]>(() => {
+    // Unisce profili e dipendenti; se un dipendente è linkato a un profilo (profile_id)
+    // viene escluso per evitare duplicati nel selettore.
+    const linkedProfileIds = new Set(dipendenti.map((d) => d.profile_id).filter(Boolean) as string[]);
+    const profileUsers = users.filter((u) => !linkedProfileIds.has(u.id));
+    const dipUsers = dipendenti.map(dipendenteAsUser);
+    return [...profileUsers, ...dipUsers];
+  }, [users, dipendenti]);
+
   const macro = value.macro_reparto;
   const responsabili = useMemo(
-    () => (macro ? filterUsersByMacro(users, macro) : []),
-    [macro, users],
+    () => (macro ? filterUsersByMacro(allUsers, macro) : []),
+    [macro, allUsers],
   );
   const microOptions = macro ? MICRO_BY_MACRO[macro] : [];
 

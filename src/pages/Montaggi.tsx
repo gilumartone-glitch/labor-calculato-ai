@@ -437,7 +437,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
     <>
       {!embedded && (
         <header className="sticky top-0 z-20 border-b-2 border-dept bg-paper">
-          <div className="container mx-auto px-3 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-dept text-dept-foreground"><Wrench className="h-5 w-5" /></div>
               <div className="min-w-0">
@@ -453,7 +453,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
         </header>
       )}
 
-        <main className={embedded ? "w-full space-y-6" : "container mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6"}>
+        <main className={embedded ? "w-full space-y-6" : "mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6"}>
         <section className="space-y-6">
           <Card className="border-2 border-dept shadow-soft">
             <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">

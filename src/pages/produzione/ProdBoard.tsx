@@ -383,6 +383,8 @@ const ProdBoard = () => {
           )}
         </div>
 
+        <CantieriStrip />
+
         <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
           {stages.map((st) => (
             <div key={st.key} className="w-full md:min-w-[280px] md:w-[280px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">

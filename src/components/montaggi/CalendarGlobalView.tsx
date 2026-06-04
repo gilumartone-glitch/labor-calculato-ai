@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +82,11 @@ const colorForCantiere = (label: string) => {
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
   return COLORS[h % COLORS.length];
 };
+// Colore del chip = reparto (tipo di impegno); accento sinistra = cantiere
+const chipColorForAssignment = (a: Pick<Assignment, "reparto" | "cantiere_label">) => {
+  const r = (a.reparto ?? "montaggi") as Reparto;
+  return REPARTO_BG[r] ?? REPARTO_BG.altro;
+};
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const startOfWeek = (d: Date) => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; };
@@ -130,30 +135,54 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
   const dayStrs = useMemo(() => days.map(fmtDate), [days]);
 
-  const load = async () => {
+  // Carica solo la finestra corrente, debounced.
+  // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
+  const loadTimerRef = useRef<number | null>(null);
+  const profilesLoadedRef = useRef(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: planData, error: e1 }, { data: subData }, { data: profData }] = await Promise.all([
-      supabase.from("montaggi_planning").select("*").gte("date", dayStrs[0]).lte("date", dayStrs[dayStrs.length - 1]).order("date"),
-      supabase.from("production_sub_orders").select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id"),
-      supabase.from("profiles").select("id, display_name, settori").order("display_name"),
-    ]);
+    const firstDay = dayStrs[0];
+    const lastDay = dayStrs[dayStrs.length - 1];
+    const planP = supabase.from("montaggi_planning")
+      .select("*").gte("date", firstDay).lte("date", lastDay).order("date").then((r) => r);
+    const subP = supabase.from("production_sub_orders")
+      .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
+      .or(`status.neq.completato,completed_at.gte.${firstDay}`).then((r) => r);
+    const profP = profilesLoadedRef.current
+      ? null
+      : supabase.from("profiles").select("id, display_name, settori").order("display_name").then((r) => r);
+    const [planRes, subRes, profRes] = await Promise.all([planP, subP, profP]);
+    const planData = planRes?.data; const e1 = planRes?.error;
+    const subData = subRes?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
     setAssignments((planData ?? []) as Assignment[]);
     setProdSubs((subData ?? []) as ProdSub[]);
-    setProfiles((profData ?? []) as ProfileLite[]);
+    if (profRes) {
+      setProfiles((profRes.data ?? []) as ProfileLite[]);
+      profilesLoadedRef.current = true;
+    }
     setLoading(false);
-  };
+  }, [dayStrs]);
+
+  const scheduleLoad = useCallback(() => {
+    if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = window.setTimeout(() => { load(); }, 600);
+  }, [load]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
 
   useEffect(() => {
-    const ch = supabase.channel("calendar_global")
-      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => load())
+    const ch = supabase.channel(`calendar_global_${mode}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => scheduleLoad())
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => scheduleLoad())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line
-  }, []);
+  }, [mode]);
 
   // Indice operatore → giorno → assegnazioni (incluso impegni produzione)
   type CellItem =
@@ -295,41 +324,59 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     patchOperator(op.id, { reparti: Array.from(cur) as Reparto[] });
   };
 
-  // === Save / Delete assignment dal calendario globale ===
+  // === Save / Delete assignment (OTTIMISTICO) ===
+  // Aggiorniamo subito lo stato locale; il realtime poi riallinea (debounced).
   const saveAssignment = async (
     p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto },
     opts?: { silent?: boolean; closeDialog?: boolean },
   ) => {
     if (!user) return toast.error("Non autenticato");
     if (!p.cantiere_label.trim()) return toast.error("Inserisci il nome del cantiere");
+    const reparto = p.reparto ?? defaultReparto;
     if (p.id) {
+      const prev = assignments;
+      setAssignments((cur) => cur.map((x) => x.id === p.id ? {
+        ...x, operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
+      } : x));
       const { error } = await supabase.from("montaggi_planning").update({
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
       }).eq("id", p.id);
-      if (error) return toast.error(error.message);
+      if (error) { setAssignments(prev); return toast.error(error.message); }
       if (!opts?.silent) toast.success("Impegno aggiornato");
     } else {
-      const { error } = await supabase.from("montaggi_planning").insert({
+      const tempId = `tmp_${uid()}`;
+      const optimistic: Assignment = {
+        id: tempId, commessa_id: null, cantiere_label: p.cantiere_label,
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
+        notes: p.notes ?? null, created_by: user.id, reparto,
+      };
+      setAssignments((cur) => [...cur, optimistic]);
+      const { data, error } = await supabase.from("montaggi_planning").insert({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
         commessa_id: null, created_by: user.id,
-      });
-      if (error) return toast.error(error.message);
+      }).select().single();
+      if (error) {
+        setAssignments((cur) => cur.filter((x) => x.id !== tempId));
+        return toast.error(error.message);
+      }
+      setAssignments((cur) => cur.map((x) => x.id === tempId ? (data as Assignment) : x));
       if (!opts?.silent) toast.success("Impegno aggiunto");
     }
     if (opts?.closeDialog !== false) setEditing(null);
-    load();
   };
   const deleteAssignment = async (id: string, opts?: { silent?: boolean }) => {
+    const prev = assignments;
+    setAssignments((cur) => cur.filter((x) => x.id !== id));
     const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { setAssignments(prev); return toast.error(error.message); }
     if (!opts?.silent) toast.success("Impegno eliminato");
     setEditing(null);
-    load();
   };
 
-  // Propaga un'assegnazione su un intervallo (dal→al inclusi)
+  // Propaga un'assegnazione su un intervallo (dal→al inclusi) — ottimistico
   const propagateAssignment = async (a: Assignment, fromStr: string, toStr: string) => {
     if (!user) return toast.error("Non autenticato");
     const from = new Date(fromStr); const to = new Date(toStr);
@@ -338,7 +385,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const cur = new Date(from);
     while (cur <= to) {
       const ds = fmtDate(cur);
-      // Salta il giorno se l'assegnazione esiste già su quello slot
       const dup = modeAssignments.some((x) => x.operator_id === a.operator_id && x.date === ds && x.cantiere_label === a.cantiere_label);
       if (!dup) {
         rows.push({
@@ -351,10 +397,10 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       cur.setDate(cur.getDate() + 1);
     }
     if (rows.length === 0) { toast.info("Nessun giorno da aggiungere"); return; }
-    const { error } = await supabase.from("montaggi_planning").insert(rows);
+    const { data, error } = await supabase.from("montaggi_planning").insert(rows).select();
     if (error) return toast.error(error.message);
+    setAssignments((curList) => [...curList, ...((data ?? []) as Assignment[])]);
     toast.success(`Aggiunti ${rows.length} giorni`);
-    load();
   };
 
   // === Drag & drop ===
@@ -435,7 +481,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       {/* === Calendario === */}
       <Card className="border-2 border-dept shadow-soft overflow-hidden">
         <CardContent className="p-0 overflow-x-auto">
-          {loading ? (
+          {loading && assignments.length === 0 && prodSubs.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : view === "operai" ? (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -606,8 +652,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     key={a.id}
                                     type="button"
                                     onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
-                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] bg-background border border-border truncate hover:bg-dept/10 transition"
-                                    title={`${opName} · ${a.hours}h · clic per modificare`}
+                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition border-l-[3px]"
+                                    style={{
+                                      backgroundColor: chipColorForAssignment(a),
+                                      borderLeftColor: colorForCantiere(a.cantiere_label),
+                                    }}
+                                    title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
                                     {opName} {a.hours}h
                                   </button>
@@ -692,7 +742,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
               <span className="w-2 h-2 rounded" style={{ backgroundColor: REPARTO_BG[r] }} />{REPARTO_LABEL[r]}
             </span>
           ))}
-          <span className="text-muted-foreground ml-auto">Gli impegni di laboratorio/tappezzeria provengono dai sub-ordini di produzione assegnati.</span>
+          <span className="text-muted-foreground ml-auto">Colore chip = reparto · bordo sinistro = cantiere. Gli impegni di laboratorio/tappezzeria includono i sub-ordini di produzione.</span>
         </CardContent>
       </Card>
 
@@ -750,9 +800,13 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
           {...attributes}
           {...listeners}
           onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
-          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing"
-          style={{ backgroundColor: colorForCantiere(a.cantiere_label), opacity: isDragging ? 0.4 : 1 }}
-          title={`${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
+          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+          style={{
+            backgroundColor: chipColorForAssignment(a),
+            borderLeftColor: colorForCantiere(a.cantiere_label),
+            opacity: isDragging ? 0.4 : 1,
+          }}
+          title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
         >
           {a.cantiere_label.slice(0, 10)} {a.hours}h
         </button>

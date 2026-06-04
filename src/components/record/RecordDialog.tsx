@@ -35,6 +35,8 @@ export default function RecordDialog({ open, onOpenChange, knownContacts, existi
   const [profiles, setProfiles] = useState<UserLite[]>([]);
   const [shareWith, setShareWith] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [contactFocused, setContactFocused] = useState(false);
+  const [saveToAnagrafica, setSaveToAnagrafica] = useState(false);
 
   useEffect(() => {
     if (!open) return;

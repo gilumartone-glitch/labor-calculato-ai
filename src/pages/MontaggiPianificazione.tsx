@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { HardHat } from "lucide-react";
 import { HubLink } from "@/components/HubLink";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
@@ -5,6 +6,8 @@ import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function MontaggiPianificazione() {
+  const [mode, setMode] = useState<"montaggi" | "lavorazioni">("montaggi");
+
   return (
     <div data-dept="montaggi" className="min-h-screen bg-dept-soft/50 text-foreground">
       <header className="sticky top-0 z-20 border-b-2 border-dept bg-paper">
@@ -24,16 +27,13 @@ export default function MontaggiPianificazione() {
       </header>
 
       <main className="container py-8">
-        <Tabs defaultValue="montaggi" className="space-y-4">
+        <Tabs value={mode} onValueChange={(value) => setMode(value as "montaggi" | "lavorazioni")} className="space-y-4">
           <TabsList>
             <TabsTrigger value="montaggi">Montaggi</TabsTrigger>
             <TabsTrigger value="lavorazioni">Lavorazioni</TabsTrigger>
           </TabsList>
-          <TabsContent value="montaggi" className="space-y-4">
-            <CalendarGlobalView mode="montaggi" />
-          </TabsContent>
-          <TabsContent value="lavorazioni" className="space-y-4">
-            <CalendarGlobalView mode="lavorazioni" />
+          <TabsContent value={mode} className="space-y-4">
+            <CalendarGlobalView mode={mode} />
           </TabsContent>
         </Tabs>
       </main>

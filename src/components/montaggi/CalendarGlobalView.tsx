@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,18 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  useDroppable,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 
 type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "altro";
 type CalendarMode = "montaggi" | "lavorazioni";
@@ -76,11 +66,13 @@ const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
   lavorazioni: ["laboratorio", "tappezzeria", "vendite"],
 };
 
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
 const colorForCantiere = (label: string) => {
   let h = 0;
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
-  return COLORS[h % COLORS.length];
+  const hue = h % 360;
+  const saturation = 70 + ((h >>> 8) % 12);
+  const lightness = 32 + ((h >>> 16) % 10);
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
 };
 // Colore del chip = cantiere (per distinguere chiaramente impegni diversi)
 // Accento sul bordo sinistro = reparto (tipo di impegno)
@@ -133,8 +125,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   // Reset filtro reparto quando cambia modalità
   useEffect(() => { setFilterReparto("all"); }, [mode]);
 
-  // Sensors per drag&drop (distance:4 → click normali non attivano il drag)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Gestione operai (con buffer locale + salva esplicito)
   const ops = useSharedCloudState<Operator[]>(OPERATORS_KEY, []);
@@ -145,23 +136,32 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
   const dayStrs = useMemo(() => days.map(fmtDate), [days]);
 
-  // Carica solo la finestra corrente, debounced.
-  // Profili li carichiamo una sola volta (non cambiano con le modifiche di pianificazione).
-  const loadTimerRef = useRef<number | null>(null);
+  // Carica solo la finestra corrente. Niente realtime su ogni modifica: gli update sono ottimistici
+  // e restano locali, così la griglia non si ricarica continuamente mentre lavori.
   const profilesLoadedRef = useRef(initialCache ? true : false);
+  const cacheKey = useMemo(() => `${mode}|${dayStrs[0]}`, [mode, dayStrs]);
 
   const load = useCallback(async () => {
-    const cacheKey = `${mode}|${dayStrs[0]}`;
     const cached = dataCache.get(cacheKey);
     // Mostra "Caricamento…" solo se non abbiamo dati visibili
     if (!cached) setLoading(true);
     const firstDay = dayStrs[0];
     const lastDay = dayStrs[dayStrs.length - 1];
-    const planP = supabase.from("montaggi_planning")
-      .select("*").gte("date", firstDay).lte("date", lastDay).order("date").then((r) => r);
-    const subP = supabase.from("production_sub_orders")
-      .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
-      .or(`status.neq.completato,completed_at.gte.${firstDay}`).then((r) => r);
+    let planQuery = supabase.from("montaggi_planning")
+      .select("*")
+      .gte("date", firstDay)
+      .lte("date", lastDay);
+    planQuery = mode === "montaggi"
+      ? planQuery.or("reparto.eq.montaggi,reparto.is.null")
+      : planQuery.in("reparto", allowedReparti);
+    const planP = planQuery.order("date").then((r) => r);
+    const subP = mode === "lavorazioni"
+      ? supabase.from("production_sub_orders")
+        .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
+        .in("dept", allowedReparti)
+        .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay}`)
+        .then((r) => r)
+      : Promise.resolve({ data: [], error: null });
     const profP = profilesLoadedRef.current
       ? null
       : supabase.from("profiles").select("id, display_name, settori").order("display_name").then((r) => r);
@@ -181,26 +181,32 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     }
     dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [dayStrs, mode, profiles]);
-
-  const scheduleLoad = useCallback(() => {
-    if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = window.setTimeout(() => { load(); }, 1500);
-  }, [load]);
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
+  }, [allowedReparti, cacheKey, dayStrs, mode, profiles]);
 
   useEffect(() => {
-    const ch = supabase.channel(`calendar_global_${mode}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => scheduleLoad())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => scheduleLoad())
-      .subscribe();
-    return () => {
-      if (loadTimerRef.current) window.clearTimeout(loadTimerRef.current);
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line
-  }, [mode]);
+    const cached = dataCache.get(cacheKey);
+    if (cached) {
+      setAssignments(cached.assignments);
+      setProdSubs(cached.prodSubs);
+      if (cached.profiles.length > 0) {
+        setProfiles(cached.profiles);
+        profilesLoadedRef.current = true;
+      }
+      setLoading(false);
+    } else {
+      setAssignments([]);
+      setProdSubs([]);
+      setLoading(true);
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!loading || assignments.length > 0 || prodSubs.length > 0 || profiles.length > 0) {
+      dataCache.set(cacheKey, { assignments, prodSubs, profiles, startKey: dayStrs[0] });
+    }
+  }, [assignments, prodSubs, profiles, loading, cacheKey, dayStrs]);
 
   // Indice operatore → giorno → assegnazioni (incluso impegni produzione)
   type CellItem =
@@ -394,40 +400,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     setEditing(null);
   };
 
-  // Propaga un'assegnazione su un intervallo (dal→al inclusi) — ottimistico
-  const propagateAssignment = async (a: Assignment, fromStr: string, toStr: string) => {
-    if (!user) return toast.error("Non autenticato");
-    const from = new Date(fromStr); const to = new Date(toStr);
-    if (isNaN(from.getTime()) || isNaN(to.getTime()) || to < from) return toast.error("Intervallo non valido");
-    const rows: Array<{ operator_id: string; date: string; hours: number; cantiere_label: string; notes: string | null; reparto: string; commessa_id: string | null; created_by: string }> = [];
-    const cur = new Date(from);
-    while (cur <= to) {
-      const ds = fmtDate(cur);
-      const dup = modeAssignments.some((x) => x.operator_id === a.operator_id && x.date === ds && x.cantiere_label === a.cantiere_label);
-      if (!dup) {
-        rows.push({
-          operator_id: a.operator_id, date: ds, hours: a.hours,
-          cantiere_label: a.cantiere_label, notes: a.notes ?? null,
-          reparto: (a.reparto ?? defaultReparto) as string,
-          commessa_id: a.commessa_id, created_by: user.id,
-        });
-      }
-      cur.setDate(cur.getDate() + 1);
-    }
-    if (rows.length === 0) { toast.info("Nessun giorno da aggiungere"); return; }
-    const { data, error } = await supabase.from("montaggi_planning").insert(rows).select();
-    if (error) return toast.error(error.message);
-    setAssignments((curList) => [...curList, ...((data ?? []) as Assignment[])]);
-    toast.success(`Aggiunti ${rows.length} giorni`);
-  };
-
-  // === Drag & drop ===
-  const handleDragEnd = (e: DragEndEvent) => {
-    const dragId = String(e.active.id);
-    const overId = e.over?.id ? String(e.over.id) : null;
-    if (!overId) return;
-    const [targetOp, targetDate] = overId.split("|");
-    if (!targetOp || !targetDate) return;
+  // === Spostamento veloce: drag HTML nativo, molto più leggero di @dnd-kit sulla griglia grande ===
+  const moveAssignment = (dragId: string, targetOp: string, targetDate: string) => {
     const a = modeAssignments.find((x) => x.id === dragId);
     if (!a) return;
     if (a.operator_id === targetOp && a.date === targetDate) return;
@@ -435,6 +409,11 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       { id: a.id, operator_id: targetOp, date: targetDate, hours: a.hours, cantiere_label: a.cantiere_label, notes: a.notes, reparto: a.reparto },
       { silent: true, closeDialog: false },
     );
+  };
+
+  const handleDropAssignment = (dragId: string, targetOp: string, targetDate: string) => {
+    setDraggingId(null);
+    moveAssignment(dragId, targetOp, targetDate);
   };
 
   const allCantieriList = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [modeAssignments]);
@@ -502,7 +481,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
           {loading && assignments.length === 0 && prodSubs.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : view === "operai" ? (
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <table className="w-full border-collapse min-w-[1100px]">
                 <thead>
                   <tr className="bg-muted/50">
@@ -552,6 +530,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                               key={dateStr}
                               id={`${op.id}|${dateStr}`}
                               className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}
+                              draggingId={draggingId}
+                              onDropAssignment={(dragId) => handleDropAssignment(dragId, op.id, dateStr)}
                             >
                               <div className="space-y-0.5 min-h-[42px]">
                                 {list.map((a) => (
@@ -559,18 +539,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     key={a.id}
                                     assignment={a}
                                     onOpenDialog={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
-                                    onPatch={(patch) => saveAssignment({
-                                      id: a.id,
-                                      operator_id: a.operator_id,
-                                      date: a.date,
-                                      hours: a.hours,
-                                      cantiere_label: a.cantiere_label,
-                                      notes: a.notes,
-                                      reparto: a.reparto,
-                                      ...patch,
-                                    }, { silent: true, closeDialog: false })}
-                                    onDelete={() => deleteAssignment(a.id)}
-                                    onPropagate={(from, to) => propagateAssignment(a, from, to)}
+                                    onDragState={setDraggingId}
                                   />
                                 ))}
                                 {prodList.map((s) => {
@@ -608,7 +577,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                   })}
                 </tbody>
               </table>
-            </DndContext>
           ) : (
             <table className="w-full border-collapse min-w-[1100px]">
               <thead>
@@ -760,7 +728,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
               <span className="w-2 h-2 rounded" style={{ backgroundColor: REPARTO_BG[r] }} />{REPARTO_LABEL[r]}
             </span>
           ))}
-          <span className="text-muted-foreground ml-auto">Colore chip = reparto · bordo sinistro = cantiere. Gli impegni di laboratorio/tappezzeria includono i sub-ordini di produzione.</span>
+          <span className="text-muted-foreground ml-auto">Colore chip = cantiere · bordo sinistro = reparto. La griglia non si ricarica più dopo ogni modifica.</span>
         </CardContent>
       </Card>
 
@@ -783,105 +751,53 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
 /** ============================================================
  *  DraggableChip — assegnazione in calendario
- *  - drag con @dnd-kit (attivazione dopo 4px così il click non viene assorbito)
+ *  - drag HTML nativo: meno componenti e meno listener sulla griglia grande
  *  - click = popover modifica veloce
  *  - doppio click = dialog completo
  *  ============================================================ */
 type DraggableChipProps = {
   assignment: Assignment;
   onOpenDialog: () => void;
-  onPatch: (patch: Partial<Pick<Assignment, "date" | "hours" | "operator_id">>) => void;
-  onDelete: () => void;
-  onPropagate: (from: string, to: string) => void;
+  onDragState: (id: string | null) => void;
 };
 
-const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropagate }: DraggableChipProps) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: a.id });
-  const [open, setOpen] = useState(false);
-  const [hours, setHours] = useState<number>(a.hours);
-  const [from, setFrom] = useState<string>(a.date);
-  const [to, setTo] = useState<string>(a.date);
-  useEffect(() => { setHours(a.hours); setFrom(a.date); setTo(a.date); }, [a.id, a.hours, a.date]);
-
-  const shiftDate = (delta: number) => {
-    const d = new Date(a.date); d.setDate(d.getDate() + delta);
-    onPatch({ date: fmtDate(d) });
-    setOpen(false);
-  };
+const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableChipProps) => {
+  const [isDragging, setIsDragging] = useState(false);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          ref={setNodeRef}
-          type="button"
-          {...attributes}
-          {...listeners}
-          onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
-          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
-          style={{
-            backgroundColor: chipColorForAssignment(a),
-            borderLeftColor: repartoAccent(a),
-            opacity: isDragging ? 0.4 : 1,
-          }}
-          title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
-        >
-          {a.cantiere_label.slice(0, 10)} {a.hours}h
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3 space-y-3" align="start" onClick={(e) => e.stopPropagation()}>
-        <div className="space-y-0.5">
-          <div className="text-xs font-semibold truncate">{a.cantiere_label}</div>
-          <div className="text-[10px] text-muted-foreground">{new Date(a.date).toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" })}</div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Ore</Label>
-          <div className="flex gap-1">
-            <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-8" />
-            <Button size="sm" variant="secondary" onClick={() => { onPatch({ hours }); setOpen(false); }}>OK</Button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Sposta giorno</Label>
-          <div className="flex gap-1">
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(-1)}>← −1g</Button>
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(1)}>+1g →</Button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Propaga su intervallo</Label>
-          <div className="flex gap-1 items-center">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 text-xs" />
-            <span className="text-[10px] text-muted-foreground">→</span>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <Button size="sm" variant="secondary" className="w-full" onClick={() => { onPropagate(from, to); setOpen(false); }}>
-            <Plus className="h-3 w-3" />Aggiungi giorni
-          </Button>
-        </div>
-
-        <div className="flex gap-1 pt-1 border-t">
-          <Button size="sm" variant="ghost" className="flex-1" onClick={() => { setOpen(false); onOpenDialog(); }}>Avanzate…</Button>
-          <Button size="sm" variant="destructive" onClick={() => { onDelete(); setOpen(false); }}>
-            <Trash2 className="h-3 w-3" />Elimina
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <button
+      type="button"
+      draggable
+      onClick={onOpenDialog}
+      onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
+      onDragEnd={() => { setIsDragging(false); onDragState(null); }}
+      className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+      style={{
+        backgroundColor: chipColorForAssignment(a),
+        borderLeftColor: repartoAccent(a),
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
+    >
+      {a.cantiere_label.slice(0, 10)} {a.hours}h
+    </button>
   );
 };
 
 /** ============================================================
  *  DroppableCell — cella calendario che accetta i chip
  *  ============================================================ */
-type DroppableCellProps = { id: string; className?: string; children: ReactNode };
-const DroppableCell = ({ id, className, children }: DroppableCellProps) => {
-  const { setNodeRef, isOver } = useDroppable({ id });
+type DroppableCellProps = { id: string; className?: string; children: ReactNode; draggingId: string | null; onDropAssignment: (dragId: string) => void };
+const DroppableCell = ({ id, className, children, draggingId, onDropAssignment }: DroppableCellProps) => {
+  const [isOver, setIsOver] = useState(false);
   return (
-    <td ref={setNodeRef} className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-primary bg-primary/10" : ""}`}>
+    <td
+      onDragOver={(e: DragEvent<HTMLTableCellElement>) => { if (!draggingId) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+      onDragEnter={() => { if (draggingId) setIsOver(true); }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(e: DragEvent<HTMLTableCellElement>) => { e.preventDefault(); setIsOver(false); const dragId = e.dataTransfer.getData("text/plain"); if (dragId) onDropAssignment(dragId); }}
+      className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-primary bg-primary/10" : ""}`}
+    >
       {children}
     </td>
   );

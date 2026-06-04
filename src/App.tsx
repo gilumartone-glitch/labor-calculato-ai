@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,32 +8,33 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { loadRepartiConfig } from "@/lib/reparti";
 loadRepartiConfig();
 
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
-import Auth from "./pages/Auth.tsx";
-import Flow from "./pages/Flow.tsx";
-import Falegnameria from "./pages/Falegnameria.tsx";
-import Montaggi from "./pages/Montaggi.tsx";
-import MontaggiPianificazione from "./pages/MontaggiPianificazione.tsx";
-import Contabilita from "./pages/Contabilita.tsx";
-import AdminUsers from "./pages/AdminUsers.tsx";
-import Hub from "./pages/Hub.tsx";
 import { RouteGuard } from "@/components/RouteGuard";
-import ProdDashboard from "./pages/produzione/ProdDashboard.tsx";
-import ProdBoard from "./pages/produzione/ProdBoard.tsx";
-import ProdInventory from "./pages/produzione/ProdInventory.tsx";
-import ProdFindMaterial from "./pages/produzione/ProdFindMaterial.tsx";
-import ProdChat from "./pages/produzione/ProdChat.tsx";
-import ProdLogistica from "./pages/produzione/ProdLogistica.tsx";
-import ProdAmministrazione from "./pages/produzione/ProdAmministrazione.tsx";
-import ProdPreparazione from "./pages/produzione/ProdPreparazione.tsx";
-import ProdAcquisti from "./pages/produzione/ProdAcquisti.tsx";
-import ProdLog from "./pages/produzione/ProdLog.tsx";
-import MagazzinoView from "./pages/MagazzinoView.tsx";
-import Marketing from "./pages/Marketing.tsx";
-import Record from "./pages/Record.tsx";
-import Dipendenti from "./pages/Dipendenti.tsx";
 import { FloatingHubButton } from "@/components/HubLink";
+
+const Index = lazy(() => import("./pages/Index.tsx"));
+const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Auth = lazy(() => import("./pages/Auth.tsx"));
+const Flow = lazy(() => import("./pages/Flow.tsx"));
+const Falegnameria = lazy(() => import("./pages/Falegnameria.tsx"));
+const Montaggi = lazy(() => import("./pages/Montaggi.tsx"));
+const MontaggiPianificazione = lazy(() => import("./pages/MontaggiPianificazione.tsx"));
+const Contabilita = lazy(() => import("./pages/Contabilita.tsx"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers.tsx"));
+const Hub = lazy(() => import("./pages/Hub.tsx"));
+const MagazzinoView = lazy(() => import("./pages/MagazzinoView.tsx"));
+const Marketing = lazy(() => import("./pages/Marketing.tsx"));
+const Record = lazy(() => import("./pages/Record.tsx"));
+const Dipendenti = lazy(() => import("./pages/Dipendenti.tsx"));
+const ProdDashboard = lazy(() => import("./pages/produzione/ProdDashboard.tsx"));
+const ProdBoard = lazy(() => import("./pages/produzione/ProdBoard.tsx"));
+const ProdInventory = lazy(() => import("./pages/produzione/ProdInventory.tsx"));
+const ProdFindMaterial = lazy(() => import("./pages/produzione/ProdFindMaterial.tsx"));
+const ProdChat = lazy(() => import("./pages/produzione/ProdChat.tsx"));
+const ProdLogistica = lazy(() => import("./pages/produzione/ProdLogistica.tsx"));
+const ProdAmministrazione = lazy(() => import("./pages/produzione/ProdAmministrazione.tsx"));
+const ProdPreparazione = lazy(() => import("./pages/produzione/ProdPreparazione.tsx"));
+const ProdAcquisti = lazy(() => import("./pages/produzione/ProdAcquisti.tsx"));
+const ProdLog = lazy(() => import("./pages/produzione/ProdLog.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -51,6 +53,7 @@ const App = () => (
       <Router>
         <AuthProvider>
           <FloatingHubButton />
+          <Suspense fallback={<div className="min-h-screen bg-background p-6 text-sm text-muted-foreground">Caricamento…</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/hub" replace />} />
             <Route path="/preventivi" element={<RouteGuard page="preventivi"><Index /></RouteGuard>} />
@@ -82,6 +85,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </Router>
     </TooltipProvider>

@@ -1456,14 +1456,49 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const upd = (id: string, patch: Partial<FireProduct>) => setProducts(products.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const rm = (id: string) => { setProducts(products.filter((p) => p.id !== id)); if (selectedId === id) setSelectedId(""); };
 
+  /** Applica gli override prezzo del colore selezionato (se presente). */
+  const applyColorPrices = (cans: FireCan[] | undefined, overrides?: Record<string, number>): FireCan[] => {
+    if (!Array.isArray(cans)) return [];
+    if (!overrides) return cans;
+    return cans.map((c) => {
+      const ov = overrides[c.id];
+      return Number.isFinite(ov) && (ov as number) > 0 ? { ...c, price: Number(ov) } : c;
+    });
+  };
+
   const calc = useMemo(() => {
     if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
     if (!selected.cans?.length) return null;
+    const colorKey = needColor.trim();
+    const ovBase = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
+    const effectiveCans = applyColorPrices(selected.cans, ovBase);
     const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
-    const plan = planCans(selected.cans, kgNeeded);
+    const plan = planCans(effectiveCans, kgNeeded);
     if (!plan) return null;
     return { kgNeeded, plan };
-  }, [selected, surface, coats, activeClass]);
+  }, [selected, surface, coats, activeClass, needColor]);
+
+  const addToCart = () => {
+    if (!selected || !calc) return;
+    const cart = readDraftSalesCart("ignifugo");
+    const colorTag = needColor.trim();
+    const klass = activeClass?.className || "";
+    const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""}${klass ? ` · ${klass}` : ""}`;
+    const newLines: CartLine[] = calc.plan.items.map((it) => ({
+      id: uid(),
+      materialId: "",
+      qty: it.count,
+      name: `${baseLabel} — latta ${it.can.label} kg`,
+      variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
+      unit: "latte" as any,
+      priceSell: it.can.price,
+      pricePurchase: it.can.price,
+      category: "ignifugo",
+    }));
+    writeDraftSalesCart("ignifugo", [...cart, ...newLines]);
+    try { toast({ title: "Aggiunto al carrello", description: `${newLines.length} riga/e per ${selected.name}` }); } catch {}
+  };
+
 
   return (
     <div className="space-y-4">

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { listRecords, deleteRecord, updateRecord, markShareRead } from "@/lib/record/api";
+import { listRecords, deleteRecord, updateRecord, markShareRead, listContacts, type ContactSuggestion } from "@/lib/record/api";
 import { RECORD_TYPE_META, type PersonalRecord, type RecordType } from "@/lib/record/types";
 import { eur } from "@/lib/format";
 import RecordDialog from "@/components/record/RecordDialog";

@@ -67,6 +67,10 @@ type FireProduct = {
   finishCans?: FireCan[];
   finishClasses?: FireClass[];
   finishCoats?: number;
+  /** Override prezzo per colore: { [colore]: { [canId]: prezzo } }.
+   *  Se assente per quel colore/can, vale il prezzo base della latta. */
+  colorCanPrices?: Record<string, Record<string, number>>;
+  colorFinishCanPrices?: Record<string, Record<string, number>>;
   note?: string;
 };
 
@@ -164,6 +168,8 @@ const hydrate = (raw: unknown): MagState => {
           ? f.finishClasses.map((c: any) => ({ id: c.id ?? uid(), className: c.className ?? "", consumptionKgPerM2: Number(c.consumptionKgPerM2 ?? 0) }))
           : undefined,
         finishCoats: f.finishCoats != null ? Math.max(1, Number(f.finishCoats)) : undefined,
+        colorCanPrices: (f.colorCanPrices && typeof f.colorCanPrices === "object") ? f.colorCanPrices : undefined,
+        colorFinishCanPrices: (f.colorFinishCanPrices && typeof f.colorFinishCanPrices === "object") ? f.colorFinishCanPrices : undefined,
         note: f.note,
       }))
     : [];
@@ -1450,14 +1456,49 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
   const upd = (id: string, patch: Partial<FireProduct>) => setProducts(products.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const rm = (id: string) => { setProducts(products.filter((p) => p.id !== id)); if (selectedId === id) setSelectedId(""); };
 
+  /** Applica gli override prezzo del colore selezionato (se presente). */
+  const applyColorPrices = (cans: FireCan[] | undefined, overrides?: Record<string, number>): FireCan[] => {
+    if (!Array.isArray(cans)) return [];
+    if (!overrides) return cans;
+    return cans.map((c) => {
+      const ov = overrides[c.id];
+      return Number.isFinite(ov) && (ov as number) > 0 ? { ...c, price: Number(ov) } : c;
+    });
+  };
+
   const calc = useMemo(() => {
     if (!selected || surface <= 0 || !activeClass || activeClass.consumptionKgPerM2 <= 0) return null;
     if (!selected.cans?.length) return null;
+    const colorKey = needColor.trim();
+    const ovBase = colorKey ? selected.colorCanPrices?.[colorKey] : undefined;
+    const effectiveCans = applyColorPrices(selected.cans, ovBase);
     const kgNeeded = surface * coats * activeClass.consumptionKgPerM2;
-    const plan = planCans(selected.cans, kgNeeded);
+    const plan = planCans(effectiveCans, kgNeeded);
     if (!plan) return null;
     return { kgNeeded, plan };
-  }, [selected, surface, coats, activeClass]);
+  }, [selected, surface, coats, activeClass, needColor]);
+
+  const addToCart = () => {
+    if (!selected || !calc) return;
+    const cart = readDraftSalesCart("ignifugo");
+    const colorTag = needColor.trim();
+    const klass = activeClass?.className || "";
+    const baseLabel = `${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.base ? ` · ${selected.base}` : ""}${klass ? ` · ${klass}` : ""}`;
+    const newLines: CartLine[] = calc.plan.items.map((it) => ({
+      id: uid(),
+      materialId: "",
+      qty: it.count,
+      name: `${baseLabel} — latta ${it.can.label} kg`,
+      variant: `${fmt(it.can.kg)} kg · ${eur(it.can.price)}/latta`,
+      unit: "latte" as any,
+      priceSell: it.can.price,
+      pricePurchase: it.can.price,
+      category: "ignifugo",
+    }));
+    writeDraftSalesCart("ignifugo", [...cart, ...newLines]);
+    try { toast.success(`Aggiunto al carrello: ${newLines.length} riga/e per ${selected.name}`); } catch {}
+  };
+
 
   return (
     <div className="space-y-4">
@@ -1534,6 +1575,15 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                             <div className="text-right font-mono font-bold">{eur(it.can.price * it.count)}</div>
                           </div>
                         ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center pt-2">
+                        <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
+                          <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi al carrello ordine
+                        </Button>
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
+                          {needColor.trim() && selected.colorCanPrices?.[needColor.trim()] ? " · override attivo" : ""}
+                        </div>
                       </div>
                     </>
                   );
@@ -1661,6 +1711,71 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
     </div>
   );
 
+  const renderColorPricesBlock = (
+    canList: FireCan[],
+    overrides: Record<string, Record<string, number>> | undefined,
+    onChange: (next: Record<string, Record<string, number>>) => void,
+    title: string,
+  ) => {
+    const colors = p.colors ?? [];
+    if (colors.length === 0 || canList.length === 0) return null;
+    const setPrice = (color: string, canId: string, value: string) => {
+      const next: Record<string, Record<string, number>> = { ...(overrides || {}) };
+      const row = { ...(next[color] || {}) };
+      const n = Number(String(value).replace(",", "."));
+      if (!value || !Number.isFinite(n) || n <= 0) delete row[canId];
+      else row[canId] = n;
+      if (Object.keys(row).length === 0) delete next[color];
+      else next[color] = row;
+      onChange(next);
+    };
+    return (
+      <div className="border border-ink/15 rounded-sm p-2 bg-muted/20">
+        <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-2">{title}</div>
+        <div className="text-[10px] text-muted-foreground mb-2">
+          Lascia vuoto per usare il prezzo base della latta. Inserisci un valore solo dove il colore costa diversamente.
+        </div>
+        <div className="overflow-x-auto">
+          <table className="text-[11px] w-full">
+            <thead>
+              <tr className="text-[10px] font-mono uppercase text-muted-foreground">
+                <th className="text-left pb-1 pr-2 sticky left-0 bg-muted/20">Colore</th>
+                {canList.map((c) => (
+                  <th key={c.id} className="text-right pb-1 px-2 whitespace-nowrap">
+                    {c.label} kg
+                    <div className="text-[9px] text-muted-foreground/70 normal-case">base {eur(c.price)}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {colors.map((col) => (
+                <tr key={col} className="border-t border-ink/10">
+                  <td className="py-1 pr-2 font-semibold sticky left-0 bg-muted/20">{col}</td>
+                  {canList.map((c) => {
+                    const ov = overrides?.[col]?.[c.id];
+                    return (
+                      <td key={c.id} className="py-1 px-2">
+                        <Input
+                          type="number" step="0.01"
+                          value={ov != null && ov > 0 ? String(ov) : ""}
+                          onChange={(e) => setPrice(col, c.id, e.target.value)}
+                          placeholder={`= ${c.price ? fmt(c.price) : "—"}`}
+                          className="h-7 text-[11px] text-right"
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+
   return (
     <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-2 gap-2">
@@ -1683,6 +1798,7 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
           <TabsContent value="base" className="space-y-3 pt-2">
             {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte BASE & prezzi (kg · €)")}
             {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe BASE & consumo (kg/m²)")}
+            {renderColorPricesBlock(fromLocal(cans), p.colorCanPrices, (next) => update({ colorCanPrices: next }), "Prezzi BASE per colore (override €/latta)")}
           </TabsContent>
           <TabsContent value="finitura" className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-2">
@@ -1690,12 +1806,14 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
             </div>
             {renderCansBlock(finishCans, syncFinishCans, `cans-fin-${p.id}`, "Formati latte FINITURA & prezzi (kg · €)")}
             {renderClassesBlock(p.finishClasses, (next) => update({ finishClasses: next }), "Consumo FINITURA (kg/m²)")}
+            {renderColorPricesBlock(fromLocal(finishCans), p.colorFinishCanPrices, (next) => update({ colorFinishCanPrices: next }), "Prezzi FINITURA per colore (override €/latta)")}
           </TabsContent>
         </Tabs>
       ) : (
         <>
           {renderCansBlock(cans, syncCans, `cans-${p.id}`, "Formati latte & prezzi (kg · €)")}
           {renderClassesBlock(p.classes, (next) => update({ classes: next }), "Classi ignifughe & consumo (kg/m²)")}
+          {renderColorPricesBlock(fromLocal(cans), p.colorCanPrices, (next) => update({ colorCanPrices: next }), "Prezzi per colore (override €/latta)")}
         </>
       )}
 
@@ -1776,14 +1894,30 @@ function MultiTagInput({ value, onChange, options, placeholder }: { value: strin
           }}
           onBlur={() => { setTimeout(() => commit(), 120); }}
           placeholder={placeholder ?? "aggiungi…"}
-          className="h-7 text-[11px]"
+          className="h-8 text-[12px]"
         />
-        <Button type="button" size="sm" variant="outline" onClick={() => commit()} className="h-7 px-2 text-[11px]">
-          <Plus className="w-3 h-3" />
+        <Button
+          type="button"
+          size="sm"
+          onMouseDown={(e) => { e.preventDefault(); commit(); }}
+          className="h-8 px-2 text-[11px]"
+        >
+          <Plus className="w-3 h-3 mr-1" />Aggiungi
         </Button>
       </div>
-      {open && remaining.length > 0 && (
+      {open && (draft.trim() || remaining.length > 0) && (
         <ul className="absolute z-30 left-0 right-0 top-full mt-1 bg-paper border-2 border-ink rounded-sm shadow-lg max-h-44 overflow-y-auto">
+          {draft.trim() && !value.includes(draft.trim()) && !remaining.some((o) => norm(o) === norm(draft)) && (
+            <li>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(draft); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-[12px] font-semibold bg-dept-soft/40 hover:bg-ink hover:text-paper"
+              >
+                + Crea "{draft.trim()}"
+              </button>
+            </li>
+          )}
           {remaining.slice(0, 12).map((o) => (
             <li key={o}>
               <button

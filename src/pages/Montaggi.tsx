@@ -252,6 +252,12 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   });
   const lastAppliedRef = useRef<string>("");
 
+  const [profiles, setProfiles] = useState<{ id: string; display_name: string | null; settori?: string[] | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+      if (data) setProfiles(data as never);
+    });
+  }, []);
   useEffect(() => {
     if (!cloud.ready) return;
     if (cloud.state) {

@@ -148,8 +148,14 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     if (!cached) setLoading(true);
     const firstDay = dayStrs[0];
     const lastDay = dayStrs[dayStrs.length - 1];
-    const planP = supabase.from("montaggi_planning")
-      .select("*").gte("date", firstDay).lte("date", lastDay).order("date").then((r) => r);
+    let planQuery = supabase.from("montaggi_planning")
+      .select("*")
+      .gte("date", firstDay)
+      .lte("date", lastDay);
+    planQuery = mode === "montaggi"
+      ? planQuery.or("reparto.eq.montaggi,reparto.is.null")
+      : planQuery.in("reparto", allowedReparti);
+    const planP = planQuery.order("date").then((r) => r);
     const subP = mode === "lavorazioni"
       ? supabase.from("production_sub_orders")
         .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")

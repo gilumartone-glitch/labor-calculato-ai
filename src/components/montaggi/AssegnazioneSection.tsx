@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { ClipboardCheck, Wrench } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PianificazioneSection } from "./PianificazioneSection";
 import { AttrezziMaterialiPicker } from "./AttrezziMaterialiPicker";
 import { useAssignmentItems } from "@/lib/montaggi/catalog";
 import { useCloudWorkspace } from "@/hooks/useCloudWorkspace";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { uid } from "@/lib/format";
 
 type ProjectSummary = {
   workers: Array<{ name: string; role?: string }>;

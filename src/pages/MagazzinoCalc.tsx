@@ -67,8 +67,11 @@ type FireProduct = {
   finishCans?: FireCan[];
   finishClasses?: FireClass[];
   finishCoats?: number;
-  /** Override prezzo per colore: { [colore]: { [canId]: prezzo } }.
-   *  Se assente per quel colore/can, vale il prezzo base della latta. */
+  /** Maggiorazione % per colore (es. 15 = +15% su tutti i formati di latta).
+   *  Default 0 (= prezzo base). */
+  colorSurcharges?: Record<string, number>;
+  colorFinishSurcharges?: Record<string, number>;
+  /** @deprecated vecchio formato matrice colore×latta, ignorato. */
   colorCanPrices?: Record<string, Record<string, number>>;
   colorFinishCanPrices?: Record<string, Record<string, number>>;
   note?: string;

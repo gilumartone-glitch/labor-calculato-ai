@@ -683,14 +683,8 @@ const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; u
     return project.workers.find((x) => x.id === id)?.name ?? "—";
   };
   const options = dips.map((d) => ({ id: `dip:${d.id}`, label: `${d.nome}${d.funzione ? ` · ${d.funzione}` : ""} · ${eur(dipendenteHourlyCost(d))}/h` }));
-
-  const nameOf = (id: string) => {
-    const d = dips.find((x) => `dip:${x.id}` === id);
-    if (d) return d.nome + (d.funzione ? ` · ${d.funzione}` : "");
-    return project.workers.find((x) => x.id === id)?.name ?? "—";
-  };
-  const options = dips.map((d) => ({ id: `dip:${d.id}`, label: `${d.nome}${d.funzione ? ` · ${d.funzione}` : ""} · ${eur(dipendenteHourlyCost(d))}/h` }));
   return (
+
   <Card className="border-2 border-dept shadow-soft">
     <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Squadra montaggio e ore</CardTitle><Button size="sm" onClick={() => updateProject({ labor: [...project.labor, { id: uid(), workerId: options[0]?.id ?? "", hours: 1 }] })}><Plus className="h-4 w-4" />Riga</Button></CardHeader>
     <CardContent className="space-y-3">

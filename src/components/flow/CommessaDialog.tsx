@@ -101,6 +101,12 @@ export const CommessaDialog = ({ open, onOpenChange, initial, profiles, onSave }
           stato,
           tipo,
           note: note.trim() || null,
+          macro_reparto: guided.macro_reparto,
+          responsabile_id: guided.responsabile_id,
+          operator_ids: Array.from(new Set(guided.micros.flatMap((m) => [
+            ...(m.assignee_id ? [m.assignee_id] : []),
+            ...m.operator_ids,
+          ]))),
         },
         assegnatariIds,
         initial?.id,

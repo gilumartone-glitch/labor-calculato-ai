@@ -1576,24 +1576,91 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
 function FireProductEditor({ product: p, update, colorOptions, baseOptions, materialOptions, classOptions, canLabelOptions }: { product: FireProduct; update: (patch: Partial<FireProduct>) => void; colorOptions: string[]; baseOptions: string[]; materialOptions: string[]; classOptions: string[]; canLabelOptions: string[] }) {
   // Stato locale per latte: l'utente digita "10+3" come label e calcoliamo kg.
   type LocalCan = { id: string; label: string; price: string };
-  const [cans, setCans] = useState<LocalCan[]>(() =>
-    (p.cans ?? []).map((c) => ({ id: c.id || uid(), label: c.label || (c.kg ? String(c.kg) : ""), price: c.price ? String(c.price) : "" }))
-  );
-  const syncCans = (next: LocalCan[]) => {
-    setCans(next);
-    const cansOut: FireCan[] = [];
+  const toLocal = (arr?: FireCan[]) => (arr ?? []).map((c) => ({ id: c.id || uid(), label: c.label || (c.kg ? String(c.kg) : ""), price: c.price ? String(c.price) : "" }));
+  const fromLocal = (next: LocalCan[]): FireCan[] => {
+    const out: FireCan[] = [];
     for (const c of next) {
       const kg = parseKgExpr(c.label);
       if (kg > 0) {
         const pr = Number(String(c.price).replace(",", "."));
-        cansOut.push({ id: c.id, kg, label: c.label.trim() || String(kg), price: Number.isFinite(pr) && pr > 0 ? pr : 0 });
+        out.push({ id: c.id, kg, label: c.label.trim() || String(kg), price: Number.isFinite(pr) && pr > 0 ? pr : 0 });
       }
     }
-    update({ cans: cansOut });
+    return out;
   };
+  const [cans, setCans] = useState<LocalCan[]>(() => toLocal(p.cans));
+  const [finishCans, setFinishCansLocal] = useState<LocalCan[]>(() => toLocal(p.finishCans));
+  const syncCans = (next: LocalCan[]) => { setCans(next); update({ cans: fromLocal(next) }); };
+  const syncFinishCans = (next: LocalCan[]) => { setFinishCansLocal(next); update({ finishCans: fromLocal(next) }); };
   // Materiali come tag multipli
   const matTags = splitTags(p.treatedMaterials);
   const setMatTags = (tags: string[]) => update({ treatedMaterials: tags.join(", ") });
+
+  const hasFinish = p.baseType === "base_finitura";
+
+  const renderCansBlock = (
+    list: LocalCan[],
+    onSync: (n: LocalCan[]) => void,
+    listId: string,
+    title: string,
+  ) => (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">{title}</div>
+      <div className="space-y-1">
+        {list.map((c, i) => {
+          const computed = parseKgExpr(c.label);
+          return (
+            <div key={c.id} className="grid grid-cols-[140px,1fr,90px,32px] gap-2 items-center">
+              <Input type="text" inputMode="text" value={c.label}
+                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                list={listId} className="h-7 text-[11px]" placeholder='es. 5  oppure  10+3' />
+              <Input type="number" step="0.01" value={c.price}
+                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
+                className="h-7 text-[11px]" placeholder="€ prezzo latta" />
+              <div className="text-[10px] text-muted-foreground font-mono text-right pr-1">{computed > 0 ? `= ${fmt(computed)} kg` : ""}</div>
+              <button type="button" onClick={() => onSync(list.filter((_, j) => j !== i))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          );
+        })}
+        <datalist id={listId}>{canLabelOptions.map((o) => <option key={o} value={o} />)}</datalist>
+        <Button type="button" size="sm" variant="outline"
+          onClick={() => onSync([...list, { id: uid(), label: "", price: "" }])}
+          className="h-7 px-2 text-[11px]">
+          <Plus className="w-3 h-3 mr-1" />Aggiungi formato
+        </Button>
+        <div className="text-[10px] text-muted-foreground">
+          Suggerimento: per le confezioni promozionali tipo <strong>10+3</strong> o <strong>5+2</strong> scrivi l'espressione completa: il sistema sommerà automaticamente i kg.
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderClassesBlock = (
+    classes: FireClass[] | undefined,
+    onChange: (next: FireClass[]) => void,
+    title: string,
+  ) => (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">{title}</div>
+      <div className="space-y-1">
+        {(classes ?? []).map((c) => (
+          <div key={c.id} className="grid grid-cols-[1fr,110px,32px] gap-2 items-center">
+            <SelectWithAdd value={c.className}
+              onChange={(v) => onChange((classes ?? []).map((x) => x.id === c.id ? { ...x, className: v } : x))}
+              options={classOptions} placeholder="es. Cl. 1" emptyLabel="—" />
+            <Input type="number" step="0.01" value={c.consumptionKgPerM2 || ""}
+              onChange={(e) => onChange((classes ?? []).map((x) => x.id === c.id ? { ...x, consumptionKgPerM2: Number(e.target.value) } : x))}
+              className="h-7 text-[11px] text-right" placeholder="kg/m²" />
+            <button onClick={() => onChange((classes ?? []).filter((x) => x.id !== c.id))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+        <Button size="sm" variant="outline"
+          onClick={() => onChange([...(classes ?? []), { id: uid(), className: "", consumptionKgPerM2: 0 }])}
+          className="h-7 px-2 text-[11px]"><Plus className="w-3 h-3 mr-1" />Aggiungi classe</Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-2 gap-2">

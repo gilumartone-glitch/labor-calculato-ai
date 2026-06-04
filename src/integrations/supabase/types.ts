@@ -348,6 +348,83 @@ export type Database = {
         }
         Relationships: []
       }
+      dipendenti: {
+        Row: {
+          annual_hours: number
+          attivo: boolean
+          created_at: string
+          created_by: string
+          email: string | null
+          extra_costs: number
+          funzione: string | null
+          hourly_rate: number
+          id: string
+          inail_pct: number
+          inps_pct: number
+          macro_reparti: string[]
+          nome: string
+          note: string | null
+          profile_id: string | null
+          ral: number
+          reparti: string[]
+          telefono: string | null
+          tfr_pct: number
+          updated_at: string
+        }
+        Insert: {
+          annual_hours?: number
+          attivo?: boolean
+          created_at?: string
+          created_by: string
+          email?: string | null
+          extra_costs?: number
+          funzione?: string | null
+          hourly_rate?: number
+          id?: string
+          inail_pct?: number
+          inps_pct?: number
+          macro_reparti?: string[]
+          nome: string
+          note?: string | null
+          profile_id?: string | null
+          ral?: number
+          reparti?: string[]
+          telefono?: string | null
+          tfr_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          annual_hours?: number
+          attivo?: boolean
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          extra_costs?: number
+          funzione?: string | null
+          hourly_rate?: number
+          id?: string
+          inail_pct?: number
+          inps_pct?: number
+          macro_reparti?: string[]
+          nome?: string
+          note?: string | null
+          profile_id?: string | null
+          ral?: number
+          reparti?: string[]
+          telefono?: string | null
+          tfr_pct?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dipendenti_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           code: string

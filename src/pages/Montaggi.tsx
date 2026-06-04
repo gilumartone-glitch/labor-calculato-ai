@@ -144,7 +144,7 @@ const categoryDefaults: Record<MaterialCategory, Partial<WoodMaterial>> = {
 const sectionTabs: { key: WoodSection; label: string; icon: typeof FileText }[] = [
   { key: "progetto", label: "Progetto", icon: FileText },
   { key: "materiali", label: "Materiali", icon: Package },
-  { key: "lavoratori", label: "Lavoratori", icon: Users },
+  
   { key: "assegnazione", label: "Assegnazione", icon: ClipboardCheck },
   { key: "disegno", label: "Disegnatore", icon: Ruler },
 ];

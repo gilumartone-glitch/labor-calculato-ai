@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type PageKey = "preventivi" | "flow" | "contabilita" | "falegnameria" | "montaggi" | "produzione" | "admin";
+export type PageKey = "preventivi" | "flow" | "contabilita" | "falegnameria" | "montaggi" | "produzione" | "dipendenti" | "admin";
 export type Level = "none" | "read" | "write";
 
 type State = {

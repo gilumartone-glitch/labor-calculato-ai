@@ -309,6 +309,7 @@ export const DEPT_COLOR: Record<ProdDept, {
   assemblaggio: { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔧" },
   laboratorio:  { chip: "bg-blue-600 text-white",    border: "border-blue-600",    soft: "bg-blue-50",    text: "text-blue-700",    emoji: "🔬" },
   vendite:      { chip: "bg-purple-600 text-white",  border: "border-purple-600",  soft: "bg-purple-50",  text: "text-purple-700",  emoji: "💼" },
+  montaggi:     { chip: "bg-orange-600 text-white",  border: "border-orange-600",  soft: "bg-orange-50",  text: "text-orange-700",  emoji: "🔩" },
   altro:        { chip: "bg-zinc-600 text-white",    border: "border-zinc-600",    soft: "bg-zinc-50",    text: "text-zinc-700",    emoji: "•"  },
 };
 /** Mappa un nome reparto "legacy" (dal preventivo o vecchi sub) sul reparto

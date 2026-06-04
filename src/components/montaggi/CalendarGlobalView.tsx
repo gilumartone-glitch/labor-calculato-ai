@@ -787,82 +787,26 @@ type DraggableChipProps = {
   onDragState: (id: string | null) => void;
 };
 
-const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropagate, onDragState }: DraggableChipProps) => {
-  const [open, setOpen] = useState(false);
-  const [hours, setHours] = useState<number>(a.hours);
-  const [from, setFrom] = useState<string>(a.date);
-  const [to, setTo] = useState<string>(a.date);
+const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableChipProps) => {
   const [isDragging, setIsDragging] = useState(false);
-  useEffect(() => { setHours(a.hours); setFrom(a.date); setTo(a.date); }, [a.id, a.hours, a.date]);
-
-  const shiftDate = (delta: number) => {
-    const d = new Date(a.date); d.setDate(d.getDate() + delta);
-    onPatch({ date: fmtDate(d) });
-    setOpen(false);
-  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          draggable
-          onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
-          onDragEnd={() => { setIsDragging(false); onDragState(null); }}
-          onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
-          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
-          style={{
-            backgroundColor: chipColorForAssignment(a),
-            borderLeftColor: repartoAccent(a),
-            opacity: isDragging ? 0.4 : 1,
-          }}
-          title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
-        >
-          {a.cantiere_label.slice(0, 10)} {a.hours}h
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3 space-y-3" align="start" onClick={(e) => e.stopPropagation()}>
-        <div className="space-y-0.5">
-          <div className="text-xs font-semibold truncate">{a.cantiere_label}</div>
-          <div className="text-[10px] text-muted-foreground">{new Date(a.date).toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" })}</div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Ore</Label>
-          <div className="flex gap-1">
-            <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-8" />
-            <Button size="sm" variant="secondary" onClick={() => { onPatch({ hours }); setOpen(false); }}>OK</Button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Sposta giorno</Label>
-          <div className="flex gap-1">
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(-1)}>← −1g</Button>
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(1)}>+1g →</Button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Propaga su intervallo</Label>
-          <div className="flex gap-1 items-center">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 text-xs" />
-            <span className="text-[10px] text-muted-foreground">→</span>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <Button size="sm" variant="secondary" className="w-full" onClick={() => { onPropagate(from, to); setOpen(false); }}>
-            <Plus className="h-3 w-3" />Aggiungi giorni
-          </Button>
-        </div>
-
-        <div className="flex gap-1 pt-1 border-t">
-          <Button size="sm" variant="ghost" className="flex-1" onClick={() => { setOpen(false); onOpenDialog(); }}>Avanzate…</Button>
-          <Button size="sm" variant="destructive" onClick={() => { onDelete(); setOpen(false); }}>
-            <Trash2 className="h-3 w-3" />Elimina
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <button
+      type="button"
+      draggable
+      onClick={onOpenDialog}
+      onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
+      onDragEnd={() => { setIsDragging(false); onDragState(null); }}
+      className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+      style={{
+        backgroundColor: chipColorForAssignment(a),
+        borderLeftColor: repartoAccent(a),
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
+    >
+      {a.cantiere_label.slice(0, 10)} {a.hours}h
+    </button>
   );
 };
 

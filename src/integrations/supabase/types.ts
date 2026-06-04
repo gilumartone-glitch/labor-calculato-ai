@@ -656,6 +656,120 @@ export type Database = {
         }
         Relationships: []
       }
+      montaggi_assignment_items: {
+        Row: {
+          commessa_id: string
+          created_at: string
+          created_by: string
+          id: string
+          kind: string
+          note: string | null
+          qty: number
+          ref_id: string | null
+          ref_nome: string
+          unita: string
+          updated_at: string
+        }
+        Insert: {
+          commessa_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          kind: string
+          note?: string | null
+          qty?: number
+          ref_id?: string | null
+          ref_nome: string
+          unita?: string
+          updated_at?: string
+        }
+        Update: {
+          commessa_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          qty?: number
+          ref_id?: string | null
+          ref_nome?: string
+          unita?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      montaggi_attrezzi: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          created_by: string
+          descrizione: string | null
+          id: string
+          nome: string
+          note: string | null
+          unita: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          created_by: string
+          descrizione?: string | null
+          id?: string
+          nome: string
+          note?: string | null
+          unita?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          created_by?: string
+          descrizione?: string | null
+          id?: string
+          nome?: string
+          note?: string | null
+          unita?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      montaggi_materiali: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          created_by: string
+          descrizione: string | null
+          id: string
+          nome: string
+          note: string | null
+          unita: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          created_by: string
+          descrizione?: string | null
+          id?: string
+          nome: string
+          note?: string | null
+          unita?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          created_by?: string
+          descrizione?: string | null
+          id?: string
+          nome?: string
+          note?: string | null
+          unita?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       montaggi_planning: {
         Row: {
           cantiere_label: string

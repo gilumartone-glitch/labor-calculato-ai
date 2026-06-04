@@ -37,7 +37,7 @@ type ProdSub = {
   due_date: string | null;
   order_id: string;
 };
-type ProfileLite = { id: string; display_name: string | null };
+type ProfileLite = { id: string; display_name: string | null; settori?: string[] | null };
 
 const OPERATORS_KEY = "montaggi:operai:v1";
 

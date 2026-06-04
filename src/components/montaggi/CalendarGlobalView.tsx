@@ -138,7 +138,21 @@ export const CalendarGlobalView = () => {
     assignments.forEach((a) => { if (!known.has(a.operator_id)) set.add(a.operator_id); });
     return Array.from(set).map((id) => ({ id, name: prettyOpName(id), role: "", reparti: ["montaggi" as Reparto] } as Operator));
   }, [allOperators, assignments]);
-  const displayedOps = [...allOperators, ...orphanOps];
+
+  // Operai dal personale (profili) che hanno il settore "montaggi" assegnato
+  const profileOps = useMemo(() => {
+    const known = new Set([...allOperators.map((o) => o.id), ...orphanOps.map((o) => o.id)]);
+    return profiles
+      .filter((p) => Array.isArray(p.settori) && p.settori.includes("montaggi") && !known.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        name: p.display_name ?? prettyOpName(p.id),
+        role: "",
+        reparti: ["montaggi" as Reparto],
+      } as Operator));
+  }, [profiles, allOperators, orphanOps]);
+
+  const displayedOps = [...allOperators, ...orphanOps, ...profileOps];
 
   const allCantieriSet = useMemo(() => Array.from(new Set(assignments.map((a) => a.cantiere_label))).sort(), [assignments]);
 

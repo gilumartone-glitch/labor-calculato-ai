@@ -256,10 +256,11 @@ export const ConfirmToWarehouseDialog = ({
             <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold mb-2">
               <Wrench className="w-3.5 h-3.5" /> Reparto di lavorazione
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {WORK_DEPTS.map((d) => {
+            <div className={`grid gap-2 ${macros.length >= 3 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
+              {macros.map((d) => {
                 const dc = DEPT_COLOR[d] ?? DEPT_COLOR.altro;
                 const active = workDept === d;
+                const label = MACRO_WORK_LABEL[d] ?? DEPT_LABEL[d];
                 return (
                   <button
                     key={d}
@@ -268,14 +269,14 @@ export const ConfirmToWarehouseDialog = ({
                     className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-sm border-2 transition-all ${active ? `${dc.chip} ${dc.border} font-bold scale-[1.02]` : "bg-paper border-ink/15 hover:border-ink/30 text-ink/70"}`}
                   >
                     <span className="text-lg leading-none">{dc.emoji}</span>
-                    <span className="text-[11px] uppercase tracking-wider">{DEPT_LABEL[d]}</span>
+                    <span className="text-[11px] uppercase tracking-wider">{label}</span>
                   </button>
                 );
               })}
             </div>
-            {suggestedWorkDept && suggestedWorkDept !== workDept && (
+            {suggestedWorkDept && toMacroDept(suggestedWorkDept) !== workDept && macros.includes(toMacroDept(suggestedWorkDept)) && (
               <div className="mt-2 text-[10px] font-mono text-muted-foreground">
-                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(suggestedWorkDept)} className="underline font-bold">{DEPT_LABEL[suggestedWorkDept]}</button>
+                💡 Auto-rilevato dal preventivo: <button type="button" onClick={() => setWorkDept(toMacroDept(suggestedWorkDept))} className="underline font-bold">{MACRO_WORK_LABEL[toMacroDept(suggestedWorkDept)]}</button>
               </div>
             )}
           </div>

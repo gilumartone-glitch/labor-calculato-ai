@@ -61,6 +61,11 @@ type FireProduct = {
   cans: FireCan[];
   classes: FireClass[];
   finishes: FireFinish[];
+  /** Solo se baseType === "base_finitura": prezzi e consumi della finitura,
+   *  in aggiunta a quelli della base (cans/classes). */
+  finishCans?: FireCan[];
+  finishClasses?: FireClass[];
+  finishCoats?: number;
   note?: string;
 };
 

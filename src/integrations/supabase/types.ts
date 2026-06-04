@@ -1459,6 +1459,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reparti_config: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key: string
+          kind: string
+          label: string
+          macro_key: string | null
+          ordine: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key: string
+          kind: string
+          label: string
+          macro_key?: string | null
+          ordine?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key?: string
+          kind?: string
+          label?: string
+          macro_key?: string | null
+          ordine?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           created_at: string

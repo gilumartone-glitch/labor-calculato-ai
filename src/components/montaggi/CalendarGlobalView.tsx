@@ -82,6 +82,11 @@ const colorForCantiere = (label: string) => {
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
   return COLORS[h % COLORS.length];
 };
+// Colore del chip = reparto (tipo di impegno); accento sinistra = cantiere
+const chipColorForAssignment = (a: Pick<Assignment, "reparto" | "cantiere_label">) => {
+  const r = (a.reparto ?? "montaggi") as Reparto;
+  return REPARTO_BG[r] ?? REPARTO_BG.altro;
+};
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const startOfWeek = (d: Date) => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; };

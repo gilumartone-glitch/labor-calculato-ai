@@ -117,10 +117,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   const defaultReparto = allowedReparti[0];
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [prodSubs, setProdSubs] = useState<ProdSub[]>([]);
-  const [profiles, setProfiles] = useState<ProfileLite[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Inizializza dalla cache di modulo per evitare flash al re-mount
+  const initialCache = dataCache.get(`${mode}|${fmtDate(startOfWeek(new Date()))}`);
+  const [assignments, setAssignments] = useState<Assignment[]>(initialCache?.assignments ?? []);
+  const [prodSubs, setProdSubs] = useState<ProdSub[]>(initialCache?.prodSubs ?? []);
+  const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
+  const [loading, setLoading] = useState(!initialCache);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
 
   // Filtri

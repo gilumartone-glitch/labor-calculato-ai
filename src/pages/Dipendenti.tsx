@@ -266,7 +266,11 @@ export default function Dipendenti() {
                         ))}
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground font-mono">
-                        Costo azienda/h: <strong>{eur(dipHourlyCost(d))}</strong> · Paga: {eur(d.hourly_rate)}/h
+                        {isAdmin ? (
+                          <>Costo azienda/h: <strong>{eur(dipHourlyCost(d))}</strong> · Paga: {eur(d.hourly_rate)}/h</>
+                        ) : canWrite ? (
+                          <>Costo azienda/h: <strong>{eur(dipHourlyCost(d))}</strong></>
+                        ) : null}
                         {d.email && <> · {d.email}</>}
                         {d.telefono && <> · {d.telefono}</>}
                       </div>

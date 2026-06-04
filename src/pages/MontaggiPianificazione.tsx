@@ -2,6 +2,7 @@ import { HardHat } from "lucide-react";
 import { HubLink } from "@/components/HubLink";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function MontaggiPianificazione() {
   return (
@@ -12,7 +13,7 @@ export default function MontaggiPianificazione() {
             <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><HardHat className="h-5 w-5" /></div>
             <div>
               <h1 className="font-display text-2xl font-semibold leading-none">Pianificazione</h1>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Operai, cantieri e impegni di laboratorio/tappezzeria su 2 settimane</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Montaggi e lavorazioni · operai, cantieri e impegni</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -23,7 +24,18 @@ export default function MontaggiPianificazione() {
       </header>
 
       <main className="container py-8">
-        <CalendarGlobalView />
+        <Tabs defaultValue="montaggi" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="montaggi">Montaggi</TabsTrigger>
+            <TabsTrigger value="lavorazioni">Lavorazioni</TabsTrigger>
+          </TabsList>
+          <TabsContent value="montaggi" className="space-y-4">
+            <CalendarGlobalView mode="montaggi" />
+          </TabsContent>
+          <TabsContent value="lavorazioni" className="space-y-4">
+            <CalendarGlobalView mode="lavorazioni" />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

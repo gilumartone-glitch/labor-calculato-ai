@@ -22,7 +22,7 @@ const TILES: Tile[] = [
   { key: "flow",         label: "Flow",          description: "Panoramica di tutti i progetti: stato, scadenze, importi",       to: "/flow",         Icon: Workflow,   color: "bg-[hsl(225_58%_42%)] text-white border-[hsl(225_58%_28%)]", iconBg: "bg-[hsl(225_58%_28%)]" },
   { key: "produzione",   label: "Produzione",    description: "Officina: sub-ordini per reparto, materiali, magazzino, bolle",  to: "/produzione",   Icon: Factory,    color: "bg-[hsl(28_86%_46%)] text-white border-[hsl(28_86%_32%)]",   iconBg: "bg-[hsl(28_86%_32%)]" },
   { key: "contabilita",  label: "Contabilità",   description: "Cassa, competenza e movimenti",                                  to: "/contabilita",  Icon: Landmark,   color: "bg-[hsl(145_42%_34%)] text-white border-[hsl(145_42%_22%)]", iconBg: "bg-[hsl(145_42%_22%)]" },
-  { key: "falegnameria", label: "Falegnameria",  description: "Lavorazioni di reparto: pezzi, materiali, nesting",              to: "/falegnameria", Icon: Hammer,     color: "bg-[hsl(20_55%_36%)] text-white border-[hsl(20_55%_22%)]",   iconBg: "bg-[hsl(20_55%_22%)]" },
+  
   { key: "montaggi",     label: "Montaggi",      description: "Panoramica cantieri, operai e calendario settimanale",          to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
 ];
 

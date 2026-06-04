@@ -437,27 +437,26 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
     <>
       {!embedded && (
         <header className="sticky top-0 z-20 border-b-2 border-dept bg-paper">
-          <div className="container flex items-center justify-between gap-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><Wrench className="h-5 w-5" /></div>
-              <div>
-                <h1 className="font-display text-2xl font-semibold leading-none">Montaggi</h1>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Squadre, trasferte, mezzi e materiali di posa</p>
+          <div className="w-full px-3 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-dept text-dept-foreground"><Wrench className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <h1 className="font-display text-xl sm:text-2xl font-semibold leading-none truncate">Montaggi</h1>
+                <p className="hidden sm:block text-xs uppercase tracking-[0.2em] text-muted-foreground">Squadre, trasferte, mezzi e materiali di posa</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              
               <AdminUsersLink variant="outline" />
-              <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
+              <Button size="sm" onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
             </div>
           </div>
         </header>
       )}
 
-        <main className={embedded ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]" : "container grid gap-6 py-8 xl:grid-cols-[minmax(0,1fr)_360px]"}>
+        <main className={embedded ? "w-full space-y-6" : "w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6"}>
         <section className="space-y-6">
           <Card className="border-2 border-dept shadow-soft">
-            <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5" />Montaggi</CardTitle>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 {sectionTabs.map((tab) => {
@@ -468,6 +467,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
                     </Button>
                   );
                 })}
+                <Button type="button" size="sm" variant="secondary" onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
               </div>
             </CardHeader>
           </Card>
@@ -548,17 +548,8 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
             </Card>
           )}
         </section>
-
-        <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-          <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-2 print:hidden">
-                <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
       </main>
+
     </>
   );
 

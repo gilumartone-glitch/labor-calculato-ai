@@ -495,7 +495,7 @@ const Index = () => {
     <div data-dept={activeTab} className="min-h-screen bg-dept-soft/35 transition-colors">
       {/* Header */}
       <header className="app-header border-b-2 border-dept bg-paper sticky top-0 z-20">
-        <div className="container py-2 md:py-5 flex flex-wrap items-center justify-between gap-2 md:gap-6">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-2 md:py-5 flex flex-wrap items-center justify-between gap-2 md:gap-6">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-none">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-dept text-dept-foreground grid place-items-center font-display font-bold text-xl rounded-sm shrink-0">
               ƒ
@@ -586,7 +586,7 @@ const Index = () => {
       <DraftTabsBar />
 
       {/* Body */}
-      <main className="container py-8 pb-20">
+      <main className="w-full px-3 sm:px-6 lg:px-8 py-4 md:py-8 pb-20">
         <AnimatePresence mode="wait">
           <motion.div
             key={`${activeTab}:${resetNonce}:${draftReloadNonce}`}
@@ -642,7 +642,7 @@ const Index = () => {
       </main>
 
       <footer className="border-t-2 border-ink bg-paper">
-        <div className="container py-5 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-5 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           <div className="flex items-center gap-2">
             <Calculator className="w-3 h-3" />
             <span>© Officina · Preventivi</span>

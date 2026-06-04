@@ -1008,6 +1008,7 @@ export const DraftTabsBar = () => {
         defaultRef={pendingPayload?.titolo ?? ""}
         defaultProductionName={pendingPayload?.titolo ?? ""}
         materials={pendingPayload ? extractMaterialsFromSnapshot(pendingPayload.productionSnapshot) : []}
+        availableMacros={pendingPayload ? deriveAvailableMacros(pendingPayload.depts, activeId) : undefined}
         onConfirm={onWarehouseConfirm}
         saving={sendBusy}
       />

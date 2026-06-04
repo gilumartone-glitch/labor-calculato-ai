@@ -266,10 +266,18 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
       const serialized = JSON.stringify(cloud.state);
       if (serialized !== lastAppliedRef.current) {
         lastAppliedRef.current = serialized;
-        setProject({ ...cloud.state, materialCatalog: loadSharedWorkshopMaterials(starterMaterials()) });
+        setProject({
+          ...cloud.state,
+          materialCatalog: loadSharedWorkshopMaterials(starterMaterials()),
+          workers: loadSharedWorkshopWorkers(cloud.state.workers?.length ? cloud.state.workers : defaultWorkers),
+        });
       }
     } else {
-      setProject((p) => ({ ...p, materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog) }));
+      setProject((p) => ({
+        ...p,
+        materialCatalog: loadSharedWorkshopMaterials(p.materialCatalog),
+        workers: loadSharedWorkshopWorkers(p.workers),
+      }));
     }
     setProjectReady(true);
   }, [cloud.ready, cloud.state]);
@@ -277,6 +285,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
   useEffect(() => {
     if (!projectReady) return;
     saveSharedWorkshopMaterials(project.materialCatalog);
+    saveSharedWorkshopWorkers(project.workers);
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(project));
     window.dispatchEvent(new Event("workshop-summary-updated"));
     const serialized = JSON.stringify(project);

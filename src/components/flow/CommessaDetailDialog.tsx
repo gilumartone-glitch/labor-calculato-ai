@@ -848,6 +848,12 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       defaultRef={commessa ? `CM-${commessa.id.slice(0, 8).toUpperCase()}` : ""}
       defaultProductionName={commessa?.titolo ?? ""}
       suggestedWorkDept={toWorkDept((commessa as any)?.reparto ?? (snapshot as any)?.departments?.[0]?.key)}
+      availableMacros={(() => {
+        const inferred = inferProdDeptsFromSnapshot(snapshot as any);
+        const macros = new Set<ProdDept>(inferred.map(toMacroDept));
+        if ((commessa as any)?.reparto === "montaggi") macros.add("montaggi");
+        return macros.size > 0 ? Array.from(macros) : undefined;
+      })()}
       onConfirm={handleConfirmToWarehouse}
       saving={confirmBusy}
     />

@@ -24,6 +24,7 @@ const TILES: Tile[] = [
   { key: "contabilita",  label: "Contabilità",   description: "Cassa, competenza e movimenti",                                  to: "/contabilita",  Icon: Landmark,   color: "bg-[hsl(145_42%_34%)] text-white border-[hsl(145_42%_22%)]", iconBg: "bg-[hsl(145_42%_22%)]" },
   
   { key: "montaggi",     label: "Pianificazione", description: "Cantieri, operai e calendario settimanale per montaggi, laboratorio e tappezzeria", to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
+  { key: "dipendenti",   label: "Dipendenti",    description: "Anagrafica dipendenti con reparti, funzione e costi orari", to: "/dipendenti", Icon: Users, color: "bg-[hsl(15_70%_42%)] text-white border-[hsl(15_70%_28%)]", iconBg: "bg-[hsl(15_70%_28%)]" },
 ];
 
 const Hub = () => {

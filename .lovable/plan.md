@@ -1,79 +1,64 @@
-# Nuova sezione "Record" personale
 
-Una scheda personale nell'Hub dove ogni utente registra promemoria su clienti e fornitori (anche non ancora in anagrafica). Ogni record è privato per default, ma può essere condiviso con altri utenti o con tutti.
 
-## Cosa l'utente vede
+## Cosa costruisco
 
-**Tile in Hub** "Record" (icona BookMarked) — visibile a tutti gli utenti approvati, non serve un permesso specifico.
+Un flusso unico "Lavorazione guidata" usato da:
+1. **Calcolatore → Crea commessa** (`CreateCommessaButton`)
+2. **Flow → Nuova commessa** (`CommessaDialog`)
+3. **Produzione → Lancia ordine** (`LaunchOrderDialog`)
 
-**Pagina /record** con:
-- Barra in alto: ricerca per nome contatto/testo, filtri per **tipo** (Pagamento ricevuto · Da pagare · Da incassare · Promemoria · Nota) e **stato** (aperto / chiuso), toggle "Solo miei" / "Condivisi con me".
-- Lista raggruppata per **contatto** (cliente/fornitore). Su ogni gruppo: badge con totale aperto € a debito/credito.
-- Pulsante "+ Nuovo record" che apre un dialog guidato:
-  1. **Contatto**: autocomplete sui contatti già usati dall'utente; se non esiste, lo crea al volo (nome + tipo cliente/fornitore/entrambi opzionale).
-  2. **Tipo record** (radio guidato, ognuno con icona):
-     - Pagamento ricevuto (entrata, importo, data)
-     - Da incassare (importo, scadenza)
-     - Pagamento fatto (uscita, importo, data)
-     - Da pagare (importo, scadenza)
-     - Promemoria (data/ora opzionale)
-     - Nota libera
-  3. **Dettagli**: importo (se monetario), data, titolo breve, descrizione libera, tag opzionali.
-  4. **Condivisione**: privato (default) · utenti specifici · tutti.
-- Click su un record → dialog dettaglio con: modifica, segna come chiuso/saldato, elimina, condividi/aggiorna condivisioni, cronologia condivisione.
-- Azione "Invia a…" su ogni record: scegli uno o più utenti; il record appare nella loro lista come "Condiviso da X" (non possono modificarlo, solo segnare come letto / copiare nella propria lista).
+In tutti e tre l'utente compila gli stessi 4 step:
 
-## Modello dati (Lovable Cloud)
+```text
+[1] Macroreparto      → Laboratorio | Tappezzeria | Montaggi
+[2] Microreparti       → checklist filtrata sul macro scelto
+[3] Responsabile       → solo utenti con macroreparto in profiles.settori
+[4] Operatori per micro→ solo utenti con quel micro in profiles.settori
+[5] Dipendenze         → drag-order tra i micro attivati (chi blocca chi)
+```
 
-Tabelle nuove in `public`:
+## Mappa macro → micro (default, modificabile)
 
-- `personal_records`
-  - `id uuid pk`
-  - `owner_id uuid` (auth.users)
-  - `contact_name text` (denormalizzato, sempre presente)
-  - `contact_kind text` check in (`cliente`,`fornitore`,`entrambi`,`altro`)
-  - `record_type text` check in (`pagamento_ricevuto`,`da_incassare`,`pagamento_fatto`,`da_pagare`,`promemoria`,`nota`)
-  - `title text`, `description text`
-  - `amount numeric` null, `currency text default 'EUR'`
-  - `due_date date` null, `event_at timestamptz` null
-  - `status text default 'aperto'` (`aperto`,`chiuso`)
-  - `tags text[] default '{}'`
-  - `visibility text default 'private'` (`private`,`shared`,`all`)
-  - `created_at`, `updated_at` (+ trigger updated_at)
+| Macroreparto | Microreparti |
+|---|---|
+| Laboratorio | grafica, stampa, taglio, confezione |
+| Tappezzeria | taglio_tessuti, cucito, montaggio_tende |
+| Montaggi    | trasporto, installazione |
 
-- `personal_record_shares`
-  - `record_id uuid` fk → personal_records on delete cascade
-  - `shared_with uuid` (auth.users) — null se `visibility='all'`
-  - `shared_by uuid`, `created_at`
-  - `read_at timestamptz` null
-  - pk (record_id, shared_with)
+Aggiungerò i micro mancanti come valori riconosciuti in `profiles.settori` (oggi il campo è già `text[]`, quindi nessuna migration sul tipo — solo costanti TS in un nuovo `src/lib/reparti.ts`).
 
-GRANT su entrambe a `authenticated` + `service_role`.
+**Conferma o correggi questa mappa nel prossimo messaggio** — la uso come default se non rispondi.
 
-### RLS
-- `personal_records`
-  - SELECT: `owner_id = auth.uid()` OR `visibility='all'` OR exists share `shared_with=auth.uid()`
-  - INSERT: `owner_id = auth.uid()`
-  - UPDATE/DELETE: `owner_id = auth.uid()` (o admin)
-- `personal_record_shares`
-  - SELECT: `shared_with = auth.uid()` OR owner del record (via security definer helper o subselect)
-  - INSERT/DELETE: owner del record
-  - UPDATE (read_at): `shared_with = auth.uid()`
+## Comportamento
 
-Per evitare ricorsione: helper `public.is_record_owner(_record_id uuid)` security definer.
+- **Filtro responsabili**: `profiles.settori` contiene almeno uno dei micro del macro scelto.
+- **Filtro operatori per micro**: `profiles.settori` contiene quel micro specifico.
+- **Dipendenze configurabili**: per ogni micro attivato l'utente sceglie "dipende da" (0..N micro precedenti). Default proposto = sequenza nell'ordine di selezione. Salvate in `production_sub_orders.depends_on` (campo già presente).
+- **Sblocco automatico**: un sub-order resta `bloccato` finché tutti i suoi `depends_on` sono `completato`. Quando l'ultimo predecessore si completa, lo sblocco e mando notifica all'assegnatario.
 
-## File toccati
+## Modifiche tecniche
 
-- nuovo `supabase/migrations/...` — tabelle, grants, RLS, helper, trigger updated_at
-- `src/pages/Record.tsx` — pagina
-- `src/components/record/RecordList.tsx`, `RecordDialog.tsx`, `ShareDialog.tsx`, `ContactPicker.tsx`
-- `src/lib/record/types.ts`, `src/lib/record/api.ts`
-- `src/pages/Hub.tsx` — aggiungere tile "Record" (visibile a tutti gli utenti approvati, come Magazzino)
-- `src/App.tsx` — route `/record` (no RouteGuard per pagina, basta essere autenticati e approvati; gate interno)
+**DB (1 migration)**
+- `production_sub_orders`: aggiungo `macro_reparto text`, `operator_ids uuid[]` (oltre all'esistente `assignee_id` = responsabile micro), `blocked_until_completed uuid[]` opzionale se serve multi-depends (oggi `depends_on` è singolo: lo estendo a array o tengo singolo e replico la riga? → **estendo a array** `depends_on_ids uuid[]`, mantengo `depends_on` per retrocompatibilità).
+- `commesse`: aggiungo `macro_reparto text`, `responsabile_id uuid`, `operator_ids uuid[]`.
+- Trigger `unlock_dependent_subs()` che on UPDATE di `status='completato'` setta a `in_corso` (o `pronto`) i sub con tutti i predecessori chiusi e crea notifiche.
 
-Nessuna modifica al sistema permessi (`user_permissions`): Record è personale, non legato a `PageKey`.
+**Frontend (nuovo componente condiviso)**
+- `src/lib/reparti.ts` — costanti `MACRO_REPARTI`, `MICRO_BY_MACRO`, helper `filterUsersByMicro()`.
+- `src/components/shared/LavorazioneGuidedForm.tsx` — il wizard 4-step riusato dalle tre schermate.
+- Aggiornati: `CreateCommessaButton.tsx`, `flow/CommessaDialog.tsx`, `produzione/LaunchOrderDialog.tsx` per montarlo.
 
-## Note
-- Il dialog guidato propone i tipi monetari con campo importo; per "Promemoria"/"Nota" l'importo è nascosto.
-- Autocomplete contatti: query distinct su `personal_records.contact_name` dell'utente + suggerimenti opzionali da `marketing_contacts` solo per nomi (no PII condivisa qui).
-- Realtime opzionale (fase 2): per ora refetch on focus.
+**Hub / Pianificazione**
+- La Pianificazione mostra già `production_sub_orders` come impegni: aggiungerò il chip "🔒 bloccato" finché i predecessori non sono chiusi e il chip si sblocca da solo via realtime.
+
+## Cosa NON tocco
+
+- Permessi (`has_permission`) e ruoli admin: invariati.
+- UI Hub, Record, Calendario operai: invariati.
+- Logica importo/cliente nei dialog esistenti: invariata.
+
+## Domande aperte (rispondi se vuoi cambiare i default)
+
+1. Mappa macro→micro qui sopra: ok o aggiungo/tolgo qualcosa (es. "falegnameria" come macro a sé)?
+2. Quando crei una lavorazione **dal Flow**, devo generare automaticamente i `production_sub_orders` corrispondenti (uno per micro attivato) o tenere il flow separato dalla produzione?
+

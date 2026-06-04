@@ -285,7 +285,7 @@ export const ConfirmToWarehouseDialog = ({
           {!editAssignee && assignee && !loading ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
-                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {DEPT_LABEL[workDept].toLowerCase()}</span>{" "}
+                <span className="text-muted-foreground uppercase tracking-wider">Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
               <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
@@ -294,7 +294,7 @@ export const ConfirmToWarehouseDialog = ({
             </div>
           ) : (
             <div>
-              <Label>Responsabile {DEPT_LABEL[workDept].toLowerCase()} *</Label>
+              <Label>Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()} *</Label>
               {loading ? (
                 <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
               ) : users.length === 0 ? (

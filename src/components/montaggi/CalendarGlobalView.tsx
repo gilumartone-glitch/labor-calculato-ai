@@ -494,7 +494,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
           {loading && assignments.length === 0 && prodSubs.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
           ) : view === "operai" ? (
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <table className="w-full border-collapse min-w-[1100px]">
                 <thead>
                   <tr className="bg-muted/50">
@@ -544,6 +543,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                               key={dateStr}
                               id={`${op.id}|${dateStr}`}
                               className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""}`}
+                              draggingId={draggingId}
+                              onDropAssignment={(dragId) => handleDropAssignment(dragId, op.id, dateStr)}
                             >
                               <div className="space-y-0.5 min-h-[42px]">
                                 {list.map((a) => (
@@ -563,6 +564,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                     }, { silent: true, closeDialog: false })}
                                     onDelete={() => deleteAssignment(a.id)}
                                     onPropagate={(from, to) => propagateAssignment(a, from, to)}
+                                    onDragState={setDraggingId}
                                   />
                                 ))}
                                 {prodList.map((s) => {
@@ -600,7 +602,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                   })}
                 </tbody>
               </table>
-            </DndContext>
           ) : (
             <table className="w-full border-collapse min-w-[1100px]">
               <thead>

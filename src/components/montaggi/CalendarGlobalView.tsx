@@ -702,6 +702,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
           editing={editing}
           operators={displayedOps}
           allCantieri={allCantieriList}
+          allowedReparti={allowedReparti}
+          defaultReparto={defaultReparto}
           onClose={() => setEditing(null)}
           onSave={saveAssignment}
           onDelete={editing.existing ? () => deleteAssignment(editing.existing!.id) : undefined}
@@ -711,24 +713,128 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   );
 };
 
+/** ============================================================
+ *  DraggableChip — assegnazione in calendario
+ *  - drag con @dnd-kit (attivazione dopo 4px così il click non viene assorbito)
+ *  - click = popover modifica veloce
+ *  - doppio click = dialog completo
+ *  ============================================================ */
+type DraggableChipProps = {
+  assignment: Assignment;
+  onOpenDialog: () => void;
+  onPatch: (patch: Partial<Pick<Assignment, "date" | "hours" | "operator_id">>) => void;
+  onDelete: () => void;
+  onPropagate: (from: string, to: string) => void;
+};
+
+const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropagate }: DraggableChipProps) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: a.id });
+  const [open, setOpen] = useState(false);
+  const [hours, setHours] = useState<number>(a.hours);
+  const [from, setFrom] = useState<string>(a.date);
+  const [to, setTo] = useState<string>(a.date);
+  useEffect(() => { setHours(a.hours); setFrom(a.date); setTo(a.date); }, [a.id, a.hours, a.date]);
+
+  const shiftDate = (delta: number) => {
+    const d = new Date(a.date); d.setDate(d.getDate() + delta);
+    onPatch({ date: fmtDate(d) });
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          ref={setNodeRef}
+          type="button"
+          {...attributes}
+          {...listeners}
+          onDoubleClick={(e) => { e.stopPropagation(); setOpen(false); onOpenDialog(); }}
+          className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing"
+          style={{ backgroundColor: colorForCantiere(a.cantiere_label), opacity: isDragging ? 0.4 : 1 }}
+          title={`${a.cantiere_label} · ${a.hours}h · clic per modifica veloce, doppio clic per modifica completa, trascina per spostare`}
+        >
+          {a.cantiere_label.slice(0, 10)} {a.hours}h
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3 space-y-3" align="start" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-0.5">
+          <div className="text-xs font-semibold truncate">{a.cantiere_label}</div>
+          <div className="text-[10px] text-muted-foreground">{new Date(a.date).toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" })}</div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase">Ore</Label>
+          <div className="flex gap-1">
+            <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-8" />
+            <Button size="sm" variant="secondary" onClick={() => { onPatch({ hours }); setOpen(false); }}>OK</Button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase">Sposta giorno</Label>
+          <div className="flex gap-1">
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(-1)}>← −1g</Button>
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => shiftDate(1)}>+1g →</Button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase">Propaga su intervallo</Label>
+          <div className="flex gap-1 items-center">
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 text-xs" />
+            <span className="text-[10px] text-muted-foreground">→</span>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 text-xs" />
+          </div>
+          <Button size="sm" variant="secondary" className="w-full" onClick={() => { onPropagate(from, to); setOpen(false); }}>
+            <Plus className="h-3 w-3" />Aggiungi giorni
+          </Button>
+        </div>
+
+        <div className="flex gap-1 pt-1 border-t">
+          <Button size="sm" variant="ghost" className="flex-1" onClick={() => { setOpen(false); onOpenDialog(); }}>Avanzate…</Button>
+          <Button size="sm" variant="destructive" onClick={() => { onDelete(); setOpen(false); }}>
+            <Trash2 className="h-3 w-3" />Elimina
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+/** ============================================================
+ *  DroppableCell — cella calendario che accetta i chip
+ *  ============================================================ */
+type DroppableCellProps = { id: string; className?: string; children: React.ReactNode };
+const DroppableCell = ({ id, className, children }: DroppableCellProps) => {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <td ref={setNodeRef} className={`${className ?? ""} ${isOver ? "ring-2 ring-inset ring-primary bg-primary/10" : ""}`}>
+      {children}
+    </td>
+  );
+};
+
 /** Dialog inline per modificare/aggiungere un impegno dal calendario globale */
 type EditDialogProps = {
   editing: { operatorId: string; date: string; existing?: Assignment };
   operators: Operator[];
   allCantieri: string[];
+  allowedReparti: Reparto[];
+  defaultReparto: Reparto;
   onClose: () => void;
   onSave: (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => void;
   onDelete?: () => void;
 };
 
-const EditAssignmentDialog = ({ editing, operators, allCantieri, onClose, onSave, onDelete }: EditDialogProps) => {
+const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti, defaultReparto, onClose, onSave, onDelete }: EditDialogProps) => {
   const ex = editing.existing;
   const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
   const [date, setDate] = useState(ex?.date ?? editing.date);
   const [hours, setHours] = useState<number>(ex?.hours ?? 8);
   const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? "");
   const [notes, setNotes] = useState(ex?.notes ?? "");
-  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? "montaggi");
+  const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? defaultReparto);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -760,16 +866,14 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, onClose, onSave
               {allCantieri.map((c) => <option key={c} value={c} />)}
             </datalist>
           </div>
-          <div className="space-y-1.5">
-            <Label>Reparto</Label>
-            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
-              <option value="montaggi">Montaggi</option>
-              <option value="laboratorio">Laboratorio</option>
-              <option value="tappezzeria">Tappezzeria</option>
-              <option value="falegnameria">Falegnameria</option>
-              <option value="altro">Altro</option>
-            </select>
-          </div>
+          {allowedReparti.length > 1 && (
+            <div className="space-y-1.5">
+              <Label>Reparto</Label>
+              <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
+                {allowedReparti.map((r) => <option key={r} value={r}>{REPARTO_LABEL[r]}</option>)}
+              </select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Note</Label>
             <Input value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali" />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Send, Calendar, CheckCircle2, ClockPlus, MessageSquare, Trash2, Star, StarOff } from "lucide-react";
+import { Loader2, Send, Calendar, CheckCircle2, Clock, MessageSquare, Trash2, Star, StarOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +22,7 @@ const TIPO_ICON: Record<UpdateTipo, JSX.Element> = {
   nota: <MessageSquare className="w-3.5 h-3.5" />,
   aggiornamento: <MessageSquare className="w-3.5 h-3.5" />,
   completamento: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-  richiesta_prolungamento: <ClockPlus className="w-3.5 h-3.5 text-amber-600" />,
+  richiesta_prolungamento: <Clock className="w-3.5 h-3.5 text-amber-600" />,
   risposta_admin: <CheckCircle2 className="w-3.5 h-3.5 text-primary" />,
 };
 

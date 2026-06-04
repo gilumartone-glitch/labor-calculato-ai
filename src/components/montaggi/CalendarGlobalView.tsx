@@ -805,7 +805,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onPatch, onDelete, onPropa
 /** ============================================================
  *  DroppableCell — cella calendario che accetta i chip
  *  ============================================================ */
-type DroppableCellProps = { id: string; className?: string; children: React.ReactNode };
+type DroppableCellProps = { id: string; className?: string; children: ReactNode };
 const DroppableCell = ({ id, className, children }: DroppableCellProps) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (

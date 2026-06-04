@@ -324,41 +324,59 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     patchOperator(op.id, { reparti: Array.from(cur) as Reparto[] });
   };
 
-  // === Save / Delete assignment dal calendario globale ===
+  // === Save / Delete assignment (OTTIMISTICO) ===
+  // Aggiorniamo subito lo stato locale; il realtime poi riallinea (debounced).
   const saveAssignment = async (
     p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto },
     opts?: { silent?: boolean; closeDialog?: boolean },
   ) => {
     if (!user) return toast.error("Non autenticato");
     if (!p.cantiere_label.trim()) return toast.error("Inserisci il nome del cantiere");
+    const reparto = p.reparto ?? defaultReparto;
     if (p.id) {
+      const prev = assignments;
+      setAssignments((cur) => cur.map((x) => x.id === p.id ? {
+        ...x, operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
+      } : x));
       const { error } = await supabase.from("montaggi_planning").update({
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
       }).eq("id", p.id);
-      if (error) return toast.error(error.message);
+      if (error) { setAssignments(prev); return toast.error(error.message); }
       if (!opts?.silent) toast.success("Impegno aggiornato");
     } else {
-      const { error } = await supabase.from("montaggi_planning").insert({
+      const tempId = `tmp_${uid()}`;
+      const optimistic: Assignment = {
+        id: tempId, commessa_id: null, cantiere_label: p.cantiere_label,
         operator_id: p.operator_id, date: p.date, hours: p.hours,
-        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto: p.reparto ?? defaultReparto,
+        notes: p.notes ?? null, created_by: user.id, reparto,
+      };
+      setAssignments((cur) => [...cur, optimistic]);
+      const { data, error } = await supabase.from("montaggi_planning").insert({
+        operator_id: p.operator_id, date: p.date, hours: p.hours,
+        cantiere_label: p.cantiere_label, notes: p.notes ?? null, reparto,
         commessa_id: null, created_by: user.id,
-      });
-      if (error) return toast.error(error.message);
+      }).select().single();
+      if (error) {
+        setAssignments((cur) => cur.filter((x) => x.id !== tempId));
+        return toast.error(error.message);
+      }
+      setAssignments((cur) => cur.map((x) => x.id === tempId ? (data as Assignment) : x));
       if (!opts?.silent) toast.success("Impegno aggiunto");
     }
     if (opts?.closeDialog !== false) setEditing(null);
-    load();
   };
   const deleteAssignment = async (id: string, opts?: { silent?: boolean }) => {
+    const prev = assignments;
+    setAssignments((cur) => cur.filter((x) => x.id !== id));
     const { error } = await supabase.from("montaggi_planning").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { setAssignments(prev); return toast.error(error.message); }
     if (!opts?.silent) toast.success("Impegno eliminato");
     setEditing(null);
-    load();
   };
 
-  // Propaga un'assegnazione su un intervallo (dal→al inclusi)
+  // Propaga un'assegnazione su un intervallo (dal→al inclusi) — ottimistico
   const propagateAssignment = async (a: Assignment, fromStr: string, toStr: string) => {
     if (!user) return toast.error("Non autenticato");
     const from = new Date(fromStr); const to = new Date(toStr);
@@ -367,7 +385,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const cur = new Date(from);
     while (cur <= to) {
       const ds = fmtDate(cur);
-      // Salta il giorno se l'assegnazione esiste già su quello slot
       const dup = modeAssignments.some((x) => x.operator_id === a.operator_id && x.date === ds && x.cantiere_label === a.cantiere_label);
       if (!dup) {
         rows.push({
@@ -380,10 +397,10 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       cur.setDate(cur.getDate() + 1);
     }
     if (rows.length === 0) { toast.info("Nessun giorno da aggiungere"); return; }
-    const { error } = await supabase.from("montaggi_planning").insert(rows);
+    const { data, error } = await supabase.from("montaggi_planning").insert(rows).select();
     if (error) return toast.error(error.message);
+    setAssignments((curList) => [...curList, ...((data ?? []) as Assignment[])]);
     toast.success(`Aggiunti ${rows.length} giorni`);
-    load();
   };
 
   // === Drag & drop ===

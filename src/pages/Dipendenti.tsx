@@ -356,21 +356,27 @@ export default function Dipendenti() {
                 </select>
               </div>
 
-              <div className="border-t pt-3">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi)</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                  <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
-                  <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
-                  <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
-                  <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>
-                  <div><Label className="text-[10px]">Costi extra €</Label><Input type="number" step="0.01" value={editing.extra_costs} onChange={(e) => setEditing({ ...editing, extra_costs: Number(e.target.value) || 0 })} /></div>
-                  <div><Label className="text-[10px]">Ore annue</Label><Input type="number" value={editing.annual_hours} onChange={(e) => setEditing({ ...editing, annual_hours: Number(e.target.value) || 1720 })} /></div>
-                  <div className="col-span-2">
-                    <Label className="text-[10px]">Costo azienda calcolato</Label>
-                    <div className="h-10 px-3 flex items-center rounded-md border bg-muted font-mono text-sm font-bold">{eur(dipHourlyCost(editing))}/h · {eur(dipCompanyCost(editing))}/anno</div>
+              {isAdmin ? (
+                <div className="border-t pt-3">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi) — visibile solo agli admin</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                    <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
+                    <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
+                    <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
+                    <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>
+                    <div><Label className="text-[10px]">Costi extra €</Label><Input type="number" step="0.01" value={editing.extra_costs} onChange={(e) => setEditing({ ...editing, extra_costs: Number(e.target.value) || 0 })} /></div>
+                    <div><Label className="text-[10px]">Ore annue</Label><Input type="number" value={editing.annual_hours} onChange={(e) => setEditing({ ...editing, annual_hours: Number(e.target.value) || 1720 })} /></div>
+                    <div className="col-span-2">
+                      <Label className="text-[10px]">Costo azienda calcolato</Label>
+                      <div className="h-10 px-3 flex items-center rounded-md border bg-muted font-mono text-sm font-bold">{eur(dipHourlyCost(editing))}/h · {eur(dipCompanyCost(editing))}/anno</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border-t pt-3 text-xs text-muted-foreground italic">
+                  I dati economici (paga netta, contributi, costo azienda) sono visibili e modificabili solo dagli admin.
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <input id="attivo" type="checkbox" checked={editing.attivo} onChange={(e) => setEditing({ ...editing, attivo: e.target.checked })} />

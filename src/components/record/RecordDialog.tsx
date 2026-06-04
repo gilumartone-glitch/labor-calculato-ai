@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { createRecord, updateRecord, shareRecord, unshareRecord, listSharesForRecords, listProfiles, type UserLite } from "@/lib/record/api";
+import { createRecord, updateRecord, shareRecord, unshareRecord, listSharesForRecords, listProfiles, addMarketingContact, type UserLite } from "@/lib/record/api";
 import { RECORD_TYPE_META, type ContactKind, type PersonalRecord, type RecordType, type RecordVisibility } from "@/lib/record/types";
 
 type Props = {

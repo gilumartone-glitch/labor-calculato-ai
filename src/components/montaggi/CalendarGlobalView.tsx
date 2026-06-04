@@ -77,12 +77,14 @@ const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;
 
 export const CalendarGlobalView = () => {
+  const { user } = useAuth();
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [prodSubs, setProdSubs] = useState<ProdSub[]>([]);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
 
   // Filtri
   const [filterText, setFilterText] = useState("");

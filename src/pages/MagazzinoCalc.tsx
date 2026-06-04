@@ -67,6 +67,10 @@ type FireProduct = {
   finishCans?: FireCan[];
   finishClasses?: FireClass[];
   finishCoats?: number;
+  /** Override prezzo per colore: { [colore]: { [canId]: prezzo } }.
+   *  Se assente per quel colore/can, vale il prezzo base della latta. */
+  colorCanPrices?: Record<string, Record<string, number>>;
+  colorFinishCanPrices?: Record<string, Record<string, number>>;
   note?: string;
 };
 

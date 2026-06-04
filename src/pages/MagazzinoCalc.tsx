@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 import { SelectWithAdd } from "@/components/calculator/SelectWithAdd";

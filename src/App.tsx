@@ -28,6 +28,7 @@ import ProdLog from "./pages/produzione/ProdLog.tsx";
 import MagazzinoView from "./pages/MagazzinoView.tsx";
 import Marketing from "./pages/Marketing.tsx";
 import Record from "./pages/Record.tsx";
+import Dipendenti from "./pages/Dipendenti.tsx";
 import { FloatingHubButton } from "@/components/HubLink";
 
 const queryClient = new QueryClient();

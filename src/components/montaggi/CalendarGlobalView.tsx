@@ -745,7 +745,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
               <span className="w-2 h-2 rounded" style={{ backgroundColor: REPARTO_BG[r] }} />{REPARTO_LABEL[r]}
             </span>
           ))}
-          <span className="text-muted-foreground ml-auto">Colore chip = reparto · bordo sinistro = cantiere. Gli impegni di laboratorio/tappezzeria includono i sub-ordini di produzione.</span>
+          <span className="text-muted-foreground ml-auto">Colore chip = cantiere · bordo sinistro = reparto. La griglia non si ricarica più dopo ogni modifica.</span>
         </CardContent>
       </Card>
 
@@ -768,7 +768,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
 /** ============================================================
  *  DraggableChip — assegnazione in calendario
- *  - drag con @dnd-kit (attivazione dopo 4px così il click non viene assorbito)
+ *  - drag HTML nativo: meno componenti e meno listener sulla griglia grande
  *  - click = popover modifica veloce
  *  - doppio click = dialog completo
  *  ============================================================ */

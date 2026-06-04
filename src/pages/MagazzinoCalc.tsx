@@ -1656,37 +1656,22 @@ function FireProductEditor({ product: p, update, colorOptions, baseOptions, mate
     onSync: (n: LocalCan[]) => void,
     listId: string,
     title: string,
+    overrides?: Record<string, Record<string, number>>,
+    onOverridesChange?: (next: Record<string, Record<string, number>>) => void,
   ) => (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-1">{title}</div>
-      <div className="space-y-1">
-        {list.map((c, i) => {
-          const computed = parseKgExpr(c.label);
-          return (
-            <div key={c.id} className="grid grid-cols-[140px,1fr,90px,32px] gap-2 items-center">
-              <Input type="text" inputMode="text" value={c.label}
-                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
-                list={listId} className="h-7 text-[11px]" placeholder='es. 5  oppure  10+3' />
-              <Input type="number" step="0.01" value={c.price}
-                onChange={(e) => onSync(list.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
-                className="h-7 text-[11px]" placeholder="€ prezzo latta" />
-              <div className="text-[10px] text-muted-foreground font-mono text-right pr-1">{computed > 0 ? `= ${fmt(computed)} kg` : ""}</div>
-              <button type="button" onClick={() => onSync(list.filter((_, j) => j !== i))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
-            </div>
-          );
-        })}
-        <datalist id={listId}>{canLabelOptions.map((o) => <option key={o} value={o} />)}</datalist>
-        <Button type="button" size="sm" variant="outline"
-          onClick={() => onSync([...list, { id: uid(), label: "", price: "" }])}
-          className="h-7 px-2 text-[11px]">
-          <Plus className="w-3 h-3 mr-1" />Aggiungi formato
-        </Button>
-        <div className="text-[10px] text-muted-foreground">
-          Suggerimento: per le confezioni promozionali tipo <strong>10+3</strong> o <strong>5+2</strong> scrivi l'espressione completa: il sistema sommerà automaticamente i kg.
-        </div>
-      </div>
-    </div>
+    <CansBlock
+      list={list}
+      onSync={onSync}
+      listId={listId}
+      title={title}
+      canLabelOptions={canLabelOptions}
+      colors={p.colors ?? []}
+      overrides={overrides}
+      onOverridesChange={onOverridesChange}
+    />
   );
+
+
 
   const renderClassesBlock = (
     classes: FireClass[] | undefined,

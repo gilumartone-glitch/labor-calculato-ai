@@ -3,7 +3,7 @@ import { HardHat, Calendar, Star, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Commessa, Profile } from "./types";
 import { CommessaDetailDialog } from "./CommessaDetailDialog";
-import { CommessaDialog } from "./CommessaDialog";
+
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return "—";

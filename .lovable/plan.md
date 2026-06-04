@@ -1,60 +1,93 @@
-# Dipendenti — nuova sezione Hub
+## Obiettivo
 
-## Cosa cambia per te
+1. Far comparire automaticamente tutti gli operatori del settore "Montaggi" anche dentro la pianificazione della singola commessa.
+2. Aggiungere alla pagina **Pianificazione** una tab "Lavorazioni" (laboratorio / tappezzeria / vendite) parallela a quella "Montaggi", con la stessa logica.
+3. Rendere lo spostamento delle assegnazioni veloce: **drag & drop** in calendario + **click veloce con popover** per modificare giorni/durata/eliminare senza aprire il dialog completo.
 
-- Nell'**Hub** appare una nuova card **Dipendenti** accanto a Magazzino/Marketing/ecc.
-- Dentro trovi l'elenco di tutti i dipendenti dell'officina. Per ognuno:
-  - **Nome** e **Funzione** (es. "Capo squadra", "Tappezziere", "Operatore CNC")
-  - **Macroreparti** di appartenenza (Laboratorio / Tappezzeria / Montaggi — uno o più)
-  - **Reparti / settori** specifici (Stampa, Taglio, Cucito, Montaggio tende…)
-  - **Costo orario** e parametri INPS/INAIL/TFR/Ore annue (come prima nell'archivio squadre)
-  - **Profilo utente collegato** (opzionale, se il dipendente ha un login nell'app)
-- Il tab **Lavoratori** dentro Montaggi e Falegnameria viene **rimosso**: la gestione costi/anagrafica si fa solo dall'Hub.
-- Nei preventivi (Montaggi/Falegnameria) il selettore "Squadra montaggio e ore" pesca direttamente dai dipendenti.
-- Nella **Lavorazione guidata** (Flow / lancio in Produzione), quando scegli un macroreparto e un microreparto, il selettore Responsabile e Operatori mostra **solo i dipendenti che appartengono a quel reparto** (oggi filtra solo per profili utente, da ora anche per dipendenti).
+Niente modifiche al DB: la tabella `montaggi_planning` ha già la colonna `reparto` ed è già reparto-agnostica.
 
-## Dettagli tecnici
+---
 
-### Database
+## Sezione 1 — Operatori mancanti in assegnazione (commessa)
 
-Nuova tabella `public.dipendenti`:
+**File:** `src/components/montaggi/PianificazioneSection.tsx`
 
-- `id`, `created_at`, `updated_at`, `created_by`
-- `nome` text NOT NULL, `funzione` text
-- `email` text, `telefono` text
-- `macro_reparti` text[] DEFAULT '{}' (valori: `laboratorio` | `tappezzeria` | `montaggi`)
-- `reparti` text[] DEFAULT '{}' (stessi valori di `profiles.settori`)
-- `profile_id` uuid NULL (link opzionale a `profiles.id`)
-- `hourly_rate` numeric, `ral` numeric, `inps_pct` numeric DEFAULT 30, `inail_pct` numeric DEFAULT 3, `tfr_pct` numeric DEFAULT 8.33, `extra_costs` numeric DEFAULT 0, `annual_hours` numeric DEFAULT 1720
-- `attivo` boolean DEFAULT true
-- `note` text
+- Aggiungere `settori` alla query profili (riga ~198) → `.select("id, display_name, settori")`.
+- Aggiungere un memo `profileOps` analogo a quello già presente in `CalendarGlobalView.tsx` (righe 143-153): filtra i profili con `settori.includes("montaggi")`, deduplica contro gli operatori già presenti.
+- Modificare la riga 160 (`operators = view === "progetto" ? projectOperators : ops.state`) in modo che in modalità progetto restituisca `[...projectOperators, ...profileOps]`. Così sia la griglia del calendario che il dropdown "Assegna intervallo veloce" interno alla commessa li includono.
 
-GRANT su `authenticated` + `service_role`. RLS:
-- SELECT: tutti gli autenticati
-- INSERT/UPDATE/DELETE: admin OR `has_permission(auth.uid(),'flow','write')`
+Risultato: nessun setup manuale richiesto, basta che l'utente abbia il settore "Montaggi" nel profilo.
 
-Migrazione one-shot: seed iniziale dei dipendenti già presenti come "workers" nell'archivio condiviso non possibile da SQL (dati in localStorage). Resta come operazione manuale nell'UI; gli archivi locali esistenti restano visibili finché non vengono ricreati nell'Hub.
+---
 
-### Frontend
+## Sezione 2 — Pianificazione con tab "Lavorazioni" + "Montaggi"
 
-1. **`src/pages/Dipendenti.tsx`** (nuova) — tabella editabile con: nome, funzione, macroreparti (chip multi), reparti (chip multi filtrati per macro), costi, profilo collegato (select dai `profiles`). Aggiunta voce di menu `dipendenti` in `app_pages` (key=`dipendenti`, label=`Dipendenti`).
-2. **`src/components/HubLink.tsx`** / Hub home — nuova card "Dipendenti".
-3. **`src/App.tsx`** — route `/dipendenti` con `RouteGuard` (richiede `has_permission('dipendenti','read')`).
-4. **`src/components/shared/LavorazioneGuidedForm.tsx`** — l'elenco utenti `users` viene ora costruito unendo `profiles` (settori) + `dipendenti` (reparti + macro). Il filtro per macro/reparto continua a funzionare. La selezione di un dipendente non legato a un profilo memorizza l'`id` del dipendente (prefisso `dip:` per distinguere) — il backend già accetta uuid; aggiungiamo una mappa di display name lato UI.
-5. **`src/pages/Montaggi.tsx`** e **`src/pages/Falegnameria.tsx`**:
-   - rimuovo il tab "Lavoratori" e la `WorkersSection`
-   - rimuovo l'archivio condiviso locale dei workers (resta solo per retrocompatibilità di lettura)
-   - sostituisco `project.workers` con un fetch async dei dipendenti del reparto (filtrati per `falegnameria` o `montaggi` su `macro_reparti`/`reparti`)
-   - il selettore "Squadra montaggio e ore" elenca direttamente i dipendenti
+**Pagina:** `src/pages/MontaggiPianificazione.tsx` (rinomino concettualmente in "Pianificazione" ma lascio la route com'è per compatibilità).
 
-### Open questions risolte
-- Macroreparti: array (più di uno per dipendente).
-- Sorgente: tabella nuova + link opzionale al profilo utente.
-- Vecchio tab Lavoratori: rimosso da Montaggi/Falegnameria.
+Layout:
 
-### Out of scope
-- Migrazione automatica dei worker locali nel cloud (richiede un'azione "Importa da archivio" che possiamo aggiungere dopo se serve).
-- Storico costi nel tempo (versioning su `hourly_rate`).
-- Foto / documenti del dipendente.
+```text
+┌──────────────────────────────────────────────────┐
+│ [ Montaggi ] [ Lavorazioni ]    Reparto: [ ▾ ]   │
+├──────────────────────────────────────────────────┤
+│ ← settimana →    Oggi    Cantiere/Commessa: [ ▾ ]│
+│                                                  │
+│  OPERAIO  | LUN | MAR | MER | GIO | VEN | …      │
+│  …                                               │
+└──────────────────────────────────────────────────┘
+```
 
-Approva per procedere con la migration e l'implementazione.
+- **Tab "Montaggi"**: comportamento attuale di `CalendarGlobalView` filtrato su `reparto = "montaggi"`. Operatori = profili con settore montaggi (già fatto).
+- **Tab "Lavorazioni"**: stesso componente riutilizzato in modalità "lavorazioni"; filtro reparto interno con tre valori (`laboratorio`, `tappezzeria`, `vendite`), default "tutti". Operatori = profili con almeno uno di quei settori.
+- Filtro reparto rimane visibile sopra la griglia per restringere ulteriormente.
+- Le righe della tabella `montaggi_planning` con `reparto ∈ {laboratorio, tappezzeria, vendite}` sono già supportate, basta filtrare in lettura e settare il default corretto in scrittura.
+
+Stessa griglia, stessi colori (già definiti in `COLORS`), stessa dialog di edit con `reparto` selezionabile.
+
+---
+
+## Sezione 3 — Spostamento veloce (drag & drop + click popover)
+
+Uso `@dnd-kit/core` (già installato). Nessuna nuova dipendenza.
+
+**Drag & drop:**
+- Ogni chip assegnazione in calendario diventa `useDraggable` (id = assignment.id).
+- Ogni cella `<td>` operatore×giorno diventa `useDroppable` (id = `${operator_id}|${dateStr}`).
+- Su drop: `UPDATE montaggi_planning SET operator_id=…, date=… WHERE id=…` via `saveAssignment`.
+- Drag su un bordo laterale della chip (mini-handle) → estende/riduce di 1 giorno: crea/duplica righe sui giorni vicini con la stessa `cantiere_label`/`reparto`/`hours` (la tabella usa 1 riga per giorno, quindi "estendere" = inserire righe contigue).
+
+**Click veloce con popover:**
+- Click semplice sulla chip: apre un `Popover` inline (shadcn) ancorato alla chip con:
+  - input ore (numero)
+  - pulsanti `−1g` / `+1g` per spostare la data
+  - input "Dal / Al" per propagare l'assegnazione a un intervallo
+  - bottone Elimina
+  - link "Modifica avanzata…" che apre il dialog completo
+- Doppio click: apre direttamente il dialog completo (comportamento attuale).
+- Click sul `+` di una cella vuota: resta com'è (apre dialog).
+
+Feedback visivo: durante il drag la chip diventa semitrasparente; la cella droppable evidenziata con `ring-2 ring-primary`.
+
+---
+
+## File modificati / creati
+
+- **edit** `src/components/montaggi/PianificazioneSection.tsx` — merge `profileOps` per settore montaggi.
+- **edit** `src/components/montaggi/CalendarGlobalView.tsx` —
+  - prop `mode: "montaggi" | "lavorazioni"` per scegliere reparti predefiniti, settori da matchare per `profileOps`, colore default, valore reparto di default nel dialog;
+  - wrap chip con `useDraggable`, cella con `useDroppable`, gestione drop;
+  - nuovo `QuickEditPopover` (componente inline o file dedicato `src/components/montaggi/QuickEditPopover.tsx`);
+  - sostituzione `onClick` chip → apertura popover; doppio click → dialog completo.
+- **edit** `src/pages/MontaggiPianificazione.tsx` — Tabs con "Montaggi" / "Lavorazioni", ognuna renderizza `CalendarGlobalView` con `mode` diverso.
+- **new** `src/components/montaggi/QuickEditPopover.tsx` (se conviene estrarlo).
+
+Nessuna migrazione DB.
+
+---
+
+## Note tecniche
+
+- Tipi `Reparto` in `CalendarGlobalView`: già include `laboratorio`, `tappezzeria`, manca `vendite` → lo aggiungo nei `REPARTI`, `COLORS`, `REPARTO_LABEL`.
+- Settori da matchare per la tab "Lavorazioni": `["laboratorio", "tappezzeria", "vendite"]` (valori del tipo `AppSettore`).
+- `DndContext` avvolge solo la griglia operai (non i filtri/header) per evitare interferenze con i bottoni esistenti.
+- `PointerSensor` con `activationConstraint: { distance: 4 }` così un click semplice non viene interpretato come drag e apre il popover.

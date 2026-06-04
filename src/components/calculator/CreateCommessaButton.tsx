@@ -64,6 +64,22 @@ const readDesignState = (): Record<string, unknown> => {
   }
 };
 
+/** Restituisce true se per la draft attiva esiste contenuto nel modulo Montaggi. */
+const hasMontaggiContentForActiveDraft = (): boolean => {
+  try {
+    const draftId = localStorage.getItem("officina:active-draft");
+    if (!draftId) return false;
+    const raw = localStorage.getItem(`officina:montaggi-module:v2:${draftId}`);
+    if (!raw) return false;
+    const p = JSON.parse(raw);
+    return (p?.labor?.length ?? 0) > 0
+      || (p?.materials?.length ?? 0) > 0
+      || (p?.tools?.length ?? 0) > 0
+      || (p?.transports?.length ?? 0) > 0
+      || (p?.elements?.length ?? 0) > 0;
+  } catch { return false; }
+};
+
 interface CreateCommessaButtonProps {
   /** Etichetta del bottone (es. "Crea commessa") */
   label?: string;

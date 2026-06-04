@@ -183,7 +183,24 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     setLoading(false);
   }, [allowedReparti, cacheKey, dayStrs, mode, profiles]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayStrs[0]]);
+  useEffect(() => {
+    const cached = dataCache.get(cacheKey);
+    if (cached) {
+      setAssignments(cached.assignments);
+      setProdSubs(cached.prodSubs);
+      if (cached.profiles.length > 0) {
+        setProfiles(cached.profiles);
+        profilesLoadedRef.current = true;
+      }
+      setLoading(false);
+    } else {
+      setAssignments([]);
+      setProdSubs([]);
+      setLoading(true);
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey]);
 
   useEffect(() => {
     if (!loading || assignments.length > 0 || prodSubs.length > 0 || profiles.length > 0) {

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
-import { ProdDept, WORK_DEPTS, DEPT_LABEL, DEPT_COLOR } from "@/lib/produzione/types";
+import { ProdDept, WORK_DEPTS, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;

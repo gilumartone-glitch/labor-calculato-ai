@@ -27,6 +27,7 @@ import ProdAcquisti from "./pages/produzione/ProdAcquisti.tsx";
 import ProdLog from "./pages/produzione/ProdLog.tsx";
 import MagazzinoView from "./pages/MagazzinoView.tsx";
 import Marketing from "./pages/Marketing.tsx";
+import Record from "./pages/Record.tsx";
 import { FloatingHubButton } from "@/components/HubLink";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/hub" element={<Hub />} />
             <Route path="/magazzino" element={<MagazzinoView />} />
             <Route path="/marketing" element={<Marketing />} />
+            <Route path="/record" element={<Record />} />
             <Route path="/flow" element={<RouteGuard page="flow"><Flow /></RouteGuard>} />
             <Route path="/falegnameria" element={<RouteGuard page="falegnameria"><Falegnameria /></RouteGuard>} />
             <Route path="/montaggi" element={<RouteGuard page="montaggi"><Montaggi /></RouteGuard>} />

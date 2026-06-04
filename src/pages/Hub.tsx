@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat, Hammer } from "lucide-react";
+import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat, Hammer, BookMarked } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
@@ -133,6 +133,22 @@ const Hub = () => {
                 </div>
                 <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Marketing</h3>
                 <p className="text-sm text-white/80">Newsletter Mailchimp e rubrica contatti per categoria</p>
+                <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
+              </Link>
+            )}
+            {(isAdmin || approved) && (
+              <Link
+                to="/record"
+                className="group relative border-2 bg-[hsl(210_25%_28%)] text-white border-[hsl(210_25%_18%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-14 h-14 rounded-sm bg-[hsl(210_25%_18%)] text-white grid place-items-center">
+                    <BookMarked className="w-7 h-7" />
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-white/70">record</span>
+                </div>
+                <h3 className="font-display text-2xl font-semibold leading-tight mb-1">Record</h3>
+                <p className="text-sm text-white/80">Promemoria personali su clienti/fornitori: pagamenti, scadenze, note</p>
                 <span className="absolute bottom-4 right-5 font-mono text-[11px] uppercase tracking-widest text-white/60 group-hover:text-white">Apri →</span>
               </Link>
             )}

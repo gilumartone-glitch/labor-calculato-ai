@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,10 +11,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 
-type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "falegnameria" | "altro";
+type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "altro";
+type CalendarMode = "montaggi" | "lavorazioni";
 type Operator = { id: string; name: string; role?: string; userId?: string; reparti?: Reparto[] };
 type Assignment = {
   id: string;
@@ -41,11 +52,12 @@ type ProfileLite = { id: string; display_name: string | null; settori?: string[]
 
 const OPERATORS_KEY = "montaggi:operai:v1";
 
-const REPARTI: Reparto[] = ["montaggi", "laboratorio", "tappezzeria", "falegnameria", "altro"];
+const REPARTI: Reparto[] = ["montaggi", "laboratorio", "tappezzeria", "vendite", "falegnameria", "altro"];
 const REPARTO_LABEL: Record<Reparto, string> = {
   montaggi: "Montaggi",
   laboratorio: "Laboratorio",
   tappezzeria: "Tappezzeria",
+  vendite: "Vendite",
   falegnameria: "Falegnameria",
   altro: "Altro",
 };
@@ -53,8 +65,15 @@ const REPARTO_BG: Record<Reparto, string> = {
   montaggi: "#F59E0B",
   laboratorio: "#0EA5E9",
   tappezzeria: "#A855F7",
+  vendite: "#10B981",
   falegnameria: "#92400E",
   altro: "#6B7280",
+};
+
+// Reparti gestiti per modalità
+const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
+  montaggi: ["montaggi"],
+  lavorazioni: ["laboratorio", "tappezzeria", "vendite"],
 };
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
@@ -72,6 +91,7 @@ const prettyOpName = (raw: string) => {
   const s = raw.startsWith("proj:") ? raw.slice(5) : raw;
   return s.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 };
+
 
 const DAYS = 14;
 const TARGET_HOURS_PER_DAY = 8;

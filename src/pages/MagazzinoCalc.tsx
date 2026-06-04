@@ -150,6 +150,19 @@ const hydrate = (raw: unknown): MagState => {
           ? f.classes.map((c: any) => ({ id: c.id ?? uid(), className: c.className ?? "", consumptionKgPerM2: Number(c.consumptionKgPerM2 ?? 0) }))
           : [],
         finishes: Array.isArray(f.finishes) ? f.finishes : [],
+        finishCans: Array.isArray(f.finishCans)
+          ? f.finishCans
+              .map((c: any) => {
+                const label = String(c?.label ?? c?.kg ?? "").trim();
+                const kg = Number.isFinite(Number(c?.kg)) && Number(c?.kg) > 0 ? Number(c.kg) : parseKgExpr(label);
+                return { id: c?.id ?? uid(), kg, label: label || (kg ? String(kg) : ""), price: Number(c?.price ?? 0) || 0 };
+              })
+              .filter((c: FireCan) => c.kg > 0)
+          : undefined,
+        finishClasses: Array.isArray(f.finishClasses)
+          ? f.finishClasses.map((c: any) => ({ id: c.id ?? uid(), className: c.className ?? "", consumptionKgPerM2: Number(c.consumptionKgPerM2 ?? 0) }))
+          : undefined,
+        finishCoats: f.finishCoats != null ? Math.max(1, Number(f.finishCoats)) : undefined,
         note: f.note,
       }))
     : [];

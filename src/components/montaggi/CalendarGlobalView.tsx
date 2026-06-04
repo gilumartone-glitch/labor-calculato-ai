@@ -742,7 +742,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
               <span className="w-2 h-2 rounded" style={{ backgroundColor: REPARTO_BG[r] }} />{REPARTO_LABEL[r]}
             </span>
           ))}
-          <span className="text-muted-foreground ml-auto">Gli impegni di laboratorio/tappezzeria provengono dai sub-ordini di produzione assegnati.</span>
+          <span className="text-muted-foreground ml-auto">Colore chip = reparto · bordo sinistro = cantiere. Gli impegni di laboratorio/tappezzeria includono i sub-ordini di produzione.</span>
         </CardContent>
       </Card>
 

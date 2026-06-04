@@ -288,7 +288,7 @@ export const CalendarGlobalView = () => {
                           <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""} ${isWeekend ? "bg-muted/30" : ""}`}>
                             <div className="space-y-0.5 min-h-[42px]">
                               {list.map((a) => {
-                                const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? a.operator_id.slice(0, 6);
+                                const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
                                   <div
                                     key={a.id}

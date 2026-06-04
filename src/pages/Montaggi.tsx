@@ -538,15 +538,8 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
         <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
           <Card className="border-2 border-dept bg-paper shadow-soft">
-            <CardHeader><CardTitle>Lavorazione: reparto e squadra</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <LavorazioneGuidedForm
-                value={project.guided ?? emptyGuided()}
-                onChange={(guided) => updateProject({ guided })}
-                users={profiles}
-                compact
-              />
-              <div className="flex flex-wrap gap-2 print:hidden border-t border-border pt-3">
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-2 print:hidden">
                 <Button onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
               </div>
             </CardContent>

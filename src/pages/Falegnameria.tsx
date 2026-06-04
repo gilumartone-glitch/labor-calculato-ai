@@ -233,6 +233,12 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [section, setSection] = useState<WoodSection>("progetto");
   const [projectReady, setProjectReady] = useState(false);
+  const [profiles, setProfiles] = useState<{ id: string; display_name: string | null; settori?: string[] | null }[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
+      if (data) setProfiles(data as never);
+    });
+  }, []);
   const draftId = (typeof window !== "undefined" && localStorage.getItem("officina:active-draft")) || "default";
   const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:${draftId}`;
   const cloud = useCloudWorkspace<WoodProject | null>(`falegnameria_project:${draftId}`, null, {

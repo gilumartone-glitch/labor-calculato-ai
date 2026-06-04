@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 
@@ -382,33 +381,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     if (error) { setAssignments(prev); return toast.error(error.message); }
     if (!opts?.silent) toast.success("Impegno eliminato");
     setEditing(null);
-  };
-
-  // Propaga un'assegnazione su un intervallo (dal→al inclusi) — ottimistico
-  const propagateAssignment = async (a: Assignment, fromStr: string, toStr: string) => {
-    if (!user) return toast.error("Non autenticato");
-    const from = new Date(fromStr); const to = new Date(toStr);
-    if (isNaN(from.getTime()) || isNaN(to.getTime()) || to < from) return toast.error("Intervallo non valido");
-    const rows: Array<{ operator_id: string; date: string; hours: number; cantiere_label: string; notes: string | null; reparto: string; commessa_id: string | null; created_by: string }> = [];
-    const cur = new Date(from);
-    while (cur <= to) {
-      const ds = fmtDate(cur);
-      const dup = modeAssignments.some((x) => x.operator_id === a.operator_id && x.date === ds && x.cantiere_label === a.cantiere_label);
-      if (!dup) {
-        rows.push({
-          operator_id: a.operator_id, date: ds, hours: a.hours,
-          cantiere_label: a.cantiere_label, notes: a.notes ?? null,
-          reparto: (a.reparto ?? defaultReparto) as string,
-          commessa_id: a.commessa_id, created_by: user.id,
-        });
-      }
-      cur.setDate(cur.getDate() + 1);
-    }
-    if (rows.length === 0) { toast.info("Nessun giorno da aggiungere"); return; }
-    const { data, error } = await supabase.from("montaggi_planning").insert(rows).select();
-    if (error) return toast.error(error.message);
-    setAssignments((curList) => [...curList, ...((data ?? []) as Assignment[])]);
-    toast.success(`Aggiunti ${rows.length} giorni`);
   };
 
   // === Spostamento veloce: drag HTML nativo, molto più leggero di @dnd-kit sulla griglia grande ===

@@ -29,10 +29,10 @@ export default function MontaggiPianificazione() {
             <TabsTrigger value="montaggi">Montaggi</TabsTrigger>
             <TabsTrigger value="lavorazioni">Lavorazioni</TabsTrigger>
           </TabsList>
-          <TabsContent value="montaggi" className="space-y-4">
+          <TabsContent value="montaggi" className="space-y-4" forceMount>
             <CalendarGlobalView mode="montaggi" />
           </TabsContent>
-          <TabsContent value="lavorazioni" className="space-y-4">
+          <TabsContent value="lavorazioni" className="space-y-4" forceMount>
             <CalendarGlobalView mode="lavorazioni" />
           </TabsContent>
         </Tabs>

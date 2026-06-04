@@ -21,6 +21,7 @@ import { CommessaDialog } from "@/components/flow/CommessaDialog";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { HubLink } from "@/components/HubLink";
 import { CommessaDetailDialog } from "@/components/flow/CommessaDetailDialog";
+import { CantieriStrip } from "@/components/flow/CantieriStrip";
 import { Commessa, CommessaStato, Profile, REPARTI, STATI } from "@/components/flow/types";
 import { usePermissions } from "@/hooks/usePermissions";
 

@@ -173,7 +173,27 @@ export default function Dipendenti() {
     return list;
   }, [editing]);
 
+  if (authLoading || permLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!can("dipendenti", "read") && !isAdmin) {
+    return (
+      <div className="min-h-screen grid place-items-center px-6">
+        <div className="max-w-md text-center border-2 border-ink bg-paper p-8 rounded-sm">
+          <h1 className="font-display text-2xl font-semibold mb-2">Accesso non consentito</h1>
+          <p className="text-sm text-muted-foreground">Non hai i permessi per gestire i dipendenti.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className="min-h-screen bg-background">
       <header className="app-header border-b-2 border-ink bg-paper">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">

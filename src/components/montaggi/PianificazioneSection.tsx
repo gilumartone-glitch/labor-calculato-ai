@@ -119,9 +119,9 @@ export const PianificazioneSection = ({
 
   // Inline add operator
   const [newOpNames, setNewOpNames] = useState("");
-  // Bulk range
-  const [bulk, setBulk] = useState<{ operatorId: string; from: string; to: string; hours: number; includeWeekends: boolean }>(() => ({
-    operatorId: "",
+  // Bulk range — supporta più operai contemporaneamente
+  const [bulk, setBulk] = useState<{ operatorIds: string[]; from: string; to: string; hours: number; includeWeekends: boolean }>(() => ({
+    operatorIds: [],
     from: fmtDate(new Date()),
     to: fmtDate(addDays(new Date(), 2)),
     hours: 8,
@@ -340,21 +340,28 @@ export const PianificazioneSection = ({
     loadAssignments();
   };
 
-  /** Bulk range assignment */
+  /** Bulk range assignment — uno o più operai */
   const applyBulkRange = async () => {
     if (!user) return toast.error("Non autenticato");
-    if (!bulk.operatorId) return toast.info("Seleziona un operaio");
+    if (!bulk.operatorIds.length) return toast.info("Seleziona almeno un operaio");
     const from = new Date(bulk.from);
     const to = new Date(bulk.to);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return toast.error("Intervallo date non valido");
     const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string; reparto: Reparto }> = [];
+    const dates: string[] = [];
     const cur = new Date(from);
     while (cur <= to) {
       const dow = (cur.getDay() + 6) % 7;
       if (bulk.includeWeekends || dow < 5) {
+        dates.push(fmtDate(cur));
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    for (const opId of bulk.operatorIds) {
+      for (const d of dates) {
         rows.push({
-          operator_id: bulk.operatorId,
-          date: fmtDate(cur),
+          operator_id: opId,
+          date: d,
           hours: bulk.hours,
           commessa_id: view === "progetto" ? draftId : null,
           cantiere_label: cantiereLabel,
@@ -362,21 +369,22 @@ export const PianificazioneSection = ({
           reparto: "montaggi",
         });
       }
-      cur.setDate(cur.getDate() + 1);
     }
     if (rows.length === 0) return toast.info("Nessun giorno selezionato");
     const { error } = await supabase.from("montaggi_planning").insert(rows);
     if (error) return toast.error(error.message);
-    // Notifica riassuntiva
-    const userId = userIdForOperator(bulk.operatorId);
-    if (userId) {
-      const dateList = rows.map((r) => new Date(r.date).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
-      await supabase.from("prod_notifications").insert({
-        user_id: userId,
-        type: "chat_messaggio",
-        message: `📅 Nuovi impegni — Cantiere: ${cantiereLabel} (${bulk.hours}h/giorno)\nGiornate: ${dateList}${buildProjectInfoBlock()}`,
-        is_urgent: false,
-      });
+    // Notifica riassuntiva ad ogni operaio collegato
+    for (const opId of bulk.operatorIds) {
+      const userId = userIdForOperator(opId);
+      if (userId) {
+        const dateList = dates.map((d) => new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
+        await supabase.from("prod_notifications").insert({
+          user_id: userId,
+          type: "chat_messaggio",
+          message: `📅 Nuovi impegni — Cantiere: ${cantiereLabel} (${bulk.hours}h/giorno)\nGiornate: ${dateList}${buildProjectInfoBlock()}`,
+          is_urgent: false,
+        });
+      }
     }
     toast.success(`Aggiunte ${rows.length} giornate`);
     loadAssignments();
@@ -585,11 +593,30 @@ export const PianificazioneSection = ({
           <CardContent>
             <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_100px_auto_auto]">
               <div className="space-y-1">
-                <Label className="text-xs">Operaio</Label>
-                <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={bulk.operatorId} onChange={(e) => setBulk({ ...bulk, operatorId: e.target.value })}>
-                  <option value="">Seleziona…</option>
-                  {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                </select>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Operai ({bulk.operatorIds.length} selezionati)</Label>
+                  <div className="flex gap-1">
+                    <button type="button" className="text-[10px] underline text-muted-foreground hover:text-foreground" onClick={() => setBulk({ ...bulk, operatorIds: operators.map((o) => o.id) })}>Tutti</button>
+                    <button type="button" className="text-[10px] underline text-muted-foreground hover:text-foreground" onClick={() => setBulk({ ...bulk, operatorIds: [] })}>Nessuno</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto border border-input rounded-md p-1.5 bg-background">
+                  {operators.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground italic px-1">Nessun operaio</span>
+                  ) : operators.map((o) => {
+                    const selected = bulk.operatorIds.includes(o.id);
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => setBulk({ ...bulk, operatorIds: selected ? bulk.operatorIds.filter((x) => x !== o.id) : [...bulk.operatorIds, o.id] })}
+                        className={`text-[11px] px-2 py-0.5 rounded-sm border transition-colors ${selected ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-muted"}`}
+                      >
+                        {o.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="space-y-1"><Label className="text-xs">Dal</Label><Input type="date" value={bulk.from} onChange={(e) => setBulk({ ...bulk, from: e.target.value })} /></div>
               <div className="space-y-1"><Label className="text-xs">Al</Label><Input type="date" value={bulk.to} onChange={(e) => setBulk({ ...bulk, to: e.target.value })} /></div>

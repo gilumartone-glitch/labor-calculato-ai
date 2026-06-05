@@ -379,6 +379,13 @@ export const DraftTabsBar = () => {
     };
   }, [activeId, user]);
 
+  // Cache nome della schedina attiva in localStorage (usato dal dialog "Crea commessa nel Flow")
+  useEffect(() => {
+    const active = drafts.find((d) => d.id === activeId);
+    if (active?.name) localStorage.setItem(ACTIVE_DRAFT_NAME_KEY, active.name);
+    else localStorage.removeItem(ACTIVE_DRAFT_NAME_KEY);
+  }, [activeId, drafts]);
+
   // Auto-versioning: ogni VERSION_INTERVAL_MS controlla se lo snapshot è cambiato
   // rispetto all'ultima versione e in tal caso ne salva una nuova.
   useEffect(() => {

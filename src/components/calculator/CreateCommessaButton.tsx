@@ -310,12 +310,7 @@ export const CreateCommessaButton = ({
       toast.error("Inserisci un titolo");
       return;
     }
-    if (!scadenza) {
-      toast.error("Imposta una data di lavorazione prima di inviare al Flow", {
-        description: "Seleziona la data prevista per la lavorazione: senza data la commessa non può essere pianificata.",
-      });
-      return;
-    }
+    // Scadenza generale opzionale: ogni reparto ha le proprie date (inizio/fine/consegna).
     // Validazione pianificazione per reparto (tutti i reparti rilevati)
     if (!warehouseOnly) {
       if (!generalManager) {
@@ -784,7 +779,7 @@ export const CreateCommessaButton = ({
               </Select>
             </div>
             <div>
-              <Label htmlFor="scadenza">Scadenza</Label>
+              <Label htmlFor="scadenza">Scadenza <span className="text-muted-foreground text-[10px]">(opzionale · le date di fine sono per reparto)</span></Label>
               <Input
                 id="scadenza"
                 type="date"

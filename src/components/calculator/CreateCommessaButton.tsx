@@ -616,27 +616,62 @@ export const CreateCommessaButton = ({
             is_urgent: prodPrio !== "normale",
           });
         }
-        // === Propagazione Montaggi → Assegnazione (operai + attrezzi/materiali) ===
+        // === Seed righe pianificazione per tutti i reparti che hanno date+operai ===
+        // Mappa ProdDept → reparto della pianificazione (solo quelli rilevanti per il calendario)
+        const DEPT_TO_REPARTO: Partial<Record<ProdDept, "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria">> = {
+          montaggi: "montaggi",
+          laboratorio: "laboratorio",
+          tappezzeria: "tappezzeria",
+          vendite: "vendite",
+          falegnameria: "falegnameria",
+        };
+        const eachWorkday = (start: string, end: string): string[] => {
+          if (!start) return [];
+          const last = end && end >= start ? end : start;
+          const out: string[] = [];
+          const cur = new Date(`${start}T00:00:00`);
+          const stop = new Date(`${last}T00:00:00`);
+          while (cur <= stop) {
+            const dow = cur.getDay();
+            if (dow !== 0 && dow !== 6) out.push(cur.toISOString().slice(0, 10));
+            cur.setDate(cur.getDate() + 1);
+          }
+          return out.length > 0 ? out : [start];
+        };
+        const allPlanRows: any[] = [];
+        for (const dept of depts) {
+          const reparto = DEPT_TO_REPARTO[dept];
+          if (!reparto) continue;
+          const plan = planningFor(dept);
+          if (!plan.startDate) continue;
+          const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(plan.responsabile ? [plan.responsabile] : [])]));
+          if (opIds.length === 0) continue;
+          const days = eachWorkday(plan.startDate, plan.endDate);
+          for (const opId of opIds) {
+            for (const day of days) {
+              allPlanRows.push({
+                operator_id: opId,
+                date: day,
+                hours: 8,
+                commessa_id: pendingPayload.commessaId,
+                cantiere_label: pendingPayload.clienteName,
+                notes: titolo.trim() || null,
+                reparto,
+                created_by: user.id,
+              });
+            }
+          }
+        }
+        if (allPlanRows.length > 0) {
+          const { error: ePlan } = await supabase.from("montaggi_planning").insert(allPlanRows);
+          if (ePlan) console.warn("[montaggi_planning] insert error", ePlan.message);
+        }
+
+        // === Propagazione Montaggi → Assegnazione (attrezzi/materiali + notifica operai) ===
         let montaggiSummary = "";
         if (depts.includes("montaggi")) {
           const planM = planningFor("montaggi");
           const opIds = Array.from(new Set([...(planM.operatorIds || []), ...(planM.responsabile ? [planM.responsabile] : [])]));
-
-          // 1) Righe in montaggi_planning → gli operai compaiono in Montaggi → Assegnazione
-          if (opIds.length > 0 && planM.startDate) {
-            const planRows = opIds.map((opId) => ({
-              operator_id: opId,
-              date: planM.startDate,
-              hours: 8,
-              commessa_id: pendingPayload.commessaId,
-              cantiere_label: pendingPayload.clienteName,
-              notes: titolo.trim() || null,
-              reparto: "montaggi" as const,
-              created_by: user.id,
-            }));
-            const { error: ePlan } = await supabase.from("montaggi_planning").insert(planRows);
-            if (ePlan) console.warn("[montaggi_planning] insert error", ePlan.message);
-          }
 
           // 2) Attrezzi/materiali dal modulo Montaggi → assignment items della commessa
           const montaggiData: any = (pendingPayload.productionSnapshot as any)?.designState?.montaggi;

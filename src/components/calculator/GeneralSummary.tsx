@@ -48,6 +48,21 @@ export const GeneralSummary = ({
   const net = cost;
   const vatAmount = 0;
   const total = cost;
+
+  // Titolo schedina (draft attivo) come default per il dialog "Crea commessa nel Flow"
+  const schedinaTitle = (() => {
+    try {
+      const activeId = typeof window !== "undefined" ? localStorage.getItem("officina:active-draft") : null;
+      if (!activeId) return "";
+      const raw = localStorage.getItem("officina:drafts-meta");
+      if (raw) {
+        const meta = JSON.parse(raw);
+        const found = Array.isArray(meta) ? meta.find((d: any) => d?.id === activeId) : null;
+        if (found?.name) return String(found.name);
+      }
+    } catch { /* ignore */ }
+    return "";
+  })();
   const perPiece = quantity > 0 ? total / quantity : total;
 
   return (

@@ -63,7 +63,7 @@ const REPARTO_BG: Record<Reparto, string> = {
 // Reparti gestiti per modalità
 const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
   montaggi: ["montaggi"],
-  lavorazioni: ["laboratorio", "tappezzeria", "vendite"],
+  lavorazioni: ["laboratorio", "tappezzeria", "vendite", "falegnameria"],
 };
 
 const colorForCantiere = (label: string) => {

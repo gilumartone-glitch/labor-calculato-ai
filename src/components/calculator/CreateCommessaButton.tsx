@@ -210,9 +210,11 @@ export const CreateCommessaButton = ({
     patchPlanning(d, { operatorIds: ids });
   };
   const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
-
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
-  const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];
+  const PLANNED_DEPTS: ProdDept[] = [
+    "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
+    "falegnameria", "assemblaggio", "laboratorio", "vendite", "montaggi",
+  ];
 
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const [montaggiActive, setMontaggiActive] = useState<boolean>(false);

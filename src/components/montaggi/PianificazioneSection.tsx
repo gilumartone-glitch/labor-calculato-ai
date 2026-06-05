@@ -119,9 +119,9 @@ export const PianificazioneSection = ({
 
   // Inline add operator
   const [newOpNames, setNewOpNames] = useState("");
-  // Bulk range
-  const [bulk, setBulk] = useState<{ operatorId: string; from: string; to: string; hours: number; includeWeekends: boolean }>(() => ({
-    operatorId: "",
+  // Bulk range — supporta più operai contemporaneamente
+  const [bulk, setBulk] = useState<{ operatorIds: string[]; from: string; to: string; hours: number; includeWeekends: boolean }>(() => ({
+    operatorIds: [],
     from: fmtDate(new Date()),
     to: fmtDate(addDays(new Date(), 2)),
     hours: 8,

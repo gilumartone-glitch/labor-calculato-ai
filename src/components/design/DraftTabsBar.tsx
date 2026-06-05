@@ -548,7 +548,7 @@ export const DraftTabsBar = () => {
     setDrafts(remaining);
     if (id === activeId) {
       const next = remaining[0];
-      writeLocalState(next.snapshot ?? {});
+      writeLocalState(next.snapshot ?? {}, next.id);
       setActiveId(next.id);
       localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
       await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);

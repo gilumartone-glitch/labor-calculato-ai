@@ -340,21 +340,28 @@ export const PianificazioneSection = ({
     loadAssignments();
   };
 
-  /** Bulk range assignment */
+  /** Bulk range assignment — uno o più operai */
   const applyBulkRange = async () => {
     if (!user) return toast.error("Non autenticato");
-    if (!bulk.operatorId) return toast.info("Seleziona un operaio");
+    if (!bulk.operatorIds.length) return toast.info("Seleziona almeno un operaio");
     const from = new Date(bulk.from);
     const to = new Date(bulk.to);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return toast.error("Intervallo date non valido");
     const rows: Array<{ operator_id: string; date: string; hours: number; commessa_id: string | null; cantiere_label: string; created_by: string; reparto: Reparto }> = [];
+    const dates: string[] = [];
     const cur = new Date(from);
     while (cur <= to) {
       const dow = (cur.getDay() + 6) % 7;
       if (bulk.includeWeekends || dow < 5) {
+        dates.push(fmtDate(cur));
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    for (const opId of bulk.operatorIds) {
+      for (const d of dates) {
         rows.push({
-          operator_id: bulk.operatorId,
-          date: fmtDate(cur),
+          operator_id: opId,
+          date: d,
           hours: bulk.hours,
           commessa_id: view === "progetto" ? draftId : null,
           cantiere_label: cantiereLabel,
@@ -362,21 +369,22 @@ export const PianificazioneSection = ({
           reparto: "montaggi",
         });
       }
-      cur.setDate(cur.getDate() + 1);
     }
     if (rows.length === 0) return toast.info("Nessun giorno selezionato");
     const { error } = await supabase.from("montaggi_planning").insert(rows);
     if (error) return toast.error(error.message);
-    // Notifica riassuntiva
-    const userId = userIdForOperator(bulk.operatorId);
-    if (userId) {
-      const dateList = rows.map((r) => new Date(r.date).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
-      await supabase.from("prod_notifications").insert({
-        user_id: userId,
-        type: "chat_messaggio",
-        message: `📅 Nuovi impegni — Cantiere: ${cantiereLabel} (${bulk.hours}h/giorno)\nGiornate: ${dateList}${buildProjectInfoBlock()}`,
-        is_urgent: false,
-      });
+    // Notifica riassuntiva ad ogni operaio collegato
+    for (const opId of bulk.operatorIds) {
+      const userId = userIdForOperator(opId);
+      if (userId) {
+        const dateList = dates.map((d) => new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
+        await supabase.from("prod_notifications").insert({
+          user_id: userId,
+          type: "chat_messaggio",
+          message: `📅 Nuovi impegni — Cantiere: ${cantiereLabel} (${bulk.hours}h/giorno)\nGiornate: ${dateList}${buildProjectInfoBlock()}`,
+          is_urgent: false,
+        });
+      }
     }
     toast.success(`Aggiunte ${rows.length} giornate`);
     loadAssignments();

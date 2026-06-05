@@ -242,7 +242,7 @@ const writeLocalState = (snap: Record<string, unknown>, draftId?: string | null)
   }
 };
 
-export const DraftTabsBar = () => {
+export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode } = {}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

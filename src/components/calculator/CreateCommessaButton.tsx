@@ -618,12 +618,17 @@ export const CreateCommessaButton = ({
         }
         // === Seed righe pianificazione per tutti i reparti che hanno date+operai ===
         // Mappa ProdDept → reparto della pianificazione (solo quelli rilevanti per il calendario)
-        const DEPT_TO_REPARTO: Partial<Record<ProdDept, "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria">> = {
+        const DEPT_TO_REPARTO: Partial<Record<ProdDept, string>> = {
           montaggi: "montaggi",
           laboratorio: "laboratorio",
           tappezzeria: "tappezzeria",
           vendite: "vendite",
           falegnameria: "falegnameria",
+          stampa: "stampa",
+          taglio: "taglio",
+          stampa_3d: "stampa_3d",
+          assemblaggio: "assemblaggio",
+          progettazione: "progettazione",
         };
         const eachWorkday = (start: string, end: string): string[] => {
           if (!start) return [];

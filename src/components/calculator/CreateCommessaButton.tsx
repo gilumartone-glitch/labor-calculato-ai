@@ -305,21 +305,37 @@ export const CreateCommessaButton = ({
       });
       return;
     }
-    // Validazione pianificazione per reparto (laboratorio/tappezzeria/falegnameria/vendite/montaggi)
+    // Validazione pianificazione per reparto (tutti i reparti rilevati)
     if (!warehouseOnly) {
-      const modeDepts = planningMode === "montaggi" ? ["montaggi"] : LAVORAZIONI_DEPTS;
-      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
+      if (!generalManager) {
+        toast.error("Nomina un responsabile generale di progetto");
+        return;
+      }
+      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
       for (const d of toPlan) {
         const p = planningFor(d);
-        if (!p.startDate || !p.endDate || !p.deliveryDate || !p.responsabile || p.operatorIds.length === 0) {
+        if (!p.startDate || !p.endDate || !p.deliveryDate || p.operatorIds.length === 0) {
           toast.error(`${DEPT_LABEL[d]}: completa la pianificazione`, {
-            description: "Servono date inizio/fine lavorazione, data di consegna, responsabile e almeno un operatore.",
+            description: "Servono date inizio/fine lavorazione, data di consegna e almeno un operatore.",
           });
           return;
         }
         if (p.endDate < p.startDate) {
           toast.error(`${DEPT_LABEL[d]}: la data fine è precedente all'inizio`);
           return;
+        }
+        // Responsabile: se 1 solo operatore, è automaticamente lui;
+        // se più operatori, serve la nomina esplicita.
+        if (!p.responsabile) {
+          if (p.operatorIds.length === 1) {
+            p.responsabile = p.operatorIds[0];
+            patchPlanning(d, { responsabile: p.operatorIds[0] });
+          } else {
+            toast.error(`${DEPT_LABEL[d]}: nomina un responsabile`, {
+              description: "Con più operatori serve un responsabile della lavorazione.",
+            });
+            return;
+          }
         }
       }
     }

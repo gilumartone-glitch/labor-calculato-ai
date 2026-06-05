@@ -561,7 +561,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                               draggingId={draggingId}
                               onDropAssignment={(dragId) => handleDropAssignment(dragId, op.id, dateStr)}
                             >
-                              <div className="space-y-0.5 min-h-[42px]">
+                              <div className="space-y-1 min-h-[64px]">
                                 {list.map((a) => (
                                   <DraggableChip
                                     key={a.id}

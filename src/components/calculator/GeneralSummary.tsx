@@ -208,7 +208,7 @@ export const GeneralSummary = ({
         <div className="mt-6 pt-6 border-t border-paper/20">
           <CreateCommessaButton
             label="Trasforma in commessa nel Flow"
-            defaultTitle={jobName || schedinaTitle || "Lavorazione su misura"}
+            defaultTitle={schedinaTitle || (jobName && jobName !== "Lavorazione su misura" ? jobName : "") || jobName || "Lavorazione su misura"}
             defaultAmount={total}
             defaultReparto="generale"
             snapshot={{

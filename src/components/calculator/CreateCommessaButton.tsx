@@ -613,7 +613,94 @@ export const CreateCommessaButton = ({
             is_urgent: prodPrio !== "normale",
           });
         }
+        // === Propagazione Montaggi → Assegnazione (operai + attrezzi/materiali) ===
+        let montaggiSummary = "";
+        if (depts.includes("montaggi")) {
+          const planM = planningFor("montaggi");
+          const opIds = Array.from(new Set([...(planM.operatorIds || []), ...(planM.responsabile ? [planM.responsabile] : [])]));
+
+          // 1) Righe in montaggi_planning → gli operai compaiono in Montaggi → Assegnazione
+          if (opIds.length > 0 && planM.startDate) {
+            const planRows = opIds.map((opId) => ({
+              operator_id: opId,
+              date: planM.startDate,
+              hours: 8,
+              commessa_id: pendingPayload.commessaId,
+              cantiere_label: pendingPayload.clienteName,
+              notes: titolo.trim() || null,
+              reparto: "montaggi" as const,
+              created_by: user.id,
+            }));
+            const { error: ePlan } = await supabase.from("montaggi_planning").insert(planRows);
+            if (ePlan) console.warn("[montaggi_planning] insert error", ePlan.message);
+          }
+
+          // 2) Attrezzi/materiali dal modulo Montaggi → assignment items della commessa
+          const montaggiData: any = (pendingPayload.productionSnapshot as any)?.designState?.montaggi;
+          if (montaggiData) {
+            const tools = Array.isArray(montaggiData.tools) ? montaggiData.tools : [];
+            const matCatalog = Array.isArray(montaggiData.materialCatalog) ? montaggiData.materialCatalog : [];
+            const matLines = Array.isArray(montaggiData.materials) ? montaggiData.materials : [];
+            const items: any[] = [];
+            const toolLines: string[] = [];
+            const matSummaryLines: string[] = [];
+            for (const t of tools) {
+              const name = String(t?.name ?? "").trim();
+              if (!name) continue;
+              const qty = Number(t?.qty) || 1;
+              items.push({
+                commessa_id: pendingPayload.commessaId,
+                kind: "attrezzo",
+                ref_nome: name,
+                qty,
+                unita: "pz",
+                created_by: user.id,
+              });
+              toolLines.push(`${name}×${qty}`);
+            }
+            for (const m of matLines) {
+              const cat = matCatalog.find((c: any) => c?.id === m?.materialId);
+              const name = String(cat?.name ?? m?.name ?? "").trim();
+              if (!name) continue;
+              const qty = Number(m?.quantity ?? m?.qty) || 1;
+              const unit = cat?.unit ?? m?.unit ?? "pz";
+              items.push({
+                commessa_id: pendingPayload.commessaId,
+                kind: "materiale",
+                ref_nome: name,
+                qty,
+                unita: unit,
+                created_by: user.id,
+              });
+              matSummaryLines.push(`${name} ${qty}${unit}`);
+            }
+            if (items.length > 0) {
+              const { error: eItems } = await supabase.from("montaggi_assignment_items").insert(items);
+              if (eItems) console.warn("[montaggi_assignment_items] insert error", eItems.message);
+            }
+            const parts: string[] = [];
+            if (toolLines.length) parts.push(`Attrezzi: ${toolLines.slice(0, 5).join(", ")}${toolLines.length > 5 ? "…" : ""}`);
+            if (matSummaryLines.length) parts.push(`Materiali: ${matSummaryLines.slice(0, 5).join(", ")}${matSummaryLines.length > 5 ? "…" : ""}`);
+            montaggiSummary = parts.join(" · ");
+          }
+
+          // 3) Notifica TUTTI gli operai del montaggio (con riepilogo attrezzi/materiali)
+          const montaggiTargets = opIds.filter((id) => id !== user.id);
+          if (montaggiTargets.length > 0) {
+            await notify({
+              userIds: montaggiTargets,
+              type: "ordine_creato",
+              message: `Montaggio assegnato: ${code} · ${pendingPayload.clienteName}${montaggiSummary ? ` — ${montaggiSummary}` : ""}`,
+              order_id: pord.id,
+              link: `/preventivi?tab=montaggi`,
+              is_urgent: prodPrio !== "normale",
+            });
+          }
+        }
+
         for (const s of insertedSubs) {
+          // Montaggi: già notificato sopra a tutti gli operai → evita doppio invio
+          if (s.dept === "montaggi") continue;
           if (s.assignee && s.assignee !== user.id) {
             await notify({
               userIds: [s.assignee],
@@ -626,6 +713,7 @@ export const CreateCommessaButton = ({
           }
         }
       }
+
 
       const flowAssigneeIds = Array.from(new Set([
         d.missing?.length ? d.acquisti_assignee_id : null,

@@ -834,7 +834,7 @@ export const CreateCommessaButton = ({
                 Selezionando un tipo, l'altro viene escluso da questa pianificazione.
               </div>
               {(() => {
-                const modeDepts = planningMode === "montaggi" ? ["montaggi"] as ProdDept[] : LAVORAZIONI_DEPTS;
+                const modeDepts = planningMode === "montaggi" ? (["montaggi"] as ProdDept[]) : LAVORAZIONI_DEPTS;
                 const visible = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
                 if (visible.length === 0) {
                   return (
@@ -843,9 +843,9 @@ export const CreateCommessaButton = ({
                     </div>
                   );
                 }
-                return visible;
-              })().constructor === Array ? null : null}
-              {(planningMode === "montaggi" ? ["montaggi"] as ProdDept[] : LAVORAZIONI_DEPTS)
+                return null;
+              })()}
+              {(planningMode === "montaggi" ? (["montaggi"] as ProdDept[]) : LAVORAZIONI_DEPTS)
                 .filter((d) => activeDepts.includes(d) && PLANNED_DEPTS.includes(d))
                 .map((d) => {
                 const p = planningFor(d);

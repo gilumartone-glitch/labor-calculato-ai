@@ -307,7 +307,8 @@ export const CreateCommessaButton = ({
     }
     // Validazione pianificazione per reparto (laboratorio/tappezzeria/falegnameria/vendite/montaggi)
     if (!warehouseOnly) {
-      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
+      const modeDepts = planningMode === "montaggi" ? ["montaggi"] : LAVORAZIONI_DEPTS;
+      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
       for (const d of toPlan) {
         const p = planningFor(d);
         if (!p.startDate || !p.endDate || !p.deliveryDate || !p.responsabile || p.operatorIds.length === 0) {

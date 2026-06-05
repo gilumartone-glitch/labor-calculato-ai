@@ -664,7 +664,33 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
               <Stat label="Importo" value={typeof commessa.importo === "number" ? eur(commessa.importo) : "—"} />
               <Stat label="Reparto" value={REPARTO_LABEL[commessa.reparto] ?? commessa.reparto} />
               <Stat label="Stato" value={commessa.stato.replace("_", " ")} />
-              <Stat label="Scadenza" value={fmtDate(commessa.data_scadenza)} />
+              <div className="border-2 border-ink/15 rounded-sm p-2.5 bg-paper">
+                <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Data lavorazione / scadenza</div>
+                {canAct ? (
+                  <input
+                    type="date"
+                    value={commessa.data_scadenza ?? ""}
+                    disabled={busy}
+                    onChange={async (e) => {
+                      const v = e.target.value || null;
+                      setBusy(true);
+                      try {
+                        const { error } = await supabase.from("commesse").update({ data_scadenza: v }).eq("id", commessa.id);
+                        if (error) throw error;
+                        toast.success("Data aggiornata");
+                        onChanged();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Errore");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                    className="w-full text-[13px] font-semibold bg-transparent border border-ink/15 rounded-sm px-2 py-1 focus:outline-none focus:border-primary"
+                  />
+                ) : (
+                  <div className="text-sm font-semibold">{fmtDate(commessa.data_scadenza)}</div>
+                )}
+              </div>
             </div>
             {commessa.descrizione ? (
               <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">

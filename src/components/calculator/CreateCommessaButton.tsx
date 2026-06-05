@@ -790,6 +790,73 @@ export const CreateCommessaButton = ({
               </div>
             </div>
           )}
+
+          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (
+            <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
+                Pianificazione obbligatoria · date, responsabile, operatori
+              </div>
+              {activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).map((d) => {
+                const p = planningFor(d);
+                const ops = operatorsForDept(d);
+                return (
+                  <div key={d} className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
+                    <div className="font-mono text-[11px] font-bold uppercase tracking-wider text-primary">
+                      {DEPT_LABEL[d]}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Inizio lavorazione *</Label>
+                        <Input type="date" value={p.startDate}
+                          onChange={(e) => patchPlanning(d, { startDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Fine lavorazione *</Label>
+                        <Input type="date" value={p.endDate}
+                          onChange={(e) => patchPlanning(d, { endDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Data consegna *</Label>
+                        <Input type="date" value={p.deliveryDate}
+                          onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Responsabile di progetto *</Label>
+                      <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
+                        <SelectTrigger><SelectValue placeholder="Seleziona responsabile…" /></SelectTrigger>
+                        <SelectContent>
+                          {ops.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Operatori impiegati *</Label>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {ops.length === 0 && (
+                          <span className="text-[11px] text-muted-foreground">Nessun operatore disponibile</span>
+                        )}
+                        {ops.map((o) => {
+                          const sel = p.operatorIds.includes(o.id);
+                          return (
+                            <button key={o.id} type="button"
+                              onClick={() => toggleOperator(d, o.id)}
+                              className={`px-2 py-1 text-[11px] border-2 rounded-sm transition-colors ${
+                                sel ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:border-ink"
+                              }`}>
+                              {o.display_name ?? o.id.slice(0, 8)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

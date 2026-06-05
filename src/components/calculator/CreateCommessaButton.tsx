@@ -461,13 +461,14 @@ export const CreateCommessaButton = ({
     }
   };
 
-  const onWarehouseConfirm = async (d: WarehouseConfirmData) => {
-    if (!user || !pendingPayload) return;
+  const onWarehouseConfirm = async (d: WarehouseConfirmData, directPayload?: PendingPayload) => {
+    const payload = directPayload ?? pendingPayload;
+    if (!user || !payload) return;
     setSaving(true);
     try {
       const code = await nextOrderCode();
       const prodPrio = PRIO_TO_PROD[priorita];
-      const isWarehouse = pendingPayload.mode === "warehouse";
+      const isWarehouse = payload.mode === "warehouse";
       const orderNote = isWarehouse
         ? `Senza lavorazione — da preventivo: ${titolo.trim()}`
         : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
@@ -476,7 +477,7 @@ export const CreateCommessaButton = ({
         .from("production_orders")
         .insert({
           code,
-          cliente: pendingPayload.clienteName,
+          cliente: payload.clienteName,
           data: scadenza || new Date().toISOString().slice(0, 10),
           note: orderNote,
           priorita: prodPrio,
@@ -485,8 +486,8 @@ export const CreateCommessaButton = ({
           attachments: [],
           nesting_included: false,
           created_by: user.id,
-          source_commessa_id: pendingPayload.commessaId,
-          snapshot: pendingPayload.productionSnapshot as never,
+          source_commessa_id: payload.commessaId,
+          snapshot: payload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
           production_name: d.production_name || prodName.trim() || null,
         } as any)

@@ -786,7 +786,7 @@ export const CreateCommessaButton = ({
       }
 
 
-      const montaggiOpIds = !isWarehouse && (pendingPayload.depts ?? []).includes("montaggi")
+      const montaggiOpIds = !isWarehouse && (payload.depts ?? []).includes("montaggi")
         ? [...(planningFor("montaggi").operatorIds || []), planningFor("montaggi").responsabile].filter(Boolean) as string[]
         : [];
       const flowAssigneeIds = Array.from(new Set([
@@ -799,7 +799,7 @@ export const CreateCommessaButton = ({
         const { error: assErr } = await supabase
           .from("commessa_assegnatari")
           .upsert(
-            flowAssigneeIds.map((uid) => ({ commessa_id: pendingPayload.commessaId, user_id: uid })),
+            flowAssigneeIds.map((uid) => ({ commessa_id: payload.commessaId, user_id: uid })),
             { onConflict: "commessa_id,user_id", ignoreDuplicates: true },
           );
         if (assErr) throw assErr;
@@ -810,12 +810,12 @@ export const CreateCommessaButton = ({
         entity_type: "order",
         entity_id: pord.id,
         detail: isWarehouse
-          ? `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`
-          : `Ordine ${code} per ${pendingPayload.clienteName} — ${(pendingPayload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
+          ? `Ordine ${code} (senza lavorazione) per ${payload.clienteName} — rif. cliente ${d.customer_order_ref}`
+          : `Ordine ${code} per ${payload.clienteName} — ${(payload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
         new_state: {
           code, warehouseOnly: isWarehouse,
           customer_order_ref: d.customer_order_ref,
-          depts: pendingPayload.depts ?? [],
+          depts: payload.depts ?? [],
           missing_count: d.missing?.length ?? 0,
         },
       });

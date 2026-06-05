@@ -389,6 +389,7 @@ export const CreateCommessaButton = ({
         note: note.trim() || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
+        responsabile_id: generalManager || null,
       }).select("id").single();
       if (error) throw error;
       const commessaId = createdCommessa.id;

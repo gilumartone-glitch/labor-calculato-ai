@@ -250,13 +250,14 @@ export const CreateCommessaButton = ({
   };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<null | {
+  type PendingPayload = {
     mode: "warehouse" | "normal";
     commessaId: string;
     clienteName: string;
     productionSnapshot: Snapshot;
     depts?: ProdDept[];
-  }>(null);
+  };
+  const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 
   // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
@@ -385,7 +386,12 @@ export const CreateCommessaButton = ({
       const productionSnapshot: Snapshot = Object.keys(designState).length > 0
         ? { ...baseSnapshot, designState }
         : baseSnapshot;
-      const stato = warehouseOnly ? "da_fare" : "preventivo";
+      const plannedDeliveries = activeDepts
+        .map((d) => planningFor(d).deliveryDate)
+        .filter(Boolean)
+        .sort();
+      const computedScadenza = scadenza || plannedDeliveries[plannedDeliveries.length - 1] || null;
+      const stato = "da_fare";
       // 1) Commessa nel flow
       const { data: createdCommessa, error } = await supabase.from("commesse").insert({
         titolo: titolo.trim(),
@@ -395,7 +401,7 @@ export const CreateCommessaButton = ({
         priorita,
         stato,
         tipo: "commessa",
-        data_scadenza: scadenza || null,
+        data_scadenza: computedScadenza,
         note: note.trim() || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
@@ -433,9 +439,19 @@ export const CreateCommessaButton = ({
       }
 
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-      setPendingPayload({ mode: "normal", commessaId, clienteName, productionSnapshot, depts });
-      setConfirmOpen(true);
-      setSaving(false);
+      const payload: PendingPayload = { mode: "normal", commessaId, clienteName, productionSnapshot, depts };
+      setPendingPayload(payload);
+      await onWarehouseConfirm({
+        customer_order_ref: refNumber ? `${refType}-${refNumber}` : titolo.trim(),
+        production_name: prodName.trim(),
+        assignee_id: generalManager,
+        assignee_name: "",
+        missing: [],
+        acquisti_assignee_id: null,
+        acquisti_assignee_name: null,
+        work_dept: toMacroDept(depts[0] ?? "laboratorio"),
+        create_admin_closure: false,
+      }, payload);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";

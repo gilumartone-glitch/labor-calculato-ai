@@ -65,6 +65,14 @@ const readDesignState = (): Record<string, unknown> => {
   }
 };
 
+const todayIsoLocal = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 /** Restituisce true se per la draft attiva esiste contenuto nel modulo Montaggi. */
 const hasMontaggiContentForActiveDraft = (): boolean => {
   try {
@@ -478,7 +486,7 @@ export const CreateCommessaButton = ({
         .insert({
           code,
           cliente: payload.clienteName,
-          data: scadenza || new Date().toISOString().slice(0, 10),
+          data: scadenza || todayIsoLocal(),
           note: orderNote,
           priorita: prodPrio,
           delivery: isWarehouse ? "corriere" : "spedizione",

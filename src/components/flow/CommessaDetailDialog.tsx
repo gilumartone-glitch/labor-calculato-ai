@@ -122,6 +122,8 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
   const [isAdmin, setIsAdmin] = useState(false);
   /** id del production_order collegato a questa commessa (se esiste) */
   const [linkedProdOrderId, setLinkedProdOrderId] = useState<string | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planReloadTick, setPlanReloadTick] = useState(0);
 
   // Verifica se esiste già un production_order collegato (source_commessa_id)
   useEffect(() => {

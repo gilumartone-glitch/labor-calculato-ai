@@ -919,8 +919,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
             label="Invia al Flow"
             defaultTitle={(() => {
               const snap = readLocalState() as any;
-              return snap?._revisionTitolo || snap?.revision?.titolo || snap?.jobName ||
-                drafts.find((d) => d.id === activeId)?.name || "Progetto";
+              const tabName = drafts.find((d) => d.id === activeId)?.name;
+              return tabName || snap?._revisionTitolo || snap?.revision?.titolo || snap?.jobName || "Progetto";
             })()}
             defaultAmount={(() => {
               const s: any = readLocalState();

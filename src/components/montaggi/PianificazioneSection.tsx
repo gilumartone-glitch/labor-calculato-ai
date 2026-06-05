@@ -115,6 +115,7 @@ export const PianificazioneSection = ({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
+  const [dipendentiList, setDipendentiList] = useState<Array<{ id: string; nome: string; funzione: string | null; profile_id: string | null; reparti: string[]; macro_reparti: string[] }>>([]);
   const [linkingOp, setLinkingOp] = useState<Operator | null>(null);
 
   // Inline add operator

@@ -136,12 +136,18 @@ const Index = () => {
     if (!raw || typeof raw !== "object") return null;
     // Snapshot produzione: preferisci designState che è in formato calcolatrice
     if (raw.designState && typeof raw.designState === "object") {
-      const merged = { ...raw.designState };
-      // Conserva jobName/customerType/etc. di livello superiore se mancanti
+      const merged: any = { ...raw.designState };
       for (const k of ["jobName", "quantity", "margin", "vat", "applyVat", "customerType"] as const) {
         if (merged[k] == null && raw[k] != null) merged[k] = raw[k];
       }
-      return merged;
+      return normalizeSnap(merged);
+    }
+    // Snapshot "revisione" o produzione estratto: i reparti sono al top-level
+    // invece che sotto `departments` (la SQL `return_order_to_revision`
+    // copia direttamente designState come snapshot della bozza).
+    if (!raw.departments && (raw.tappezzeria || raw.stampa || raw.falegnameria)) {
+      const { tappezzeria, stampa, falegnameria, ...rest } = raw;
+      return { ...rest, departments: { tappezzeria, stampa, falegnameria } } as Partial<StoredSnap>;
     }
     return raw;
   };

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PlanningCalendarMini } from "@/components/calculator/PlanningCalendarMini";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -1048,6 +1049,27 @@ export const CreateCommessaButton = ({
                         onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
                     </div>
                   </div>
+
+                  {/* Mini-calendario pianificazione: mostra gli impegni esistenti per il reparto */}
+                  {(() => {
+                    const DEPT_TO_REP: Partial<Record<ProdDept, string>> = {
+                      montaggi: "montaggi", laboratorio: "laboratorio", tappezzeria: "tappezzeria",
+                      vendite: "vendite", falegnameria: "falegnameria", stampa: "stampa",
+                      taglio: "taglio", stampa_3d: "stampa_3d", assemblaggio: "assemblaggio",
+                      progettazione: "progettazione",
+                    };
+                    const rep = DEPT_TO_REP[d];
+                    if (!rep) return null;
+                    return (
+                      <PlanningCalendarMini
+                        reparto={rep}
+                        startDate={p.startDate}
+                        endDate={p.endDate}
+                        deliveryDate={p.deliveryDate}
+                        onPickDate={(field, ds) => patchPlanning(d, { [field]: ds } as any)}
+                      />
+                    );
+                  })()}
                   <div>
                     <Label className="text-[10px]">Operatori impiegati *</Label>
                     <div className="flex flex-wrap gap-1.5 pt-1">

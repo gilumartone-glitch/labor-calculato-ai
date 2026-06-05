@@ -294,7 +294,7 @@ const Index = () => {
       const nextSnap = (normalizeSnap(rawSnap) ?? {}) as Partial<StoredSnap>;
       const nextDepartments = buildDepts(nextSnap.departments);
       setDepartments(nextDepartments);
-      setJobName(nextSnap.jobName ?? "Lavorazione su misura");
+      setJobName(nextSnap.jobName ?? "");
       setQuantity(typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1);
       setMargin(typeof nextSnap.margin === "number" ? nextSnap.margin : 30);
       setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);

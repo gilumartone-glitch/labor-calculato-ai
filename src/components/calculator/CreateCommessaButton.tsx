@@ -291,6 +291,23 @@ export const CreateCommessaButton = ({
       });
       return;
     }
+    // Validazione pianificazione per reparto (laboratorio/tappezzeria/falegnameria/vendite/montaggi)
+    if (!warehouseOnly) {
+      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
+      for (const d of toPlan) {
+        const p = planningFor(d);
+        if (!p.startDate || !p.endDate || !p.deliveryDate || !p.responsabile || p.operatorIds.length === 0) {
+          toast.error(`${DEPT_LABEL[d]}: completa la pianificazione`, {
+            description: "Servono date inizio/fine lavorazione, data di consegna, responsabile e almeno un operatore.",
+          });
+          return;
+        }
+        if (p.endDate < p.startDate) {
+          toast.error(`${DEPT_LABEL[d]}: la data fine è precedente all'inizio`);
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
       // Snapshot effettivo: se è fornita una factory async (es. da Progettazione)

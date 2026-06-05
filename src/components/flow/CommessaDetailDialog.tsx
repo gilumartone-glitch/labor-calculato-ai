@@ -823,6 +823,16 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 </div>
               );
             })()}
+            {planning.length === 0 && (
+              <div className="border border-dashed border-ink/30 rounded-sm p-3 bg-paper flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  Nessun impegno pianificato in calendario per questa commessa.
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setPlanOpen(true)}>
+                  <CalendarClock className="h-3.5 w-3.5 mr-1.5" /> Pianifica reparti
+                </Button>
+              </div>
+            )}
             {snapshot?.source === "summary" && (
               <div className="grid grid-cols-3 gap-2 text-xs font-mono">
                 <Stat label="Costo" value={eur(snapshot.cost ?? 0)} small />

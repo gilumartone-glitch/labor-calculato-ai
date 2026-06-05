@@ -523,7 +523,7 @@ export const CreateCommessaButton = ({
         await notify({
           userIds: [d.acquisti_assignee_id],
           type: "magazzino_da_preparare",
-          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${pendingPayload.clienteName}`,
+          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${payload.clienteName}`,
           order_id: pord.id,
           link: "/produzione/acquisti",
           is_urgent: prodPrio !== "normale",
@@ -565,18 +565,18 @@ export const CreateCommessaButton = ({
           userIds: [d.assignee_id],
           type: "magazzino_da_preparare",
           message: d.missing?.length
-            ? `In attesa materiali — ${code} · ${pendingPayload.clienteName} (${d.missing.length})`
-            : `Da lavorare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
+            ? `In attesa materiali — ${code} · ${payload.clienteName} (${d.missing.length})`
+            : `Da lavorare: ${code} · ${payload.clienteName} (Ordine ${d.customer_order_ref})`,
           order_id: pord.id,
           link: "/produzione/board",
           is_urgent: prodPrio !== "normale",
         });
       } else {
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
-        const depts = pendingPayload.depts ?? [];
+        const depts = payload.depts ?? [];
         const baseOrdine = d.missing?.length ?? 0;
         // Carrello vendite (per arricchire la nota del sub magazzino).
-        const ps: any = pendingPayload.productionSnapshot;
+        const ps: any = payload.productionSnapshot;
         const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
           ? ps.salesCarts
           : (ps?.designState?.salesCarts && typeof ps.designState.salesCarts === "object" ? ps.designState.salesCarts : {});
@@ -627,8 +627,8 @@ export const CreateCommessaButton = ({
             userIds: targets,
             type: "ordine_creato",
             message: d.missing?.length
-              ? `Nuovo ordine ${code} per ${pendingPayload.clienteName} — in attesa acquisti (${d.missing.length})`
-              : `Nuovo ordine ${code} per ${pendingPayload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
+              ? `Nuovo ordine ${code} per ${payload.clienteName} — in attesa acquisti (${d.missing.length})`
+              : `Nuovo ordine ${code} per ${payload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
             order_id: pord.id,
             link: `/produzione/board?order=${pord.id}`,
             is_urgent: prodPrio !== "normale",

@@ -616,6 +616,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                     if (!window.confirm("Eliminare definitivamente questa commessa dal Flow?\n\nL'azione non è reversibile.")) return;
                     setBusy(true);
                     try {
+                      await supabase.from("montaggi_planning").delete().eq("commessa_id", commessa.id);
                       const { error } = await supabase.from("commesse").delete().eq("id", commessa.id);
                       if (error) throw error;
                       toast.success("Commessa eliminata");

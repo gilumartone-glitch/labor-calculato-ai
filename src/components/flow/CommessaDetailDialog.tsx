@@ -140,6 +140,43 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
     return () => { cancelled = true; };
   }, [commessa?.id, open]);
 
+  /** Pianificazione montaggi/lavorazioni collegata a questa commessa */
+  type PlanRow = { id: string; operator_id: string; date: string; hours: number; reparto: string | null; notes: string | null };
+  const [planning, setPlanning] = useState<PlanRow[]>([]);
+  const [operatorNames, setOperatorNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!commessa || !open) { setPlanning([]); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("montaggi_planning")
+        .select("id, operator_id, date, hours, reparto, notes")
+        .eq("commessa_id", commessa.id)
+        .order("date");
+      if (cancelled) return;
+      const rows = (data ?? []) as PlanRow[];
+      setPlanning(rows);
+      // Risolvi nomi: profili (uuid) + dipendenti (profile_id match)
+      const ids = Array.from(new Set(rows.map((r) => r.operator_id))).filter(Boolean);
+      const uuidIds = ids.filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+      const map: Record<string, string> = {};
+      if (uuidIds.length > 0) {
+        const [{ data: profs }, { data: dips }] = await Promise.all([
+          supabase.from("profiles").select("id, display_name").in("id", uuidIds),
+          supabase.from("dipendenti").select("nome, profile_id").in("profile_id", uuidIds),
+        ]);
+        (profs ?? []).forEach((p: any) => { if (p?.id && p?.display_name) map[p.id] = p.display_name; });
+        (dips ?? []).forEach((d: any) => { if (d?.profile_id && d?.nome) map[d.profile_id] = d.nome; });
+      }
+      // operatori "proj:slug" → ricostruisci dal nome dello slug
+      ids.filter((x) => x.startsWith("proj:")).forEach((x) => {
+        map[x] = x.replace(/^proj:/, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      });
+      if (!cancelled) setOperatorNames(map);
+    })();
+    return () => { cancelled = true; };
+  }, [commessa?.id, open]);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;

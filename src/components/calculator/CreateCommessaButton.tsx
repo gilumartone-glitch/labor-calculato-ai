@@ -256,6 +256,12 @@ export const CreateCommessaButton = ({
       toast.error("Inserisci un titolo");
       return;
     }
+    if (!scadenza) {
+      toast.error("Imposta una data di lavorazione prima di inviare al Flow", {
+        description: "Seleziona la data prevista per la lavorazione: senza data la commessa non può essere pianificata.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       // Snapshot effettivo: se è fornita una factory async (es. da Progettazione)

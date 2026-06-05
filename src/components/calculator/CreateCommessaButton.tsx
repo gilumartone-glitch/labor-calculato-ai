@@ -936,28 +936,49 @@ export const CreateCommessaButton = ({
                   </div>
                   <div>
                     <Label className="text-[10px]">
-                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : "(auto se 1 operatore)"}
+                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : ""}
                     </Label>
-                    <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          p.operatorIds.length === 1
-                            ? `${ops.find((o) => o.id === p.operatorIds[0])?.display_name ?? "Operatore unico"} (automatico)`
-                            : "Seleziona responsabile…"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(p.operatorIds.length > 0 ? ops.filter((o) => p.operatorIds.includes(o.id)) : ops).map((o) => (
-                          <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {p.operatorIds.length > 1 && !p.responsabile && (
-                      <div className="text-[10px] text-destructive mt-1">
-                        Con più operatori devi nominare un responsabile.
+                    {p.operatorIds.length === 1 ? (
+                      <div className="mt-1 flex items-center gap-2 px-3 py-2 border-2 border-emerald-400 bg-emerald-50 rounded-sm">
+                        <span className="inline-flex h-5 px-1.5 items-center rounded-sm bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">
+                          Auto
+                        </span>
+                        <span className="text-[12px] font-semibold text-emerald-900">
+                          {ops.find((o) => o.id === p.operatorIds[0])?.display_name ?? "Operatore unico"}
+                        </span>
+                        <span className="text-[10px] text-emerald-700/80 ml-auto">
+                          impostato automaticamente · unico operatore
+                        </span>
                       </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={p.responsabile || ""}
+                          onValueChange={(v) => patchPlanning(d, { responsabile: v })}
+                          disabled={p.operatorIds.length === 0}
+                        >
+                          <SelectTrigger className={p.operatorIds.length > 1 && !p.responsabile ? "border-destructive" : ""}>
+                            <SelectValue placeholder={
+                              p.operatorIds.length === 0
+                                ? "Seleziona prima gli operatori…"
+                                : "Seleziona responsabile…"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ops.filter((o) => p.operatorIds.includes(o.id)).map((o) => (
+                              <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {p.operatorIds.length > 1 && !p.responsabile && (
+                          <div className="text-[11px] text-destructive font-semibold mt-1">
+                            ⚠ Con più operatori devi nominare un responsabile.
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
+
                 </div>
               </div>
             );

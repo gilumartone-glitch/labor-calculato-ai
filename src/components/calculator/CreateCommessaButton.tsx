@@ -282,6 +282,19 @@ export const CreateCommessaButton = ({
               return only;
             })()
           : designStateRaw;
+      // Includi la draft attiva del modulo Montaggi (vive in una chiave separata)
+      try {
+        const draftId = localStorage.getItem("officina:active-draft");
+        if (draftId) {
+          const rawM = localStorage.getItem(`officina:montaggi-module:v2:${draftId}`);
+          if (rawM) {
+            const parsed = JSON.parse(rawM);
+            if (parsed && typeof parsed === "object") {
+              (designState as any).montaggi = parsed;
+            }
+          }
+        }
+      } catch { /* ignora: montaggi opzionale */ }
       const productionSnapshot: Snapshot = Object.keys(designState).length > 0
         ? { ...baseSnapshot, designState }
         : baseSnapshot;

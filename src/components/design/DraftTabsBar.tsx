@@ -214,13 +214,25 @@ const readLocalState = (): Record<string, unknown> => {
   }
 };
 
-const writeLocalState = (snap: Record<string, unknown>) => {
+const writeLocalState = (snap: Record<string, unknown>, draftId?: string | null) => {
   try {
     if (snap && Object.keys(snap).length > 0) {
       localStorage.setItem(STATE_KEY, JSON.stringify(snap));
     } else {
       localStorage.removeItem(STATE_KEY);
     }
+    // Restore Montaggi module payload (lives in a per-draft key)
+    try {
+      const id = draftId ?? localStorage.getItem(ACTIVE_DRAFT_KEY);
+      if (id) {
+        const key = `officina:montaggi-module:v2:${id}`;
+        const ds = (snap as any)?.designState;
+        const montaggi = ds && typeof ds === "object" ? (ds as any).montaggi : (snap as any)?.montaggi;
+        if (montaggi && typeof montaggi === "object") {
+          localStorage.setItem(key, JSON.stringify(montaggi));
+        }
+      }
+    } catch { /* ignora */ }
     const event = () => window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
     event();
     window.setTimeout(event, 0);
@@ -483,7 +495,7 @@ export const DraftTabsBar = () => {
       return;
     }
     await supabase.from("design_drafts").update({ active: true }).eq("id", id);
-    writeLocalState((target as Draft).snapshot ?? {});
+    writeLocalState((target as Draft).snapshot ?? {}, id);
     setActiveId(id);
     localStorage.setItem(ACTIVE_DRAFT_KEY, id);
     // Aggiorna lista locale
@@ -536,7 +548,7 @@ export const DraftTabsBar = () => {
     setDrafts(remaining);
     if (id === activeId) {
       const next = remaining[0];
-      writeLocalState(next.snapshot ?? {});
+      writeLocalState(next.snapshot ?? {}, next.id);
       setActiveId(next.id);
       localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
       await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);
@@ -763,7 +775,7 @@ export const DraftTabsBar = () => {
         setDrafts(remaining);
         setActiveId(next.id);
         localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
-        writeLocalState(next.snapshot ?? {});
+        writeLocalState(next.snapshot ?? {}, next.id);
       }
 
       toast.success(`Inviato al Flow + Produzione ${prodCode}${d.missing?.length ? " — in attesa acquisti" : ""}`, {

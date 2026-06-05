@@ -140,6 +140,43 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
     return () => { cancelled = true; };
   }, [commessa?.id, open]);
 
+  /** Pianificazione montaggi/lavorazioni collegata a questa commessa */
+  type PlanRow = { id: string; operator_id: string; date: string; hours: number; reparto: string | null; notes: string | null };
+  const [planning, setPlanning] = useState<PlanRow[]>([]);
+  const [operatorNames, setOperatorNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!commessa || !open) { setPlanning([]); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("montaggi_planning")
+        .select("id, operator_id, date, hours, reparto, notes")
+        .eq("commessa_id", commessa.id)
+        .order("date");
+      if (cancelled) return;
+      const rows = (data ?? []) as PlanRow[];
+      setPlanning(rows);
+      // Risolvi nomi: profili (uuid) + dipendenti (profile_id match)
+      const ids = Array.from(new Set(rows.map((r) => r.operator_id))).filter(Boolean);
+      const uuidIds = ids.filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+      const map: Record<string, string> = {};
+      if (uuidIds.length > 0) {
+        const [{ data: profs }, { data: dips }] = await Promise.all([
+          supabase.from("profiles").select("id, display_name").in("id", uuidIds),
+          supabase.from("dipendenti").select("nome, profile_id").in("profile_id", uuidIds),
+        ]);
+        (profs ?? []).forEach((p: any) => { if (p?.id && p?.display_name) map[p.id] = p.display_name; });
+        (dips ?? []).forEach((d: any) => { if (d?.profile_id && d?.nome) map[d.profile_id] = d.nome; });
+      }
+      // operatori "proj:slug" → ricostruisci dal nome dello slug
+      ids.filter((x) => x.startsWith("proj:")).forEach((x) => {
+        map[x] = x.replace(/^proj:/, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      });
+      if (!cancelled) setOperatorNames(map);
+    })();
+    return () => { cancelled = true; };
+  }, [commessa?.id, open]);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -732,6 +769,55 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 </div>
               </div>
             )}
+
+            {/* Pianificazione operai (montaggi/lavorazioni) collegata a questa commessa */}
+            {planning.length > 0 && (() => {
+              const byOp = new Map<string, PlanRow[]>();
+              planning.forEach((r) => {
+                const k = r.operator_id;
+                if (!byOp.has(k)) byOp.set(k, []);
+                byOp.get(k)!.push(r);
+              });
+              const totHours = planning.reduce((s, r) => s + (Number(r.hours) || 0), 0);
+              return (
+                <div className="border border-ink/20 rounded-sm p-3 bg-paper">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                      Operai pianificati · {totHours.toLocaleString("it-IT")} h totali
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/preventivi?tab=montaggi&draft=${commessa.id}`)}
+                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                    >
+                      Modifica pianificazione →
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {Array.from(byOp.entries()).map(([opId, rows]) => {
+                      const name = operatorNames[opId] ?? opId;
+                      const h = rows.reduce((s, r) => s + (Number(r.hours) || 0), 0);
+                      return (
+                        <div key={opId} className="text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">{name}</span>
+                            <span className="font-mono tabular-nums text-muted-foreground">{h} h</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {rows.map((r) => (
+                              <span key={r.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 border border-ink/15 rounded-sm font-mono text-[10px]">
+                                {new Date(r.date).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })}
+                                <span className="text-muted-foreground">· {r.hours}h</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
             {snapshot?.source === "summary" && (
               <div className="grid grid-cols-3 gap-2 text-xs font-mono">
                 <Stat label="Costo" value={eur(snapshot.cost ?? 0)} small />

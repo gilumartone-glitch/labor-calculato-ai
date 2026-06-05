@@ -697,7 +697,7 @@ export const CreateCommessaButton = ({
         }
         if (allPlanRows.length > 0) {
           const { error: ePlan } = await supabase.from("montaggi_planning").insert(allPlanRows);
-          if (ePlan) console.warn("[montaggi_planning] insert error", ePlan.message);
+          if (ePlan) throw ePlan;
         }
 
         // === Propagazione Montaggi → Assegnazione (attrezzi/materiali + notifica operai) ===

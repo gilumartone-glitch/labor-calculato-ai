@@ -1005,6 +1005,18 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
         {/* Azioni */}
         <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-ink/10">
+          {canEditSub && sub.status !== "completato" && (
+            <Button
+              variant="destructive"
+              onClick={deleteSub}
+              disabled={deleting}
+              className="gap-1 mr-auto"
+              title="Elimina questa lavorazione"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Elimina lavorazione
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Chiudi</Button>
           {sub.status === "in_attesa" && !isLocked && (
             <Button onClick={() => onStart(sub)} className="gap-1"><Play className="w-3 h-3" /> Inizia lavorazione</Button>

@@ -480,7 +480,19 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
           {section === "assegnazione" && <AssegnazioneSection
             draftId={draftId}
-            cantiereLabel={project.name || "Cantiere senza nome"}
+            cantiereLabel={(() => {
+              const fallback = (() => {
+                try {
+                  const raw = localStorage.getItem("officina:state");
+                  if (!raw) return "";
+                  const s = JSON.parse(raw);
+                  return (s?.jobName || s?._revisionTitolo || "").toString().trim();
+                } catch { return ""; }
+              })();
+              const name = (project.name || "").trim();
+              if (name && name !== "Nuovo montaggio") return name;
+              return fallback || name || "Cantiere senza nome";
+            })()}
             project={{
               workers: project.workers.map((w) => ({ name: w.name })),
               tools: (project.tools ?? []).filter((t) => t.name.trim()).map((t) => ({ name: t.name, qty: t.qty })),

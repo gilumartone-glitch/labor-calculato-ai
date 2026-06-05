@@ -365,6 +365,9 @@ export const PianificazioneSection = ({
   /** Quick assign: click sul + → crea subito 8h sul cantiere corrente, senza dialog */
   const quickAssign = async (operatorId: string, date: string) => {
     if (!user) return toast.error("Non autenticato");
+    if (assignments.some((a) => a.operator_id === operatorId && a.date === date)) {
+      return toast.error("Questo operaio è già assegnato in questa data");
+    }
     const cantiere = view === "progetto" ? cantiereLabel : "Cantiere";
     const commessaId = view === "progetto" ? draftId : null;
     const { error } = await supabase.from("montaggi_planning").insert({

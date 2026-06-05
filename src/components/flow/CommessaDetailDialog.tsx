@@ -20,8 +20,6 @@ import { nextOrderCode, subCode, logAction, notify } from "@/lib/produzione/help
 import { SUB_DEPT_SUFFIX, toWorkDept, toMacroDept, ProdDept } from "@/lib/produzione/types";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { TechnicalDrawing, DrawingSide } from "@/components/calculator/TechnicalDrawing";
-import { PianificaRepartiDialog } from "./PianificaRepartiDialog";
-import { CalendarClock } from "lucide-react";
 import type { Catalog, DepartmentState, PieceLine, PerimeterSide } from "@/components/calculator/types";
 import { autoMatchMaterial } from "@/lib/material-match";
 import type { DimUnit } from "@/lib/perimeter";
@@ -122,8 +120,6 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
   const [isAdmin, setIsAdmin] = useState(false);
   /** id del production_order collegato a questa commessa (se esiste) */
   const [linkedProdOrderId, setLinkedProdOrderId] = useState<string | null>(null);
-  const [planOpen, setPlanOpen] = useState(false);
-  const [planReloadTick, setPlanReloadTick] = useState(0);
 
   // Verifica se esiste già un production_order collegato (source_commessa_id)
   useEffect(() => {
@@ -179,7 +175,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       if (!cancelled) setOperatorNames(map);
     })();
     return () => { cancelled = true; };
-  }, [commessa?.id, open, planReloadTick]);
+  }, [commessa?.id, open]);
 
   useEffect(() => {
     if (!user) return;
@@ -790,13 +786,6 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                     <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                       Operai pianificati · {totHours.toLocaleString("it-IT")} h totali
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPlanOpen(true)}
-                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      <CalendarClock className="h-3 w-3" /> Modifica pianificazione →
-                    </button>
                   </div>
                   <div className="space-y-2">
                     {Array.from(byOp.entries()).map(([opId, rows]) => {
@@ -826,11 +815,8 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
             {planning.length === 0 && (
               <div className="border border-dashed border-ink/30 rounded-sm p-3 bg-paper flex items-center justify-between">
                 <div className="text-xs text-muted-foreground">
-                  Nessun impegno pianificato in calendario per questa commessa.
+                  Nessun impegno pianificato: le date vanno inserite durante la creazione della commessa.
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setPlanOpen(true)}>
-                  <CalendarClock className="h-3.5 w-3.5 mr-1.5" /> Pianifica reparti
-                </Button>
               </div>
             )}
             {snapshot?.source === "summary" && (
@@ -984,18 +970,6 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       onConfirm={handleConfirmToWarehouse}
       saving={confirmBusy}
     />
-    {commessa && (
-      <PianificaRepartiDialog
-        open={planOpen}
-        onOpenChange={setPlanOpen}
-        commessaId={commessa.id}
-        cantiereLabel={commessa.cliente || commessa.titolo || "Commessa"}
-        titolo={commessa.titolo}
-        snapshot={snapshot}
-        commessaReparto={commessa.reparto}
-        onSaved={() => setPlanReloadTick((t) => t + 1)}
-      />
-    )}
     </>
   );
 };

@@ -250,13 +250,14 @@ export const CreateCommessaButton = ({
   };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingPayload, setPendingPayload] = useState<null | {
+  type PendingPayload = {
     mode: "warehouse" | "normal";
     commessaId: string;
     clienteName: string;
     productionSnapshot: Snapshot;
     depts?: ProdDept[];
-  }>(null);
+  };
+  const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 
   // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
@@ -385,7 +386,12 @@ export const CreateCommessaButton = ({
       const productionSnapshot: Snapshot = Object.keys(designState).length > 0
         ? { ...baseSnapshot, designState }
         : baseSnapshot;
-      const stato = warehouseOnly ? "da_fare" : "preventivo";
+      const plannedDeliveries = activeDepts
+        .map((d) => planningFor(d).deliveryDate)
+        .filter(Boolean)
+        .sort();
+      const computedScadenza = scadenza || plannedDeliveries[plannedDeliveries.length - 1] || null;
+      const stato = "da_fare";
       // 1) Commessa nel flow
       const { data: createdCommessa, error } = await supabase.from("commesse").insert({
         titolo: titolo.trim(),
@@ -395,7 +401,7 @@ export const CreateCommessaButton = ({
         priorita,
         stato,
         tipo: "commessa",
-        data_scadenza: scadenza || null,
+        data_scadenza: computedScadenza,
         note: note.trim() || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
@@ -433,9 +439,19 @@ export const CreateCommessaButton = ({
       }
 
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-      setPendingPayload({ mode: "normal", commessaId, clienteName, productionSnapshot, depts });
-      setConfirmOpen(true);
-      setSaving(false);
+      const payload: PendingPayload = { mode: "normal", commessaId, clienteName, productionSnapshot, depts };
+      setPendingPayload(payload);
+      await onWarehouseConfirm({
+        customer_order_ref: refNumber ? `${refType}-${refNumber}` : titolo.trim(),
+        production_name: prodName.trim(),
+        assignee_id: generalManager,
+        assignee_name: "",
+        missing: [],
+        acquisti_assignee_id: null,
+        acquisti_assignee_name: null,
+        work_dept: toMacroDept(depts[0] ?? "laboratorio"),
+        create_admin_closure: false,
+      }, payload);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";
@@ -445,13 +461,14 @@ export const CreateCommessaButton = ({
     }
   };
 
-  const onWarehouseConfirm = async (d: WarehouseConfirmData) => {
-    if (!user || !pendingPayload) return;
+  const onWarehouseConfirm = async (d: WarehouseConfirmData, directPayload?: PendingPayload) => {
+    const payload = directPayload ?? pendingPayload;
+    if (!user || !payload) return;
     setSaving(true);
     try {
       const code = await nextOrderCode();
       const prodPrio = PRIO_TO_PROD[priorita];
-      const isWarehouse = pendingPayload.mode === "warehouse";
+      const isWarehouse = payload.mode === "warehouse";
       const orderNote = isWarehouse
         ? `Senza lavorazione — da preventivo: ${titolo.trim()}`
         : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
@@ -460,7 +477,7 @@ export const CreateCommessaButton = ({
         .from("production_orders")
         .insert({
           code,
-          cliente: pendingPayload.clienteName,
+          cliente: payload.clienteName,
           data: scadenza || new Date().toISOString().slice(0, 10),
           note: orderNote,
           priorita: prodPrio,
@@ -469,8 +486,8 @@ export const CreateCommessaButton = ({
           attachments: [],
           nesting_included: false,
           created_by: user.id,
-          source_commessa_id: pendingPayload.commessaId,
-          snapshot: pendingPayload.productionSnapshot as never,
+          source_commessa_id: payload.commessaId,
+          snapshot: payload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
           production_name: d.production_name || prodName.trim() || null,
         } as any)
@@ -506,7 +523,7 @@ export const CreateCommessaButton = ({
         await notify({
           userIds: [d.acquisti_assignee_id],
           type: "magazzino_da_preparare",
-          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${pendingPayload.clienteName}`,
+          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${payload.clienteName}`,
           order_id: pord.id,
           link: "/produzione/acquisti",
           is_urgent: prodPrio !== "normale",
@@ -548,18 +565,18 @@ export const CreateCommessaButton = ({
           userIds: [d.assignee_id],
           type: "magazzino_da_preparare",
           message: d.missing?.length
-            ? `In attesa materiali — ${code} · ${pendingPayload.clienteName} (${d.missing.length})`
-            : `Da lavorare: ${code} · ${pendingPayload.clienteName} (Ordine ${d.customer_order_ref})`,
+            ? `In attesa materiali — ${code} · ${payload.clienteName} (${d.missing.length})`
+            : `Da lavorare: ${code} · ${payload.clienteName} (Ordine ${d.customer_order_ref})`,
           order_id: pord.id,
           link: "/produzione/board",
           is_urgent: prodPrio !== "normale",
         });
       } else {
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
-        const depts = pendingPayload.depts ?? [];
+        const depts = payload.depts ?? [];
         const baseOrdine = d.missing?.length ?? 0;
         // Carrello vendite (per arricchire la nota del sub magazzino).
-        const ps: any = pendingPayload.productionSnapshot;
+        const ps: any = payload.productionSnapshot;
         const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
           ? ps.salesCarts
           : (ps?.designState?.salesCarts && typeof ps.designState.salesCarts === "object" ? ps.designState.salesCarts : {});
@@ -610,8 +627,8 @@ export const CreateCommessaButton = ({
             userIds: targets,
             type: "ordine_creato",
             message: d.missing?.length
-              ? `Nuovo ordine ${code} per ${pendingPayload.clienteName} — in attesa acquisti (${d.missing.length})`
-              : `Nuovo ordine ${code} per ${pendingPayload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
+              ? `Nuovo ordine ${code} per ${payload.clienteName} — in attesa acquisti (${d.missing.length})`
+              : `Nuovo ordine ${code} per ${payload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
             order_id: pord.id,
             link: `/produzione/board?order=${pord.id}`,
             is_urgent: prodPrio !== "normale",
@@ -669,8 +686,8 @@ export const CreateCommessaButton = ({
                 operator_id: opId,
                 date: day,
                 hours: 8,
-                commessa_id: pendingPayload.commessaId,
-                cantiere_label: pendingPayload.clienteName,
+                commessa_id: payload.commessaId,
+                cantiere_label: payload.clienteName,
                 notes: titolo.trim() || null,
                 reparto,
                 created_by: user.id,
@@ -680,7 +697,7 @@ export const CreateCommessaButton = ({
         }
         if (allPlanRows.length > 0) {
           const { error: ePlan } = await supabase.from("montaggi_planning").insert(allPlanRows);
-          if (ePlan) console.warn("[montaggi_planning] insert error", ePlan.message);
+          if (ePlan) throw ePlan;
         }
 
         // === Propagazione Montaggi → Assegnazione (attrezzi/materiali + notifica operai) ===
@@ -690,7 +707,7 @@ export const CreateCommessaButton = ({
           const opIds = Array.from(new Set([...(planM.operatorIds || []), ...(planM.responsabile ? [planM.responsabile] : [])]));
 
           // 2) Attrezzi/materiali dal modulo Montaggi → assignment items della commessa
-          const montaggiData: any = (pendingPayload.productionSnapshot as any)?.designState?.montaggi;
+          const montaggiData: any = (payload.productionSnapshot as any)?.designState?.montaggi;
           if (montaggiData) {
             const tools = Array.isArray(montaggiData.tools) ? montaggiData.tools : [];
             const matCatalog = Array.isArray(montaggiData.materialCatalog) ? montaggiData.materialCatalog : [];
@@ -703,7 +720,7 @@ export const CreateCommessaButton = ({
               if (!name) continue;
               const qty = Number(t?.qty) || 1;
               items.push({
-                commessa_id: pendingPayload.commessaId,
+                commessa_id: payload.commessaId,
                 kind: "attrezzo",
                 ref_nome: name,
                 qty,
@@ -719,7 +736,7 @@ export const CreateCommessaButton = ({
               const qty = Number(m?.quantity ?? m?.qty) || 1;
               const unit = cat?.unit ?? m?.unit ?? "pz";
               items.push({
-                commessa_id: pendingPayload.commessaId,
+                commessa_id: payload.commessaId,
                 kind: "materiale",
                 ref_nome: name,
                 qty,
@@ -744,7 +761,7 @@ export const CreateCommessaButton = ({
             await notify({
               userIds: montaggiTargets,
               type: "ordine_creato",
-              message: `Montaggio assegnato: ${code} · ${pendingPayload.clienteName}${montaggiSummary ? ` — ${montaggiSummary}` : ""}`,
+              message: `Montaggio assegnato: ${code} · ${payload.clienteName}${montaggiSummary ? ` — ${montaggiSummary}` : ""}`,
               order_id: pord.id,
               link: `/preventivi?tab=montaggi`,
               is_urgent: prodPrio !== "normale",
@@ -759,7 +776,7 @@ export const CreateCommessaButton = ({
             await notify({
               userIds: [s.assignee],
               type: "ordine_creato",
-              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${pendingPayload.clienteName})`,
+              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${payload.clienteName})`,
               order_id: pord.id,
               link: `/produzione/board?order=${pord.id}`,
               is_urgent: prodPrio !== "normale",
@@ -769,7 +786,7 @@ export const CreateCommessaButton = ({
       }
 
 
-      const montaggiOpIds = !isWarehouse && (pendingPayload.depts ?? []).includes("montaggi")
+      const montaggiOpIds = !isWarehouse && (payload.depts ?? []).includes("montaggi")
         ? [...(planningFor("montaggi").operatorIds || []), planningFor("montaggi").responsabile].filter(Boolean) as string[]
         : [];
       const flowAssigneeIds = Array.from(new Set([
@@ -782,7 +799,7 @@ export const CreateCommessaButton = ({
         const { error: assErr } = await supabase
           .from("commessa_assegnatari")
           .upsert(
-            flowAssigneeIds.map((uid) => ({ commessa_id: pendingPayload.commessaId, user_id: uid })),
+            flowAssigneeIds.map((uid) => ({ commessa_id: payload.commessaId, user_id: uid })),
             { onConflict: "commessa_id,user_id", ignoreDuplicates: true },
           );
         if (assErr) throw assErr;
@@ -793,12 +810,12 @@ export const CreateCommessaButton = ({
         entity_type: "order",
         entity_id: pord.id,
         detail: isWarehouse
-          ? `Ordine ${code} (senza lavorazione) per ${pendingPayload.clienteName} — rif. cliente ${d.customer_order_ref}`
-          : `Ordine ${code} per ${pendingPayload.clienteName} — ${(pendingPayload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
+          ? `Ordine ${code} (senza lavorazione) per ${payload.clienteName} — rif. cliente ${d.customer_order_ref}`
+          : `Ordine ${code} per ${payload.clienteName} — ${(payload.depts ?? []).join(" + ")} (rif. ${d.customer_order_ref})`,
         new_state: {
           code, warehouseOnly: isWarehouse,
           customer_order_ref: d.customer_order_ref,
-          depts: pendingPayload.depts ?? [],
+          depts: payload.depts ?? [],
           missing_count: d.missing?.length ?? 0,
         },
       });

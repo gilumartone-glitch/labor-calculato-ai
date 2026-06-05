@@ -147,6 +147,10 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const [newItemLabel, setNewItemLabel] = useState("");
   const [editing, setEditing] = useState<{ id: string; label: string } | null>(null);
   const [savingAssignee, setSavingAssignee] = useState(false);
+  const [savingDate, setSavingDate] = useState(false);
+  const [editNote, setEditNote] = useState<string | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const orderFiles: FileItem[] = (order?.attachments as any[]) ?? [];
   const subFiles: FileItem[] = (sub?.files as any[]) ?? [];
@@ -457,6 +461,92 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
     }
   };
 
+  const canEditSub = canEditAssignee; // stessi diritti per data/note/elimina
+
+  const changeOrderDate = async (newDate: string) => {
+    if (!order || !newDate) return;
+    setSavingDate(true);
+    try {
+      const { error } = await supabase
+        .from("production_orders")
+        .update({ data: newDate })
+        .eq("id", order.id);
+      if (error) throw error;
+      await logAction({
+        action: "ORDINE_DATA_MODIFICATA",
+        entity_type: "order",
+        entity_id: order.id,
+        detail: `${order.code} → ${newDate}`,
+        new_state: { data: newDate },
+      });
+      await refreshOrders();
+      toast.success("Data aggiornata");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore aggiornamento data");
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
+  const saveNote = async () => {
+    if (!sub || editNote === null) return;
+    const trimmed = editNote.trim();
+    setSavingNote(true);
+    try {
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .update({ note: trimmed || null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      await refreshOrders();
+      setEditNote(null);
+      toast.success("Istruzioni aggiornate");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const deleteSub = async () => {
+    if (!sub || !order) return;
+    if (!window.confirm(
+      `Eliminare la lavorazione ${sub.code} (${DEPT_LABEL[sub.dept]})?\n\nQuesta azione è irreversibile. Eventuali lavorazioni in sequenza che dipendevano da questa verranno sbloccate e torneranno "in attesa".`
+    )) return;
+    setDeleting(true);
+    try {
+      // Sblocca le sub dipendenti: le riporto a 'in_attesa' rimuovendo depends_on
+      const { data: depRows } = await supabase
+        .from("production_sub_orders")
+        .select("id")
+        .eq("depends_on", sub.id);
+      if (depRows && depRows.length > 0) {
+        await supabase
+          .from("production_sub_orders")
+          .update({ depends_on: null, status: "in_attesa" })
+          .in("id", depRows.map((r) => r.id));
+      }
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .delete()
+        .eq("id", sub.id);
+      if (error) throw error;
+      await logAction({
+        action: "SUBORDINE_ELIMINATO",
+        entity_type: "sub_order",
+        entity_id: sub.id,
+        detail: `${sub.code} (${DEPT_LABEL[sub.dept]}) eliminato da ${order.code}`,
+      });
+      await refreshOrders();
+      toast.success("Lavorazione eliminata");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore eliminazione");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">
@@ -559,7 +649,21 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           <div className="border-2 border-ink/15 rounded-sm p-3 space-y-1.5 text-[12px]">
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commessa</div>
             <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /><strong>{order.cliente}</strong></div>
-            <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground" />Data ordine: {order.data}</div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              Data ordine:
+              {canEditSub ? (
+                <input
+                  type="date"
+                  value={order.data ?? ""}
+                  disabled={savingDate}
+                  onChange={(e) => changeOrderDate(e.target.value)}
+                  className="border border-ink/20 rounded-sm px-1.5 py-0.5 font-mono text-[12px] bg-paper"
+                />
+              ) : (
+                <span>{order.data}</span>
+              )}
+            </div>
             <div className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-muted-foreground" />Consegna: {order.delivery === "ritiro" ? "Ritiro cliente" : order.delivery === "mezzo_proprio" ? "Mezzo proprio" : order.delivery === "corriere" ? "Corriere" : "Spedizione"}</div>
             {creator && <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" />Lanciato da: <strong>{creator.display_name ?? "—"}</strong></div>}
             {order.note && (
@@ -594,13 +698,42 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           </div>
         </div>
 
-        {/* Istruzioni del sub */}
-        {sub.note && (
-          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-2">Istruzioni per te</div>
-            <div className="whitespace-pre-wrap font-mono text-[12px]">{sub.note}</div>
+        {/* Istruzioni del sub — modificabili */}
+        <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-primary">Istruzioni per te</div>
+            {canEditSub && editNote === null && (
+              <button
+                onClick={() => setEditNote(sub.note ?? "")}
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+              >
+                <Pencil className="w-3 h-3" /> Modifica
+              </button>
+            )}
           </div>
-        )}
+          {editNote !== null ? (
+            <div className="space-y-2">
+              <textarea
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                rows={3}
+                className="w-full border border-ink/20 rounded-sm p-2 text-[12px] font-mono bg-paper resize-y"
+                placeholder="Istruzioni per chi esegue questa lavorazione…"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="outline" onClick={() => setEditNote(null)} disabled={savingNote}>Annulla</Button>
+                <Button size="sm" onClick={saveNote} disabled={savingNote}>
+                  {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salva"}
+                </Button>
+              </div>
+            </div>
+          ) : sub.note ? (
+            <div className="whitespace-pre-wrap font-mono text-[12px]">{sub.note}</div>
+          ) : (
+            <div className="text-[11px] text-muted-foreground italic">Nessuna istruzione</div>
+          )}
+        </div>
 
         {/* Pezzi da lavorare + Nesting (tabs separati) */}
         {(relevantPieces.length > 0 || mergedNesting) && (
@@ -872,6 +1005,18 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
         {/* Azioni */}
         <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-ink/10">
+          {canEditSub && sub.status !== "completato" && (
+            <Button
+              variant="destructive"
+              onClick={deleteSub}
+              disabled={deleting}
+              className="gap-1 mr-auto"
+              title="Elimina questa lavorazione"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Elimina lavorazione
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Chiudi</Button>
           {sub.status === "in_attesa" && !isLocked && (
             <Button onClick={() => onStart(sub)} className="gap-1"><Play className="w-3 h-3" /> Inizia lavorazione</Button>

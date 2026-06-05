@@ -898,17 +898,17 @@ export const CreateCommessaButton = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-[10px]">Inizio lavorazione *</Label>
-                      <Input type="date" value={p.startDate}
+                      <Input type="date" min="2024-01-01" max="2099-12-31" value={p.startDate}
                         onChange={(e) => patchPlanning(d, { startDate: e.target.value })} />
                     </div>
                     <div>
                       <Label className="text-[10px]">Fine lavorazione *</Label>
-                      <Input type="date" value={p.endDate}
+                      <Input type="date" min={p.startDate || "2024-01-01"} max="2099-12-31" value={p.endDate}
                         onChange={(e) => patchPlanning(d, { endDate: e.target.value })} />
                     </div>
                     <div>
                       <Label className="text-[10px]">Data consegna *</Label>
-                      <Input type="date" value={p.deliveryDate}
+                      <Input type="date" min={p.endDate || p.startDate || "2024-01-01"} max="2099-12-31" value={p.deliveryDate}
                         onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
                     </div>
                   </div>

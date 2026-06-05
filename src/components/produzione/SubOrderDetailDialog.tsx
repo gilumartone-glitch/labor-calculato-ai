@@ -698,13 +698,42 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           </div>
         </div>
 
-        {/* Istruzioni del sub */}
-        {sub.note && (
-          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-2">Istruzioni per te</div>
-            <div className="whitespace-pre-wrap font-mono text-[12px]">{sub.note}</div>
+        {/* Istruzioni del sub — modificabili */}
+        <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-primary">Istruzioni per te</div>
+            {canEditSub && editNote === null && (
+              <button
+                onClick={() => setEditNote(sub.note ?? "")}
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+              >
+                <Pencil className="w-3 h-3" /> Modifica
+              </button>
+            )}
           </div>
-        )}
+          {editNote !== null ? (
+            <div className="space-y-2">
+              <textarea
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                rows={3}
+                className="w-full border border-ink/20 rounded-sm p-2 text-[12px] font-mono bg-paper resize-y"
+                placeholder="Istruzioni per chi esegue questa lavorazione…"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="outline" onClick={() => setEditNote(null)} disabled={savingNote}>Annulla</Button>
+                <Button size="sm" onClick={saveNote} disabled={savingNote}>
+                  {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salva"}
+                </Button>
+              </div>
+            </div>
+          ) : sub.note ? (
+            <div className="whitespace-pre-wrap font-mono text-[12px]">{sub.note}</div>
+          ) : (
+            <div className="text-[11px] text-muted-foreground italic">Nessuna istruzione</div>
+          )}
+        </div>
 
         {/* Pezzi da lavorare + Nesting (tabs separati) */}
         {(relevantPieces.length > 0 || mergedNesting) && (

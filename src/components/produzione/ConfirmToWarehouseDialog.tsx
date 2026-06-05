@@ -57,6 +57,7 @@ export const ConfirmToWarehouseDialog = ({
   materials = [],
   suggestedWorkDept,
   availableMacros,
+  defaultAssigneeByMacro,
   onConfirm,
   saving,
 }: {
@@ -70,6 +71,8 @@ export const ConfirmToWarehouseDialog = ({
   suggestedWorkDept?: ProdDept;
   /** Macro-reparti attivati nel progetto (filtro selettore). Se undefined, mostra tutte le macro. */
   availableMacros?: ProdDept[];
+  /** Responsabile già scelto in pianificazione, mappato per macro-reparto (es. { laboratorio: "<uid>", montaggi: "<uid>" }). */
+  defaultAssigneeByMacro?: Record<string, string>;
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {

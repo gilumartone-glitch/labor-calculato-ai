@@ -250,6 +250,25 @@ export const PianificazioneSection = ({
     })();
   }, [view]);
 
+  /** Dipendenti (lista anagrafica) — operai disponibili per la pianificazione */
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("dipendenti")
+        .select("id, nome, funzione, profile_id, reparti, macro_reparti, attivo")
+        .eq("attivo", true)
+        .order("nome");
+      setDipendentiList(((data ?? []) as any[]).map((d) => ({
+        id: d.id,
+        nome: d.nome,
+        funzione: d.funzione,
+        profile_id: d.profile_id,
+        reparti: d.reparti ?? [],
+        macro_reparti: d.macro_reparti ?? [],
+      })));
+    })();
+  }, []);
+
   /** Carica assegnazioni */
   const loadAssignments = async () => {
     setLoading(true);

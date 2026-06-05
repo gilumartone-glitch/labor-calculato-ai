@@ -10,8 +10,8 @@ loadRepartiConfig();
 
 import { RouteGuard } from "@/components/RouteGuard";
 import { FloatingHubButton } from "@/components/HubLink";
+import Index from "./pages/Index";
 
-const Index = lazy(() => import("./pages/Index.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
 const Flow = lazy(() => import("./pages/Flow.tsx"));

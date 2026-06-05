@@ -984,6 +984,18 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       onConfirm={handleConfirmToWarehouse}
       saving={confirmBusy}
     />
+    {commessa && (
+      <PianificaRepartiDialog
+        open={planOpen}
+        onOpenChange={setPlanOpen}
+        commessaId={commessa.id}
+        cantiereLabel={commessa.cliente || commessa.titolo || "Commessa"}
+        titolo={commessa.titolo}
+        snapshot={snapshot}
+        commessaReparto={commessa.reparto}
+        onSaved={() => setPlanReloadTick((t) => t + 1)}
+      />
+    )}
     </>
   );
 };

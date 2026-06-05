@@ -179,7 +179,7 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
       if (!cancelled) setOperatorNames(map);
     })();
     return () => { cancelled = true; };
-  }, [commessa?.id, open]);
+  }, [commessa?.id, open, planReloadTick]);
 
   useEffect(() => {
     if (!user) return;

@@ -661,6 +661,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                             <div className="space-y-1 min-h-[64px]">
                               {list.map((a) => {
                                 const rep = (a.reparto ?? "montaggi") as Reparto;
+                                const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
                                   <button
                                     key={a.id}
@@ -671,9 +672,9 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                                       backgroundColor: chipColorForAssignment(a),
                                       borderLeftColor: repartoAccent(a),
                                     }}
-                                    title={`${REPARTO_LABEL[rep]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare`}
+                                    title={`${REPARTO_LABEL[rep]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
-                                    <div className="truncate uppercase tracking-tight">{a.cantiere_label}</div>
+                                    <div className="truncate">{opName}</div>
                                     <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
                                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
                                       <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>

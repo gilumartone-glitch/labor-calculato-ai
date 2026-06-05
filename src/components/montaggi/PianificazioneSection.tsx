@@ -343,6 +343,8 @@ export const PianificazioneSection = ({
       if (error) return toast.error(error.message);
       autoNotify(payload.operator_id, "aggiornata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
     } else {
+      const dup = assignments.some((a) => a.operator_id === payload.operator_id && a.date === payload.date);
+      if (dup) return toast.error("Questo operaio è già assegnato in questa data");
       const { error } = await supabase.from("montaggi_planning").insert({
         operator_id: payload.operator_id,
         date: payload.date,

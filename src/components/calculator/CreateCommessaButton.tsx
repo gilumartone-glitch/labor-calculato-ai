@@ -860,26 +860,41 @@ export const CreateCommessaButton = ({
                 </div>
 
                 {/* Tabs dei reparti rilevati */}
-                <div className="flex flex-wrap gap-1 border-b-2 border-ink/15">
-                  {plannedActive.map((dept) => {
-                    const active = dept === d;
-                    const pp = planningFor(dept);
-                    const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
-                      (pp.responsabile || pp.operatorIds.length === 1);
-                    return (
-                      <button
-                        key={dept}
-                        type="button"
-                        onClick={() => setActivePlanTab(dept)}
-                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors border-b-2 -mb-[2px] ${
-                          active ? "border-primary text-primary" : "border-transparent text-ink/50 hover:text-ink"
-                        }`}
-                      >
-                        {DEPT_LABEL[dept]} {complete ? "✓" : "•"}
-                      </button>
-                    );
-                  })}
+                <div className="border-2 border-ink/20 rounded-sm bg-paper p-1.5">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-1 pb-1">
+                    Reparti da pianificare
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plannedActive.map((dept) => {
+                      const active = dept === d;
+                      const pp = planningFor(dept);
+                      const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
+                        (pp.responsabile || pp.operatorIds.length === 1);
+                      return (
+                        <button
+                          key={dept}
+                          type="button"
+                          onClick={() => setActivePlanTab(dept)}
+                          className={`px-3 py-2 text-[12px] uppercase tracking-wider font-bold rounded-sm border-2 transition-all ${
+                            active
+                              ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
+                              : complete
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:border-emerald-500"
+                                : "bg-background text-ink/70 border-ink/20 hover:border-ink"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            {DEPT_LABEL[dept]}
+                            <span className={`text-[10px] ${complete ? "" : "text-destructive"}`}>
+                              {complete ? "✓" : "●"}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
 
                 <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
                   <div className="grid grid-cols-3 gap-2">

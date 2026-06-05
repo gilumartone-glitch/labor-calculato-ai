@@ -715,10 +715,15 @@ export const CreateCommessaButton = ({
       }
 
 
+      const montaggiOpIds = !isWarehouse && (pendingPayload.depts ?? []).includes("montaggi")
+        ? [...(planningFor("montaggi").operatorIds || []), planningFor("montaggi").responsabile].filter(Boolean) as string[]
+        : [];
       const flowAssigneeIds = Array.from(new Set([
         d.missing?.length ? d.acquisti_assignee_id : null,
         ...insertedSubs.map((s) => s.assignee),
+        ...montaggiOpIds,
       ].filter((id): id is string => !!id)));
+
       if (flowAssigneeIds.length > 0) {
         const { error: assErr } = await supabase
           .from("commessa_assegnatari")

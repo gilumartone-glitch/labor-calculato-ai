@@ -140,6 +140,7 @@ export const CreateCommessaButton = ({
     excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
     deptPlanning: Record<string, DeptPlanning>;
+    generalManager: string;
     refType: RefType;
     refNumber: string;
   };
@@ -150,6 +151,7 @@ export const CreateCommessaButton = ({
     excludedDepts: [],
     deptAssignees: {},
     deptPlanning: {},
+    generalManager: "",
     refType: "OC",
     refNumber: "",
   };

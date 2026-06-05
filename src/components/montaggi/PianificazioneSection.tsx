@@ -115,6 +115,7 @@ export const PianificazioneSection = ({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
+  const [dipendentiList, setDipendentiList] = useState<Array<{ id: string; nome: string; funzione: string | null; profile_id: string | null; reparti: string[]; macro_reparti: string[] }>>([]);
   const [linkingOp, setLinkingOp] = useState<Operator | null>(null);
 
   // Inline add operator
@@ -178,7 +179,35 @@ export const PianificazioneSection = ({
       }));
   }, [profiles, projectOperators, view]);
 
-  const operators = view === "progetto" ? [...projectOperators, ...profileOps] : ops.state;
+  // Operai dalla lista "Dipendenti" (attivi, con reparto montaggi)
+  const dipendentiOps = useMemo<Operator[]>(() => {
+    const seenNames = new Set<string>();
+    if (view === "progetto") {
+      projectOperators.forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+      profileOps.forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+    } else {
+      (ops.state ?? []).forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+    }
+    return dipendentiList
+      .filter((d) => {
+        const inMont = (d.reparti ?? []).includes("montaggi") || (d.macro_reparti ?? []).includes("montaggi");
+        if (!inMont) return false;
+        const n = (d.nome ?? "").trim().toLowerCase();
+        if (!n || seenNames.has(n)) return false;
+        seenNames.add(n);
+        return true;
+      })
+      .map((d) => ({
+        id: d.profile_id ?? `dip:${d.id}`,
+        name: d.nome,
+        role: d.funzione ?? "",
+        userId: d.profile_id ?? undefined,
+      }));
+  }, [dipendentiList, projectOperators, profileOps, ops.state, view]);
+
+  const operators = view === "progetto"
+    ? [...projectOperators, ...profileOps, ...dipendentiOps]
+    : [...ops.state, ...dipendentiOps];
 
   /** Seed in global mode */
   const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };
@@ -220,6 +249,25 @@ export const PianificazioneSection = ({
       setProfiles((data ?? []) as ProfileLite[]);
     })();
   }, [view]);
+
+  /** Dipendenti (lista anagrafica) — operai disponibili per la pianificazione */
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("dipendenti")
+        .select("id, nome, funzione, profile_id, reparti, macro_reparti, attivo")
+        .eq("attivo", true)
+        .order("nome");
+      setDipendentiList(((data ?? []) as any[]).map((d) => ({
+        id: d.id,
+        nome: d.nome,
+        funzione: d.funzione,
+        profile_id: d.profile_id,
+        reparti: d.reparti ?? [],
+        macro_reparti: d.macro_reparti ?? [],
+      })));
+    })();
+  }, []);
 
   /** Carica assegnazioni */
   const loadAssignments = async () => {

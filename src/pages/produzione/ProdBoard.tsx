@@ -344,6 +344,11 @@ const ProdBoard = () => {
       }
       await supabase.from("inventory_reservations").delete().eq("order_id", order.id);
       await supabase.from("prod_notifications").delete().eq("order_id", order.id);
+      // Rimuovi anche gli impegni di pianificazione legati alla commessa di origine
+      const srcCommessaId = (order as any).source_commessa_id ?? null;
+      if (srcCommessaId) {
+        await supabase.from("montaggi_planning").delete().eq("commessa_id", srcCommessaId);
+      }
       await supabase.from("production_sub_orders").delete().eq("order_id", order.id);
       const { error } = await supabase.from("production_orders").delete().eq("id", order.id);
       if (error) throw error;

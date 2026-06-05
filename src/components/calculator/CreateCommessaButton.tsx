@@ -1011,6 +1011,10 @@ export const CreateCommessaButton = ({
       availableMacros={pendingPayload?.depts && pendingPayload.depts.length > 0
         ? Array.from(new Set(pendingPayload.depts.map(toMacroDept)))
         : undefined}
+      defaultAssigneeByMacro={Object.entries(deptAssignees).reduce<Record<string, string>>((acc, [dept, uid]) => {
+        if (uid) acc[toMacroDept(dept as ProdDept)] = uid;
+        return acc;
+      }, {})}
       onConfirm={onWarehouseConfirm}
       saving={saving}
     />

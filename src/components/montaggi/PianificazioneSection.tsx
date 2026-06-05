@@ -291,6 +291,21 @@ export const PianificazioneSection = ({
 
   useEffect(() => { loadAssignments(); /* eslint-disable-next-line */ }, [weekStart.getTime()]);
 
+  // Sync cantiere_label nel DB quando il progetto corrente è stato rinominato
+  useEffect(() => {
+    if (view !== "progetto" || !draftId || !cantiereLabel) return;
+    const stale = assignments.filter((a) => a.commessa_id === draftId && a.cantiere_label !== cantiereLabel);
+    if (stale.length === 0) return;
+    (async () => {
+      await supabase.from("montaggi_planning")
+        .update({ cantiere_label: cantiereLabel })
+        .eq("commessa_id", draftId)
+        .neq("cantiere_label", cantiereLabel);
+      setAssignments((prev) => prev.map((a) => a.commessa_id === draftId ? { ...a, cantiere_label: cantiereLabel } : a));
+    })();
+    // eslint-disable-next-line
+  }, [assignments, cantiereLabel, draftId, view]);
+
   useEffect(() => {
     const ch = supabase.channel(`montaggi_planning_${draftId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => loadAssignments())
@@ -600,16 +615,17 @@ export const PianificazioneSection = ({
                             <div className="space-y-1">
                               {list.map((a) => {
                                 const isCurrent = a.cantiere_label === cantiereLabel || a.commessa_id === draftId;
+                                const displayLabel = (view === "progetto" && a.commessa_id === draftId && cantiereLabel) ? cantiereLabel : a.cantiere_label;
                                 return (
                                   <button
                                     key={a.id}
                                     type="button"
                                     onClick={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
                                     className="w-full text-left px-1.5 py-1 rounded text-[10px] font-medium text-white hover:opacity-80 transition flex items-center justify-between gap-1"
-                                    style={{ backgroundColor: colorForCantiere(a.cantiere_label), opacity: view === "progetto" && !isCurrent ? 0.5 : 1 }}
-                                    title={`${a.cantiere_label} · ${a.hours}h${a.notes ? ` · ${a.notes}` : ""}`}
+                                    style={{ backgroundColor: colorForCantiere(displayLabel), opacity: view === "progetto" && !isCurrent ? 0.5 : 1 }}
+                                    title={`${displayLabel} · ${a.hours}h${a.notes ? ` · ${a.notes}` : ""}`}
                                   >
-                                    <span className="truncate">{a.cantiere_label}</span>
+                                    <span className="truncate">{displayLabel}</span>
                                     <span className="font-mono shrink-0">{a.hours}h</span>
                                   </button>
                                 );

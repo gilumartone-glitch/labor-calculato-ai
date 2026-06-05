@@ -93,7 +93,16 @@ const repartoAccent = (a: Pick<Assignment, "reparto">) => {
   const r = (a.reparto ?? "montaggi") as Reparto;
   return REPARTO_BG[r] ?? REPARTO_BG.altro;
 };
-const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
+const fmtDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const parseDateKey = (value: string) => {
+  const [y, m, d] = value.slice(0, 10).split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const startOfWeek = (d: Date) => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; };
 const dayLabel = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
@@ -286,8 +295,8 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
         : fmtDate(new Date());
       // se l'intervallo non interseca la finestra, salta
       if (endStr < dayStrs[0] || startStr > dayStrs[dayStrs.length - 1]) continue;
-      const from = new Date(Math.max(new Date(startStr).getTime(), new Date(dayStrs[0]).getTime()));
-      const to = new Date(Math.min(new Date(endStr).getTime(), new Date(dayStrs[dayStrs.length - 1]).getTime()));
+      const from = new Date(Math.max(parseDateKey(startStr).getTime(), parseDateKey(dayStrs[0]).getTime()));
+      const to = new Date(Math.min(parseDateKey(endStr).getTime(), parseDateKey(dayStrs[dayStrs.length - 1]).getTime()));
       const cur = new Date(from);
       while (cur <= to) {
         const ds = fmtDate(cur);

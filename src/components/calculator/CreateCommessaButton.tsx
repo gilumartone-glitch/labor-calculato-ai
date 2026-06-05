@@ -860,26 +860,41 @@ export const CreateCommessaButton = ({
                 </div>
 
                 {/* Tabs dei reparti rilevati */}
-                <div className="flex flex-wrap gap-1 border-b-2 border-ink/15">
-                  {plannedActive.map((dept) => {
-                    const active = dept === d;
-                    const pp = planningFor(dept);
-                    const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
-                      (pp.responsabile || pp.operatorIds.length === 1);
-                    return (
-                      <button
-                        key={dept}
-                        type="button"
-                        onClick={() => setActivePlanTab(dept)}
-                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors border-b-2 -mb-[2px] ${
-                          active ? "border-primary text-primary" : "border-transparent text-ink/50 hover:text-ink"
-                        }`}
-                      >
-                        {DEPT_LABEL[dept]} {complete ? "✓" : "•"}
-                      </button>
-                    );
-                  })}
+                <div className="border-2 border-ink/20 rounded-sm bg-paper p-1.5">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-1 pb-1">
+                    Reparti da pianificare
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plannedActive.map((dept) => {
+                      const active = dept === d;
+                      const pp = planningFor(dept);
+                      const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
+                        (pp.responsabile || pp.operatorIds.length === 1);
+                      return (
+                        <button
+                          key={dept}
+                          type="button"
+                          onClick={() => setActivePlanTab(dept)}
+                          className={`px-3 py-2 text-[12px] uppercase tracking-wider font-bold rounded-sm border-2 transition-all ${
+                            active
+                              ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
+                              : complete
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:border-emerald-500"
+                                : "bg-background text-ink/70 border-ink/20 hover:border-ink"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            {DEPT_LABEL[dept]}
+                            <span className={`text-[10px] ${complete ? "" : "text-destructive"}`}>
+                              {complete ? "✓" : "●"}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
 
                 <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
                   <div className="grid grid-cols-3 gap-2">
@@ -921,28 +936,49 @@ export const CreateCommessaButton = ({
                   </div>
                   <div>
                     <Label className="text-[10px]">
-                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : "(auto se 1 operatore)"}
+                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : ""}
                     </Label>
-                    <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          p.operatorIds.length === 1
-                            ? `${ops.find((o) => o.id === p.operatorIds[0])?.display_name ?? "Operatore unico"} (automatico)`
-                            : "Seleziona responsabile…"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(p.operatorIds.length > 0 ? ops.filter((o) => p.operatorIds.includes(o.id)) : ops).map((o) => (
-                          <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {p.operatorIds.length > 1 && !p.responsabile && (
-                      <div className="text-[10px] text-destructive mt-1">
-                        Con più operatori devi nominare un responsabile.
+                    {p.operatorIds.length === 1 ? (
+                      <div className="mt-1 flex items-center gap-2 px-3 py-2 border-2 border-emerald-400 bg-emerald-50 rounded-sm">
+                        <span className="inline-flex h-5 px-1.5 items-center rounded-sm bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">
+                          Auto
+                        </span>
+                        <span className="text-[12px] font-semibold text-emerald-900">
+                          {ops.find((o) => o.id === p.operatorIds[0])?.display_name ?? "Operatore unico"}
+                        </span>
+                        <span className="text-[10px] text-emerald-700/80 ml-auto">
+                          impostato automaticamente · unico operatore
+                        </span>
                       </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={p.responsabile || ""}
+                          onValueChange={(v) => patchPlanning(d, { responsabile: v })}
+                          disabled={p.operatorIds.length === 0}
+                        >
+                          <SelectTrigger className={p.operatorIds.length > 1 && !p.responsabile ? "border-destructive" : ""}>
+                            <SelectValue placeholder={
+                              p.operatorIds.length === 0
+                                ? "Seleziona prima gli operatori…"
+                                : "Seleziona responsabile…"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ops.filter((o) => p.operatorIds.includes(o.id)).map((o) => (
+                              <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {p.operatorIds.length > 1 && !p.responsabile && (
+                          <div className="text-[11px] text-destructive font-semibold mt-1">
+                            ⚠ Con più operatori devi nominare un responsabile.
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
+
                 </div>
               </div>
             );

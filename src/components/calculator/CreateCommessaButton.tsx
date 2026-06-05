@@ -892,6 +892,9 @@ export const CreateCommessaButton = ({
 
 
                 <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                    Date specifiche di {DEPT_LABEL[d]}
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-[10px]">Inizio lavorazione *</Label>

@@ -461,6 +461,92 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
     }
   };
 
+  const canEditSub = canEditAssignee; // stessi diritti per data/note/elimina
+
+  const changeOrderDate = async (newDate: string) => {
+    if (!order || !newDate) return;
+    setSavingDate(true);
+    try {
+      const { error } = await supabase
+        .from("production_orders")
+        .update({ data: newDate })
+        .eq("id", order.id);
+      if (error) throw error;
+      await logAction({
+        action: "ORDINE_DATA_MODIFICATA",
+        entity_type: "order",
+        entity_id: order.id,
+        detail: `${order.code} → ${newDate}`,
+        new_state: { data: newDate },
+      });
+      await refreshOrders();
+      toast.success("Data aggiornata");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore aggiornamento data");
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
+  const saveNote = async () => {
+    if (!sub || editNote === null) return;
+    const trimmed = editNote.trim();
+    setSavingNote(true);
+    try {
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .update({ note: trimmed || null })
+        .eq("id", sub.id);
+      if (error) throw error;
+      await refreshOrders();
+      setEditNote(null);
+      toast.success("Istruzioni aggiornate");
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const deleteSub = async () => {
+    if (!sub || !order) return;
+    if (!window.confirm(
+      `Eliminare la lavorazione ${sub.code} (${DEPT_LABEL[sub.dept]})?\n\nQuesta azione è irreversibile. Eventuali lavorazioni in sequenza che dipendevano da questa verranno sbloccate e torneranno "in attesa".`
+    )) return;
+    setDeleting(true);
+    try {
+      // Sblocca le sub dipendenti: le riporto a 'in_attesa' rimuovendo depends_on
+      const { data: depRows } = await supabase
+        .from("production_sub_orders")
+        .select("id")
+        .eq("depends_on", sub.id);
+      if (depRows && depRows.length > 0) {
+        await supabase
+          .from("production_sub_orders")
+          .update({ depends_on: null, status: "in_attesa" })
+          .in("id", depRows.map((r) => r.id));
+      }
+      const { error } = await supabase
+        .from("production_sub_orders")
+        .delete()
+        .eq("id", sub.id);
+      if (error) throw error;
+      await logAction({
+        action: "SUBORDINE_ELIMINATO",
+        entity_type: "sub_order",
+        entity_id: sub.id,
+        detail: `${sub.code} (${DEPT_LABEL[sub.dept]}) eliminato da ${order.code}`,
+      });
+      await refreshOrders();
+      toast.success("Lavorazione eliminata");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore eliminazione");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">

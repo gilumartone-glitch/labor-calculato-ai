@@ -39,6 +39,7 @@ import { CreateCommessaButton } from "@/components/calculator/CreateCommessaButt
 
 const STATE_KEY = "officina:state";
 const ACTIVE_DRAFT_KEY = "officina:active-draft";
+const ACTIVE_DRAFT_NAME_KEY = "officina:active-draft-name";
 const VERSION_INTERVAL_MS = 5 * 60 * 1000; // snapshot ogni 5 minuti se ci sono modifiche
 
 type DraftVersion = {

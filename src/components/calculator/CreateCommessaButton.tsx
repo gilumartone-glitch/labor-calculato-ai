@@ -207,7 +207,16 @@ export const CreateCommessaButton = ({
   const toggleOperator = (d: ProdDept, uid: string) => {
     const cur = planningFor(d);
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
-    patchPlanning(d, { operatorIds: ids });
+    // Auto-responsabile:
+    // - 1 solo operatore → diventa automaticamente il responsabile del reparto
+    // - 0 operatori → azzera il responsabile
+    // - più operatori → mantieni il responsabile solo se è ancora tra gli operatori,
+    //   altrimenti svuotalo per forzare la nomina manuale
+    let responsabile = cur.responsabile;
+    if (ids.length === 0) responsabile = "";
+    else if (ids.length === 1) responsabile = ids[0];
+    else if (!ids.includes(responsabile)) responsabile = "";
+    patchPlanning(d, { operatorIds: ids, responsabile });
   };
   const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)

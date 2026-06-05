@@ -209,9 +209,7 @@ export const CreateCommessaButton = ({
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
     patchPlanning(d, { operatorIds: ids });
   };
-  type PlanningMode = "lavorazioni" | "montaggi";
-  const [planningMode, setPlanningMode] = useState<PlanningMode>("lavorazioni");
-  const LAVORAZIONI_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite"];
+  const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
 
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];

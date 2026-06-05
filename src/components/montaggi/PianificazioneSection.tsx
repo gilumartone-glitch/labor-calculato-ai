@@ -572,10 +572,10 @@ export const PianificazioneSection = ({
                       <td className="px-3 py-2 border-b border-border">
                         <div className="font-medium text-sm">{op.name}</div>
                         {op.role && <div className="text-[10px] text-muted-foreground">{op.role}</div>}
-                        {view === "progetto" && (
+                        {view === "progetto" && linkedProfile && (
                           <button type="button" onClick={() => setLinkingOp(op)} className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-dept">
                             <Link2 className="h-2.5 w-2.5" />
-                            {linkedProfile ? linkedProfile.display_name ?? "Utente collegato" : "Collega utente"}
+                            {linkedProfile.display_name ?? "Utente collegato"}
                           </button>
                         )}
                       </td>

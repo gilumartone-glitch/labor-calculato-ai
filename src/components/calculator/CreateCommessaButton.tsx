@@ -808,10 +808,46 @@ export const CreateCommessaButton = ({
 
           {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (
             <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-2">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
-                Pianificazione obbligatoria · date, responsabile, operatori
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
+                  Pianificazione obbligatoria · date, responsabile, operatori
+                </div>
+                <div className="inline-flex border-2 border-ink rounded-sm overflow-hidden">
+                  {(["lavorazioni", "montaggi"] as PlanningMode[]).map((m) => {
+                    const active = planningMode === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setPlanningMode(m)}
+                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors ${
+                          active ? "bg-ink text-paper" : "bg-paper text-ink/60 hover:text-ink"
+                        }`}
+                      >
+                        {m === "lavorazioni" ? "Lavorazioni" : "Montaggi"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              {activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).map((d) => {
+              <div className="text-[10px] text-muted-foreground font-mono">
+                Selezionando un tipo, l'altro viene escluso da questa pianificazione.
+              </div>
+              {(() => {
+                const modeDepts = planningMode === "montaggi" ? ["montaggi"] as ProdDept[] : LAVORAZIONI_DEPTS;
+                const visible = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
+                if (visible.length === 0) {
+                  return (
+                    <div className="text-[11px] text-muted-foreground italic px-1 py-2">
+                      Nessun reparto di tipo "{planningMode}" rilevato in questa commessa.
+                    </div>
+                  );
+                }
+                return visible;
+              })().constructor === Array ? null : null}
+              {(planningMode === "montaggi" ? ["montaggi"] as ProdDept[] : LAVORAZIONI_DEPTS)
+                .filter((d) => activeDepts.includes(d) && PLANNED_DEPTS.includes(d))
+                .map((d) => {
                 const p = planningFor(d);
                 const ops = operatorsForDept(d);
                 return (

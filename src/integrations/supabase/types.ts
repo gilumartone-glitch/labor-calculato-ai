@@ -1300,6 +1300,7 @@ export type Database = {
           depends_on: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
           due_date: string | null
+          end_date: string | null
           files: Json
           id: string
           macro_reparto: string | null
@@ -1316,6 +1317,7 @@ export type Database = {
           rejected_by: string | null
           rejected_to: string | null
           rejection_reason: string | null
+          start_date: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["prod_sub_status"]
           supplier_name: string | null
@@ -1329,6 +1331,7 @@ export type Database = {
           depends_on?: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
           due_date?: string | null
+          end_date?: string | null
           files?: Json
           id?: string
           macro_reparto?: string | null
@@ -1345,6 +1348,7 @@ export type Database = {
           rejected_by?: string | null
           rejected_to?: string | null
           rejection_reason?: string | null
+          start_date?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["prod_sub_status"]
           supplier_name?: string | null
@@ -1358,6 +1362,7 @@ export type Database = {
           depends_on?: string | null
           dept?: Database["public"]["Enums"]["prod_dept"]
           due_date?: string | null
+          end_date?: string | null
           files?: Json
           id?: string
           macro_reparto?: string | null
@@ -1374,6 +1379,7 @@ export type Database = {
           rejected_by?: string | null
           rejected_to?: string | null
           rejection_reason?: string | null
+          start_date?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["prod_sub_status"]
           supplier_name?: string | null

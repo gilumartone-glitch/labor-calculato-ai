@@ -291,6 +291,21 @@ export const PianificazioneSection = ({
 
   useEffect(() => { loadAssignments(); /* eslint-disable-next-line */ }, [weekStart.getTime()]);
 
+  // Sync cantiere_label nel DB quando il progetto corrente è stato rinominato
+  useEffect(() => {
+    if (view !== "progetto" || !draftId || !cantiereLabel) return;
+    const stale = assignments.filter((a) => a.commessa_id === draftId && a.cantiere_label !== cantiereLabel);
+    if (stale.length === 0) return;
+    (async () => {
+      await supabase.from("montaggi_planning")
+        .update({ cantiere_label: cantiereLabel })
+        .eq("commessa_id", draftId)
+        .neq("cantiere_label", cantiereLabel);
+      setAssignments((prev) => prev.map((a) => a.commessa_id === draftId ? { ...a, cantiere_label: cantiereLabel } : a));
+    })();
+    // eslint-disable-next-line
+  }, [assignments, cantiereLabel, draftId, view]);
+
   useEffect(() => {
     const ch = supabase.channel(`montaggi_planning_${draftId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "montaggi_planning" }, () => loadAssignments())

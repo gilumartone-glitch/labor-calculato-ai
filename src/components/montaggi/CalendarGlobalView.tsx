@@ -561,7 +561,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                               draggingId={draggingId}
                               onDropAssignment={(dragId) => handleDropAssignment(dragId, op.id, dateStr)}
                             >
-                              <div className="space-y-0.5 min-h-[42px]">
+                              <div className="space-y-1 min-h-[64px]">
                                 {list.map((a) => (
                                   <DraggableChip
                                     key={a.id}
@@ -657,27 +657,32 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
                         const dow = (d.getDay() + 6) % 7;
                         const isWeekend = dow >= 5;
                         return (
-                          <td key={dateStr} className={`p-0.5 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""} ${isWeekend ? "bg-muted/30" : ""}`}>
-                            <div className="space-y-0.5 min-h-[42px]">
+                          <td key={dateStr} className={`p-1 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""} ${isWeekend ? "bg-muted/30" : ""}`}>
+                            <div className="space-y-1 min-h-[64px]">
                               {list.map((a) => {
+                                const rep = (a.reparto ?? "montaggi") as Reparto;
                                 const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
                                 return (
                                   <button
                                     key={a.id}
                                     type="button"
                                     onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
-                                    className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition border-l-[3px]"
+                                    className="w-full text-left px-2 py-1.5 rounded-md text-[11px] font-bold text-white hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all border-l-[5px] shadow-md ring-1 ring-black/10 leading-tight"
                                     style={{
                                       backgroundColor: chipColorForAssignment(a),
                                       borderLeftColor: repartoAccent(a),
                                     }}
-                                    title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${opName} · ${a.hours}h · clic per modificare`}
+                                    title={`${REPARTO_LABEL[rep]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
-                                    {opName} {a.hours}h
+                                    <div className="truncate">{opName}</div>
+                                    <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
+                                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
+                                      <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>
+                                    </div>
                                   </button>
                                 );
                               })}
-                              {list.length === 0 && !isWeekend && <div className="text-[9px] text-muted-foreground/40 text-center">—</div>}
+                              {list.length === 0 && !isWeekend && <div className="text-[10px] text-muted-foreground/40 text-center pt-2">—</div>}
                             </div>
                           </td>
                         );
@@ -791,6 +796,7 @@ type DraggableChipProps = {
 
 const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableChipProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const rep = (a.reparto ?? "montaggi") as Reparto;
 
   return (
     <button
@@ -799,15 +805,19 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
       onClick={onOpenDialog}
       onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
       onDragEnd={() => { setIsDragging(false); onDragState(null); }}
-      className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+      className="w-full text-left px-2 py-1.5 rounded-md text-[11px] font-bold text-white hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all cursor-grab active:cursor-grabbing border-l-[5px] shadow-md ring-1 ring-black/10 leading-tight"
       style={{
         backgroundColor: chipColorForAssignment(a),
         borderLeftColor: repartoAccent(a),
         opacity: isDragging ? 0.4 : 1,
       }}
-      title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
+      title={`${REPARTO_LABEL[rep]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
     >
-      {a.cantiere_label.slice(0, 10)} {a.hours}h
+      <div className="truncate uppercase tracking-tight">{a.cantiere_label}</div>
+      <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
+        <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>
+      </div>
     </button>
   );
 };

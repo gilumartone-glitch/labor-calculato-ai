@@ -185,6 +185,17 @@ export const CreateCommessaButton = ({
     setForm((f) => {
       const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
       const next = { ...cur, ...p };
+      // Smart fill date:
+      // - se imposti SOLO la data di consegna → inizio e fine = consegna
+      // - se imposti SOLO inizio lavorazione → fine e consegna = inizio
+      if ("deliveryDate" in p && p.deliveryDate) {
+        if (!cur.startDate) next.startDate = p.deliveryDate;
+        if (!cur.endDate) next.endDate = p.deliveryDate;
+      }
+      if ("startDate" in p && p.startDate) {
+        if (!cur.endDate) next.endDate = p.startDate;
+        if (!cur.deliveryDate) next.deliveryDate = p.startDate;
+      }
       return {
         ...f,
         deptPlanning: { ...f.deptPlanning, [d]: next },
@@ -196,6 +207,9 @@ export const CreateCommessaButton = ({
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
     patchPlanning(d, { operatorIds: ids });
   };
+  type PlanningMode = "lavorazioni" | "montaggi";
+  const [planningMode, setPlanningMode] = useState<PlanningMode>("lavorazioni");
+  const LAVORAZIONI_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite"];
 
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];

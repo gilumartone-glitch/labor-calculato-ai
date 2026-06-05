@@ -775,7 +775,7 @@ export const DraftTabsBar = () => {
         setDrafts(remaining);
         setActiveId(next.id);
         localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
-        writeLocalState(next.snapshot ?? {});
+        writeLocalState(next.snapshot ?? {}, next.id);
       }
 
       toast.success(`Inviato al Flow + Produzione ${prodCode}${d.missing?.length ? " — in attesa acquisti" : ""}`, {

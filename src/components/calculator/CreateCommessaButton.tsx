@@ -125,6 +125,13 @@ export const CreateCommessaButton = ({
   const [saving, setSaving] = useState(false);
 
   type RefType = "OC" | "PR" | "FT";
+  type DeptPlanning = {
+    startDate: string;
+    endDate: string;
+    deliveryDate: string;
+    responsabile: string;
+    operatorIds: string[];
+  };
   type FormState = {
     titolo: string; cliente: string; prodName: string; importo: number;
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
@@ -132,6 +139,7 @@ export const CreateCommessaButton = ({
     materialOnlyDepts: ProdDept[];
     excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
+    deptPlanning: Record<string, DeptPlanning>;
     refType: RefType;
     refNumber: string;
   };
@@ -141,12 +149,13 @@ export const CreateCommessaButton = ({
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
     excludedDepts: [],
     deptAssignees: {},
+    deptPlanning: {},
     refType: "OC",
     refNumber: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, refType, refNumber } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, refType, refNumber } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -170,6 +179,26 @@ export const CreateCommessaButton = ({
     }));
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
+  const emptyPlanning: DeptPlanning = { startDate: "", endDate: "", deliveryDate: "", responsabile: "", operatorIds: [] };
+  const planningFor = (d: ProdDept): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
+  const patchPlanning = (d: ProdDept, p: Partial<DeptPlanning>) =>
+    setForm((f) => {
+      const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
+      const next = { ...cur, ...p };
+      return {
+        ...f,
+        deptPlanning: { ...f.deptPlanning, [d]: next },
+        deptAssignees: { ...f.deptAssignees, [d]: next.responsabile },
+      };
+    });
+  const toggleOperator = (d: ProdDept, uid: string) => {
+    const cur = planningFor(d);
+    const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
+    patchPlanning(d, { operatorIds: ids });
+  };
+
+  // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
+  const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];
 
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const [montaggiActive, setMontaggiActive] = useState<boolean>(false);
@@ -261,6 +290,23 @@ export const CreateCommessaButton = ({
         description: "Seleziona la data prevista per la lavorazione: senza data la commessa non può essere pianificata.",
       });
       return;
+    }
+    // Validazione pianificazione per reparto (laboratorio/tappezzeria/falegnameria/vendite/montaggi)
+    if (!warehouseOnly) {
+      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
+      for (const d of toPlan) {
+        const p = planningFor(d);
+        if (!p.startDate || !p.endDate || !p.deliveryDate || !p.responsabile || p.operatorIds.length === 0) {
+          toast.error(`${DEPT_LABEL[d]}: completa la pianificazione`, {
+            description: "Servono date inizio/fine lavorazione, data di consegna, responsabile e almeno un operatore.",
+          });
+          return;
+        }
+        if (p.endDate < p.startDate) {
+          toast.error(`${DEPT_LABEL[d]}: la data fine è precedente all'inizio`);
+          return;
+        }
+      }
     }
     setSaving(true);
     try {
@@ -487,7 +533,9 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
-          const assignee = deptAssignees[dept] || null;
+          const plan = planningFor(dept);
+          const assignee = (plan.responsabile || deptAssignees[dept]) || null;
+          const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
             ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
             : (titolo.trim() || null);
@@ -502,6 +550,10 @@ export const CreateCommessaButton = ({
               files: [],
               depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
               assignee_id: assignee,
+              operator_ids: opIds,
+              start_date: plan.startDate || null,
+              end_date: plan.endDate || null,
+              due_date: plan.deliveryDate || null,
             } as any)
             .select("id")
             .single();
@@ -736,6 +788,73 @@ export const CreateCommessaButton = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (
+            <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
+                Pianificazione obbligatoria · date, responsabile, operatori
+              </div>
+              {activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).map((d) => {
+                const p = planningFor(d);
+                const ops = operatorsForDept(d);
+                return (
+                  <div key={d} className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
+                    <div className="font-mono text-[11px] font-bold uppercase tracking-wider text-primary">
+                      {DEPT_LABEL[d]}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Inizio lavorazione *</Label>
+                        <Input type="date" value={p.startDate}
+                          onChange={(e) => patchPlanning(d, { startDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Fine lavorazione *</Label>
+                        <Input type="date" value={p.endDate}
+                          onChange={(e) => patchPlanning(d, { endDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Data consegna *</Label>
+                        <Input type="date" value={p.deliveryDate}
+                          onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Responsabile di progetto *</Label>
+                      <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
+                        <SelectTrigger><SelectValue placeholder="Seleziona responsabile…" /></SelectTrigger>
+                        <SelectContent>
+                          {ops.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Operatori impiegati *</Label>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {ops.length === 0 && (
+                          <span className="text-[11px] text-muted-foreground">Nessun operatore disponibile</span>
+                        )}
+                        {ops.map((o) => {
+                          const sel = p.operatorIds.includes(o.id);
+                          return (
+                            <button key={o.id} type="button"
+                              onClick={() => toggleOperator(d, o.id)}
+                              className={`px-2 py-1 text-[11px] border-2 rounded-sm transition-colors ${
+                                sel ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:border-ink"
+                              }`}>
+                              {o.display_name ?? o.id.slice(0, 8)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

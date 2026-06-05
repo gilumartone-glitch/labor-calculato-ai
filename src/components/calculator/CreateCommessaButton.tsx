@@ -634,12 +634,22 @@ export const CreateCommessaButton = ({
         const eachWorkday = (start: string, end: string): string[] => {
           if (!start) return [];
           const last = end && end >= start ? end : start;
+          const toLocalDate = (value: string) => {
+            const [y, m, d] = value.split("-").map(Number);
+            return new Date(y, (m || 1) - 1, d || 1);
+          };
+          const toIsoLocal = (value: Date) => {
+            const y = value.getFullYear();
+            const m = String(value.getMonth() + 1).padStart(2, "0");
+            const d = String(value.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          };
           const out: string[] = [];
-          const cur = new Date(`${start}T00:00:00`);
-          const stop = new Date(`${last}T00:00:00`);
+          const cur = toLocalDate(start);
+          const stop = toLocalDate(last);
           while (cur <= stop) {
             const dow = cur.getDay();
-            if (dow !== 0 && dow !== 6) out.push(cur.toISOString().slice(0, 10));
+            if (dow !== 0 && dow !== 6) out.push(toIsoLocal(cur));
             cur.setDate(cur.getDate() + 1);
           }
           return out.length > 0 ? out : [start];

@@ -155,9 +155,9 @@ export const GeneralSummary = ({
 
         <input
           type="text"
-          value={jobName}
+          value={jobName || schedinaTitle}
           onChange={(e) => setJobName(e.target.value)}
-          placeholder="Nome lavorazione"
+          placeholder={schedinaTitle || "Nome lavorazione"}
           className="w-full bg-transparent border-0 border-b border-paper/30 text-paper font-display text-2xl pb-2 mb-6 focus:outline-none focus:border-primary placeholder:text-paper/30"
         />
 
@@ -208,7 +208,7 @@ export const GeneralSummary = ({
         <div className="mt-6 pt-6 border-t border-paper/20">
           <CreateCommessaButton
             label="Trasforma in commessa nel Flow"
-            defaultTitle={schedinaTitle || (jobName && jobName !== "Lavorazione su misura" ? jobName : "") || jobName || "Lavorazione su misura"}
+            defaultTitle={schedinaTitle || jobName || ""}
             defaultAmount={total}
             defaultReparto="generale"
             snapshot={{

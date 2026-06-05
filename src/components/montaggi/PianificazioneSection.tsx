@@ -343,6 +343,8 @@ export const PianificazioneSection = ({
       if (error) return toast.error(error.message);
       autoNotify(payload.operator_id, "aggiornata", { date: payload.date, hours: payload.hours, cantiere: payload.cantiere_label });
     } else {
+      const dup = assignments.some((a) => a.operator_id === payload.operator_id && a.date === payload.date);
+      if (dup) return toast.error("Questo operaio è già assegnato in questa data");
       const { error } = await supabase.from("montaggi_planning").insert({
         operator_id: payload.operator_id,
         date: payload.date,
@@ -363,6 +365,9 @@ export const PianificazioneSection = ({
   /** Quick assign: click sul + → crea subito 8h sul cantiere corrente, senza dialog */
   const quickAssign = async (operatorId: string, date: string) => {
     if (!user) return toast.error("Non autenticato");
+    if (assignments.some((a) => a.operator_id === operatorId && a.date === date)) {
+      return toast.error("Questo operaio è già assegnato in questa data");
+    }
     const cantiere = view === "progetto" ? cantiereLabel : "Cantiere";
     const commessaId = view === "progetto" ? draftId : null;
     const { error } = await supabase.from("montaggi_planning").insert({
@@ -405,8 +410,13 @@ export const PianificazioneSection = ({
       }
       cur.setDate(cur.getDate() + 1);
     }
+    let skipped = 0;
     for (const opId of bulk.operatorIds) {
       for (const d of dates) {
+        if (assignments.some((a) => a.operator_id === opId && a.date === d)) {
+          skipped++;
+          continue;
+        }
         rows.push({
           operator_id: opId,
           date: d,
@@ -418,7 +428,8 @@ export const PianificazioneSection = ({
         });
       }
     }
-    if (rows.length === 0) return toast.info("Nessun giorno selezionato");
+    if (rows.length === 0) return toast.info(skipped > 0 ? "Tutti gli operai sono già assegnati nelle date scelte" : "Nessun giorno selezionato");
+    if (skipped > 0) toast.info(`${skipped} assegnazioni saltate (operaio già presente)`);
     const { error } = await supabase.from("montaggi_planning").insert(rows);
     if (error) return toast.error(error.message);
     // Notifica riassuntiva ad ogni operaio collegato

@@ -187,7 +187,7 @@ const Index = () => {
   const [departments, setDepartments] = useState<Record<DepartmentKey, DepartmentState>>(() =>
     buildDepts(initialSnap?.departments),
   );
-  const [jobName, setJobName] = useState(initialSnap?.jobName ?? "Lavorazione su misura");
+  const [jobName, setJobName] = useState(initialSnap?.jobName ?? "");
   const [quantity, setQuantity] = useState(typeof initialSnap?.quantity === "number" ? initialSnap.quantity : 1);
   const [margin, setMargin] = useState(typeof initialSnap?.margin === "number" ? initialSnap.margin : 30);
   const [vat, setVat] = useState(typeof initialSnap?.vat === "number" ? initialSnap.vat : 22);
@@ -294,7 +294,7 @@ const Index = () => {
       const nextSnap = (normalizeSnap(rawSnap) ?? {}) as Partial<StoredSnap>;
       const nextDepartments = buildDepts(nextSnap.departments);
       setDepartments(nextDepartments);
-      setJobName(nextSnap.jobName ?? "Lavorazione su misura");
+      setJobName(nextSnap.jobName ?? "");
       setQuantity(typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1);
       setMargin(typeof nextSnap.margin === "number" ? nextSnap.margin : 30);
       setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);
@@ -303,7 +303,7 @@ const Index = () => {
       lastAppliedRef.current = JSON.stringify({
         version: STATE_VERSION,
         departments: nextDepartments,
-        jobName: nextSnap.jobName ?? "Lavorazione su misura",
+        jobName: nextSnap.jobName ?? "",
         quantity: typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1,
         margin: typeof nextSnap.margin === "number" ? nextSnap.margin : 30,
         vat: typeof nextSnap.vat === "number" ? nextSnap.vat : 22,

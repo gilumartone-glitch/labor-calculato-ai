@@ -792,10 +792,10 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                     </div>
                     <button
                       type="button"
-                      onClick={() => navigate(`/preventivi?tab=montaggi&draft=${commessa.id}`)}
-                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                      onClick={() => setPlanOpen(true)}
+                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      Modifica pianificazione →
+                      <CalendarClock className="h-3 w-3" /> Modifica pianificazione →
                     </button>
                   </div>
                   <div className="space-y-2">

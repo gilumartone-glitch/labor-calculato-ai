@@ -796,6 +796,7 @@ type DraggableChipProps = {
 
 const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableChipProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const rep = (a.reparto ?? "montaggi") as Reparto;
 
   return (
     <button
@@ -804,15 +805,19 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
       onClick={onOpenDialog}
       onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
       onDragEnd={() => { setIsDragging(false); onDragState(null); }}
-      className="w-full text-left px-1 py-0.5 rounded text-[9px] font-medium text-white truncate hover:opacity-80 transition cursor-grab active:cursor-grabbing border-l-[3px]"
+      className="w-full text-left px-2 py-1.5 rounded-md text-[11px] font-bold text-white hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all cursor-grab active:cursor-grabbing border-l-[5px] shadow-md ring-1 ring-black/10 leading-tight"
       style={{
         backgroundColor: chipColorForAssignment(a),
         borderLeftColor: repartoAccent(a),
         opacity: isDragging ? 0.4 : 1,
       }}
-      title={`${REPARTO_LABEL[(a.reparto ?? "montaggi") as Reparto]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
+      title={`${REPARTO_LABEL[rep]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
     >
-      {a.cantiere_label.slice(0, 10)} {a.hours}h
+      <div className="truncate uppercase tracking-tight">{a.cantiere_label}</div>
+      <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
+        <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>
+      </div>
     </button>
   );
 };

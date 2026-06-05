@@ -147,6 +147,10 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const [newItemLabel, setNewItemLabel] = useState("");
   const [editing, setEditing] = useState<{ id: string; label: string } | null>(null);
   const [savingAssignee, setSavingAssignee] = useState(false);
+  const [savingDate, setSavingDate] = useState(false);
+  const [editNote, setEditNote] = useState<string | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const orderFiles: FileItem[] = (order?.attachments as any[]) ?? [];
   const subFiles: FileItem[] = (sub?.files as any[]) ?? [];

@@ -686,8 +686,8 @@ export const CreateCommessaButton = ({
                 operator_id: opId,
                 date: day,
                 hours: 8,
-                commessa_id: pendingPayload.commessaId,
-                cantiere_label: pendingPayload.clienteName,
+                commessa_id: payload.commessaId,
+                cantiere_label: payload.clienteName,
                 notes: titolo.trim() || null,
                 reparto,
                 created_by: user.id,
@@ -707,7 +707,7 @@ export const CreateCommessaButton = ({
           const opIds = Array.from(new Set([...(planM.operatorIds || []), ...(planM.responsabile ? [planM.responsabile] : [])]));
 
           // 2) Attrezzi/materiali dal modulo Montaggi → assignment items della commessa
-          const montaggiData: any = (pendingPayload.productionSnapshot as any)?.designState?.montaggi;
+          const montaggiData: any = (payload.productionSnapshot as any)?.designState?.montaggi;
           if (montaggiData) {
             const tools = Array.isArray(montaggiData.tools) ? montaggiData.tools : [];
             const matCatalog = Array.isArray(montaggiData.materialCatalog) ? montaggiData.materialCatalog : [];
@@ -720,7 +720,7 @@ export const CreateCommessaButton = ({
               if (!name) continue;
               const qty = Number(t?.qty) || 1;
               items.push({
-                commessa_id: pendingPayload.commessaId,
+                commessa_id: payload.commessaId,
                 kind: "attrezzo",
                 ref_nome: name,
                 qty,
@@ -736,7 +736,7 @@ export const CreateCommessaButton = ({
               const qty = Number(m?.quantity ?? m?.qty) || 1;
               const unit = cat?.unit ?? m?.unit ?? "pz";
               items.push({
-                commessa_id: pendingPayload.commessaId,
+                commessa_id: payload.commessaId,
                 kind: "materiale",
                 ref_nome: name,
                 qty,
@@ -761,7 +761,7 @@ export const CreateCommessaButton = ({
             await notify({
               userIds: montaggiTargets,
               type: "ordine_creato",
-              message: `Montaggio assegnato: ${code} · ${pendingPayload.clienteName}${montaggiSummary ? ` — ${montaggiSummary}` : ""}`,
+              message: `Montaggio assegnato: ${code} · ${payload.clienteName}${montaggiSummary ? ` — ${montaggiSummary}` : ""}`,
               order_id: pord.id,
               link: `/preventivi?tab=montaggi`,
               is_urgent: prodPrio !== "normale",
@@ -776,7 +776,7 @@ export const CreateCommessaButton = ({
             await notify({
               userIds: [s.assignee],
               type: "ordine_creato",
-              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${pendingPayload.clienteName})`,
+              message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${payload.clienteName})`,
               order_id: pord.id,
               link: `/produzione/board?order=${pord.id}`,
               is_urgent: prodPrio !== "normale",

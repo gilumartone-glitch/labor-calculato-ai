@@ -232,8 +232,17 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const known = new Set(allOperatorsForMode.map((o) => o.id));
     const set = new Set<string>();
     modeAssignments.forEach((a) => { if (!known.has(a.operator_id)) set.add(a.operator_id); });
-    return Array.from(set).map((id) => ({ id, name: prettyOpName(id), role: "", reparti: [defaultReparto] } as Operator));
-  }, [allOperatorsForMode, modeAssignments, defaultReparto]);
+    return Array.from(set).map((id) => {
+      const prof = profiles.find((p) => p.id === id);
+      return {
+        id,
+        name: prof?.display_name ?? prettyOpName(id),
+        userId: prof ? id : undefined,
+        role: "",
+        reparti: [defaultReparto],
+      } as Operator;
+    });
+  }, [allOperatorsForMode, modeAssignments, defaultReparto, profiles]);
 
   // Operai dal personale (profili) che hanno almeno uno dei settori della modalità
   const profileOps = useMemo(() => {

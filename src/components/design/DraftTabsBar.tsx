@@ -567,7 +567,10 @@ export const DraftTabsBar = () => {
   const startRename = (d: Draft) => {
     setRenamingId(d.id);
     setRenameValue(d.name);
-    setTimeout(() => renameInputRef.current?.focus(), 50);
+    setTimeout(() => {
+      const el = renameInputRef.current;
+      if (el) { el.focus(); el.select(); }
+    }, 50);
   };
 
   const commitRename = async () => {

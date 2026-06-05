@@ -649,7 +649,21 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           <div className="border-2 border-ink/15 rounded-sm p-3 space-y-1.5 text-[12px]">
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commessa</div>
             <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /><strong>{order.cliente}</strong></div>
-            <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground" />Data ordine: {order.data}</div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              Data ordine:
+              {canEditSub ? (
+                <input
+                  type="date"
+                  value={order.data ?? ""}
+                  disabled={savingDate}
+                  onChange={(e) => changeOrderDate(e.target.value)}
+                  className="border border-ink/20 rounded-sm px-1.5 py-0.5 font-mono text-[12px] bg-paper"
+                />
+              ) : (
+                <span>{order.data}</span>
+              )}
+            </div>
             <div className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-muted-foreground" />Consegna: {order.delivery === "ritiro" ? "Ritiro cliente" : order.delivery === "mezzo_proprio" ? "Mezzo proprio" : order.delivery === "corriere" ? "Corriere" : "Spedizione"}</div>
             {creator && <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" />Lanciato da: <strong>{creator.display_name ?? "—"}</strong></div>}
             {order.note && (

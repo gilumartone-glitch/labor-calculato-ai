@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
+import { loadContabContacts, addContabContact } from "@/lib/produzione/contabilita-contacts";
 import { ProdDept, WORK_DEPTS, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
@@ -165,6 +166,17 @@ export const ConfirmToWarehouseDialog = ({
     if (hasMissing) {
       const noSupplier = missing.find((m) => !m.supplier_name);
       if (noSupplier) { toast.error(`Indica il fornitore per: ${noSupplier.label}`); return; }
+      // Auto-aggiungi all'anagrafica i fornitori digitati ma non ancora presenti
+      try {
+        const existing = await loadContabContacts();
+        const known = new Set(existing.map((c) => c.name.trim().toLowerCase()));
+        const toAdd = Array.from(new Set(missing.map((m) => (m.supplier_name || "").trim()).filter(Boolean)))
+          .filter((n) => !known.has(n.toLowerCase()));
+        for (const name of toAdd) {
+          try { await addContabContact({ name, type: "fornitore" }); } catch { /* ignora duplicati */ }
+        }
+        if (toAdd.length > 0) toast.success(`${toAdd.length} fornitore/i aggiunto/i all'anagrafica`);
+      } catch { /* non bloccare il flusso */ }
     }
     await onConfirm({
       customer_order_ref: ref.trim(),

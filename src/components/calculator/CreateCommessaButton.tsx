@@ -125,6 +125,13 @@ export const CreateCommessaButton = ({
   const [saving, setSaving] = useState(false);
 
   type RefType = "OC" | "PR" | "FT";
+  type DeptPlanning = {
+    startDate: string;
+    endDate: string;
+    deliveryDate: string;
+    responsabile: string;
+    operatorIds: string[];
+  };
   type FormState = {
     titolo: string; cliente: string; prodName: string; importo: number;
     reparto: CommessaReparto; priorita: CommessaPriorita; scadenza: string;
@@ -132,6 +139,7 @@ export const CreateCommessaButton = ({
     materialOnlyDepts: ProdDept[];
     excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
+    deptPlanning: Record<string, DeptPlanning>;
     refType: RefType;
     refNumber: string;
   };
@@ -141,12 +149,13 @@ export const CreateCommessaButton = ({
     scadenza: "", note: "", warehouseOnly: false, materialOnlyDepts: [],
     excludedDepts: [],
     deptAssignees: {},
+    deptPlanning: {},
     refType: "OC",
     refNumber: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, refType, refNumber } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, refType, refNumber } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -170,6 +179,26 @@ export const CreateCommessaButton = ({
     }));
   const setDeptAssignee = (d: ProdDept, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
+  const emptyPlanning: DeptPlanning = { startDate: "", endDate: "", deliveryDate: "", responsabile: "", operatorIds: [] };
+  const planningFor = (d: ProdDept): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
+  const patchPlanning = (d: ProdDept, p: Partial<DeptPlanning>) =>
+    setForm((f) => {
+      const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
+      const next = { ...cur, ...p };
+      return {
+        ...f,
+        deptPlanning: { ...f.deptPlanning, [d]: next },
+        deptAssignees: { ...f.deptAssignees, [d]: next.responsabile },
+      };
+    });
+  const toggleOperator = (d: ProdDept, uid: string) => {
+    const cur = planningFor(d);
+    const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
+    patchPlanning(d, { operatorIds: ids });
+  };
+
+  // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
+  const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];
 
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const [montaggiActive, setMontaggiActive] = useState<boolean>(false);

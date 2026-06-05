@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 
-type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "altro";
+type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "stampa" | "taglio" | "stampa_3d" | "assemblaggio" | "progettazione" | "altro";
 type CalendarMode = "montaggi" | "lavorazioni";
 type Operator = { id: string; name: string; role?: string; userId?: string; reparti?: Reparto[] };
 type Assignment = {
@@ -42,13 +42,18 @@ type ProfileLite = { id: string; display_name: string | null; settori?: string[]
 
 const OPERATORS_KEY = "montaggi:operai:v1";
 
-const REPARTI: Reparto[] = ["montaggi", "laboratorio", "tappezzeria", "vendite", "falegnameria", "altro"];
+const REPARTI: Reparto[] = ["montaggi", "laboratorio", "tappezzeria", "vendite", "falegnameria", "stampa", "taglio", "stampa_3d", "assemblaggio", "progettazione", "altro"];
 const REPARTO_LABEL: Record<Reparto, string> = {
   montaggi: "Montaggi",
   laboratorio: "Laboratorio",
   tappezzeria: "Tappezzeria",
   vendite: "Vendite",
   falegnameria: "Falegnameria",
+  stampa: "Stampa",
+  taglio: "Taglio",
+  stampa_3d: "Stampa 3D",
+  assemblaggio: "Assemblaggio",
+  progettazione: "Progettazione",
   altro: "Altro",
 };
 const REPARTO_BG: Record<Reparto, string> = {
@@ -57,13 +62,18 @@ const REPARTO_BG: Record<Reparto, string> = {
   tappezzeria: "#A855F7",
   vendite: "#10B981",
   falegnameria: "#92400E",
+  stampa: "#DC2626",
+  taglio: "#7C3AED",
+  stampa_3d: "#0891B2",
+  assemblaggio: "#65A30D",
+  progettazione: "#475569",
   altro: "#6B7280",
 };
 
 // Reparti gestiti per modalità
 const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
   montaggi: ["montaggi"],
-  lavorazioni: ["laboratorio", "tappezzeria", "vendite", "falegnameria"],
+  lavorazioni: ["laboratorio", "tappezzeria", "vendite", "falegnameria", "stampa", "taglio", "stampa_3d", "assemblaggio", "progettazione"],
 };
 
 const colorForCantiere = (label: string) => {

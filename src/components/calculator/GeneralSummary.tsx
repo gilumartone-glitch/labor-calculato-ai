@@ -48,6 +48,14 @@ export const GeneralSummary = ({
   const net = cost;
   const vatAmount = 0;
   const total = cost;
+
+  // Titolo schedina (draft attivo) come default per il dialog "Crea commessa nel Flow"
+  const schedinaTitle = (() => {
+    try {
+      if (typeof window === "undefined") return "";
+      return localStorage.getItem("officina:active-draft-name") || "";
+    } catch { return ""; }
+  })();
   const perPiece = quantity > 0 ? total / quantity : total;
 
   return (
@@ -200,7 +208,7 @@ export const GeneralSummary = ({
         <div className="mt-6 pt-6 border-t border-paper/20">
           <CreateCommessaButton
             label="Trasforma in commessa nel Flow"
-            defaultTitle={jobName || "Lavorazione su misura"}
+            defaultTitle={jobName || schedinaTitle || "Lavorazione su misura"}
             defaultAmount={total}
             defaultReparto="generale"
             snapshot={{

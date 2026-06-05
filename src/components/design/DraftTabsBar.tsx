@@ -39,6 +39,7 @@ import { CreateCommessaButton } from "@/components/calculator/CreateCommessaButt
 
 const STATE_KEY = "officina:state";
 const ACTIVE_DRAFT_KEY = "officina:active-draft";
+const ACTIVE_DRAFT_NAME_KEY = "officina:active-draft-name";
 const VERSION_INTERVAL_MS = 5 * 60 * 1000; // snapshot ogni 5 minuti se ci sono modifiche
 
 type DraftVersion = {
@@ -378,6 +379,13 @@ export const DraftTabsBar = () => {
     };
   }, [activeId, user]);
 
+  // Cache nome della schedina attiva in localStorage (usato dal dialog "Crea commessa nel Flow")
+  useEffect(() => {
+    const active = drafts.find((d) => d.id === activeId);
+    if (active?.name) localStorage.setItem(ACTIVE_DRAFT_NAME_KEY, active.name);
+    else localStorage.removeItem(ACTIVE_DRAFT_NAME_KEY);
+  }, [activeId, drafts]);
+
   // Auto-versioning: ogni VERSION_INTERVAL_MS controlla se lo snapshot è cambiato
   // rispetto all'ultima versione e in tal caso ne salva una nuova.
   useEffect(() => {
@@ -559,7 +567,10 @@ export const DraftTabsBar = () => {
   const startRename = (d: Draft) => {
     setRenamingId(d.id);
     setRenameValue(d.name);
-    setTimeout(() => renameInputRef.current?.focus(), 50);
+    setTimeout(() => {
+      const el = renameInputRef.current;
+      if (el) { el.focus(); el.select(); }
+    }, 50);
   };
 
   const commitRename = async () => {

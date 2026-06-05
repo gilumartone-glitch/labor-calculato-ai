@@ -621,9 +621,17 @@ export const PianificazioneSection = ({
                                     key={a.id}
                                     type="button"
                                     onClick={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
-                                    className="w-full text-left px-1.5 py-1 rounded text-[10px] font-medium text-white hover:opacity-80 transition flex items-center justify-between gap-1"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Delete" || e.key === "Backspace") {
+                                        e.preventDefault();
+                                        if (confirm(`Eliminare l'impegno di ${op.name} (${a.hours}h)?`)) {
+                                          deleteAssignment(a.id);
+                                        }
+                                      }
+                                    }}
+                                    className="w-full text-left px-1.5 py-1 rounded text-[10px] font-medium text-white hover:opacity-80 transition flex items-center justify-between gap-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-ink"
                                     style={{ backgroundColor: colorForCantiere(displayLabel), opacity: view === "progetto" && !isCurrent ? 0.5 : 1 }}
-                                    title={`${displayLabel} · ${a.hours}h${a.notes ? ` · ${a.notes}` : ""}`}
+                                    title={`${displayLabel} · ${a.hours}h${a.notes ? ` · ${a.notes}` : ""} — Canc per eliminare`}
                                   >
                                     <span className="truncate">{displayLabel}</span>
                                     <span className="font-mono shrink-0">{a.hours}h</span>

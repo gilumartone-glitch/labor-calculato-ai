@@ -769,6 +769,55 @@ export const CommessaDetailDialog = ({ open, onOpenChange, commessa, onChanged, 
                 </div>
               </div>
             )}
+
+            {/* Pianificazione operai (montaggi/lavorazioni) collegata a questa commessa */}
+            {planning.length > 0 && (() => {
+              const byOp = new Map<string, PlanRow[]>();
+              planning.forEach((r) => {
+                const k = r.operator_id;
+                if (!byOp.has(k)) byOp.set(k, []);
+                byOp.get(k)!.push(r);
+              });
+              const totHours = planning.reduce((s, r) => s + (Number(r.hours) || 0), 0);
+              return (
+                <div className="border border-ink/20 rounded-sm p-3 bg-paper">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                      Operai pianificati · {totHours.toLocaleString("it-IT")} h totali
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/preventivi?tab=montaggi&draft=${commessa.id}`)}
+                      className="text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                    >
+                      Modifica pianificazione →
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {Array.from(byOp.entries()).map(([opId, rows]) => {
+                      const name = operatorNames[opId] ?? opId;
+                      const h = rows.reduce((s, r) => s + (Number(r.hours) || 0), 0);
+                      return (
+                        <div key={opId} className="text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">{name}</span>
+                            <span className="font-mono tabular-nums text-muted-foreground">{h} h</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {rows.map((r) => (
+                              <span key={r.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 border border-ink/15 rounded-sm font-mono text-[10px]">
+                                {new Date(r.date).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })}
+                                <span className="text-muted-foreground">· {r.hours}h</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
             {snapshot?.source === "summary" && (
               <div className="grid grid-cols-3 gap-2 text-xs font-mono">
                 <Stat label="Costo" value={eur(snapshot.cost ?? 0)} small />

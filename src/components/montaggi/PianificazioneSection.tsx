@@ -179,7 +179,35 @@ export const PianificazioneSection = ({
       }));
   }, [profiles, projectOperators, view]);
 
-  const operators = view === "progetto" ? [...projectOperators, ...profileOps] : ops.state;
+  // Operai dalla lista "Dipendenti" (attivi, con reparto montaggi)
+  const dipendentiOps = useMemo<Operator[]>(() => {
+    const seenNames = new Set<string>();
+    if (view === "progetto") {
+      projectOperators.forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+      profileOps.forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+    } else {
+      (ops.state ?? []).forEach((o) => seenNames.add((o.name ?? "").trim().toLowerCase()));
+    }
+    return dipendentiList
+      .filter((d) => {
+        const inMont = (d.reparti ?? []).includes("montaggi") || (d.macro_reparti ?? []).includes("montaggi");
+        if (!inMont) return false;
+        const n = (d.nome ?? "").trim().toLowerCase();
+        if (!n || seenNames.has(n)) return false;
+        seenNames.add(n);
+        return true;
+      })
+      .map((d) => ({
+        id: d.profile_id ?? `dip:${d.id}`,
+        name: d.nome,
+        role: d.funzione ?? "",
+        userId: d.profile_id ?? undefined,
+      }));
+  }, [dipendentiList, projectOperators, profileOps, ops.state, view]);
+
+  const operators = view === "progetto"
+    ? [...projectOperators, ...profileOps, ...dipendentiOps]
+    : [...ops.state, ...dipendentiOps];
 
   /** Seed in global mode */
   const seededRef = (typeof window !== "undefined") ? (window as unknown as { __montaggiOpsSeeded?: boolean }) : { __montaggiOpsSeeded: true };

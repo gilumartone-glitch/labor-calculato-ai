@@ -140,6 +140,7 @@ export const CreateCommessaButton = ({
     excludedDepts: ProdDept[];
     deptAssignees: Record<string, string>;
     deptPlanning: Record<string, DeptPlanning>;
+    generalManager: string;
     refType: RefType;
     refNumber: string;
   };
@@ -150,12 +151,13 @@ export const CreateCommessaButton = ({
     excludedDepts: [],
     deptAssignees: {},
     deptPlanning: {},
+    generalManager: "",
     refType: "OC",
     refNumber: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, refType, refNumber } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, generalManager, refType, refNumber } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
@@ -207,9 +209,7 @@ export const CreateCommessaButton = ({
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
     patchPlanning(d, { operatorIds: ids });
   };
-  type PlanningMode = "lavorazioni" | "montaggi";
-  const [planningMode, setPlanningMode] = useState<PlanningMode>("lavorazioni");
-  const LAVORAZIONI_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite"];
+  const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
 
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "falegnameria", "vendite", "montaggi"];
@@ -305,21 +305,37 @@ export const CreateCommessaButton = ({
       });
       return;
     }
-    // Validazione pianificazione per reparto (laboratorio/tappezzeria/falegnameria/vendite/montaggi)
+    // Validazione pianificazione per reparto (tutti i reparti rilevati)
     if (!warehouseOnly) {
-      const modeDepts = planningMode === "montaggi" ? ["montaggi"] : LAVORAZIONI_DEPTS;
-      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
+      if (!generalManager) {
+        toast.error("Nomina un responsabile generale di progetto");
+        return;
+      }
+      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
       for (const d of toPlan) {
         const p = planningFor(d);
-        if (!p.startDate || !p.endDate || !p.deliveryDate || !p.responsabile || p.operatorIds.length === 0) {
+        if (!p.startDate || !p.endDate || !p.deliveryDate || p.operatorIds.length === 0) {
           toast.error(`${DEPT_LABEL[d]}: completa la pianificazione`, {
-            description: "Servono date inizio/fine lavorazione, data di consegna, responsabile e almeno un operatore.",
+            description: "Servono date inizio/fine lavorazione, data di consegna e almeno un operatore.",
           });
           return;
         }
         if (p.endDate < p.startDate) {
           toast.error(`${DEPT_LABEL[d]}: la data fine è precedente all'inizio`);
           return;
+        }
+        // Responsabile: se 1 solo operatore, è automaticamente lui;
+        // se più operatori, serve la nomina esplicita.
+        if (!p.responsabile) {
+          if (p.operatorIds.length === 1) {
+            p.responsabile = p.operatorIds[0];
+            patchPlanning(d, { responsabile: p.operatorIds[0] });
+          } else {
+            toast.error(`${DEPT_LABEL[d]}: nomina un responsabile`, {
+              description: "Con più operatori serve un responsabile della lavorazione.",
+            });
+            return;
+          }
         }
       }
     }
@@ -373,6 +389,7 @@ export const CreateCommessaButton = ({
         note: note.trim() || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
+        responsabile_id: generalManager || null,
       }).select("id").single();
       if (error) throw error;
       const commessaId = createdCommessa.id;
@@ -806,108 +823,119 @@ export const CreateCommessaButton = ({
             </div>
           )}
 
-          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (
-            <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-2">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (() => {
+            const plannedActive = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
+            const currentTab = activePlanTab && plannedActive.includes(activePlanTab) ? activePlanTab : plannedActive[0];
+            const d = currentTab;
+            const p = planningFor(d);
+            const ops = operatorsForDept(d);
+            return (
+              <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-3">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
-                  Pianificazione obbligatoria · date, responsabile, operatori
+                  Pianificazione obbligatoria · per ogni reparto
                 </div>
-                <div className="inline-flex border-2 border-ink rounded-sm overflow-hidden">
-                  {(["lavorazioni", "montaggi"] as PlanningMode[]).map((m) => {
-                    const active = planningMode === m;
+
+                {/* Responsabile generale del progetto */}
+                <div className="border border-ink/20 rounded-sm p-2 bg-background">
+                  <Label className="text-[10px]">Responsabile generale del progetto *</Label>
+                  <Select value={generalManager || ""} onValueChange={(v) => patch({ generalManager: v })}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona responsabile generale…" /></SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tabs dei reparti rilevati */}
+                <div className="flex flex-wrap gap-1 border-b-2 border-ink/15">
+                  {plannedActive.map((dept) => {
+                    const active = dept === d;
+                    const pp = planningFor(dept);
+                    const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
+                      (pp.responsabile || pp.operatorIds.length === 1);
                     return (
                       <button
-                        key={m}
+                        key={dept}
                         type="button"
-                        onClick={() => setPlanningMode(m)}
-                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                          active ? "bg-ink text-paper" : "bg-paper text-ink/60 hover:text-ink"
+                        onClick={() => setActivePlanTab(dept)}
+                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider font-bold transition-colors border-b-2 -mb-[2px] ${
+                          active ? "border-primary text-primary" : "border-transparent text-ink/50 hover:text-ink"
                         }`}
                       >
-                        {m === "lavorazioni" ? "Lavorazioni" : "Montaggi"}
+                        {DEPT_LABEL[dept]} {complete ? "✓" : "•"}
                       </button>
                     );
                   })}
                 </div>
-              </div>
-              <div className="text-[10px] text-muted-foreground font-mono">
-                Selezionando un tipo, l'altro viene escluso da questa pianificazione.
-              </div>
-              {(() => {
-                const modeDepts = planningMode === "montaggi" ? (["montaggi"] as ProdDept[]) : LAVORAZIONI_DEPTS;
-                const visible = activeDepts.filter((d) => PLANNED_DEPTS.includes(d) && modeDepts.includes(d));
-                if (visible.length === 0) {
-                  return (
-                    <div className="text-[11px] text-muted-foreground italic px-1 py-2">
-                      Nessun reparto di tipo "{planningMode}" rilevato in questa commessa.
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-              {(planningMode === "montaggi" ? (["montaggi"] as ProdDept[]) : LAVORAZIONI_DEPTS)
-                .filter((d) => activeDepts.includes(d) && PLANNED_DEPTS.includes(d))
-                .map((d) => {
-                const p = planningFor(d);
-                const ops = operatorsForDept(d);
-                return (
-                  <div key={d} className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
-                    <div className="font-mono text-[11px] font-bold uppercase tracking-wider text-primary">
-                      {DEPT_LABEL[d]}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-[10px]">Inizio lavorazione *</Label>
-                        <Input type="date" value={p.startDate}
-                          onChange={(e) => patchPlanning(d, { startDate: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Fine lavorazione *</Label>
-                        <Input type="date" value={p.endDate}
-                          onChange={(e) => patchPlanning(d, { endDate: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Data consegna *</Label>
-                        <Input type="date" value={p.deliveryDate}
-                          onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
-                      </div>
+
+                <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-[10px]">Inizio lavorazione *</Label>
+                      <Input type="date" value={p.startDate}
+                        onChange={(e) => patchPlanning(d, { startDate: e.target.value })} />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Responsabile di progetto *</Label>
-                      <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
-                        <SelectTrigger><SelectValue placeholder="Seleziona responsabile…" /></SelectTrigger>
-                        <SelectContent>
-                          {ops.map((o) => (
-                            <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-[10px]">Fine lavorazione *</Label>
+                      <Input type="date" value={p.endDate}
+                        onChange={(e) => patchPlanning(d, { endDate: e.target.value })} />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Operatori impiegati *</Label>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {ops.length === 0 && (
-                          <span className="text-[11px] text-muted-foreground">Nessun operatore disponibile</span>
-                        )}
-                        {ops.map((o) => {
-                          const sel = p.operatorIds.includes(o.id);
-                          return (
-                            <button key={o.id} type="button"
-                              onClick={() => toggleOperator(d, o.id)}
-                              className={`px-2 py-1 text-[11px] border-2 rounded-sm transition-colors ${
-                                sel ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:border-ink"
-                              }`}>
-                              {o.display_name ?? o.id.slice(0, 8)}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <Label className="text-[10px]">Data consegna *</Label>
+                      <Input type="date" value={p.deliveryDate}
+                        onChange={(e) => patchPlanning(d, { deliveryDate: e.target.value })} />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div>
+                    <Label className="text-[10px]">Operatori impiegati *</Label>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {ops.length === 0 && (
+                        <span className="text-[11px] text-muted-foreground">Nessun operatore disponibile</span>
+                      )}
+                      {ops.map((o) => {
+                        const sel = p.operatorIds.includes(o.id);
+                        return (
+                          <button key={o.id} type="button"
+                            onClick={() => toggleOperator(d, o.id)}
+                            className={`px-2 py-1 text-[11px] border-2 rounded-sm transition-colors ${
+                              sel ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:border-ink"
+                            }`}>
+                            {o.display_name ?? o.id.slice(0, 8)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">
+                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : "(auto se 1 operatore)"}
+                    </Label>
+                    <Select value={p.responsabile || ""} onValueChange={(v) => patchPlanning(d, { responsabile: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          p.operatorIds.length === 1
+                            ? `${ops.find((o) => o.id === p.operatorIds[0])?.display_name ?? "Operatore unico"} (automatico)`
+                            : "Seleziona responsabile…"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(p.operatorIds.length > 0 ? ops.filter((o) => p.operatorIds.includes(o.id)) : ops).map((o) => (
+                          <SelectItem key={o.id} value={o.id}>{o.display_name ?? o.id.slice(0, 8)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {p.operatorIds.length > 1 && !p.responsabile && (
+                      <div className="text-[10px] text-destructive mt-1">
+                        Con più operatori devi nominare un responsabile.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <DialogFooter>

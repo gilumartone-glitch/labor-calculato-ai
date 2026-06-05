@@ -533,7 +533,9 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
-          const assignee = deptAssignees[dept] || null;
+          const plan = planningFor(dept);
+          const assignee = (plan.responsabile || deptAssignees[dept]) || null;
+          const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
             ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
             : (titolo.trim() || null);
@@ -548,6 +550,10 @@ export const CreateCommessaButton = ({
               files: [],
               depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
               assignee_id: assignee,
+              operator_ids: opIds,
+              start_date: plan.startDate || null,
+              end_date: plan.endDate || null,
+              due_date: plan.deliveryDate || null,
             } as any)
             .select("id")
             .single();

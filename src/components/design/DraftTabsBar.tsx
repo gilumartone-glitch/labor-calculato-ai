@@ -242,7 +242,7 @@ const writeLocalState = (snap: Record<string, unknown>, draftId?: string | null)
   }
 };
 
-export const DraftTabsBar = () => {
+export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode } = {}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -894,6 +894,13 @@ export const DraftTabsBar = () => {
               </button>
             </div>
           )}
+
+          <div className="flex-1" />
+        </div>
+
+        {/* Seconda riga: tab reparti + Storico + Invia al Flow */}
+        <div className="container pb-2 flex items-center gap-2 flex-wrap border-t border-ink/10 pt-2">
+          {secondaryRow}
 
           <div className="flex-1" />
 

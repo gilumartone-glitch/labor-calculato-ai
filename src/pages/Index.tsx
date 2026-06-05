@@ -516,27 +516,7 @@ const Index = () => {
             </div>
           </div>
 
-          <nav className="order-last w-full md:order-none md:w-auto flex items-center gap-1 bg-background border-2 border-dept rounded-sm p-1 overflow-x-auto">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const isActive = t.key === activeTab;
-              const isSummary = t.key === "riepilogo";
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => changeTab(t.key)}
-                  className={`relative shrink-0 inline-flex items-center gap-2 px-2.5 md:px-4 py-2 rounded-sm text-[11px] md:text-xs uppercase tracking-wider font-semibold transition-colors ${
-                    isActive
-                      ? "bg-dept text-dept-foreground"
-                      : "text-ink/60 hover:text-ink"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">{t.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {/* Dept tabs spostate sotto la barra schede progetto */}
 
           {/* Selettore tipo cliente: SOLO per il reparto Laboratorio (stampa).
               Negli altri reparti il prezzo è unico, quindi nascondiamo il toggle
@@ -588,8 +568,29 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Barra schede progetto + Invia al Flow */}
-      <DraftTabsBar />
+      {/* Barra schede progetto + (riga sotto) tab reparti + Storico + Invia al Flow */}
+      <DraftTabsBar
+        secondaryRow={
+          <nav className="flex items-center gap-1 bg-background border-2 border-dept rounded-sm p-1 overflow-x-auto">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const isActive = t.key === activeTab;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => changeTab(t.key)}
+                  className={`relative shrink-0 inline-flex items-center gap-2 px-2.5 md:px-4 py-2 rounded-sm text-[11px] md:text-xs uppercase tracking-wider font-semibold transition-colors ${
+                    isActive ? "bg-dept text-dept-foreground" : "text-ink/60 hover:text-ink"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">{t.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        }
+      />
 
       {/* Body */}
       <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 md:py-8 pb-20">

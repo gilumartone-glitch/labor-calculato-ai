@@ -214,13 +214,25 @@ const readLocalState = (): Record<string, unknown> => {
   }
 };
 
-const writeLocalState = (snap: Record<string, unknown>) => {
+const writeLocalState = (snap: Record<string, unknown>, draftId?: string | null) => {
   try {
     if (snap && Object.keys(snap).length > 0) {
       localStorage.setItem(STATE_KEY, JSON.stringify(snap));
     } else {
       localStorage.removeItem(STATE_KEY);
     }
+    // Restore Montaggi module payload (lives in a per-draft key)
+    try {
+      const id = draftId ?? localStorage.getItem(ACTIVE_DRAFT_KEY);
+      if (id) {
+        const key = `officina:montaggi-module:v2:${id}`;
+        const ds = (snap as any)?.designState;
+        const montaggi = ds && typeof ds === "object" ? (ds as any).montaggi : (snap as any)?.montaggi;
+        if (montaggi && typeof montaggi === "object") {
+          localStorage.setItem(key, JSON.stringify(montaggi));
+        }
+      }
+    } catch { /* ignora */ }
     const event = () => window.dispatchEvent(new CustomEvent("officina:draft-state-loaded", { detail: snap ?? {} }));
     event();
     window.setTimeout(event, 0);

@@ -779,7 +779,7 @@ export const CreateCommessaButton = ({
               </Select>
             </div>
             <div>
-              <Label htmlFor="scadenza">Scadenza</Label>
+              <Label htmlFor="scadenza">Scadenza <span className="text-muted-foreground text-[10px]">(opzionale · le date di fine sono per reparto)</span></Label>
               <Input
                 id="scadenza"
                 type="date"

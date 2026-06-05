@@ -57,6 +57,7 @@ export const ConfirmToWarehouseDialog = ({
   materials = [],
   suggestedWorkDept,
   availableMacros,
+  defaultAssigneeByMacro,
   onConfirm,
   saving,
 }: {
@@ -70,6 +71,8 @@ export const ConfirmToWarehouseDialog = ({
   suggestedWorkDept?: ProdDept;
   /** Macro-reparti attivati nel progetto (filtro selettore). Se undefined, mostra tutte le macro. */
   availableMacros?: ProdDept[];
+  /** Responsabile già scelto in pianificazione, mappato per macro-reparto (es. { laboratorio: "<uid>", montaggi: "<uid>" }). */
+  defaultAssigneeByMacro?: Record<string, string>;
   onConfirm: (data: WarehouseConfirmData) => Promise<void> | void;
   saving?: boolean;
 }) => {
@@ -140,13 +143,27 @@ export const ConfirmToWarehouseDialog = ({
       const aList = (a ?? []) as MagazzinoUser[];
       setUsers(list);
       setAcquistiUsers(aList);
-      if (list.length > 0) setAssignee(list[0].id);
+      // Preferisci il responsabile scelto in pianificazione per il reparto attivo
+      const planned = defaultAssigneeByMacro?.[workDept];
+      const plannedExists = planned && list.some((u) => u.id === planned);
+      if (plannedExists) setAssignee(planned as string);
+      else if (list.length > 0) setAssignee(list[0].id);
       if (aList.length > 0) setAcquistiAssignee(aList[0].id);
       setLoading(false);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Quando l'utente cambia reparto di lavorazione, aggiorna il responsabile col valore pianificato
+  useEffect(() => {
+    if (!open) return;
+    const planned = defaultAssigneeByMacro?.[workDept];
+    if (planned && users.some((u) => u.id === planned)) {
+      setAssignee(planned);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workDept]);
 
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])

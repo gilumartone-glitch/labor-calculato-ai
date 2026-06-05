@@ -287,6 +287,8 @@ const Flow = () => {
       return;
     }
     if (!window.confirm("Eliminare definitivamente questa card?")) return;
+    // Pulisci anche gli impegni di pianificazione collegati alla commessa
+    await supabase.from("montaggi_planning").delete().eq("commessa_id", id);
     const { error } = await supabase.from("commesse").delete().eq("id", id);
     if (error) {
       toast.error(error.message);

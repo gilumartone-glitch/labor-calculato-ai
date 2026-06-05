@@ -495,7 +495,7 @@ export const DraftTabsBar = () => {
       return;
     }
     await supabase.from("design_drafts").update({ active: true }).eq("id", id);
-    writeLocalState((target as Draft).snapshot ?? {});
+    writeLocalState((target as Draft).snapshot ?? {}, id);
     setActiveId(id);
     localStorage.setItem(ACTIVE_DRAFT_KEY, id);
     // Aggiorna lista locale

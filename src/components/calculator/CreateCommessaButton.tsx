@@ -234,7 +234,7 @@ export const CreateCommessaButton = ({
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = [
     "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
-    "falegnameria", "assemblaggio", "laboratorio", "vendite", "montaggi",
+    "falegnameria", "assemblaggio", "laboratorio", "vendite", "magazzino", "montaggi",
   ];
 
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
@@ -642,6 +642,7 @@ export const CreateCommessaButton = ({
           laboratorio: "laboratorio",
           tappezzeria: "tappezzeria",
           vendite: "vendite",
+          magazzino: "magazzino",
           falegnameria: "falegnameria",
           stampa: "stampa",
           taglio: "taglio",
@@ -1082,7 +1083,7 @@ export const CreateCommessaButton = ({
                   {(() => {
                     const DEPT_TO_REP: Partial<Record<ProdDept, string>> = {
                       montaggi: "montaggi", laboratorio: "laboratorio", tappezzeria: "tappezzeria",
-                      vendite: "vendite", falegnameria: "falegnameria", stampa: "stampa",
+                      vendite: "vendite", magazzino: "magazzino", falegnameria: "falegnameria", stampa: "stampa",
                       taglio: "taglio", stampa_3d: "stampa_3d", assemblaggio: "assemblaggio",
                       progettazione: "progettazione",
                     };

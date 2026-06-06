@@ -1,0 +1,2 @@
+ALTER TABLE public.montaggi_planning DROP CONSTRAINT IF EXISTS montaggi_planning_reparto_check;
+ALTER TABLE public.montaggi_planning ADD CONSTRAINT montaggi_planning_reparto_check CHECK (reparto = ANY (ARRAY['montaggi','laboratorio','tappezzeria','falegnameria','stampa','taglio','stampa_3d','assemblaggio','progettazione','vendite','magazzino','altro']::text[]));

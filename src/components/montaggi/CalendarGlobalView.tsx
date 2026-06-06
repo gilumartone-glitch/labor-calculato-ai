@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { uid } from "@/lib/format";
 
-type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "falegnameria" | "stampa" | "taglio" | "stampa_3d" | "assemblaggio" | "progettazione" | "altro";
+type Reparto = "montaggi" | "laboratorio" | "tappezzeria" | "vendite" | "magazzino" | "falegnameria" | "stampa" | "taglio" | "stampa_3d" | "assemblaggio" | "progettazione" | "altro";
 type CalendarMode = "montaggi" | "lavorazioni";
 type Operator = { id: string; name: string; role?: string; userId?: string; reparti?: Reparto[] };
 type Assignment = {

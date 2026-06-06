@@ -234,7 +234,7 @@ export const CreateCommessaButton = ({
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = [
     "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
-    "falegnameria", "assemblaggio", "laboratorio", "vendite", "montaggi",
+    "falegnameria", "assemblaggio", "laboratorio", "vendite", "magazzino", "montaggi",
   ];
 
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);

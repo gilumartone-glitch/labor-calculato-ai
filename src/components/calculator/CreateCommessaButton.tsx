@@ -1083,7 +1083,7 @@ export const CreateCommessaButton = ({
                   {(() => {
                     const DEPT_TO_REP: Partial<Record<ProdDept, string>> = {
                       montaggi: "montaggi", laboratorio: "laboratorio", tappezzeria: "tappezzeria",
-                      vendite: "vendite", falegnameria: "falegnameria", stampa: "stampa",
+                      vendite: "vendite", magazzino: "magazzino", falegnameria: "falegnameria", stampa: "stampa",
                       taglio: "taglio", stampa_3d: "stampa_3d", assemblaggio: "assemblaggio",
                       progettazione: "progettazione",
                     };

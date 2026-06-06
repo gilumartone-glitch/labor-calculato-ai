@@ -449,17 +449,10 @@ export const CreateCommessaButton = ({
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
       const payload: PendingPayload = { mode: "normal", commessaId, clienteName, productionSnapshot, depts };
       setPendingPayload(payload);
-      await onWarehouseConfirm({
-        customer_order_ref: refNumber ? `${refType}-${refNumber}` : titolo.trim(),
-        production_name: prodName.trim(),
-        assignee_id: generalManager,
-        assignee_name: "",
-        missing: [],
-        acquisti_assignee_id: null,
-        acquisti_assignee_name: null,
-        work_dept: toMacroDept(depts[0] ?? "laboratorio"),
-        create_admin_closure: false,
-      }, payload);
+      // Apri il dialog di conferma materiali (con possibilità di marcare i mancanti
+      // e affidarli al reparto Acquisti) prima di lanciare i sub-ordini.
+      setConfirmOpen(true);
+      setSaving(false);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";

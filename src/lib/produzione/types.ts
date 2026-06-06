@@ -29,7 +29,7 @@ export const SETTORE_LABEL: Record<AppSettore, string> = {
   laboratorio: "Lavorazione",
   amministrazione: "Amministrazione",
   logistica: "Amministrazione",
-  magazzino: "Amministrazione",
+  magazzino: "Magazzino",
   acquisti: "Acquisti",
   vendite: "Vendite",
   montaggi: "Montaggi",
@@ -53,7 +53,7 @@ export const MACRO_WORK_DEPTS: ProdDept[] = ["laboratorio", "tappezzeria", "maga
 export const MACRO_WORK_LABEL: Record<string, string> = {
   laboratorio: "Laboratorio",
   tappezzeria: "Tappezzeria",
-  magazzino: "Vendite",
+  magazzino: "Magazzino",
   montaggi: "Montaggi",
 };
 /** Mappa un reparto tecnico (es. "stampa") sulla sua macro-categoria. */
@@ -260,7 +260,7 @@ export const DEPT_LABEL: Record<ProdDept, string> = {
   falegnameria: "Falegnameria",
   assemblaggio: "Lavorazione",
   laboratorio: "Lavorazione",
-  magazzino: "Amministrazione",
+  magazzino: "Magazzino",
   acquisti: "Acquisti",
   vendite: "Vendite",
   montaggi: "Montaggi",

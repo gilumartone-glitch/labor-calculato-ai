@@ -642,6 +642,7 @@ export const CreateCommessaButton = ({
           laboratorio: "laboratorio",
           tappezzeria: "tappezzeria",
           vendite: "vendite",
+          magazzino: "magazzino",
           falegnameria: "falegnameria",
           stampa: "stampa",
           taglio: "taglio",

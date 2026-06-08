@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
@@ -100,6 +101,21 @@ const ProdBoard = () => {
   const [detail, setDetail] = useState<ProdSubOrder | null>(null);
   const [rejecting, setRejecting] = useState<ProdSubOrder | null>(null);
   const [operatorDepts, setOperatorDepts] = useState<ProdDept[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open SubOrderDetailDialog when arriving via ?sub=<id> (e.g. da notifiche)
+  useEffect(() => {
+    const subId = searchParams.get("sub");
+    if (!subId || subs.length === 0) return;
+    const target = subs.find((s) => s.id === subId);
+    if (target) {
+      setDetail(target);
+      // pulisci l'URL così il dialog non si riapre al refresh
+      const next = new URLSearchParams(searchParams);
+      next.delete("sub");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, subs, setSearchParams]);
 
   const isCoordinator = isAdmin || roles.includes("coordinatore");
 
@@ -310,7 +326,7 @@ const ProdBoard = () => {
         type: "subordine_rimandato" as NotifType,
         message: `${sub.code} (${DEPT_LABEL[sub.dept]}) in revisione — ${reason}`,
         order_id: order.id,
-        link: "/produzione/board",
+        link: `/produzione/board?sub=${sub.id}`,
         is_urgent: true,
       });
 
@@ -485,9 +501,9 @@ const ProdBoard = () => {
                               title="Apri dettaglio lavorazione"
                             >
                               {/* Header colorato del reparto */}
-                              <div className={`${dc.chip} px-1.5 py-0.5 flex items-center justify-between gap-1`}>
-                                <div className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider min-w-0">
-                                  <span className="text-[11px]" aria-hidden>{dc.emoji}</span>
+                              <div className={`${dc.chip} px-2 py-1 flex items-center justify-between gap-2`}>
+                                <div className="flex items-center gap-1.5 font-display font-extrabold uppercase tracking-wide min-w-0 text-[13px] leading-none">
+                                  <span className="text-base leading-none" aria-hidden>{dc.emoji}</span>
                                   <span className="truncate">{DEPT_LABEL[s.dept]}</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-[9px] font-mono opacity-90 shrink-0">

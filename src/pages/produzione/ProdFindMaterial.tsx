@@ -154,7 +154,7 @@ const ProdFindMaterial = () => {
           type: "subordine_assegnato",
           message: `${code} · ${INV_DEPT_LABEL[tab]} · usa ${picked.kind === "sfrido" ? picked.piece!.code : "lastra intera"} (${fmtMm(picked.source_w, picked.source_h)})`,
           order_id: order.id,
-          link: `/produzione/board?order=${order.id}`,
+          link: `/produzione/board?sub=${sub.id}`,
           is_urgent: false,
         });
       }

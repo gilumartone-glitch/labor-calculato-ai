@@ -448,7 +448,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           type: "magazzino_da_preparare",
           message: `Ti è stata assegnata: ${sub.code} · ${DEPT_LABEL[sub.dept]} (${order.code})`,
           order_id: order.id,
-          link: "/produzione/board",
+          link: `/produzione/board?sub=${sub.id}`,
           is_urgent: order.priorita !== "normale",
         });
       }

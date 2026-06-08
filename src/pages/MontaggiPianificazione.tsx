@@ -1,12 +1,39 @@
 import { useState } from "react";
 import { HardHat } from "lucide-react";
+import { toast } from "sonner";
 import { HubLink } from "@/components/HubLink";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MyActivities } from "@/components/montaggi/MyActivities";
+
+type FilterReparto = "stampa" | "taglio" | "tappezzeria" | "montaggi";
+
+const FILTERS: { key: FilterReparto; label: string }[] = [
+  { key: "stampa", label: "Stampa" },
+  { key: "taglio", label: "Taglio" },
+  { key: "tappezzeria", label: "Tappezzeria" },
+  { key: "montaggi", label: "Montaggi" },
+];
+
+const MAX_SELECTION = 2;
 
 export default function MontaggiPianificazione() {
-  const [mode, setMode] = useState<"montaggi" | "lavorazioni">("montaggi");
+  // Selezione vuota = "Tutti" (mostra tutti i reparti)
+  const [selected, setSelected] = useState<FilterReparto[]>([]);
+
+  const isAll = selected.length === 0;
+
+  const toggleAll = () => setSelected([]);
+  const toggleReparto = (r: FilterReparto) => {
+    setSelected((cur) => {
+      if (cur.includes(r)) return cur.filter((x) => x !== r);
+      if (cur.length >= MAX_SELECTION) {
+        toast.error(`Puoi selezionare al massimo ${MAX_SELECTION} reparti`);
+        return cur;
+      }
+      return [...cur, r];
+    });
+  };
 
   return (
     <div data-dept="montaggi" className="min-h-screen bg-dept-soft/50 text-foreground">
@@ -26,16 +53,49 @@ export default function MontaggiPianificazione() {
         </div>
       </header>
 
-      <main className="container py-8">
-        <Tabs value={mode} onValueChange={(value) => setMode(value as "montaggi" | "lavorazioni")} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="montaggi">Montaggi</TabsTrigger>
-            <TabsTrigger value="lavorazioni">Lavorazioni</TabsTrigger>
-          </TabsList>
-          <TabsContent value={mode} className="space-y-4">
-            <CalendarGlobalView mode={mode} />
-          </TabsContent>
-        </Tabs>
+      <main className="container py-8 space-y-6">
+        <MyActivities />
+
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs uppercase tracking-wider font-bold text-ink/60 mr-1">Filtra reparti</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm border-2 transition-colors ${
+                isAll
+                  ? "bg-dept text-dept-foreground border-dept"
+                  : "bg-background border-ink/20 hover:border-dept"
+              }`}
+            >
+              Tutti
+            </button>
+            {FILTERS.map((f) => {
+              const active = selected.includes(f.key);
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => toggleReparto(f.key)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm border-2 transition-colors ${
+                    active
+                      ? "bg-dept text-dept-foreground border-dept"
+                      : "bg-background border-ink/20 hover:border-dept"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+            {!isAll && (
+              <span className="text-[10px] font-mono text-muted-foreground ml-1">
+                {selected.length}/{MAX_SELECTION}
+              </span>
+            )}
+          </div>
+
+          <CalendarGlobalView selectedReparti={selected} />
+        </div>
       </main>
     </div>
   );

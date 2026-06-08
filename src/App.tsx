@@ -35,6 +35,7 @@ const ProdAmministrazione = lazy(() => import("./pages/produzione/ProdAmministra
 const ProdPreparazione = lazy(() => import("./pages/produzione/ProdPreparazione.tsx"));
 const ProdAcquisti = lazy(() => import("./pages/produzione/ProdAcquisti.tsx"));
 const ProdLog = lazy(() => import("./pages/produzione/ProdLog.tsx"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="/produzione/amministrazione" element={<RouteGuard page="produzione"><ProdAmministrazione /></RouteGuard>} />
             <Route path="/produzione/log" element={<RouteGuard page="produzione"><ProdLog /></RouteGuard>} />
             <Route path="/admin/utenti" element={<AdminUsers />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

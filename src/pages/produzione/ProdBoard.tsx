@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { collectSnapshotDepartments } from "@/lib/produzione/snapshot";
 import { CantieriStrip } from "@/components/flow/CantieriStrip";
+import { urgencyBadge } from "@/lib/urgency";
 
 /** Conta pezzi dello snapshot per ProdDept. */
 const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> => {
@@ -103,6 +104,7 @@ const ProdBoard = () => {
   const [detail, setDetail] = useState<ProdSubOrder | null>(null);
   const [rejecting, setRejecting] = useState<ProdSubOrder | null>(null);
   const [operatorDepts, setOperatorDepts] = useState<ProdDept[]>([]);
+  const [commessaDeadlines, setCommessaDeadlines] = useState<Record<string, string | null>>({});
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Auto-open SubOrderDetailDialog when arriving via ?sub=<id> (e.g. da notifiche)
@@ -139,6 +141,26 @@ const ProdBoard = () => {
       });
     return () => { cancelled = true; };
   }, [user, isCoordinator]);
+
+  // Carica le scadenze dalle commesse Flow collegate, per mostrare OGGI/DOMANI sui card.
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      orders.map((o) => (o as any).source_commessa_id).filter((x): x is string => !!x)
+    ));
+    if (ids.length === 0) { setCommessaDeadlines({}); return; }
+    let cancelled = false;
+    supabase
+      .from("commesse")
+      .select("id, data_scadenza")
+      .in("id", ids)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const map: Record<string, string | null> = {};
+        for (const r of data as any[]) map[r.id] = r.data_scadenza ?? null;
+        setCommessaDeadlines(map);
+      });
+    return () => { cancelled = true; };
+  }, [orders]);
 
   const subsByOrder = useMemo(() => {
     const m: Record<string, ProdSubOrder[]> = {};
@@ -432,12 +454,21 @@ const ProdBoard = () => {
                       key={o.id}
                       className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-3 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
-                            {PRIORITY_LABEL[o.priorita]}
-                          </span>
+                      {(() => {
+                        const deadline = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
+                        const urg = urgencyBadge(deadline, { done: o.status === "spedito" || o.status === "chiuso" });
+                        return (
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
+                            <div className="flex items-center gap-1">
+                              {urg && (
+                                <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm border-2 ${urg.cls}`} title={deadline ? `Scadenza ${fmtDate(deadline)}` : undefined}>
+                                  {urg.label}
+                                </span>
+                              )}
+                              <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
+                                {PRIORITY_LABEL[o.priorita]}
+                              </span>
                           {isAdmin && (
                             <button
                               type="button"
@@ -449,8 +480,10 @@ const ProdBoard = () => {
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                        </div>
-                      </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="text-[15px] font-semibold text-ink leading-snug mb-2">
                         {o.cliente}
                         {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}

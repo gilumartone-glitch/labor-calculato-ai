@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, Tag, Trash2, GripVertical, AlertTriangle, Factory } from "lucide-react";
 import { Commessa, REPARTI, PRIORITA_LABEL } from "./types";
+import { urgencyBadge } from "@/lib/urgency";
 
 export type OrderColor = { bg: string; border: string; chip: string };
 
@@ -88,6 +89,7 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
 
   const overdue = isOverdue(commessa.data_scadenza, commessa.stato);
   const dateLabel = formatDate(commessa.data_scadenza);
+  const urgency = urgencyBadge(commessa.data_scadenza, { done: commessa.stato === "consegnato" });
   const activeProdDepts = (prodSubs ?? [])
     .map((s) => s.dept)
     .filter((d, i, arr) => arr.indexOf(d) === i);
@@ -130,12 +132,20 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
             · {meta.kind === "ufficio" ? "Ufficio" : meta.kind === "lavorazione" ? "Lavorazione" : "Generale"}
           </span>
         </div>
-        {commessa.priorita === "alta" && (
-          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-paper/20 rounded-sm text-[9px] font-bold uppercase tracking-wider">
-            <AlertTriangle className="w-2.5 h-2.5" /> Alta
-          </span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {urgency && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 border-2 rounded-sm text-[10px] font-mono font-bold uppercase tracking-wider ${urgency.cls}`}>
+              {urgency.label}
+            </span>
+          )}
+          {commessa.priorita === "alta" && (
+            <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-paper/20 rounded-sm text-[9px] font-bold uppercase tracking-wider">
+              <AlertTriangle className="w-2.5 h-2.5" /> Alta
+            </span>
+          )}
+        </div>
       </div>
+
 
       <div className="flex items-start gap-2 p-3">
         <button

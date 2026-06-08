@@ -479,8 +479,9 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
       <Card className="border-2 border-dept shadow-soft">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />{mode === "lavorazioni" ? "Pianificazione lavorazioni" : "Pianificazione montaggi"} · 2 settimane</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">{mode === "lavorazioni" ? "Laboratorio, tappezzeria e vendite. Trascina o clicca su un impegno per spostarlo." : "Operai e cantieri di montaggio. Trascina o clicca su un impegno per spostarlo."}</p>
+            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Pianificazione · 2 settimane</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Reparti attivi: {allowedReparti.map((r) => REPARTO_LABEL[r]).join(", ")}. Trascina o clicca su un impegno per spostarlo.</p>
+
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Tabs value={view} onValueChange={(v) => setView(v as any)}>

@@ -85,6 +85,8 @@ export const ConfirmToWarehouseDialog = ({
   const [acquistiAssignee, setAcquistiAssignee] = useState<string>("");
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [suppliers, setSuppliers] = useState<Record<string, string>>({});
+  type InvInfo = { found: boolean; code?: string; qty_intera?: number; qty_sfrido?: number; posizione?: string | null; reparto?: string };
+  const [invInfo, setInvInfo] = useState<Record<string, InvInfo>>({});
   const macros = useMemo(() => {
     const list = (availableMacros && availableMacros.length > 0)
       ? MACRO_WORK_DEPTS.filter((m) => availableMacros.map(toMacroDept).includes(m))

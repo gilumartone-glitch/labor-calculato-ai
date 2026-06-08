@@ -882,12 +882,14 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
   const [notes, setNotes] = useState(ex?.notes ?? "");
   const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? defaultReparto);
 
+  const currentOperator = operators.find((o) => o.id === operatorId);
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <span>{ex ? "Modifica impegno" : "Nuovo impegno"}</span>
+            <span>{ex ? "Dettagli attività" : "Nuovo impegno"}</span>
             <span
               className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm"
               style={{ backgroundColor: `${REPARTO_BG[reparto]}22`, color: REPARTO_BG[reparto], border: `1px solid ${REPARTO_BG[reparto]}55` }}
@@ -896,6 +898,43 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
             </span>
           </DialogTitle>
         </DialogHeader>
+        {ex && (
+          <div
+            className="rounded-sm border-2 p-3 space-y-2"
+            style={{ borderColor: `${REPARTO_BG[reparto]}55`, backgroundColor: `${REPARTO_BG[reparto]}0d` }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Cantiere / Commessa</div>
+                <div className="text-lg font-bold leading-tight break-words">{cantiere || "—"}</div>
+              </div>
+              <div
+                className="shrink-0 text-sm font-mono font-bold px-2 py-1 rounded-sm text-white"
+                style={{ backgroundColor: REPARTO_BG[reparto] }}
+              >
+                {hours}h
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Operaio</div>
+                <div className="font-bold">{currentOperator?.name ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data</div>
+                <div className="font-mono font-bold">
+                  {(() => { try { return new Date(date).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }); } catch { return date; } })()}
+                </div>
+              </div>
+            </div>
+            {notes && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Note</div>
+                <div className="text-xs whitespace-pre-wrap">{notes}</div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
             <Label>Tipo di attività / Reparto</Label>

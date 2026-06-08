@@ -81,7 +81,7 @@ export default function MontaggiPianificazione() {
             })}
             {!isAll && (
               <span className="text-[10px] font-mono text-muted-foreground ml-1">
-                {selected.length}/{MAX_SELECTION}
+                {selected.length} selezionati
               </span>
             )}
           </div>

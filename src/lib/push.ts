@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const VAPID_PUBLIC_KEY =
-  "BC8wyc7SBbMyBXQoDGIg5DafUI1f0ZxjBD6Fw9u-1OQ6dLDi6ZKziWKGPM3tkcqDzhCg39YKNFeqtf__6dtQNO0";
+  "BIjyeNqduxsxgwWlwMzPeYXFGKPXt0t3dmsibRxXHPKQ8CpclyboSps_HyXiADirP-FGaeIJ19--9mqmxzofLnw";
 
 const isPreviewHost = () =>
   typeof window !== "undefined" &&

@@ -8,7 +8,12 @@ const corsHeaders = {
 
 const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:info@tecnofra.it";
+const RAW_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "";
+// VAPID subject must be a valid mailto: or https:// URL. Fall back if the secret
+// is missing or still contains the placeholder.
+const VAPID_SUBJECT = /^(mailto:|https?:\/\/)/.test(RAW_SUBJECT)
+  ? RAW_SUBJECT
+  : "mailto:info@tecnofra.it";
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 

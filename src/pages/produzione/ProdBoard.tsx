@@ -445,13 +445,19 @@ const ProdBoard = () => {
           if (today.length === 0 && overdue.length === 0) return null;
           return (
             <div className="border-2 border-destructive bg-destructive/5 rounded-sm p-3">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-destructive font-bold">// Urgenze</span>
                 <span className="font-display text-lg font-bold text-destructive">DA FARE OGGI</span>
-                <span className="ml-auto font-mono text-[11px] text-ink/60">
+                <span className="font-mono text-[11px] text-ink/60">
                   {overdue.length > 0 && <span className="text-destructive font-bold">{overdue.length} in ritardo · </span>}
                   {today.length} per oggi
                 </span>
+                <a
+                  href="/produzione/oggi"
+                  className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 bg-destructive text-destructive-foreground rounded-sm text-[11px] font-bold uppercase tracking-wider hover:bg-destructive/90"
+                >
+                  Vedi tutto →
+                </a>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {[...overdue, ...today].map((o) => {

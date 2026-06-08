@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Workflow, Package, MessagesSquare, Truck, FileText,
-  ScrollText, ArrowLeft, LogOut, Bell, Wand2, PackageCheck, Menu,
+  ScrollText, ArrowLeft, LogOut, Bell, Wand2, PackageCheck, Menu, CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";
@@ -13,6 +13,7 @@ import { useState } from "react";
 
 const NAV = [
   { to: "/produzione", end: true, label: "Dashboard", Icon: LayoutDashboard },
+  { to: "/produzione/oggi", label: "Da fare oggi", Icon: CalendarClock },
   { to: "/produzione/board", label: "Flow Board", Icon: Workflow },
   { to: "/produzione/magazzino", label: "Magazzino", Icon: Package },
   { to: "/produzione/trova-materiale", label: "Trova materiale", Icon: Wand2 },

@@ -472,10 +472,10 @@ const ProdBoard = () => {
                           <span className="leading-tight">{o.note}</span>
                         </div>
                       )}
-                      <div className="h-1 bg-muted rounded-full overflow-hidden mb-2">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
                         <div className="h-full bg-primary transition-all" style={{ width: `${prog}%` }} />
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {(displaySubsByOrder[o.id] ?? []).map((s) => {
                           const pieceCount = pcByDept[s.dept] ?? 0;
                           const statusBg =
@@ -502,21 +502,21 @@ const ProdBoard = () => {
                               title="Apri dettaglio lavorazione"
                             >
                               {/* Header colorato del reparto */}
-                              <div className={`${dc.chip} px-2 py-1 flex items-center justify-between gap-2`}>
-                                <div className="flex items-center gap-1.5 font-display font-extrabold uppercase tracking-wide min-w-0 text-[13px] leading-none">
-                                  <span className="text-base leading-none" aria-hidden>{dc.emoji}</span>
+                              <div className={`${dc.chip} px-2.5 py-1.5 flex items-center justify-between gap-2`}>
+                                <div className="flex items-center gap-2 font-display font-extrabold uppercase tracking-wide min-w-0 text-[15px] leading-none">
+                                  <span className="text-lg leading-none" aria-hidden>{dc.emoji}</span>
                                   <span className="truncate">{DEPT_LABEL[s.dept]}</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-[9px] font-mono opacity-90 shrink-0">
-                                  <User className="w-2.5 h-2.5" />
-                                  <span className="truncate max-w-[80px]">{assignee?.display_name ?? "Non assegnato"}</span>
+                                <div className="flex items-center gap-1 text-[11px] font-mono opacity-90 shrink-0">
+                                  <User className="w-3 h-3" />
+                                  <span className="truncate max-w-[100px]">{assignee?.display_name ?? "Non assegnato"}</span>
                                 </div>
                               </div>
-                              <div className="p-1.5">
-                              <div className="flex items-center justify-between gap-1 text-[10px] font-mono">
-                                <div className="flex items-center gap-1 min-w-0 flex-1">
-                                  {isSubLocked(s) && <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />}
-                                  <Eye className="w-2.5 h-2.5 opacity-50 shrink-0 group-hover:opacity-100" />
+                              <div className="p-2">
+                              <div className="flex items-center justify-between gap-1.5 text-[12px] font-mono">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  {isSubLocked(s) && <Lock className="w-3 h-3 text-amber-600 shrink-0" />}
+                                  <Eye className="w-3 h-3 opacity-50 shrink-0 group-hover:opacity-100" />
                                   <span className="font-bold truncate">{s.code}</span>
                                   {pieceCount > 0 && (
                                     <span className="text-ink/60 shrink-0">({pieceCount}p)</span>
@@ -526,7 +526,7 @@ const ProdBoard = () => {
                                   value={s.status}
                                   onChange={(e) => setSubStatus(s, e.target.value as ProdSubStatus)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-[10px] border border-ink/20 rounded-sm bg-background px-1 py-0.5 shrink-0"
+                                  className="text-[11px] border border-ink/20 rounded-sm bg-background px-1.5 py-0.5 shrink-0"
                                 >
                                   <option value="in_attesa">⏳ In attesa</option>
                                   <option value="in_lavorazione">◐ In lavorazione</option>
@@ -537,14 +537,14 @@ const ProdBoard = () => {
                               </div>
 
                               {s.note && (
-                                <div className="text-[9px] text-ink/60 italic mt-0.5 truncate">{s.note}</div>
+                                <div className="text-[11px] text-ink/70 italic mt-1 truncate">{s.note}</div>
                               )}
                               {s.status === "rimandato" && s.rejection_reason && (
-                                <div className="text-[9px] text-orange-700 mt-0.5 line-clamp-2 leading-tight">
+                                <div className="text-[11px] text-orange-700 mt-1 line-clamp-2 leading-snug">
                                   ↩ <span className="font-bold">Motivo:</span> {s.rejection_reason}
                                 </div>
                               )}
-                              <div className="text-[9px] font-mono text-ink/50 mt-0.5">
+                              <div className="text-[11px] font-mono text-ink/60 mt-1">
                                 {statusIcon} {SUB_STATUS_LABEL[s.status]}
                                 {s.started_at && ` · iniz. ${fmtDate(s.started_at)}`}
                                 {s.completed_at && ` · compl. ${fmtDate(s.completed_at)}`}
@@ -556,9 +556,9 @@ const ProdBoard = () => {
                                 const waitingAcq = subs.filter((x) => x.order_id === s.order_id && x.dept === "acquisti" && x.status !== "completato");
                                 if (waitingAcq.length === 0) return null;
                                 return (
-                                  <div className="mt-1 border border-amber-300 bg-amber-50 rounded-sm px-1.5 py-1 text-[9px] text-amber-900">
+                                  <div className="mt-1.5 border border-amber-300 bg-amber-50 rounded-sm px-2 py-1.5 text-[11px] text-amber-900">
                                     <div className="font-bold uppercase tracking-wider flex items-center gap-1">
-                                      <Lock className="w-2.5 h-2.5" /> In attesa materiale ({waitingAcq.length})
+                                      <Lock className="w-3 h-3" /> In attesa materiale ({waitingAcq.length})
                                     </div>
                                     {waitingAcq.slice(0, 3).map((w) => {
                                       const qtyTxt = w.material_qty != null && w.material_unit ? `${Number(w.material_qty).toFixed(1)} ${w.material_unit}` : null;
@@ -576,6 +576,7 @@ const ProdBoard = () => {
                               })()}
                               </div>
                             </div>
+
 
                           );
                         })}

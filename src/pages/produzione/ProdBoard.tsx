@@ -501,9 +501,9 @@ const ProdBoard = () => {
                               title="Apri dettaglio lavorazione"
                             >
                               {/* Header colorato del reparto */}
-                              <div className={`${dc.chip} px-1.5 py-0.5 flex items-center justify-between gap-1`}>
-                                <div className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider min-w-0">
-                                  <span className="text-[11px]" aria-hidden>{dc.emoji}</span>
+                              <div className={`${dc.chip} px-2 py-1 flex items-center justify-between gap-2`}>
+                                <div className="flex items-center gap-1.5 font-display font-extrabold uppercase tracking-wide min-w-0 text-[13px] leading-none">
+                                  <span className="text-base leading-none" aria-hidden>{dc.emoji}</span>
                                   <span className="truncate">{DEPT_LABEL[s.dept]}</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-[9px] font-mono opacity-90 shrink-0">

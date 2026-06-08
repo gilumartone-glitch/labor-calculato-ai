@@ -54,6 +54,7 @@ export const MyActivities = () => {
   const [plans, setPlans] = useState<MyPlan[]>([]);
   const [notifs, setNotifs] = useState<MyNotif[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openPlan, setOpenPlan] = useState<MyPlan | null>(null);
 
   useEffect(() => {
     if (!user) return;

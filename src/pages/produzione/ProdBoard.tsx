@@ -408,14 +408,14 @@ const ProdBoard = () => {
 
         <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
           {stages.map((st) => (
-            <div key={st.key} className="w-full md:min-w-[280px] md:w-[280px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">
-              <div className="px-3 py-2 border-b-2 border-ink/15 flex items-center justify-between">
-                <div className="font-display font-semibold text-sm">{st.label}</div>
-                <span className="font-mono text-[10px] text-muted-foreground">{st.items.length}</span>
+            <div key={st.key} className="w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">
+              <div className="px-3 py-2.5 border-b-2 border-ink/15 flex items-center justify-between">
+                <div className="font-display font-semibold text-base">{st.label}</div>
+                <span className="font-mono text-xs text-muted-foreground">{st.items.length}</span>
               </div>
               <div className="p-2 space-y-2 min-h-[120px] md:min-h-[200px] md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
                 {st.items.length === 0 ? (
-                  <div className="text-center text-[10px] text-muted-foreground py-6 font-mono uppercase tracking-wider">Vuoto</div>
+                  <div className="text-center text-xs text-muted-foreground py-6 font-mono uppercase tracking-wider">Vuoto</div>
                 ) : st.items.map((o) => {
                   const sb = isCoordinator ? (subsByOrder[o.id] ?? []) : (displaySubsByOrder[o.id] ?? []);
                   const prog = orderProgress(sb);
@@ -428,12 +428,12 @@ const ProdBoard = () => {
                   return (
                     <div
                       key={o.id}
-                      className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-2.5 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
+                      className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-3 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`font-mono text-[11px] font-bold text-white px-1.5 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
                         <div className="flex items-center gap-1">
-                          <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
+                          <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
                             {PRIORITY_LABEL[o.priorita]}
                           </span>
                           {isAdmin && (
@@ -442,21 +442,21 @@ const ProdBoard = () => {
                               onClick={(e) => { e.stopPropagation(); handleDeleteOrder(o); }}
                               title="Elimina ordine (admin)"
                               aria-label="Elimina ordine (admin)"
-                              className="w-5 h-5 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                              className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
                       </div>
-                      <div className="text-[12px] font-medium text-ink leading-tight mb-1.5">
+                      <div className="text-[15px] font-semibold text-ink leading-snug mb-2">
                         {o.cliente}
                         {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}
                       </div>
-                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 text-[10px] font-mono text-ink/70">
-                        <span className="inline-flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{fmtDate(o.data)}</span>
+                      <div className="flex flex-wrap gap-x-2.5 gap-y-1 mb-2 text-[12px] font-mono text-ink/75">
+                        <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{fmtDate(o.data)}</span>
                         <span className="inline-flex items-center gap-1">
-                          {o.delivery === "ritiro" ? <Package className="w-2.5 h-2.5" /> : <Truck className="w-2.5 h-2.5" />}
+                          {o.delivery === "ritiro" ? <Package className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
                           {DELIVERY_LABEL[o.delivery]}
                         </span>
                         {totalPieces > 0 && (
@@ -466,8 +466,9 @@ const ProdBoard = () => {
                         )}
                       </div>
                       {o.note && (
-                        <div className="flex items-start gap-1 mb-1.5 text-[10px] text-ink/70 italic line-clamp-2">
-                          <FileText className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                        <div className="flex items-start gap-1 mb-2 text-[12px] text-ink/75 italic line-clamp-2">
+                          <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+
                           <span className="leading-tight">{o.note}</span>
                         </div>
                       )}

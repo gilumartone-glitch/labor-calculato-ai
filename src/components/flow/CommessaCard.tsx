@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, Tag, Trash2, GripVertical, AlertTriangle, Factory } from "lucide-react";
 import { Commessa, REPARTI, PRIORITA_LABEL } from "./types";
+import { urgencyBadge } from "@/lib/urgency";
 
 export type OrderColor = { bg: string; border: string; chip: string };
 

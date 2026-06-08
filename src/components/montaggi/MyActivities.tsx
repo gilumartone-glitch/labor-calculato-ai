@@ -189,7 +189,12 @@ export const MyActivities = () => {
               ) : (
                 <div className="space-y-1.5">
                   {plans.map((p) => (
-                    <div key={p.id} className="border border-ink/15 rounded-sm p-2 text-[13px]">
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setOpenPlan(p)}
+                      className="w-full text-left border border-ink/15 rounded-sm p-2 text-[13px] hover:bg-muted/40 hover:border-primary transition-colors"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold truncate">{p.cantiere_label}</span>
                         <span className="text-[10px] font-mono shrink-0 bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">
@@ -200,7 +205,7 @@ export const MyActivities = () => {
                         {fmtDay(p.date)}
                         {p.reparto && p.reparto !== "montaggi" && ` · ${p.reparto}`}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

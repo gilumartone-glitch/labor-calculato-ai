@@ -454,12 +454,21 @@ const ProdBoard = () => {
                       key={o.id}
                       className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-3 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
-                            {PRIORITY_LABEL[o.priorita]}
-                          </span>
+                      {(() => {
+                        const deadline = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
+                        const urg = urgencyBadge(deadline, { done: o.status === "spedito" || o.status === "chiuso" });
+                        return (
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
+                            <div className="flex items-center gap-1">
+                              {urg && (
+                                <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm border-2 ${urg.cls}`} title={deadline ? `Scadenza ${fmtDate(deadline)}` : undefined}>
+                                  {urg.label}
+                                </span>
+                              )}
+                              <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
+                                {PRIORITY_LABEL[o.priorita]}
+                              </span>
                           {isAdmin && (
                             <button
                               type="button"

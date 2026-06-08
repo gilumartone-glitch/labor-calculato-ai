@@ -326,7 +326,7 @@ const ProdBoard = () => {
         type: "subordine_rimandato" as NotifType,
         message: `${sub.code} (${DEPT_LABEL[sub.dept]}) in revisione — ${reason}`,
         order_id: order.id,
-        link: "/produzione/board",
+        link: `/produzione/board?sub=${sub.id}`,
         is_urgent: true,
       });
 

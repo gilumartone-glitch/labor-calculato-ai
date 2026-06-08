@@ -89,6 +89,7 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
 
   const overdue = isOverdue(commessa.data_scadenza, commessa.stato);
   const dateLabel = formatDate(commessa.data_scadenza);
+  const urgency = urgencyBadge(commessa.data_scadenza, { done: commessa.stato === "consegnato" });
   const activeProdDepts = (prodSubs ?? [])
     .map((s) => s.dept)
     .filter((d, i, arr) => arr.indexOf(d) === i);

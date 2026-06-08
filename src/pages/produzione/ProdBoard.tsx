@@ -101,6 +101,21 @@ const ProdBoard = () => {
   const [detail, setDetail] = useState<ProdSubOrder | null>(null);
   const [rejecting, setRejecting] = useState<ProdSubOrder | null>(null);
   const [operatorDepts, setOperatorDepts] = useState<ProdDept[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open SubOrderDetailDialog when arriving via ?sub=<id> (e.g. da notifiche)
+  useEffect(() => {
+    const subId = searchParams.get("sub");
+    if (!subId || subs.length === 0) return;
+    const target = subs.find((s) => s.id === subId);
+    if (target) {
+      setDetail(target);
+      // pulisci l'URL così il dialog non si riapre al refresh
+      const next = new URLSearchParams(searchParams);
+      next.delete("sub");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, subs, setSearchParams]);
 
   const isCoordinator = isAdmin || roles.includes("coordinatore");
 

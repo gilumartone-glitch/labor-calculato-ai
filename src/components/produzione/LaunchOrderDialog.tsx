@@ -367,24 +367,38 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
             <Input value={magazzinoNote} onChange={(e) => patch({ magazzinoNote: e.target.value })} placeholder="Imballo speciale, articoli particolari, ecc." />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Priorità</Label>
-              <select value={priorita} onChange={(e) => patch({ priorita: e.target.value as ProdPriority })} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
-                <option value="normale">Normale</option>
-                <option value="urgente">Urgente</option>
-                <option value="bloccante">Bloccante</option>
-              </select>
-            </div>
-            <div>
-              <Label>Consegna</Label>
-              <select value={delivery} onChange={(e) => patch({ delivery: e.target.value as ProdDelivery })} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
-                <option value="ritiro">Ritiro cliente</option>
-                <option value="mezzo_proprio">Mezzo proprio</option>
-                <option value="corriere">Corriere</option>
-              </select>
+          <div>
+            <Label>Priorità</Label>
+            <select value={priorita} onChange={(e) => patch({ priorita: e.target.value as ProdPriority })} className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm">
+              <option value="normale">Normale</option>
+              <option value="urgente">Urgente</option>
+              <option value="bloccante">Bloccante</option>
+            </select>
+          </div>
+
+          <div className="border-2 border-primary/40 bg-primary/5 rounded-sm p-3">
+            <Label className="mb-2 block text-[13px] font-bold uppercase tracking-wider">Modalità di consegna *</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { k: "mezzo_proprio", label: "Consegniamo noi", emoji: "🚐" },
+                { k: "corriere", label: "Consegna con corriere", emoji: "📦" },
+                { k: "ritiro", label: "Ritira il cliente", emoji: "🧍" },
+              ] as { k: ProdDelivery; label: string; emoji: string }[]).map((d) => (
+                <button
+                  key={d.k}
+                  type="button"
+                  onClick={() => patch({ delivery: d.k })}
+                  className={`flex flex-col items-center justify-center gap-1 py-3 px-2 border-2 rounded-sm text-[12px] font-bold uppercase tracking-wider transition-colors ${
+                    delivery === d.k ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:border-primary"
+                  }`}
+                >
+                  <span className="text-xl">{d.emoji}</span>
+                  <span className="text-center leading-tight">{d.label}</span>
+                </button>
+              ))}
             </div>
           </div>
+
 
           {!warehouseOnly && (
           <div>

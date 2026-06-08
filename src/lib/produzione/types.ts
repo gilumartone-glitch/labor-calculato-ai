@@ -94,9 +94,9 @@ export type NotifType =
   | "subordine_rimandato" | "ordine_rimandato" | "magazzino_da_preparare";
 
 export const DELIVERY_LABEL: Record<ProdDelivery, string> = {
-  ritiro: "Ritiro cliente",
-  mezzo_proprio: "Mezzo proprio",
-  corriere: "Corriere",
+  ritiro: "Ritira il cliente",
+  mezzo_proprio: "Consegniamo noi",
+  corriere: "Consegna con corriere",
   spedizione: "Spedizione",
 };
 

@@ -28,14 +28,16 @@ const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> 
   for (const d of depts) {
     const baseKey = d.key.toLowerCase();
     const pieces = d.state?.pieces ?? [];
-    const n = pieces.length;
-    if (n === 0) continue;
-    if (baseKey === "tappezzeria") out.tappezzeria = (out.tappezzeria ?? 0) + n;
-    else if (baseKey === "falegnameria") out.falegnameria = (out.falegnameria ?? 0) + n;
+    const qtyOf = (p: any) => Math.max(1, Math.floor(Number(p?.quantity) || 1));
+    const totalQty = pieces.reduce((s: number, p: any) => s + qtyOf(p), 0);
+    if (totalQty === 0) continue;
+    if (baseKey === "tappezzeria") out.tappezzeria = (out.tappezzeria ?? 0) + totalQty;
+    else if (baseKey === "falegnameria") out.falegnameria = (out.falegnameria ?? 0) + totalQty;
     else if (baseKey === "stampa") {
       const cat = d.catalog;
       let stampa = 0, taglio = 0;
       for (const p of pieces) {
+        const q = qtyOf(p);
         let hasStampa = !!p.printOpId;
         let hasTaglio = false;
         for (const pp of p.perimeters) {
@@ -44,14 +46,14 @@ const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> 
           if (c === "stampa") hasStampa = true;
           if (c === "taglio") hasTaglio = true;
         }
-        if (hasStampa) stampa++;
-        if (hasTaglio) taglio++;
-        if (!hasStampa && !hasTaglio) stampa++;
+        if (hasStampa) stampa += q;
+        if (hasTaglio) taglio += q;
+        if (!hasStampa && !hasTaglio) stampa += q;
       }
       if (stampa) out.stampa = (out.stampa ?? 0) + stampa;
       if (taglio) out.taglio = (out.taglio ?? 0) + taglio;
     } else {
-      out.altro = (out.altro ?? 0) + n;
+      out.altro = (out.altro ?? 0) + totalQty;
     }
   }
   return out;

@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DEPT_LABEL } from "@/lib/produzione/types";
 
 type MySub = {
@@ -53,6 +54,7 @@ export const MyActivities = () => {
   const [plans, setPlans] = useState<MyPlan[]>([]);
   const [notifs, setNotifs] = useState<MyNotif[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openPlan, setOpenPlan] = useState<MyPlan | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -187,7 +189,12 @@ export const MyActivities = () => {
               ) : (
                 <div className="space-y-1.5">
                   {plans.map((p) => (
-                    <div key={p.id} className="border border-ink/15 rounded-sm p-2 text-[13px]">
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setOpenPlan(p)}
+                      className="w-full text-left border border-ink/15 rounded-sm p-2 text-[13px] hover:bg-muted/40 hover:border-primary transition-colors"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold truncate">{p.cantiere_label}</span>
                         <span className="text-[10px] font-mono shrink-0 bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">
@@ -198,7 +205,7 @@ export const MyActivities = () => {
                         {fmtDay(p.date)}
                         {p.reparto && p.reparto !== "montaggi" && ` · ${p.reparto}`}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -235,6 +242,48 @@ export const MyActivities = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!openPlan} onOpenChange={(o) => !o && setOpenPlan(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <span>Dettagli attività</span>
+              {openPlan?.reparto && (
+                <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-sm bg-primary/10 text-primary">
+                  {openPlan.reparto}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {openPlan && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Cantiere / Commessa</div>
+                <div className="text-base font-bold">{openPlan.cantiere_label}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data</div>
+                  <div className="font-mono">{fmtDay(openPlan.date)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Ore</div>
+                  <div className="font-mono">{openPlan.hours}h</div>
+                </div>
+              </div>
+              {openPlan.notes && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Note</div>
+                  <div className="whitespace-pre-wrap border border-ink/15 rounded-sm p-2 bg-muted/30">{openPlan.notes}</div>
+                </div>
+              )}
+              <div className="flex justify-end pt-2">
+                <Button size="sm" variant="outline" onClick={() => setOpenPlan(null)}>Chiudi</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

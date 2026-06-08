@@ -480,8 +480,10 @@ const ProdBoard = () => {
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                        </div>
-                      </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="text-[15px] font-semibold text-ink leading-snug mb-2">
                         {o.cliente}
                         {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}

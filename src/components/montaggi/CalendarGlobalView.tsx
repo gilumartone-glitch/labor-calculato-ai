@@ -122,16 +122,35 @@ const TARGET_HOURS_PER_DAY = 8;
 type CacheEntry = { assignments: Assignment[]; prodSubs: ProdSub[]; profiles: ProfileLite[]; startKey: string };
 const dataCache = new Map<string, CacheEntry>();
 
-type CalendarGlobalViewProps = { mode?: CalendarMode };
+type CalendarGlobalViewProps = {
+  /** @deprecated usa selectedReparti */
+  mode?: CalendarMode;
+  /** Reparti su cui filtrare il calendario. Vuoto = "Tutti" (stampa, taglio, tappezzeria, montaggi). */
+  selectedReparti?: Reparto[];
+};
 
-export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProps) => {
+/** Reparti disponibili come filtri rapidi a tab nella pianificazione. */
+const FILTER_REPARTI: Reparto[] = ["stampa", "taglio", "tappezzeria", "montaggi"];
+
+export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalViewProps) => {
   const { user } = useAuth();
-  const allowedReparti = useMemo(() => MODE_REPARTI[mode], [mode]);
+
+  // Costruisci allowedReparti dai filtri scelti (prop nuova) oppure dalla vecchia mode.
+  const allowedReparti = useMemo<Reparto[]>(() => {
+    if (selectedReparti && selectedReparti.length > 0) return selectedReparti;
+    if (selectedReparti && selectedReparti.length === 0) return FILTER_REPARTI;
+    if (mode) return MODE_REPARTI[mode];
+    return FILTER_REPARTI;
+  }, [selectedReparti, mode]);
   const defaultReparto = allowedReparti[0];
+  const repartiKey = useMemo(() => [...allowedReparti].sort().join(","), [allowedReparti]);
+  const includesMontaggi = allowedReparti.includes("montaggi");
+  const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
+
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
-  const initialCache = dataCache.get(`${mode}|${fmtDate(startOfWeek(new Date()))}`);
+  const initialCache = dataCache.get(`${repartiKey}|${fmtDate(startOfWeek(new Date()))}`);
   const [assignments, setAssignments] = useState<Assignment[]>(initialCache?.assignments ?? []);
   const [prodSubs, setProdSubs] = useState<ProdSub[]>(initialCache?.prodSubs ?? []);
   const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
@@ -140,11 +159,11 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
   // Filtri
   const [filterText, setFilterText] = useState("");
-  const [filterReparto, setFilterReparto] = useState<"all" | Reparto>("all");
   const [filterCantiere, setFilterCantiere] = useState<string>("all");
 
-  // Reset filtro reparto quando cambia modalità
-  useEffect(() => { setFilterReparto("all"); }, [mode]);
+  // Reset filtro quando cambiano i reparti selezionati
+  useEffect(() => { setFilterCantiere("all"); }, [repartiKey]);
+
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
 

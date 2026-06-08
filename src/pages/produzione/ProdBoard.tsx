@@ -142,6 +142,26 @@ const ProdBoard = () => {
     return () => { cancelled = true; };
   }, [user, isCoordinator]);
 
+  // Carica le scadenze dalle commesse Flow collegate, per mostrare OGGI/DOMANI sui card.
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      orders.map((o) => (o as any).source_commessa_id).filter((x): x is string => !!x)
+    ));
+    if (ids.length === 0) { setCommessaDeadlines({}); return; }
+    let cancelled = false;
+    supabase
+      .from("commesse")
+      .select("id, data_scadenza")
+      .in("id", ids)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const map: Record<string, string | null> = {};
+        for (const r of data as any[]) map[r.id] = r.data_scadenza ?? null;
+        setCommessaDeadlines(map);
+      });
+    return () => { cancelled = true; };
+  }, [orders]);
+
   const subsByOrder = useMemo(() => {
     const m: Record<string, ProdSubOrder[]> = {};
     for (const s of subs) (m[s.order_id] ??= []).push(s);

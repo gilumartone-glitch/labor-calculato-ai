@@ -179,7 +179,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   // Carica solo la finestra corrente. Niente realtime su ogni modifica: gli update sono ottimistici
   // e restano locali, così la griglia non si ricarica continuamente mentre lavori.
   const profilesLoadedRef = useRef(initialCache ? true : false);
-  const cacheKey = useMemo(() => `${mode}|${dayStrs[0]}`, [mode, dayStrs]);
+  const cacheKey = useMemo(() => `${repartiKey}|${dayStrs[0]}`, [repartiKey, dayStrs]);
 
   const load = useCallback(async () => {
     const cached = dataCache.get(cacheKey);
@@ -191,14 +191,19 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
       .select("*")
       .gte("date", firstDay)
       .lte("date", lastDay);
-    planQuery = mode === "montaggi"
-      ? planQuery.or("reparto.eq.montaggi,reparto.is.null")
-      : planQuery.in("reparto", allowedReparti);
+    // I record con reparto=null sono considerati "montaggi" (legacy)
+    if (includesMontaggi && nonMontaggiReparti.length === 0) {
+      planQuery = planQuery.or("reparto.eq.montaggi,reparto.is.null");
+    } else if (includesMontaggi) {
+      planQuery = planQuery.or(`reparto.is.null,reparto.in.(${allowedReparti.join(",")})`);
+    } else {
+      planQuery = planQuery.in("reparto", allowedReparti);
+    }
     const planP = planQuery.order("date").then((r) => r);
-    const subP = mode === "lavorazioni"
+    const subP = nonMontaggiReparti.length > 0
       ? supabase.from("production_sub_orders")
         .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
-        .in("dept", allowedReparti)
+        .in("dept", nonMontaggiReparti)
         .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay}`)
         .then((r) => r)
       : Promise.resolve({ data: [], error: null });
@@ -221,7 +226,9 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     }
     dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [allowedReparti, cacheKey, dayStrs, mode, profiles]);
+  }, [allowedReparti, cacheKey, dayStrs, includesMontaggi, nonMontaggiReparti, profiles]);
+
+
 
   useEffect(() => {
     const cached = dataCache.get(cacheKey);

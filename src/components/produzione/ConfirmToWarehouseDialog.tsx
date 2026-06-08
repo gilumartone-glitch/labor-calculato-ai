@@ -284,6 +284,15 @@ export const ConfirmToWarehouseDialog = ({
                 {materials.map((m) => {
                   const ok = !!available[m.key];
                   const qtyTxt = m.qty != null && m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : null;
+                  const info = invInfo[m.key];
+                  const totalStock = info?.found ? (info.qty_intera ?? 0) + (info.qty_sfrido ?? 0) : 0;
+                  const stockBadge = !info
+                    ? null
+                    : info.found
+                      ? (totalStock > 0
+                        ? { txt: `✓ Magazzino: ${info.qty_intera ?? 0} intere · ${info.qty_sfrido ?? 0} sfridi${info.code ? ` · ${info.code}` : ""}${info.posizione ? ` · pos ${info.posizione}` : ""}`, cls: "text-emerald-800 bg-emerald-50 border-emerald-200" }
+                        : { txt: `⚠ Tracciato ma esaurito${info.code ? ` (${info.code})` : ""}`, cls: "text-amber-900 bg-amber-50 border-amber-300" })
+                      : { txt: "⚠ Non tracciato in magazzino", cls: "text-amber-900 bg-amber-50 border-amber-300" };
                   return (
                     <div key={m.key} className={`px-3 py-2 ${ok ? "" : "bg-amber-50/60"}`}>
                       <label className="flex items-start gap-2 cursor-pointer">
@@ -296,6 +305,11 @@ export const ConfirmToWarehouseDialog = ({
                             )}
                           </div>
                           {m.detail && <div className="text-[10px] font-mono text-muted-foreground truncate">{m.detail}</div>}
+                          {stockBadge && (
+                            <div className={`mt-1 inline-block text-[9px] font-mono px-1.5 py-0.5 rounded-sm border ${stockBadge.cls}`}>
+                              {stockBadge.txt}
+                            </div>
+                          )}
                         </div>
                         <span className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"}`}>
                           {ok ? "In magazzino" : "Da ordinare"}

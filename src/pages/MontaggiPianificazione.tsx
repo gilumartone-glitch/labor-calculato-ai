@@ -6,16 +6,15 @@ import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
 import { MyActivities } from "@/components/montaggi/MyActivities";
 
-type FilterReparto = "stampa" | "taglio" | "tappezzeria" | "montaggi";
+type FilterReparto = "stampa" | "taglio" | "tappezzeria" | "montaggi" | "magazzino";
 
 const FILTERS: { key: FilterReparto; label: string }[] = [
   { key: "stampa", label: "Stampa" },
   { key: "taglio", label: "Taglio" },
   { key: "tappezzeria", label: "Tappezzeria" },
   { key: "montaggi", label: "Montaggi" },
+  { key: "magazzino", label: "Magazzino" },
 ];
-
-const MAX_SELECTION = 2;
 
 export default function MontaggiPianificazione() {
   // Selezione vuota = "Tutti" (mostra tutti i reparti)
@@ -25,14 +24,7 @@ export default function MontaggiPianificazione() {
 
   const toggleAll = () => setSelected([]);
   const toggleReparto = (r: FilterReparto) => {
-    setSelected((cur) => {
-      if (cur.includes(r)) return cur.filter((x) => x !== r);
-      if (cur.length >= MAX_SELECTION) {
-        toast.error(`Puoi selezionare al massimo ${MAX_SELECTION} reparti`);
-        return cur;
-      }
-      return [...cur, r];
-    });
+    setSelected((cur) => (cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]));
   };
 
   return (
@@ -89,7 +81,7 @@ export default function MontaggiPianificazione() {
             })}
             {!isAll && (
               <span className="text-[10px] font-mono text-muted-foreground ml-1">
-                {selected.length}/{MAX_SELECTION}
+                {selected.length} selezionati
               </span>
             )}
           </div>

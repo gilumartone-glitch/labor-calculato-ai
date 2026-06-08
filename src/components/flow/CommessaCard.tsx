@@ -132,12 +132,18 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
             · {meta.kind === "ufficio" ? "Ufficio" : meta.kind === "lavorazione" ? "Lavorazione" : "Generale"}
           </span>
         </div>
-        {commessa.priorita === "alta" && (
-          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-paper/20 rounded-sm text-[9px] font-bold uppercase tracking-wider">
-            <AlertTriangle className="w-2.5 h-2.5" /> Alta
-          </span>
-        )}
-      </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {urgency && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 border-2 rounded-sm text-[10px] font-mono font-bold uppercase tracking-wider ${urgency.cls}`}>
+              {urgency.label}
+            </span>
+          )}
+          {commessa.priorita === "alta" && (
+            <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-paper/20 rounded-sm text-[9px] font-bold uppercase tracking-wider">
+              <AlertTriangle className="w-2.5 h-2.5" /> Alta
+            </span>
+          )}
+        </div>
 
       <div className="flex items-start gap-2 p-3">
         <button

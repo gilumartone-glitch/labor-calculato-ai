@@ -501,15 +501,6 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 h-9" placeholder="Filtra per nome operaio…" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
-          {allowedReparti.length > 1 && (
-            <Select value={filterReparto} onValueChange={(v) => setFilterReparto(v as any)}>
-              <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Reparto" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti i reparti</SelectItem>
-                {allowedReparti.map((r) => <SelectItem key={r} value={r}>{REPARTO_LABEL[r]}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
           <Select value={filterCantiere} onValueChange={(v) => setFilterCantiere(v)}>
             <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="Cantiere" /></SelectTrigger>
             <SelectContent>
@@ -517,11 +508,12 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               {allCantieriSet.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-          {(filterText || filterReparto !== "all" || filterCantiere !== "all") && (
-            <Button size="sm" variant="ghost" onClick={() => { setFilterText(""); setFilterReparto("all"); setFilterCantiere("all"); }}>Reset</Button>
+          {(filterText || filterCantiere !== "all") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFilterText(""); setFilterCantiere("all"); }}>Reset</Button>
           )}
         </CardContent>
       </Card>
+
 
       {/* === Calendario === */}
       <Card className="border-2 border-dept shadow-soft overflow-hidden">

@@ -75,6 +75,7 @@ const App = () => (
             <Route path="/contabilita" element={<RouteGuard page="contabilita"><Contabilita /></RouteGuard>} />
             <Route path="/produzione" element={<RouteGuard page="produzione"><ProdDashboard /></RouteGuard>} />
             <Route path="/produzione/board" element={<RouteGuard page="produzione"><ProdBoard /></RouteGuard>} />
+            <Route path="/produzione/oggi" element={<RouteGuard page="produzione"><ProdOggi /></RouteGuard>} />
             <Route path="/produzione/magazzino" element={<RouteGuard page="produzione"><ProdInventory /></RouteGuard>} />
             <Route path="/produzione/trova-materiale" element={<RouteGuard page="produzione"><ProdFindMaterial /></RouteGuard>} />
             <Route path="/produzione/chat" element={<RouteGuard page="produzione"><ProdChat /></RouteGuard>} />

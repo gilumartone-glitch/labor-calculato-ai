@@ -131,20 +131,52 @@ export const ConfirmToWarehouseDialog = ({
     materials.forEach((m) => { init[m.key] = true; });
     setAvailable(init);
     setSuppliers({});
+    setInvInfo({});
     let cancelled = false;
     (async () => {
       setLoading(true);
+      const norm = (s: any) => String(s ?? "").trim().toLowerCase();
       // Carichiamo TUTTI i profili approvati: il responsabile lavorazione può essere
       // chiunque (l'amministratore poi potrà filtrare per settore se vuole).
-      const [{ data: m }, { data: a }] = await Promise.all([
+      const [{ data: m }, { data: a }, { data: inv }] = await Promise.all([
         supabase.from("profiles").select("id, display_name").eq("approved", true).order("display_name", { ascending: true }),
         supabase.from("profiles").select("id, display_name").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
+        supabase.from("inventory_items").select("code, reparto, material_name, material_color, material_height, qty_intera, qty_sfrido, posizione"),
       ]);
       if (cancelled) return;
       const list = (m ?? []) as MagazzinoUser[];
       const aList = (a ?? []) as MagazzinoUser[];
       setUsers(list);
       setAcquistiUsers(aList);
+      // Match inventario per ciascun materiale richiesto (per nome|colore|altezza, qualsiasi reparto).
+      const invRows = (inv ?? []) as any[];
+      const info: Record<string, InvInfo> = {};
+      const initAvail: Record<string, boolean> = {};
+      for (const mat of materials) {
+        const [n, c, h] = mat.key.split("|");
+        const match = invRows.find((r) =>
+          norm(r.material_name) === norm(n) &&
+          norm(r.material_color) === norm(c) &&
+          norm(r.material_height) === norm(h)
+        );
+        if (match) {
+          const totalQty = Number(match.qty_intera || 0) + Number(match.qty_sfrido || 0);
+          info[mat.key] = {
+            found: true,
+            code: match.code,
+            qty_intera: Number(match.qty_intera || 0),
+            qty_sfrido: Number(match.qty_sfrido || 0),
+            posizione: match.posizione,
+            reparto: match.reparto,
+          };
+          initAvail[mat.key] = totalQty > 0;
+        } else {
+          info[mat.key] = { found: false };
+          initAvail[mat.key] = false;
+        }
+      }
+      setInvInfo(info);
+      setAvailable(initAvail);
       // Preferisci il responsabile scelto in pianificazione per il reparto attivo
       const planned = defaultAssigneeByMacro?.[workDept];
       const plannedExists = planned && list.some((u) => u.id === planned);

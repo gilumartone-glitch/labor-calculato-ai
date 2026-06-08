@@ -430,6 +430,48 @@ const ProdBoard = () => {
 
         <CantieriStrip />
 
+        {(() => {
+          const allOrders = stages.flatMap((s) => s.items);
+          const today: typeof allOrders = [];
+          const overdue: typeof allOrders = [];
+          for (const o of allOrders) {
+            if (o.status === "spedito" || o.status === "chiuso") continue;
+            const dl = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
+            const u = urgencyBadge(dl, { done: false });
+            if (!u || u.days === null) continue;
+            if (u.days < 0) overdue.push(o);
+            else if (u.days === 0) today.push(o);
+          }
+          if (today.length === 0 && overdue.length === 0) return null;
+          return (
+            <div className="border-2 border-destructive bg-destructive/5 rounded-sm p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-destructive font-bold">// Urgenze</span>
+                <span className="font-display text-lg font-bold text-destructive">DA FARE OGGI</span>
+                <span className="ml-auto font-mono text-[11px] text-ink/60">
+                  {overdue.length > 0 && <span className="text-destructive font-bold">{overdue.length} in ritardo · </span>}
+                  {today.length} per oggi
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[...overdue, ...today].map((o) => {
+                  const dl = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
+                  const u = urgencyBadge(dl, { done: false });
+                  return (
+                    <span key={o.id} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border-2 text-[11px] font-mono ${u?.cls ?? ""}`}>
+                      <span className="font-bold">{o.code}</span>
+                      <span className="opacity-90">· {o.cliente}</span>
+                      <span className="opacity-75">· {u?.label}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+
+
         <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
           {stages.map((st) => (
             <div key={st.key} className="w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col">

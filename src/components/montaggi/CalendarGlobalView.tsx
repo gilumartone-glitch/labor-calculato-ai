@@ -886,9 +886,30 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{ex ? "Modifica impegno" : "Nuovo impegno"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            <span>{ex ? "Modifica impegno" : "Nuovo impegno"}</span>
+            <span
+              className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm"
+              style={{ backgroundColor: `${REPARTO_BG[reparto]}22`, color: REPARTO_BG[reparto], border: `1px solid ${REPARTO_BG[reparto]}55` }}
+            >
+              {REPARTO_LABEL[reparto]}
+            </span>
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label>Tipo di attività / Reparto</Label>
+            <select
+              className="h-11 w-full rounded-md border-2 border-input bg-background px-3 text-sm font-bold uppercase tracking-wider"
+              style={{ borderColor: REPARTO_BG[reparto], color: REPARTO_BG[reparto] }}
+              value={reparto}
+              onChange={(e) => setReparto(e.target.value as Reparto)}
+            >
+              {(allowedReparti.length > 1 ? allowedReparti : REPARTI).map((r) => (
+                <option key={r} value={r}>{REPARTO_LABEL[r]}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1.5">
             <Label>Operaio</Label>
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={operatorId} onChange={(e) => setOperatorId(e.target.value)}>
@@ -912,14 +933,6 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
               {allCantieri.map((c) => <option key={c} value={c} />)}
             </datalist>
           </div>
-          {allowedReparti.length > 1 && (
-            <div className="space-y-1.5">
-              <Label>Reparto</Label>
-              <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reparto} onChange={(e) => setReparto(e.target.value as Reparto)}>
-                {allowedReparti.map((r) => <option key={r} value={r}>{REPARTO_LABEL[r]}</option>)}
-              </select>
-            </div>
-          )}
           <div className="space-y-1.5">
             <Label>Note</Label>
             <Input value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali" />

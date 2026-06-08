@@ -27,6 +27,7 @@ const Record = lazy(() => import("./pages/Record.tsx"));
 const Dipendenti = lazy(() => import("./pages/Dipendenti.tsx"));
 const ProdDashboard = lazy(() => import("./pages/produzione/ProdDashboard.tsx"));
 const ProdBoard = lazy(() => import("./pages/produzione/ProdBoard.tsx"));
+const ProdOggi = lazy(() => import("./pages/produzione/ProdOggi.tsx"));
 const ProdInventory = lazy(() => import("./pages/produzione/ProdInventory.tsx"));
 const ProdFindMaterial = lazy(() => import("./pages/produzione/ProdFindMaterial.tsx"));
 const ProdChat = lazy(() => import("./pages/produzione/ProdChat.tsx"));

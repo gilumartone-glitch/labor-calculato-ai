@@ -130,7 +130,7 @@ type CalendarGlobalViewProps = {
 };
 
 /** Reparti disponibili come filtri rapidi a tab nella pianificazione. */
-const FILTER_REPARTI: Reparto[] = ["stampa", "taglio", "tappezzeria", "montaggi"];
+const FILTER_REPARTI: Reparto[] = ["stampa", "taglio", "tappezzeria", "montaggi", "magazzino"];
 
 export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalViewProps) => {
   const { user } = useAuth();

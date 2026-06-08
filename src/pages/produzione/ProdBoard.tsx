@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { collectSnapshotDepartments } from "@/lib/produzione/snapshot";
 import { CantieriStrip } from "@/components/flow/CantieriStrip";
+import { urgencyBadge } from "@/lib/urgency";
 
 /** Conta pezzi dello snapshot per ProdDept. */
 const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> => {

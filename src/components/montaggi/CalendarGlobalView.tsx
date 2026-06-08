@@ -337,18 +337,17 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     const q = filterText.trim().toLowerCase();
     return displayedOps.filter((o) => {
       if (q && !o.name.toLowerCase().includes(q)) return false;
-      if (filterReparto !== "all" && !(o.reparti ?? ["montaggi"]).includes(filterReparto)) return false;
       return true;
     });
-  }, [displayedOps, filterText, filterReparto]);
+  }, [displayedOps, filterText]);
 
   const filteredAssignments = useMemo(() => {
     return modeAssignments.filter((a) => {
       if (filterCantiere !== "all" && a.cantiere_label !== filterCantiere) return false;
-      if (filterReparto !== "all" && (a.reparto ?? "montaggi") !== filterReparto) return false;
       return true;
     });
-  }, [modeAssignments, filterReparto, filterCantiere]);
+  }, [modeAssignments, filterCantiere]);
+
 
   const byOp = useMemo(() => {
     const m = new Map<string, Map<string, Assignment[]>>();

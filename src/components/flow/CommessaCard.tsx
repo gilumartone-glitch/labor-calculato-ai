@@ -144,6 +144,8 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
             </span>
           )}
         </div>
+      </div>
+
 
       <div className="flex items-start gap-2 p-3">
         <button

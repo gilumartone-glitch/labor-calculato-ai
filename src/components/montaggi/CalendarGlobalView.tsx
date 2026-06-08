@@ -122,16 +122,35 @@ const TARGET_HOURS_PER_DAY = 8;
 type CacheEntry = { assignments: Assignment[]; prodSubs: ProdSub[]; profiles: ProfileLite[]; startKey: string };
 const dataCache = new Map<string, CacheEntry>();
 
-type CalendarGlobalViewProps = { mode?: CalendarMode };
+type CalendarGlobalViewProps = {
+  /** @deprecated usa selectedReparti */
+  mode?: CalendarMode;
+  /** Reparti su cui filtrare il calendario. Vuoto = "Tutti" (stampa, taglio, tappezzeria, montaggi). */
+  selectedReparti?: Reparto[];
+};
 
-export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProps) => {
+/** Reparti disponibili come filtri rapidi a tab nella pianificazione. */
+const FILTER_REPARTI: Reparto[] = ["stampa", "taglio", "tappezzeria", "montaggi"];
+
+export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalViewProps) => {
   const { user } = useAuth();
-  const allowedReparti = useMemo(() => MODE_REPARTI[mode], [mode]);
+
+  // Costruisci allowedReparti dai filtri scelti (prop nuova) oppure dalla vecchia mode.
+  const allowedReparti = useMemo<Reparto[]>(() => {
+    if (selectedReparti && selectedReparti.length > 0) return selectedReparti;
+    if (selectedReparti && selectedReparti.length === 0) return FILTER_REPARTI;
+    if (mode) return MODE_REPARTI[mode];
+    return FILTER_REPARTI;
+  }, [selectedReparti, mode]);
   const defaultReparto = allowedReparti[0];
+  const repartiKey = useMemo(() => [...allowedReparti].sort().join(","), [allowedReparti]);
+  const includesMontaggi = allowedReparti.includes("montaggi");
+  const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
+
   const [view, setView] = useState<"operai" | "cantieri">("operai");
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
-  const initialCache = dataCache.get(`${mode}|${fmtDate(startOfWeek(new Date()))}`);
+  const initialCache = dataCache.get(`${repartiKey}|${fmtDate(startOfWeek(new Date()))}`);
   const [assignments, setAssignments] = useState<Assignment[]>(initialCache?.assignments ?? []);
   const [prodSubs, setProdSubs] = useState<ProdSub[]>(initialCache?.prodSubs ?? []);
   const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
@@ -140,11 +159,11 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
 
   // Filtri
   const [filterText, setFilterText] = useState("");
-  const [filterReparto, setFilterReparto] = useState<"all" | Reparto>("all");
   const [filterCantiere, setFilterCantiere] = useState<string>("all");
 
-  // Reset filtro reparto quando cambia modalità
-  useEffect(() => { setFilterReparto("all"); }, [mode]);
+  // Reset filtro quando cambiano i reparti selezionati
+  useEffect(() => { setFilterCantiere("all"); }, [repartiKey]);
+
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -160,7 +179,7 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
   // Carica solo la finestra corrente. Niente realtime su ogni modifica: gli update sono ottimistici
   // e restano locali, così la griglia non si ricarica continuamente mentre lavori.
   const profilesLoadedRef = useRef(initialCache ? true : false);
-  const cacheKey = useMemo(() => `${mode}|${dayStrs[0]}`, [mode, dayStrs]);
+  const cacheKey = useMemo(() => `${repartiKey}|${dayStrs[0]}`, [repartiKey, dayStrs]);
 
   const load = useCallback(async () => {
     const cached = dataCache.get(cacheKey);
@@ -172,14 +191,19 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       .select("*")
       .gte("date", firstDay)
       .lte("date", lastDay);
-    planQuery = mode === "montaggi"
-      ? planQuery.or("reparto.eq.montaggi,reparto.is.null")
-      : planQuery.in("reparto", allowedReparti);
+    // I record con reparto=null sono considerati "montaggi" (legacy)
+    if (includesMontaggi && nonMontaggiReparti.length === 0) {
+      planQuery = planQuery.or("reparto.eq.montaggi,reparto.is.null");
+    } else if (includesMontaggi) {
+      planQuery = planQuery.or(`reparto.is.null,reparto.in.(${allowedReparti.join(",")})`);
+    } else {
+      planQuery = planQuery.in("reparto", allowedReparti);
+    }
     const planP = planQuery.order("date").then((r) => r);
-    const subP = mode === "lavorazioni"
+    const subP = nonMontaggiReparti.length > 0
       ? supabase.from("production_sub_orders")
         .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
-        .in("dept", allowedReparti)
+        .in("dept", nonMontaggiReparti)
         .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay}`)
         .then((r) => r)
       : Promise.resolve({ data: [], error: null });
@@ -202,7 +226,9 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     }
     dataCache.set(cacheKey, { assignments: nextAssignments, prodSubs: nextProdSubs, profiles: nextProfiles, startKey: dayStrs[0] });
     setLoading(false);
-  }, [allowedReparti, cacheKey, dayStrs, mode, profiles]);
+  }, [allowedReparti, cacheKey, dayStrs, includesMontaggi, nonMontaggiReparti, profiles]);
+
+
 
   useEffect(() => {
     const cached = dataCache.get(cacheKey);
@@ -318,18 +344,17 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
     const q = filterText.trim().toLowerCase();
     return displayedOps.filter((o) => {
       if (q && !o.name.toLowerCase().includes(q)) return false;
-      if (filterReparto !== "all" && !(o.reparti ?? ["montaggi"]).includes(filterReparto)) return false;
       return true;
     });
-  }, [displayedOps, filterText, filterReparto]);
+  }, [displayedOps, filterText]);
 
   const filteredAssignments = useMemo(() => {
     return modeAssignments.filter((a) => {
       if (filterCantiere !== "all" && a.cantiere_label !== filterCantiere) return false;
-      if (filterReparto !== "all" && (a.reparto ?? "montaggi") !== filterReparto) return false;
       return true;
     });
-  }, [modeAssignments, filterReparto, filterCantiere]);
+  }, [modeAssignments, filterCantiere]);
+
 
   const byOp = useMemo(() => {
     const m = new Map<string, Map<string, Assignment[]>>();
@@ -454,8 +479,9 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
       <Card className="border-2 border-dept shadow-soft">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />{mode === "lavorazioni" ? "Pianificazione lavorazioni" : "Pianificazione montaggi"} · 2 settimane</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">{mode === "lavorazioni" ? "Laboratorio, tappezzeria e vendite. Trascina o clicca su un impegno per spostarlo." : "Operai e cantieri di montaggio. Trascina o clicca su un impegno per spostarlo."}</p>
+            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Pianificazione · 2 settimane</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Reparti attivi: {allowedReparti.map((r) => REPARTO_LABEL[r]).join(", ")}. Trascina o clicca su un impegno per spostarlo.</p>
+
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Tabs value={view} onValueChange={(v) => setView(v as any)}>
@@ -483,15 +509,6 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 h-9" placeholder="Filtra per nome operaio…" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
-          {allowedReparti.length > 1 && (
-            <Select value={filterReparto} onValueChange={(v) => setFilterReparto(v as any)}>
-              <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Reparto" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti i reparti</SelectItem>
-                {allowedReparti.map((r) => <SelectItem key={r} value={r}>{REPARTO_LABEL[r]}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
           <Select value={filterCantiere} onValueChange={(v) => setFilterCantiere(v)}>
             <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="Cantiere" /></SelectTrigger>
             <SelectContent>
@@ -499,11 +516,12 @@ export const CalendarGlobalView = ({ mode = "montaggi" }: CalendarGlobalViewProp
               {allCantieriSet.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-          {(filterText || filterReparto !== "all" || filterCantiere !== "all") && (
-            <Button size="sm" variant="ghost" onClick={() => { setFilterText(""); setFilterReparto("all"); setFilterCantiere("all"); }}>Reset</Button>
+          {(filterText || filterCantiere !== "all") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFilterText(""); setFilterCantiere("all"); }}>Reset</Button>
           )}
         </CardContent>
       </Card>
+
 
       {/* === Calendario === */}
       <Card className="border-2 border-dept shadow-soft overflow-hidden">

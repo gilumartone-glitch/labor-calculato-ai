@@ -242,6 +242,48 @@ export const MyActivities = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!openPlan} onOpenChange={(o) => !o && setOpenPlan(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              <span>Dettagli attività</span>
+              {openPlan?.reparto && (
+                <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-sm bg-primary/10 text-primary">
+                  {openPlan.reparto}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {openPlan && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Cantiere / Commessa</div>
+                <div className="text-base font-bold">{openPlan.cantiere_label}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Data</div>
+                  <div className="font-mono">{fmtDay(openPlan.date)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Ore</div>
+                  <div className="font-mono">{openPlan.hours}h</div>
+                </div>
+              </div>
+              {openPlan.notes && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Note</div>
+                  <div className="whitespace-pre-wrap border border-ink/15 rounded-sm p-2 bg-muted/30">{openPlan.notes}</div>
+                </div>
+              )}
+              <div className="flex justify-end pt-2">
+                <Button size="sm" variant="outline" onClick={() => setOpenPlan(null)}>Chiudi</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

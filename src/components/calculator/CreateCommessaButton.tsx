@@ -963,6 +963,20 @@ export const CreateCommessaButton = ({
           </div>
 
           <div>
+            <Label>Consegna</Label>
+            <Select value={delivery} onValueChange={(v) => setDelivery(v as FormState["delivery"])}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ritiro">Ritira il cliente</SelectItem>
+                <SelectItem value="mezzo_proprio">Consegna Tecnofra</SelectItem>
+                <SelectItem value="corriere">Consegna Corriere</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label htmlFor="note">Note</Label>
             <Textarea
               id="note"

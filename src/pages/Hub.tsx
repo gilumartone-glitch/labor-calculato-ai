@@ -93,7 +93,7 @@ const Hub = () => {
               <Link
                 key={key}
                 to={to}
-                className={`group relative border-2 ${color} p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                className={`group relative border-2 ${color} p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all`}
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className={`w-14 h-14 rounded-sm ${iconBg} text-white grid place-items-center`}>
@@ -109,7 +109,7 @@ const Hub = () => {
             {showMagazzino && (
               <Link
                 to="/magazzino"
-                className="group relative border-2 bg-[hsl(260_45%_42%)] text-white border-[hsl(260_45%_28%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(260_45%_42%)] text-white border-[hsl(260_45%_28%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(260_45%_28%)] text-white grid place-items-center">
@@ -125,7 +125,7 @@ const Hub = () => {
             {(isAdmin || approved) && (
               <Link
                 to="/marketing"
-                className="group relative border-2 bg-[hsl(340_72%_44%)] text-white border-[hsl(340_72%_30%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(340_72%_44%)] text-white border-[hsl(340_72%_30%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(340_72%_30%)] text-white grid place-items-center">
@@ -141,7 +141,7 @@ const Hub = () => {
             {(isAdmin || approved) && (
               <Link
                 to="/record"
-                className="group relative border-2 bg-[hsl(210_25%_28%)] text-white border-[hsl(210_25%_18%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(210_25%_28%)] text-white border-[hsl(210_25%_18%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(210_25%_18%)] text-white grid place-items-center">

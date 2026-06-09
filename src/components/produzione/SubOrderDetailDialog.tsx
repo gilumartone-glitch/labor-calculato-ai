@@ -752,7 +752,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <Package className="w-3 h-3" /> Materiali necessari (da preventivo)
             </div>
-            <div className="border border-ink/15 rounded-sm overflow-hidden">
+            <div className="border border-ink/15 rounded-sm overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead className="bg-ink/5 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
                   <tr>

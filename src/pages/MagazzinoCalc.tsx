@@ -708,7 +708,7 @@ function ManualMagazzinoOrderForm({
             {lines.map((l) => {
               const isManual = manualEdit[l.id] || !picker;
               return (
-                <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
+                <div key={l.id} className="p-2 grid grid-cols-[1fr,80px,60px,110px,1fr,32px] gap-2 items-start">
                   <div className="flex flex-col gap-1 min-w-0">
                     {isManual ? (
                       <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
@@ -734,6 +734,10 @@ function ManualMagazzinoOrderForm({
                   </div>
                   <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
                   <Input value={l.um} readOnly tabIndex={-1} placeholder="um" className="h-8 text-[12px] bg-muted/40 cursor-not-allowed text-center font-mono" title="Unità di misura impostata dal listino" />
+                  <div className="relative">
+                    <Input type="number" step="0.01" min="0" value={l.price} onChange={(e) => updLine(l.id, { price: e.target.value })} placeholder="Prezzo" className="h-8 text-[12px] pr-10 text-right font-mono" title={`Prezzo unitario di vendita (€/${l.um})`} />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground pointer-events-none">€/{l.um}</span>
+                  </div>
                   <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
                   <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>

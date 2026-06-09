@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ArrowLeft, User } from "lucide-react";
+import { CalendarClock, ArrowLeft, ArrowRight, User, AlertTriangle } from "lucide-react";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";

@@ -530,53 +530,47 @@ const ProdBoard = () => {
                       key={o.id}
                       className={`${tintBg} border-2 ${leftBorder} border-l-[6px] rounded-sm p-3 ${o.priorita === "bloccante" ? "border-destructive shadow-[0_0_0_2px_hsl(var(--destructive)/0.2)] animate-pulse" : urgent ? "border-amber-500" : "border-ink/15"}`}
                     >
-                      {(() => {
-                        const deadline = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
-                        const urg = urgencyBadge(deadline, { done: o.status === "spedito" || o.status === "chiuso" });
-                        return (
-                          <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
-                            <span className="sr-only">{o.code}</span>
+                       {(() => {
+                         const deadline = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
+                         const urg = urgencyBadge(deadline, { done: o.status === "spedito" || o.status === "chiuso" });
+                         const days = urg?.days ?? null;
+                         let dotCls = "bg-muted border-ink/20";
+                         let dotTitle = "Nessuna scadenza";
+                         if (days !== null) {
+                           if (days <= 1) { dotCls = "bg-destructive border-destructive"; dotTitle = days < 0 ? `In ritardo di ${Math.abs(days)}g` : days === 0 ? "Scade oggi" : "Scade domani"; }
+                           else if (days <= 3) { dotCls = "bg-amber-500 border-amber-600"; dotTitle = `Fra ${days}g`; }
+                           else { dotCls = "bg-emerald-500 border-emerald-600"; dotTitle = `Fra ${days}g`; }
+                           if (deadline) dotTitle += ` · ${fmtDate(deadline)}`;
+                         }
+                         return (
+                           <div className="flex items-center justify-between gap-2 mb-2">
+                             <div className="text-[15px] font-semibold text-ink leading-snug min-w-0 flex-1">
+                               <span className="sr-only">{o.code} · </span>
+                               {o.cliente}
+                               {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}
+                             </div>
+                             <div className="flex items-center gap-1.5 shrink-0">
+                               <span
+                                 className={`inline-block w-3 h-3 rounded-full border-2 ${dotCls} ${days !== null && days <= 0 ? "animate-pulse" : ""}`}
+                                 title={dotTitle}
+                                 aria-label={dotTitle}
+                               />
+                               {isAdmin && (
+                                 <button
+                                   type="button"
+                                   onClick={(e) => { e.stopPropagation(); handleDeleteOrder(o); }}
+                                   title="Elimina ordine (admin)"
+                                   aria-label="Elimina ordine (admin)"
+                                   className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                                 >
+                                   <Trash2 className="w-3.5 h-3.5" />
+                                 </button>
+                               )}
+                             </div>
+                           </div>
+                         );
+                       })()}
 
-                            <div className="flex items-center gap-1 flex-wrap justify-end">
-                              {(() => {
-                                const days = urg?.days ?? null;
-                                let dotCls = "bg-muted border-ink/20";
-                                let dotTitle = "Nessuna scadenza";
-                                if (days !== null) {
-                                  if (days <= 1) { dotCls = "bg-destructive border-destructive"; dotTitle = days < 0 ? `In ritardo di ${Math.abs(days)}g` : days === 0 ? "Scade oggi" : "Scade domani"; }
-                                  else if (days <= 3) { dotCls = "bg-amber-500 border-amber-600"; dotTitle = `Fra ${days}g`; }
-                                  else { dotCls = "bg-emerald-500 border-emerald-600"; dotTitle = `Fra ${days}g`; }
-                                  if (deadline) dotTitle += ` · ${fmtDate(deadline)}`;
-                                }
-                                return (
-                                  <span
-                                    className={`inline-block w-3 h-3 rounded-full border-2 ${dotCls} ${days !== null && days <= 0 ? "animate-pulse" : ""}`}
-                                    title={dotTitle}
-                                    aria-label={dotTitle}
-                                  />
-                                );
-                              })()}
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteOrder(o); }}
-                              title="Elimina ordine (admin)"
-                              aria-label="Elimina ordine (admin)"
-                              className="w-6 h-6 grid place-items-center rounded-sm border border-ink/20 text-ink/50 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                            </div>
-
-                          </div>
-
-                        );
-                      })()}
-                      <div className="text-[15px] font-semibold text-ink leading-snug mb-2">
-                        {o.cliente}
-                        {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}
-                      </div>
                       <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
                         <div className="h-full bg-primary transition-all" style={{ width: `${prog}%` }} />
                       </div>

@@ -561,13 +561,12 @@ const ProdBoard = () => {
                                 <span className="text-xl leading-none" aria-hidden>{dc.emoji}</span>
                                 <span className="font-display font-extrabold uppercase tracking-wide text-[16px] leading-none truncate">{DEPT_LABEL[s.dept]}</span>
                               </div>
-                              <div className="p-2">
-                              <div className="flex items-center gap-2">
+                              <div className="p-2 space-y-2">
                                 <select
                                   value={s.status}
                                   onChange={(e) => setSubStatus(s, e.target.value as ProdSubStatus)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-[14px] font-bold border-2 border-ink/30 rounded-sm bg-background px-2 py-1.5 flex-1 min-w-0 cursor-pointer hover:border-ink/60 transition-colors"
+                                  className="w-full text-[15px] font-bold border-2 border-ink/30 rounded-sm bg-background px-3 py-3 cursor-pointer hover:border-ink/60 transition-colors"
                                 >
                                   <option value="in_attesa">⏳ In attesa</option>
                                   <option value="in_lavorazione">◐ In lavorazione</option>
@@ -575,17 +574,13 @@ const ProdBoard = () => {
                                   <option value="rimandato">↩ Revisiona…</option>
                                   {s.status === "bloccato" && <option value="bloccato">✕ Bloccato</option>}
                                 </select>
-                                <div className="flex items-center gap-1 text-[14px] font-bold text-ink shrink-0 min-w-0">
+                                <div className="flex items-center gap-1.5 text-[16px] font-bold text-ink">
                                   {isSubLocked(s) && <Lock className="w-4 h-4 text-amber-600 shrink-0" />}
                                   <User className="w-4 h-4 shrink-0" />
-                                  <span className="truncate max-w-[130px]">{assignee?.display_name ?? "Non assegnato"}</span>
+                                  <span className="truncate">{assignee?.display_name ?? "Non assegnato"}</span>
                                 </div>
 
-                              </div>
 
-                              {s.note && (
-                                <div className="text-[11px] text-ink/70 italic mt-1 truncate">{s.note}</div>
-                              )}
                               {s.status === "rimandato" && s.rejection_reason && (
                                 <div className="text-[11px] text-orange-700 mt-1 line-clamp-2 leading-snug">
                                   ↩ <span className="font-bold">Motivo:</span> {s.rejection_reason}

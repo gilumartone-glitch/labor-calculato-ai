@@ -500,15 +500,15 @@ export const CreateCommessaButton = ({
       if (e1) throw e1;
 
       const materialDeptByKey = new Map(
-        extractMaterialsFromSnapshot(payload.productionSnapshot).map((m) => [m.key, m.dept ? toMacroDept(m.dept) : undefined]),
+        extractMaterialsFromSnapshot(payload.productionSnapshot).map((m) => [m.key, m.dept]),
       );
       const missingMaterials = (d.missing ?? []).map((m) => ({
         ...m,
-        dept: materialDeptByKey.get(m.key) ?? (m.dept ? toMacroDept(m.dept) : undefined),
+        dept: materialDeptByKey.get(m.key) ?? m.dept,
       }));
 
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
-      // Mappa macro-reparto → primo sub-acquisti che ne blocca le lavorazioni.
+      // Mappa reparto tecnico → primo sub-acquisti che ne blocca solo quella lavorazione.
       const acquistiByDept: Partial<Record<ProdDept, string>> = {};
       if (missingMaterials.length > 0 && d.acquisti_assignee_id) {
         const acquistiRows = missingMaterials.map((m, i) => ({
@@ -531,7 +531,7 @@ export const CreateCommessaButton = ({
           .insert(acquistiRows as any)
           .select("id");
         if (ea) throw ea;
-        // Associa ogni sub-acquisti al macro-reparto del materiale mancante.
+        // Associa ogni sub-acquisti al reparto tecnico del materiale mancante.
         (acquistiSubs ?? []).forEach((row: any, idx: number) => {
           const dep = missingMaterials[idx]?.dept;
           if (dep && !acquistiByDept[dep]) acquistiByDept[dep] = row.id as string;
@@ -555,8 +555,7 @@ export const CreateCommessaButton = ({
         // SOLO se ci sono materiali mancanti che servono proprio a quel reparto.
         const baseOrdine = missingMaterials.length;
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
-        const workMacro = toMacroDept(d.work_dept);
-        const blockerForWork = acquistiByDept[workMacro] ?? null;
+        const blockerForWork = acquistiByDept[d.work_dept] ?? null;
         const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(code, workSuffix, 1),
@@ -615,7 +614,6 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
-          const deptMacro = toMacroDept(dept);
           // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.
           if (dept === "magazzino" && acquistiByDept["magazzino"]) continue;
           const plan = planningFor(dept);
@@ -625,7 +623,7 @@ export const CreateCommessaButton = ({
             ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
             : (titolo.trim() || null);
           // Blocca questo sub SOLO se mancano materiali di sua competenza.
-          const blockerForDept = acquistiByDept[deptMacro] ?? null;
+          const blockerForDept = acquistiByDept[dept] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({

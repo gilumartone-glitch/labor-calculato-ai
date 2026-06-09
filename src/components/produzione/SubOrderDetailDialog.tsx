@@ -648,8 +648,9 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         )}
 
         {/* Meta in due colonne */}
-        <div className="grid md:grid-cols-2 gap-3">
-          <div className="border-2 border-ink/15 rounded-sm p-3 space-y-1.5 text-[12px]">
+        <div className="grid md:grid-cols-2 gap-2 sm:gap-3">
+          <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-1.5 text-[11px] sm:text-[12px]">
+
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commessa</div>
             <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /><strong>{order.cliente}</strong></div>
             <div className="flex items-center gap-2">

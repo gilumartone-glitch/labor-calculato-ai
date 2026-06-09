@@ -535,7 +535,8 @@ const ProdBoard = () => {
                         const urg = urgencyBadge(deadline, { done: o.status === "spedito" || o.status === "chiuso" });
                         return (
                           <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
-                            <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm shrink-0 ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
+                            <span className="sr-only">{o.code}</span>
+
                             <div className="flex items-center gap-1 flex-wrap justify-end">
                               {(() => {
                                 const days = urg?.days ?? null;

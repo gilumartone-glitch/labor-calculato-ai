@@ -431,51 +431,6 @@ const ProdBoard = () => {
 
         <CantieriStrip />
 
-        {(() => {
-          const allOrders = stages.flatMap((s) => s.items);
-          const today: typeof allOrders = [];
-          const overdue: typeof allOrders = [];
-          for (const o of allOrders) {
-            if (o.status === "spedito" || o.status === "chiuso") continue;
-            const dl = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
-            const u = urgencyBadge(dl, { done: false });
-            if (!u || u.days === null) continue;
-            if (u.days < 0) overdue.push(o);
-            else if (u.days === 0) today.push(o);
-          }
-          if (today.length === 0 && overdue.length === 0) return null;
-          return (
-            <div className="border-2 border-destructive bg-destructive/5 rounded-sm p-3">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-destructive font-bold">// Urgenze</span>
-                <span className="font-display text-lg font-bold text-destructive">DA FARE OGGI</span>
-                <span className="font-mono text-[11px] text-ink/60">
-                  {overdue.length > 0 && <span className="text-destructive font-bold">{overdue.length} in ritardo · </span>}
-                  {today.length} per oggi
-                </span>
-                <a
-                  href="/produzione/oggi"
-                  className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 bg-destructive text-destructive-foreground rounded-sm text-[11px] font-bold uppercase tracking-wider hover:bg-destructive/90"
-                >
-                  Vedi tutto →
-                </a>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[...overdue, ...today].map((o) => {
-                  const dl = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
-                  const u = urgencyBadge(dl, { done: false });
-                  return (
-                    <span key={o.id} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border-2 text-[11px] font-mono max-w-full ${u?.cls ?? ""}`}>
-                      <span className="font-bold shrink-0">{o.code}</span>
-                      <span className="opacity-90 truncate">· {o.cliente}</span>
-                      <span className="opacity-75 shrink-0">· {u?.label}</span>
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
 
 
 

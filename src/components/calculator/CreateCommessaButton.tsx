@@ -485,7 +485,7 @@ export const CreateCommessaButton = ({
           data: scadenza || todayIsoLocal(),
           note: orderNote,
           priorita: prodPrio,
-          delivery: isWarehouse ? "corriere" : "spedizione",
+          delivery: isWarehouse ? "corriere" : delivery,
           status: "in_corso",
           attachments: [],
           nesting_included: false,

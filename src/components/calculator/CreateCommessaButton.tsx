@@ -609,7 +609,8 @@ export const CreateCommessaButton = ({
               ordine: baseOrdine + i,
               note: noteForSub,
               files: [],
-              depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
+              depends_on: i === 0 ? firstAcquistiId : null,
+              status: (i === 0 && firstAcquistiId) ? "bloccato" : "in_attesa",
               assignee_id: assignee,
               operator_ids: opIds,
               start_date: plan.startDate || null,

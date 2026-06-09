@@ -592,7 +592,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           </div>
         </div>
 
-        <div className="px-5 pb-5 space-y-4">
+        <div className="px-3 sm:px-5 pb-5 space-y-4">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-2 flex-wrap pt-3">
             <Badge variant="outline" className={`font-mono ${dc.text} ${dc.border}`}>{sub.code}</Badge>

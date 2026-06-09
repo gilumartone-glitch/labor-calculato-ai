@@ -1,5 +1,6 @@
 import { computeNesting } from "@/lib/nesting";
 import type { Catalog, DepartmentState } from "@/components/calculator/types";
+import { toMacroDept, type ProdDept } from "@/lib/produzione/types";
 
 export type SnapshotMaterial = {
   key: string;
@@ -11,9 +12,12 @@ export type SnapshotMaterial = {
   unit?: string;
   /** Codice/identificativo breve del materiale (es. PAN-300). */
   code?: string;
+  /** Macro-reparto di provenienza del materiale (per bloccare solo i sub interessati). */
+  dept?: ProdDept;
 };
 
 type DeptLike = { label?: string; key?: string; state?: DepartmentState; catalog?: Catalog };
+
 
 const collectDepartments = (snap: any): DeptLike[] => {
   if (!snap) return [];
@@ -29,6 +33,7 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
   const depts = collectDepartments(snap);
   for (const d of depts) {
     if (!d.state || !d.catalog) continue;
+    const deptMacro = toMacroDept((d.key as ProdDept) ?? "altro");
     try {
       const groups = computeNesting(d.state.pieces ?? [], d.catalog);
       for (const g of groups) {
@@ -41,15 +46,21 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
         const existing = out.get(key);
         if (existing) {
           existing.qty = (existing.qty ?? 0) + (qty || 0);
+          // Se lo stesso materiale è richiesto da più reparti, preferisci "laboratorio"
+          // (è il fornitore interno di materia prima per gli altri reparti).
+          if (existing.dept !== "laboratorio" && deptMacro === "laboratorio") {
+            existing.dept = "laboratorio";
+          }
         } else {
           // Codice "breve" derivato: prime lettere del nome + altezza (es. PANNO-300)
           const short = String(g.material.name).toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
           const code = heightTxt ? `${short}-${String(g.material.height).replace(/\D/g, "")}` : short;
-          out.set(key, { key, label: g.material.name, detail, qty: qty || 0, unit, code });
+          out.set(key, { key, label: g.material.name, detail, qty: qty || 0, unit, code, dept: deptMacro });
         }
       }
     } catch { /* ignore */ }
   }
+
   // Aggiungi i prodotti del carrello vendite (reparto magazzino).
   // Anche questi possono mancare e devono essere verificati prima della commessa.
   const carts: Record<string, any[]> =
@@ -72,8 +83,9 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
       if (existing) {
         existing.qty = (existing.qty ?? 0) + qty;
       } else {
-        out.set(key, { key, label: name, detail, qty, unit, code: short });
+        out.set(key, { key, label: name, detail, qty, unit, code: short, dept: "magazzino" });
       }
+
     }
   }
   return Array.from(out.values()).sort((a, b) => a.label.localeCompare(b.label));

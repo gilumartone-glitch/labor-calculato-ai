@@ -501,6 +501,8 @@ export const CreateCommessaButton = ({
 
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
       let firstAcquistiId: string | null = null;
+      // Mappa macro-reparto → primo sub-acquisti che ne blocca le lavorazioni.
+      const acquistiByDept: Partial<Record<ProdDept, string>> = {};
       if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
         const acquistiRows = d.missing.map((m, i) => ({
           order_id: pord.id,
@@ -523,6 +525,11 @@ export const CreateCommessaButton = ({
           .select("id");
         if (ea) throw ea;
         firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
+        // Associa ogni sub-acquisti al macro-reparto del materiale mancante.
+        (acquistiSubs ?? []).forEach((row: any, idx: number) => {
+          const dep = d.missing[idx]?.dept;
+          if (dep && !acquistiByDept[dep]) acquistiByDept[dep] = row.id as string;
+        });
 
         await notify({
           userIds: [d.acquisti_assignee_id],
@@ -534,23 +541,28 @@ export const CreateCommessaButton = ({
         });
       }
 
+
       const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
 
       if (isWarehouse) {
         // Solo lavorazione: un unico sub del reparto scelto, dipendente dagli acquisti
+        // SOLO se ci sono materiali mancanti che servono proprio a quel reparto.
         const baseOrdine = d.missing?.length ?? 0;
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
+        const workMacro = toMacroDept(d.work_dept);
+        const blockerForWork = acquistiByDept[workMacro] ?? null;
         const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(code, workSuffix, 1),
           dept: d.work_dept,
           ordine: baseOrdine,
-          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa materiali (${d.missing.length})` : ""),
+          note: `Ordine cliente: ${d.customer_order_ref}` + (blockerForWork ? ` · in attesa materiali` : ""),
           files: [],
-          depends_on: firstAcquistiId,
-          status: firstAcquistiId ? "bloccato" : "in_attesa",
+          depends_on: blockerForWork,
+          status: blockerForWork ? "bloccato" : "in_attesa",
           assignee_id: d.assignee_id || null,
         } as any).select("id").single();
+
         if (e2) throw e2;
         if (d.assignee_id) insertedSubs.push({ id: workSub.id, dept: d.work_dept, assignee: d.assignee_id });
 
@@ -597,14 +609,17 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
-          // Se mancano materiali, non interpellare il magazzino: se ne occupa Acquisti.
-          if (dept === "magazzino" && firstAcquistiId) continue;
+          const deptMacro = toMacroDept(dept);
+          // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.
+          if (dept === "magazzino" && acquistiByDept["magazzino"]) continue;
           const plan = planningFor(dept);
           const assignee = (plan.responsabile || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
             ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
             : (titolo.trim() || null);
+          // Blocca questo sub SOLO se mancano materiali di sua competenza.
+          const blockerForDept = acquistiByDept[deptMacro] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -614,9 +629,10 @@ export const CreateCommessaButton = ({
               ordine: baseOrdine + i,
               note: noteForSub,
               files: [],
-              depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
-              status: firstAcquistiId ? "bloccato" : "in_attesa",
+              depends_on: blockerForDept, // bloccato solo se mancano materiali del SUO reparto
+              status: blockerForDept ? "bloccato" : "in_attesa",
               assignee_id: assignee,
+
               operator_ids: opIds,
               start_date: plan.startDate || null,
               end_date: plan.endDate || null,

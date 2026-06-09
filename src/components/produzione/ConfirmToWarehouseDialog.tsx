@@ -20,6 +20,8 @@ export type WarehouseMaterialItem = {
   unit?: string;
   /** Codice/identificativo materiale. */
   code?: string;
+  /** Macro-reparto che ha bisogno del materiale (per bloccare solo i sub interessati). */
+  dept?: ProdDept;
 };
 
 export type MissingMaterial = {
@@ -30,7 +32,9 @@ export type MissingMaterial = {
   qty?: number;
   unit?: string;
   code?: string;
+  dept?: ProdDept;
 };
+
 
 export type WarehouseConfirmData = {
   customer_order_ref: string;
@@ -202,9 +206,10 @@ export const ConfirmToWarehouseDialog = ({
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])
     .map((m) => ({
-      key: m.key, label: m.label, detail: m.detail, qty: m.qty, unit: m.unit, code: m.code,
+      key: m.key, label: m.label, detail: m.detail, qty: m.qty, unit: m.unit, code: m.code, dept: m.dept,
       supplier_name: suppliers[m.key]?.trim() || null,
     }));
+
   const hasMissing = missing.length > 0;
 
   const assigneeName = useMemo(() => users.find((u) => u.id === assignee)?.display_name ?? "", [users, assignee]);

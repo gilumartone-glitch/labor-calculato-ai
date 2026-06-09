@@ -911,32 +911,49 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         </div>
 
         {/* Azioni */}
-        <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-ink/10">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 pt-2 border-t border-ink/10">
+          {sub.status === "in_attesa" && !isLocked && (
+            <Button
+              onClick={() => onStart(sub)}
+              className="gap-2 w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm font-bold sm:order-2"
+            >
+              <Play className="w-4 h-4" /> Inizia lavorazione
+            </Button>
+          )}
+          {sub.status === "in_lavorazione" && (
+            <Button
+              onClick={() => onComplete(sub)}
+              className="gap-2 w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 sm:order-2"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Completa
+            </Button>
+          )}
+          {isLocked && (
+            <Button disabled className="gap-2 w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm font-bold sm:order-2">
+              <Lock className="w-4 h-4" /> Bloccato
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm sm:order-1"
+          >
+            Chiudi
+          </Button>
           {canEditSub && sub.status !== "completato" && (
             <Button
               variant="destructive"
               onClick={deleteSub}
               disabled={deleting}
-              className="gap-1 mr-auto"
+              className="gap-1 w-full sm:w-auto sm:mr-auto sm:order-0 text-xs sm:text-sm h-9 sm:h-10 opacity-80 sm:opacity-100"
               title="Elimina questa lavorazione"
             >
               {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
               Elimina lavorazione
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Chiudi</Button>
-          {sub.status === "in_attesa" && !isLocked && (
-            <Button onClick={() => onStart(sub)} className="gap-1"><Play className="w-3 h-3" /> Inizia lavorazione</Button>
-          )}
-          {sub.status === "in_lavorazione" && (
-            <Button onClick={() => onComplete(sub)} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
-              <CheckCircle2 className="w-3 h-3" /> Completa
-            </Button>
-          )}
-          {isLocked && (
-            <Button disabled className="gap-1"><Lock className="w-3 h-3" /> Bloccato</Button>
-          )}
         </div>
+
         </div>
       </DialogContent>
     </Dialog>

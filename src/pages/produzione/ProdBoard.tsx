@@ -423,7 +423,7 @@ const ProdBoard = () => {
                 <option value="all">Tutti i reparti</option>
                 {(Object.keys(DEPT_LABEL) as ProdDept[]).map((d) => <option key={d} value={d}>{DEPT_LABEL[d]}</option>)}
               </select>
-              <Button variant="outline" size="sm" onClick={() => setLaunchWarehouse(true)} className="gap-2"><PackageCheck className="w-4 h-4" /><span className="hidden sm:inline">Solo magazzino</span><span className="sm:hidden">Magaz.</span></Button>
+              
               <Button size="sm" onClick={() => setLaunch(true)} className="gap-2"><Plus className="w-4 h-4" />Lancia</Button>
             </div>
           )}

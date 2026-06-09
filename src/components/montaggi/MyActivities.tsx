@@ -19,6 +19,10 @@ type MySub = {
   order_id: string;
   due_date: string | null;
   rejection_reason: string | null;
+  assignee_id: string | null;
+  operator_ids: string[] | null;
+  coordinator_id: string | null;
+  _role?: "operator" | "coordinator";
 };
 
 type MyPlan = {

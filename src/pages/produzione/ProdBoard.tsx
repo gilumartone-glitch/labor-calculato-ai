@@ -544,11 +544,12 @@ const ProdBoard = () => {
                          }
                          return (
                            <div className="flex items-center justify-between gap-2 mb-2">
-                             <div className="text-[15px] font-semibold text-ink leading-snug min-w-0 flex-1">
+                             <div className="text-[19px] font-bold text-ink leading-tight min-w-0 flex-1">
                                <span className="sr-only">{o.code} · </span>
                                {o.cliente}
-                               {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}
+                               {o.production_name && <span className="ml-1 text-ink/60 font-normal italic text-[14px]">· Prod. {o.production_name}</span>}
                              </div>
+
                              <div className="flex items-center gap-1.5 shrink-0">
                                <span
                                  className={`inline-block w-3 h-3 rounded-full border-2 ${dotCls} ${days !== null && days <= 0 ? "animate-pulse" : ""}`}

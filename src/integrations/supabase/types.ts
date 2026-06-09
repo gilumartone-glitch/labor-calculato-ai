@@ -1258,6 +1258,7 @@ export type Database = {
           attachments: Json
           cliente: string
           code: string
+          coordinator_id: string | null
           corriere: string | null
           created_at: string
           created_by: string
@@ -1283,6 +1284,7 @@ export type Database = {
           attachments?: Json
           cliente: string
           code: string
+          coordinator_id?: string | null
           corriere?: string | null
           created_at?: string
           created_by: string
@@ -1308,6 +1310,7 @@ export type Database = {
           attachments?: Json
           cliente?: string
           code?: string
+          coordinator_id?: string | null
           corriere?: string | null
           created_at?: string
           created_by?: string
@@ -1329,7 +1332,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["prod_order_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "production_orders_coordinator_id_fkey"
+            columns: ["coordinator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_sub_checklist: {
         Row: {
@@ -1383,6 +1394,7 @@ export type Database = {
           assignee_id: string | null
           code: string
           completed_at: string | null
+          coordinator_id: string | null
           created_at: string
           depends_on: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
@@ -1414,6 +1426,7 @@ export type Database = {
           assignee_id?: string | null
           code: string
           completed_at?: string | null
+          coordinator_id?: string | null
           created_at?: string
           depends_on?: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
@@ -1445,6 +1458,7 @@ export type Database = {
           assignee_id?: string | null
           code?: string
           completed_at?: string | null
+          coordinator_id?: string | null
           created_at?: string
           depends_on?: string | null
           dept?: Database["public"]["Enums"]["prod_dept"]
@@ -1473,6 +1487,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "production_sub_orders_coordinator_id_fkey"
+            columns: ["coordinator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "production_sub_orders_depends_on_fkey"
             columns: ["depends_on"]
@@ -1720,6 +1741,10 @@ export type Database = {
         Args: { _roles: string[]; _user_id: string }
         Returns: undefined
       }
+      can_view_sub_order: {
+        Args: { _sub_id: string; _user_id: string }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1742,6 +1767,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_project_coordinator: {
+        Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
       is_record_owner: { Args: { _record_id: string }; Returns: boolean }

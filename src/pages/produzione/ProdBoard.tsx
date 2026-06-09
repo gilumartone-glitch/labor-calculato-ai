@@ -601,30 +601,17 @@ const ProdBoard = () => {
                               title="Apri dettaglio lavorazione"
                             >
                               {/* Header colorato del reparto */}
-                              <div className={`${dc.chip} px-2.5 py-1.5 flex items-center justify-between gap-2`}>
-                                <div className="flex items-center gap-2 font-display font-extrabold uppercase tracking-wide min-w-0 text-[15px] leading-none">
-                                  <span className="text-lg leading-none" aria-hidden>{dc.emoji}</span>
-                                  <span className="truncate">{DEPT_LABEL[s.dept]}</span>
-                                </div>
-                                <div className="flex items-center gap-1 text-[11px] font-mono opacity-90 shrink-0">
-                                  <User className="w-3 h-3" />
-                                  <span className="truncate max-w-[100px]">{assignee?.display_name ?? "Non assegnato"}</span>
-                                </div>
+                              <div className={`${dc.chip} px-2.5 py-2 flex items-center gap-2`}>
+                                <span className="text-xl leading-none" aria-hidden>{dc.emoji}</span>
+                                <span className="font-display font-extrabold uppercase tracking-wide text-[16px] leading-none truncate">{DEPT_LABEL[s.dept]}</span>
                               </div>
                               <div className="p-2">
-                              <div className="flex items-center justify-between gap-1.5 text-[12px] font-mono">
-                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                  {isSubLocked(s) && <Lock className="w-3 h-3 text-amber-600 shrink-0" />}
-                                  <Eye className="w-3 h-3 opacity-50 shrink-0 group-hover:opacity-100" />
-                                  {pieceCount > 0 && (
-                                    <span className="text-ink/60 shrink-0">{pieceCount}p</span>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-2">
                                 <select
                                   value={s.status}
                                   onChange={(e) => setSubStatus(s, e.target.value as ProdSubStatus)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-[11px] border border-ink/20 rounded-sm bg-background px-1.5 py-0.5 shrink-0"
+                                  className="text-[14px] font-bold border-2 border-ink/30 rounded-sm bg-background px-2 py-1.5 flex-1 min-w-0 cursor-pointer hover:border-ink/60 transition-colors"
                                 >
                                   <option value="in_attesa">⏳ In attesa</option>
                                   <option value="in_lavorazione">◐ In lavorazione</option>
@@ -632,6 +619,11 @@ const ProdBoard = () => {
                                   <option value="rimandato">↩ Revisiona…</option>
                                   {s.status === "bloccato" && <option value="bloccato">✕ Bloccato</option>}
                                 </select>
+                                <div className="flex items-center gap-1 text-[12px] font-mono text-ink/70 shrink-0 min-w-0">
+                                  {isSubLocked(s) && <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
+                                  <User className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate max-w-[110px]">{assignee?.display_name ?? "Non assegnato"}</span>
+                                </div>
                               </div>
 
                               {s.note && (
@@ -642,12 +634,14 @@ const ProdBoard = () => {
                                   ↩ <span className="font-bold">Motivo:</span> {s.rejection_reason}
                                 </div>
                               )}
-                              <div className="text-[11px] font-mono text-ink/60 mt-1">
-                                {statusIcon} {SUB_STATUS_LABEL[s.status]}
-                                {s.started_at && ` · iniz. ${fmtDate(s.started_at)}`}
-                                {s.completed_at && ` · compl. ${fmtDate(s.completed_at)}`}
-                                {s.rejected_at && ` · rim. ${fmtDate(s.rejected_at)}`}
-                              </div>
+                              {(s.started_at || s.completed_at || s.rejected_at) && (
+                                <div className="text-[10px] font-mono text-ink/50 mt-1">
+                                  {s.started_at && `iniz. ${fmtDate(s.started_at)}`}
+                                  {s.completed_at && ` · compl. ${fmtDate(s.completed_at)}`}
+                                  {s.rejected_at && ` · rim. ${fmtDate(s.rejected_at)}`}
+                                </div>
+                              )}
+
                               {(() => {
                                 // Banner "in attesa materiali" per le lavorazioni bloccate da acquisti
                                 if (s.dept === "acquisti" || s.status === "completato") return null;

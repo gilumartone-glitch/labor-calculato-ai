@@ -17,6 +17,8 @@ type Sub = {
   order_id: string;
   due_date: string | null;
   assignee_id: string | null;
+  operator_ids: string[] | null;
+  coordinator_id: string | null;
   start_date: string | null;
   end_date: string | null;
 };
@@ -27,6 +29,8 @@ type Order = {
   cliente: string;
   status: string;
   source_commessa_id: string | null;
+  coordinator_id: string | null;
+  created_by: string | null;
 };
 
 type Profile = { id: string; display_name: string | null };
@@ -66,22 +70,42 @@ export default function ProdOggi() {
     (async () => {
       setLoading(true);
 
-      // Solo sub-ordini assegnati all'utente, ancora aperti
-      const subsQ = await supabase
+      // 1) Sub-ordini dove sono operatore (assignee, in operator_ids, o coordinator del sub)
+      const subsOperatorQ = await supabase
         .from("production_sub_orders")
-        .select("id, code, dept, status, order_id, due_date, assignee_id, start_date, end_date")
-        .eq("assignee_id", user.id)
+        .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
+        .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
         .not("status", "in", "(completato,annullato)")
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(500);
 
-      const allSubs = (subsQ.data ?? []) as Sub[];
+      // 2) Ordini di cui sono responsabile (coordinator o creator) → fetch tutti i loro sub
+      const myOrdersQ = await supabase
+        .from("production_orders")
+        .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
+        .or(`coordinator_id.eq.${user.id},created_by.eq.${user.id}`)
+        .limit(500);
+      const coordOrderIds = (myOrdersQ.data ?? []).map((o: any) => o.id);
+      const subsCoordQ = coordOrderIds.length
+        ? await supabase
+            .from("production_sub_orders")
+            .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
+            .in("order_id", coordOrderIds)
+            .not("status", "in", "(completato,annullato)")
+            .limit(500)
+        : { data: [] as Sub[] };
+
+      // Merge: dedup by id, prefer "operator" role (visto direttamente) altrimenti "coordinator"
+      const map = new Map<string, Sub>();
+      for (const s of (subsOperatorQ.data ?? []) as Sub[]) map.set(s.id, s);
+      for (const s of (subsCoordQ.data ?? []) as Sub[]) if (!map.has(s.id)) map.set(s.id, s);
+      const allSubs = Array.from(map.values());
 
       const orderIds = Array.from(new Set(allSubs.map((s) => s.order_id)));
       const ordersQ = orderIds.length
         ? await supabase
             .from("production_orders")
-            .select("id, code, cliente, status, source_commessa_id")
+            .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
             .in("id", orderIds)
         : { data: [] as Order[] };
 
@@ -97,10 +121,12 @@ export default function ProdOggi() {
       const dlMap: Record<string, string | null> = {};
       for (const c of (commQ.data ?? []) as { id: string; data_scadenza: string | null }[]) dlMap[c.id] = c.data_scadenza;
 
+      // Carica i profili degli assegnatari per mostrare i nomi
+      const assigneeIds = Array.from(new Set(allSubs.map((s) => s.assignee_id).filter((x): x is string => !!x)));
       const profMap: Record<string, Profile> = {};
-      if (user.id) {
-        const me = await supabase.from("profiles").select("id, display_name").eq("id", user.id).maybeSingle();
-        if (me.data) profMap[me.data.id] = me.data as Profile;
+      if (assigneeIds.length > 0) {
+        const profsQ = await supabase.from("profiles").select("id, display_name").in("id", assigneeIds);
+        for (const p of (profsQ.data ?? []) as Profile[]) profMap[p.id] = p;
       }
 
       if (cancelled) return;
@@ -154,6 +180,14 @@ export default function ProdOggi() {
     return { byDay, overdue, future, undated };
   }, [subs, weekDays, weekStartIso, weekEndIso, orders, deadlines]);
 
+  // L'utente è OPERATORE di questa lavorazione, o solo RESPONSABILE?
+  const myRole = (s: Sub): "operator" | "coordinator" => {
+    if (!user) return "operator";
+    if (s.assignee_id === user.id) return "operator";
+    if ((s.operator_ids ?? []).includes(user.id)) return "operator";
+    return "coordinator";
+  };
+
   const renderCard = (s: Sub) => {
     const o = orders[s.order_id];
     const dl = subDate(s);
@@ -161,6 +195,8 @@ export default function ProdOggi() {
     const dc = DEPT_COLOR[s.dept];
     const assignee = s.assignee_id ? profiles[s.assignee_id]?.display_name : null;
     const uc = userColor(s.assignee_id);
+    const role = myRole(s);
+    const isCoord = role === "coordinator";
     const statusBg =
       s.status === "in_lavorazione" ? "bg-blue-50 border-blue-300" :
       s.status === "completato" ? "bg-emerald-50 border-emerald-300" :
@@ -171,14 +207,19 @@ export default function ProdOggi() {
       <Link
         key={s.id}
         to={`/produzione/board?sub=${s.id}`}
-        className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg}`}
-        title="Apri dettaglio lavorazione"
+        className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg} ${isCoord ? "ring-2 ring-amber-400/60" : ""}`}
+        title={isCoord ? "Sei il responsabile di questa lavorazione (non l'operatore)" : "Apri dettaglio lavorazione"}
       >
         <div className={`${dc.chip} px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5`}>
           <span className="text-lg xl:text-base leading-none" aria-hidden>{dc.emoji}</span>
           <span className="font-display font-extrabold uppercase tracking-wide text-[14px] xl:text-[12px] leading-none truncate">
             {DEPT_LABEL[s.dept]}
           </span>
+          {isCoord && (
+            <span className="ml-1 text-[9px] xl:text-[8px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm bg-amber-400 text-ink border border-amber-500" title="Sei responsabile, non operatore">
+              Responsabile
+            </span>
+          )}
           {u && (
             <span className={`ml-auto text-[10px] xl:text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border ${u.cls}`}>
               {u.label}

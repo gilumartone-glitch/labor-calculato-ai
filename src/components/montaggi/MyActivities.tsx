@@ -19,6 +19,10 @@ type MySub = {
   order_id: string;
   due_date: string | null;
   rejection_reason: string | null;
+  assignee_id: string | null;
+  operator_ids: string[] | null;
+  coordinator_id: string | null;
+  _role?: "operator" | "coordinator";
 };
 
 type MyPlan = {
@@ -67,13 +71,17 @@ export const MyActivities = () => {
     (async () => {
       setLoading(true);
       // operator ids legati a questo utente (operator.userId === user.id e fallback: operator.id === user.id)
-      const [subsR, plansByUser, plansByOperatorId, notifR] = await Promise.all([
+      const [subsOpR, myOrdersR, plansByUser, plansByOperatorId, notifR] = await Promise.all([
         supabase.from("production_sub_orders")
-          .select("id, code, dept, status, order_id, due_date, rejection_reason")
-          .eq("assignee_id", user.id)
+          .select("id, code, dept, status, order_id, due_date, rejection_reason, assignee_id, operator_ids, coordinator_id")
+          .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
           .neq("status", "completato")
           .order("due_date", { ascending: true })
           .limit(50),
+        supabase.from("production_orders")
+          .select("id")
+          .or(`coordinator_id.eq.${user.id},created_by.eq.${user.id}`)
+          .limit(200),
         supabase.from("montaggi_planning")
           .select("id, date, hours, cantiere_label, reparto, notes, operator_id")
           .gte("date", todayIso)
@@ -95,8 +103,27 @@ export const MyActivities = () => {
           .limit(10),
       ]);
 
+      // Sub-ordini come coordinator dell'ordine (anche se non operator del sub)
+      const coordOrderIds = (myOrdersR.data ?? []).map((o: any) => o.id);
+      const subsCoordR = coordOrderIds.length
+        ? await supabase.from("production_sub_orders")
+            .select("id, code, dept, status, order_id, due_date, rejection_reason, assignee_id, operator_ids, coordinator_id")
+            .in("order_id", coordOrderIds)
+            .neq("status", "completato")
+            .order("due_date", { ascending: true })
+            .limit(100)
+        : { data: [] as MySub[] };
+
       if (cancelled) return;
-      setSubs((subsR.data ?? []) as MySub[]);
+      const subMap = new Map<string, MySub>();
+      for (const s of (subsOpR.data ?? []) as MySub[]) subMap.set(s.id, { ...s, _role: "operator" });
+      for (const s of (subsCoordR.data ?? []) as MySub[]) {
+        if (!subMap.has(s.id)) {
+          const isOp = s.assignee_id === user.id || (s.operator_ids ?? []).includes(user.id);
+          subMap.set(s.id, { ...s, _role: isOp ? "operator" : "coordinator" });
+        }
+      }
+      setSubs(Array.from(subMap.values()));
 
       // Unisci pianificazioni: per operator_id = user.id (linking diretto)
       // Le pianificazioni indirette (via operator.userId) sono già gestite altrove —
@@ -155,10 +182,16 @@ export const MyActivities = () => {
                     <Link
                       key={s.id}
                       to={`/produzione/board?sub=${s.id}`}
-                      className="block border border-ink/15 rounded-sm p-2 hover:bg-muted/40 hover:border-primary transition-colors"
+                      className={`block border rounded-sm p-2 hover:bg-muted/40 hover:border-primary transition-colors ${s._role === "coordinator" ? "border-amber-400/70 bg-amber-50/40" : "border-ink/15"}`}
+                      title={s._role === "coordinator" ? "Sei il responsabile (non l'operatore) di questa lavorazione" : undefined}
                     >
                       <div className="flex items-center justify-between gap-2 text-[13px]">
-                        <span className="font-bold truncate">{s.code}</span>
+                        <span className="font-bold truncate flex items-center gap-1.5">
+                          {s.code}
+                          {s._role === "coordinator" && (
+                            <span className="text-[9px] font-mono uppercase font-bold px-1 py-0.5 rounded-sm bg-amber-400 text-ink">Resp.</span>
+                          )}
+                        </span>
                         <span className="text-[10px] font-mono uppercase tracking-wider text-primary shrink-0">
                           {DEPT_LABEL[s.dept as keyof typeof DEPT_LABEL] ?? s.dept}
                         </span>

@@ -39,6 +39,7 @@ type FormState = {
   warehouseOnly: boolean;
   magazzinoNote: string;
   macroReparto: MacroReparto | "";
+  coordinatorId: string;
 };
 
 const STORAGE_KEY = "prod:launch-order";
@@ -55,6 +56,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
     macroReparto: "",
+    coordinatorId: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>(STORAGE_KEY, initial);
   const [uploading, setUploading] = useState(false);
@@ -130,6 +132,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         attachments, nesting_included: nesting, created_by: user.id,
         production_name: production_name.trim() || null,
         customer_order_ref: customer_order_ref.trim() || null,
+        coordinator_id: form.coordinatorId || user.id,
       } as any).select().single();
       if (error) throw error;
 
@@ -274,6 +277,21 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
               ))}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1">Verrà salvato su ogni lavorazione di questo ordine</div>
+          </div>
+
+          <div>
+            <Label>Responsabile progetto</Label>
+            <select
+              value={form.coordinatorId}
+              onChange={(e) => patch({ coordinatorId: e.target.value })}
+              className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+            >
+              <option value="">— Io ({user?.email ?? "io"})</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.id.slice(0, 8)}</option>
+              ))}
+            </select>
+            <div className="text-[10px] text-muted-foreground mt-1">Vede tutte le lavorazioni del progetto con badge "Responsabile". Gli operatori vedono solo ciò che è assegnato a loro.</div>
           </div>
 
           <div>

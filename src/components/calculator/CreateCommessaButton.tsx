@@ -501,6 +501,8 @@ export const CreateCommessaButton = ({
 
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
       let firstAcquistiId: string | null = null;
+      // Mappa macro-reparto → primo sub-acquisti che ne blocca le lavorazioni.
+      const acquistiByDept: Partial<Record<ProdDept, string>> = {};
       if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
         const acquistiRows = d.missing.map((m, i) => ({
           order_id: pord.id,
@@ -523,6 +525,11 @@ export const CreateCommessaButton = ({
           .select("id");
         if (ea) throw ea;
         firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
+        // Associa ogni sub-acquisti al macro-reparto del materiale mancante.
+        (acquistiSubs ?? []).forEach((row: any, idx: number) => {
+          const dep = d.missing[idx]?.dept;
+          if (dep && !acquistiByDept[dep]) acquistiByDept[dep] = row.id as string;
+        });
 
         await notify({
           userIds: [d.acquisti_assignee_id],
@@ -533,6 +540,7 @@ export const CreateCommessaButton = ({
           is_urgent: prodPrio !== "normale",
         });
       }
+
 
       const insertedSubs: { id: string; dept: ProdDept; assignee: string | null }[] = [];
 

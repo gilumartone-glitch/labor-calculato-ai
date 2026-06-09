@@ -505,10 +505,9 @@ const ProdBoard = () => {
         )}
 
         <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
-          {stages
-            .filter((st) => mobileStage === null || st.key === mobileStage || typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches)
-            .map((st) => (
+          {stages.map((st) => (
             <div key={st.key} className={`w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col ${mobileStage !== null && st.key !== mobileStage ? "hidden md:flex" : ""}`}>
+
               <div className="px-3 py-2.5 border-b-2 border-ink/15 flex items-center justify-between">
                 <div className="font-display font-semibold text-base">{st.label}</div>
                 <span className="font-mono text-xs text-muted-foreground">{st.items.length}</span>

@@ -546,19 +546,23 @@ export const CreateCommessaButton = ({
 
       if (isWarehouse) {
         // Solo lavorazione: un unico sub del reparto scelto, dipendente dagli acquisti
+        // SOLO se ci sono materiali mancanti che servono proprio a quel reparto.
         const baseOrdine = d.missing?.length ?? 0;
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
+        const workMacro = toMacroDept(d.work_dept);
+        const blockerForWork = acquistiByDept[workMacro] ?? null;
         const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(code, workSuffix, 1),
           dept: d.work_dept,
           ordine: baseOrdine,
-          note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa materiali (${d.missing.length})` : ""),
+          note: `Ordine cliente: ${d.customer_order_ref}` + (blockerForWork ? ` · in attesa materiali` : ""),
           files: [],
-          depends_on: firstAcquistiId,
-          status: firstAcquistiId ? "bloccato" : "in_attesa",
+          depends_on: blockerForWork,
+          status: blockerForWork ? "bloccato" : "in_attesa",
           assignee_id: d.assignee_id || null,
         } as any).select("id").single();
+
         if (e2) throw e2;
         if (d.assignee_id) insertedSubs.push({ id: workSub.id, dept: d.work_dept, assignee: d.assignee_id });
 

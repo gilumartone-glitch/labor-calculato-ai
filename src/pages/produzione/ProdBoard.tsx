@@ -604,9 +604,10 @@ const ProdBoard = () => {
                               )}
 
                               {(() => {
-                                // Banner "in attesa materiali" per le lavorazioni bloccate da acquisti
+                                // Banner "in attesa materiali" solo per la lavorazione esplicitamente bloccata da acquisti.
                                 if (s.dept === "acquisti" || s.status === "completato") return null;
-                                const waitingAcq = subs.filter((x) => x.order_id === s.order_id && x.dept === "acquisti" && x.status !== "completato");
+                                if (!s.depends_on) return null;
+                                const waitingAcq = subs.filter((x) => x.id === s.depends_on && x.dept === "acquisti" && x.status !== "completato");
                                 if (waitingAcq.length === 0) return null;
                                 return (
                                   <div className="mt-1.5 border border-amber-300 bg-amber-50 rounded-sm px-2 py-1.5 text-[11px] text-amber-900">

@@ -161,7 +161,11 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
     const pieces = d.state?.pieces ?? [];
     const materials = d.state?.materials ?? [];
     const total = totalsByKey.get(baseKey);
-    const noContent = pieces.length === 0 && materials.length === 0;
+    // "Vendite" è un reparto sintetico costruito dai salesCarts: non ha pieces
+    // né materials, ma ha un totale > 0. Va comunque portato in Flow come magazzino.
+    const isSalesOrWarehouse = baseKey === "magazzino" || baseKey === "vendite";
+    const hasPositiveTotal = (total ?? 0) > 0;
+    const noContent = pieces.length === 0 && materials.length === 0 && !(isSalesOrWarehouse && hasPositiveTotal);
     // Se almeno un reparto ha total > 0 nel riepilogo, ci fidiamo dei totali e
     // scartiamo i reparti con totale 0 (richiesta utente: "se un settore è a
     // 0 € non deve essere preso in considerazione"). Se invece i totali non

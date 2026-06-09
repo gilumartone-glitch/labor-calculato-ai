@@ -42,15 +42,14 @@ export async function logAction(opts: {
 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase.from("audit_log").insert({
-    user_id: user.id,
-    action: opts.action,
-    entity_type: opts.entity_type,
-    entity_id: opts.entity_id ?? null,
-    detail: opts.detail ?? null,
-    prev_state: opts.prev_state ?? null,
-    new_state: opts.new_state ?? null,
-  });
+  await supabase.rpc("log_audit_action", {
+    _action: opts.action,
+    _entity_type: opts.entity_type,
+    _entity_id: opts.entity_id ?? null,
+    _detail: opts.detail ?? null,
+    _prev_state: opts.prev_state ?? null,
+    _new_state: opts.new_state ?? null,
+  } as any);
 }
 
 /** Crea notifica per uno o più utenti. */

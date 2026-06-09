@@ -1,5 +1,6 @@
 import { computeNesting } from "@/lib/nesting";
 import type { Catalog, DepartmentState } from "@/components/calculator/types";
+import { toMacroDept, type ProdDept } from "@/lib/produzione/types";
 
 export type SnapshotMaterial = {
   key: string;
@@ -11,9 +12,12 @@ export type SnapshotMaterial = {
   unit?: string;
   /** Codice/identificativo breve del materiale (es. PAN-300). */
   code?: string;
+  /** Macro-reparto di provenienza del materiale (per bloccare solo i sub interessati). */
+  dept?: ProdDept;
 };
 
 type DeptLike = { label?: string; key?: string; state?: DepartmentState; catalog?: Catalog };
+
 
 const collectDepartments = (snap: any): DeptLike[] => {
   if (!snap) return [];

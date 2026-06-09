@@ -1749,6 +1749,17 @@ export type Database = {
         Args: { _record_id: string }
         Returns: boolean
       }
+      log_audit_action: {
+        Args: {
+          _action: string
+          _detail?: string
+          _entity_id?: string
+          _entity_type: string
+          _new_state?: Json
+          _prev_state?: Json
+        }
+        Returns: string
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string

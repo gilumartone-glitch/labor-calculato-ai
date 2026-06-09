@@ -404,7 +404,7 @@ export default function MagazzinoCalc() {
 }
 
 /* ============== Form ordine manuale → magazzino (riusabile) ============== */
-type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string };
+type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string; price: string };
 
 type PickedItem = { label: string; um: string };
 
@@ -614,13 +614,14 @@ function ManualMagazzinoOrderForm({
   // sola volta in "Crea commessa nel Flow" (DraftTabsBar in alto).
   const [lines, setLines] = useState<ManualLine[]>(() => {
     const cart = readDraftSalesCart(categoryKey);
-    if (cart.length === 0) return [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }];
+    if (cart.length === 0) return [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "", price: "" }];
     return cart.map((l) => ({
       id: l.id || uid(),
       descrizione: l.name || "",
       qty: l.qty != null ? String(l.qty) : "",
       um: l.unit || suggestions[0]?.um || "pz",
       note: l.variant || "",
+      price: l.priceSell != null && l.priceSell > 0 ? String(l.priceSell) : "",
     }));
   });
   const [pickerLineId, setPickerLineId] = useState<string | null>(null);
@@ -636,7 +637,7 @@ function ManualMagazzinoOrderForm({
       name: l.descrizione.trim(),
       variant: l.note?.trim() || "",
       unit: (l.um as SaleUnit) || "pz",
-      priceSell: 0,
+      priceSell: Number(l.price) || 0,
       pricePurchase: 0,
       category: categoryKey,
     }));
@@ -649,13 +650,14 @@ function ManualMagazzinoOrderForm({
       const cart = readDraftSalesCart(categoryKey);
       setLines(
         cart.length === 0
-          ? [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }]
+          ? [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "", price: "" }]
           : cart.map((l) => ({
               id: l.id || uid(),
               descrizione: l.name || "",
               qty: l.qty != null ? String(l.qty) : "",
               um: l.unit || suggestions[0]?.um || "pz",
               note: l.variant || "",
+              price: l.priceSell != null && l.priceSell > 0 ? String(l.priceSell) : "",
             })),
       );
     };
@@ -665,7 +667,7 @@ function ManualMagazzinoOrderForm({
 
   const addLine = (preset?: { descrizione: string; um: string }) => {
     const id = uid();
-    setLines((ls) => [...ls, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+    setLines((ls) => [...ls, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "", price: "" }]);
     return id;
   };
   const addAndPick = () => { const id = addLine(); setPickerLineId(id); };
@@ -706,7 +708,7 @@ function ManualMagazzinoOrderForm({
             {lines.map((l) => {
               const isManual = manualEdit[l.id] || !picker;
               return (
-                <div key={l.id} className="p-2 grid grid-cols-[1fr,90px,80px,1fr,32px] gap-2 items-start">
+                <div key={l.id} className="p-2 grid grid-cols-[1fr,80px,60px,110px,1fr,32px] gap-2 items-start">
                   <div className="flex flex-col gap-1 min-w-0">
                     {isManual ? (
                       <Input value={l.descrizione} onChange={(e) => updLine(l.id, { descrizione: e.target.value })} placeholder="Descrizione articolo" className="h-8 text-[12px]" />
@@ -732,6 +734,10 @@ function ManualMagazzinoOrderForm({
                   </div>
                   <Input type="number" step="0.01" value={l.qty} onChange={(e) => updLine(l.id, { qty: e.target.value })} placeholder="Q.tà" className="h-8 text-[12px]" />
                   <Input value={l.um} readOnly tabIndex={-1} placeholder="um" className="h-8 text-[12px] bg-muted/40 cursor-not-allowed text-center font-mono" title="Unità di misura impostata dal listino" />
+                  <div className="relative">
+                    <Input type="number" step="0.01" min="0" value={l.price} onChange={(e) => updLine(l.id, { price: e.target.value })} placeholder="Prezzo" className="h-8 text-[12px] pr-10 text-right font-mono" title={`Prezzo unitario di vendita (€/${l.um})`} />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground pointer-events-none">€/{l.um}</span>
+                  </div>
                   <Input value={l.note} onChange={(e) => updLine(l.id, { note: e.target.value })} placeholder="Note (opz.)" className="h-8 text-[12px]" />
                   <button onClick={() => rmLine(l.id)} className="text-ink/40 hover:text-destructive p-1 mt-1"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
@@ -2458,24 +2464,44 @@ function SaleProductSection({
 
               {cart.length > 0 && (
                 <div className="border-2 border-ink/15 rounded-sm">
-                  <div className="px-3 py-2 bg-muted/40 border-b font-mono text-[10px] uppercase tracking-widest">Carrello ordine ({cart.length})</div>
+                  <div className="px-3 py-2 bg-muted/40 border-b font-mono text-[10px] uppercase tracking-widest">Carrello ordine ({cart.length}) — prezzo modificabile per riga</div>
                   <div className="divide-y">
                     {cart.map((l) => {
                       const t = lineTotal(l);
+                      const unit = l.unit || (t.material ? unitOf(t.material) : "");
                       return (
-                        <div key={l.id} className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center">
+                        <div key={l.id} className="grid grid-cols-[1fr,80px,110px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center">
                           <div>
-                            <strong>{t.material?.name ?? "—"}</strong>
-                            {t.material && <span className="text-muted-foreground"> · {labelOf(t.material)}</span>}
+                            <strong>{l.name ?? t.material?.name ?? "—"}</strong>
+                            {(l.variant || t.material) && (
+                              <span className="text-muted-foreground"> · {l.variant ?? (t.material ? labelOf(t.material) : "")}</span>
+                            )}
                           </div>
-                          <div className="text-right font-mono">{fmt(l.qty)} {t.material ? unitOf(t.material) : ""}</div>
+                          <Input
+                            type="number" step="0.01" min="0"
+                            value={l.qty || ""}
+                            onChange={(e) => setCart(cart.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) || 0 } : x))}
+                            className="h-7 text-[12px] text-right font-mono"
+                            title={`Quantità (${unit})`}
+                          />
+                          <div className="relative">
+                            <Input
+                              type="number" step="0.01" min="0"
+                              value={l.priceSell ?? ""}
+                              onChange={(e) => setCart(cart.map((x) => x.id === l.id ? { ...x, priceSell: Number(e.target.value) || 0 } : x))}
+                              className="h-7 text-[12px] text-right font-mono pr-8"
+                              title={`Prezzo unitario di vendita (€/${unit})`}
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground pointer-events-none">€/{unit}</span>
+                          </div>
                           <div className="text-right font-mono font-bold">{eur(t.sell)}</div>
                           <button onClick={() => setCart(cart.filter((x) => x.id !== l.id))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       );
                     })}
-                    <div className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center bg-dept-soft/30">
+                    <div className="grid grid-cols-[1fr,80px,110px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center bg-dept-soft/30">
                       <div className="font-bold">Totale vendita</div>
+                      <div></div>
                       <div></div>
                       <div className="text-right font-mono font-bold text-dept">{eur(cartTotals.sell)}</div>
                       <div></div>

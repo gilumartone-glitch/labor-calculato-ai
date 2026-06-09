@@ -265,9 +265,11 @@ const Index = () => {
     const refresh = () => setWorkshopTick((v) => v + 1);
     window.addEventListener("workshop-summary-updated", refresh);
     window.addEventListener("storage", refresh);
+    window.addEventListener("officina:draft-state-changed", refresh);
     return () => {
       window.removeEventListener("workshop-summary-updated", refresh);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener("officina:draft-state-changed", refresh);
     };
   }, []);
 
@@ -488,6 +490,38 @@ const Index = () => {
     return hasItems;
   });
 
+  // Voce "Vendite" calcolata dai carrelli (salesCarts) del draft attivo.
+  const salesSummary = (() => {
+    void workshopTick;
+    try {
+      const raw = localStorage.getItem(STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const carts = parsed?.salesCarts;
+      if (!carts || typeof carts !== "object") return null;
+      const labels: string[] = [];
+      let total = 0;
+      for (const k of Object.keys(carts)) {
+        const list = Array.isArray(carts[k]) ? carts[k] : [];
+        for (const l of list) {
+          const qty = Number(l?.qty) || 0;
+          if (qty <= 0) continue;
+          const sell = (Number(l?.priceSell) || 0) * qty;
+          total += sell;
+          const desc = [l?.name, l?.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
+          labels.push(`${desc} · ${qty} ${l?.unit || ""}${sell > 0 ? ` · €${sell.toFixed(2)}` : ""}`);
+        }
+      }
+      if (labels.length === 0) return null;
+      return {
+        key: "magazzino",
+        label: "Vendite",
+        totals: { materials: total, operations: 0, perimeters: 0, pieces: 0, transports: 0, total },
+        details: { materials: labels },
+      };
+    } catch { return null; }
+  })();
+
   const summaryData = (["tappezzeria", "stampa"] as DepartmentKey[]).map((k) => ({
     key: k,
     label: TABS.find((t) => t.key === k)!.label,
@@ -495,7 +529,7 @@ const Index = () => {
     state: stateForDept(k),
     catalog: catalogs[k],
     customerType: customerForDept(k),
-  })).concat(workshopSummaryData as any);
+  })).concat(workshopSummaryData as any).concat(salesSummary ? [salesSummary as any] : []);
 
   return (
     <div data-dept={activeTab} className="min-h-screen bg-dept-soft/35 transition-colors">

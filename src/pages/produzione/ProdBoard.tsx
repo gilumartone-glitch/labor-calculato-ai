@@ -105,6 +105,7 @@ const ProdBoard = () => {
   const [rejecting, setRejecting] = useState<ProdSubOrder | null>(null);
   const [operatorDepts, setOperatorDepts] = useState<ProdDept[]>([]);
   const [commessaDeadlines, setCommessaDeadlines] = useState<Record<string, string | null>>({});
+  const [mobileStage, setMobileStage] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Auto-open SubOrderDetailDialog when arriving via ?sub=<id> (e.g. da notifiche)

@@ -212,7 +212,7 @@ export default function ProdOggi() {
 
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 w-full">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>
@@ -272,7 +272,7 @@ export default function ProdOggi() {
                 return (
                   <section
                     key={iso}
-                    className={`border-2 rounded-sm p-2 min-h-[120px] flex flex-col ${
+                    className={`border-2 rounded-sm p-2 flex flex-col min-h-[160px] xl:min-h-[calc(100vh-220px)] ${
                       isToday ? "border-primary bg-primary/5" :
                       isPast ? "border-ink/15 bg-muted/30" :
                       "border-ink/20"

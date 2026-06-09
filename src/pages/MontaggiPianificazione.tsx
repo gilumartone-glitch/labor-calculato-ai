@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { HubLink } from "@/components/HubLink";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { CalendarGlobalView } from "@/components/montaggi/CalendarGlobalView";
-import { MyActivities } from "@/components/montaggi/MyActivities";
 
 type FilterReparto = "stampa" | "taglio" | "tappezzeria" | "montaggi" | "magazzino";
 
@@ -46,7 +45,7 @@ export default function MontaggiPianificazione() {
       </header>
 
       <main className="container py-8 space-y-6">
-        <MyActivities />
+
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

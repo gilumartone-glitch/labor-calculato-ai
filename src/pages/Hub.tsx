@@ -62,24 +62,25 @@ const Hub = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="app-header border-b-2 border-ink bg-paper">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-1">// Officina · Tecnofra</div>
-            <h1 className="font-display text-2xl font-semibold leading-none">Hub</h1>
+            <h1 className="font-display text-xl sm:text-2xl font-semibold leading-none">Hub</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mx-1 sm:mx-0">
             <ThemeToggle />
             <UpdateCheckButton />
             <ChangePasswordButton variant="outline" />
             <AdminUsersLink variant="outline" />
-            <button onClick={signOut} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">
+            <button onClick={signOut} className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">
               <LogOut className="w-3 h-3" /> Esci
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-10">
+
         {visible.length === 0 ? (
           <div className="text-center border-2 border-ink/20 bg-paper p-10 rounded-sm">
             <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
@@ -92,7 +93,7 @@ const Hub = () => {
               <Link
                 key={key}
                 to={to}
-                className={`group relative border-2 ${color} p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all`}
+                className={`group relative border-2 ${color} p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all`}
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className={`w-14 h-14 rounded-sm ${iconBg} text-white grid place-items-center`}>
@@ -108,7 +109,7 @@ const Hub = () => {
             {showMagazzino && (
               <Link
                 to="/magazzino"
-                className="group relative border-2 bg-[hsl(260_45%_42%)] text-white border-[hsl(260_45%_28%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(260_45%_42%)] text-white border-[hsl(260_45%_28%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(260_45%_28%)] text-white grid place-items-center">
@@ -124,7 +125,7 @@ const Hub = () => {
             {(isAdmin || approved) && (
               <Link
                 to="/marketing"
-                className="group relative border-2 bg-[hsl(340_72%_44%)] text-white border-[hsl(340_72%_30%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(340_72%_44%)] text-white border-[hsl(340_72%_30%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(340_72%_30%)] text-white grid place-items-center">
@@ -140,7 +141,7 @@ const Hub = () => {
             {(isAdmin || approved) && (
               <Link
                 to="/record"
-                className="group relative border-2 bg-[hsl(210_25%_28%)] text-white border-[hsl(210_25%_18%)] p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group relative border-2 bg-[hsl(210_25%_28%)] text-white border-[hsl(210_25%_18%)] p-5 sm:p-7 rounded-sm shadow-soft hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-14 h-14 rounded-sm bg-[hsl(210_25%_18%)] text-white grid place-items-center">

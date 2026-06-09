@@ -153,15 +153,11 @@
   }
 }
 
-/* Spazio per il pulsante HUB fisso in alto a sinistra (nascosto su /hub e /auth via classe body) */
-body:not(.no-hub-btn) header > div:first-child {
-  padding-left: 110px !important;
+/* Riserva spazio in basso per il pulsante HUB fisso (safe-area iOS inclusa). */
+body:not(.no-hub-btn) {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px);
 }
-@media (max-width: 768px) {
-  body:not(.no-hub-btn) header > div:first-child {
-    padding-left: 80px !important;
-  }
-}
+
 
 @layer components {
   .panel {

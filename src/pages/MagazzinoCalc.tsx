@@ -614,13 +614,14 @@ function ManualMagazzinoOrderForm({
   // sola volta in "Crea commessa nel Flow" (DraftTabsBar in alto).
   const [lines, setLines] = useState<ManualLine[]>(() => {
     const cart = readDraftSalesCart(categoryKey);
-    if (cart.length === 0) return [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }];
+    if (cart.length === 0) return [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "", price: "" }];
     return cart.map((l) => ({
       id: l.id || uid(),
       descrizione: l.name || "",
       qty: l.qty != null ? String(l.qty) : "",
       um: l.unit || suggestions[0]?.um || "pz",
       note: l.variant || "",
+      price: l.priceSell != null && l.priceSell > 0 ? String(l.priceSell) : "",
     }));
   });
   const [pickerLineId, setPickerLineId] = useState<string | null>(null);
@@ -636,7 +637,7 @@ function ManualMagazzinoOrderForm({
       name: l.descrizione.trim(),
       variant: l.note?.trim() || "",
       unit: (l.um as SaleUnit) || "pz",
-      priceSell: 0,
+      priceSell: Number(l.price) || 0,
       pricePurchase: 0,
       category: categoryKey,
     }));
@@ -649,13 +650,14 @@ function ManualMagazzinoOrderForm({
       const cart = readDraftSalesCart(categoryKey);
       setLines(
         cart.length === 0
-          ? [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "" }]
+          ? [{ id: uid(), descrizione: "", qty: "", um: suggestions[0]?.um ?? "pz", note: "", price: "" }]
           : cart.map((l) => ({
               id: l.id || uid(),
               descrizione: l.name || "",
               qty: l.qty != null ? String(l.qty) : "",
               um: l.unit || suggestions[0]?.um || "pz",
               note: l.variant || "",
+              price: l.priceSell != null && l.priceSell > 0 ? String(l.priceSell) : "",
             })),
       );
     };
@@ -665,7 +667,7 @@ function ManualMagazzinoOrderForm({
 
   const addLine = (preset?: { descrizione: string; um: string }) => {
     const id = uid();
-    setLines((ls) => [...ls, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "" }]);
+    setLines((ls) => [...ls, { id, descrizione: preset?.descrizione ?? "", qty: "", um: preset?.um ?? "pz", note: "", price: "" }]);
     return id;
   };
   const addAndPick = () => { const id = addLine(); setPickerLineId(id); };

@@ -465,10 +465,10 @@ const ProdBoard = () => {
                   const dl = commessaDeadlines[(o as any).source_commessa_id ?? ""] ?? null;
                   const u = urgencyBadge(dl, { done: false });
                   return (
-                    <span key={o.id} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border-2 text-[11px] font-mono ${u?.cls ?? ""}`}>
-                      <span className="font-bold">{o.code}</span>
-                      <span className="opacity-90">· {o.cliente}</span>
-                      <span className="opacity-75">· {u?.label}</span>
+                    <span key={o.id} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border-2 text-[11px] font-mono max-w-full ${u?.cls ?? ""}`}>
+                      <span className="font-bold shrink-0">{o.code}</span>
+                      <span className="opacity-90 truncate">· {o.cliente}</span>
+                      <span className="opacity-75 shrink-0">· {u?.label}</span>
                     </span>
                   );
                 })}

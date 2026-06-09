@@ -11,9 +11,18 @@ import { DELIVERY_LABEL, DELIVERY_NEEDS_LOGISTICA, ProdSubOrder, ProdSubStatus }
 const ProdPreparazione = () => {
   const { orders, subs, refreshOrders } = useProdStore();
 
+  const isWaitingForAcquisti = (sub: ProdSubOrder) => {
+    if (sub.status === "bloccato") return true;
+    if (sub.depends_on) {
+      const pred = subs.find((s) => s.id === sub.depends_on);
+      if (pred?.dept === "acquisti" && pred.status !== "completato") return true;
+    }
+    return subs.some((s) => s.order_id === sub.order_id && s.dept === "acquisti" && s.status !== "completato");
+  };
+
   const items = useMemo(() => {
     const list = subs
-      .filter((s) => s.dept === "magazzino" && s.status !== "completato")
+      .filter((s) => s.dept === "magazzino" && s.status !== "completato" && !isWaitingForAcquisti(s))
       .map((s) => ({ sub: s, order: orders.find((o) => o.id === s.order_id) }))
       .filter((x) => !!x.order);
     // ordinati per priorità ordine + data

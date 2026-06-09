@@ -537,14 +537,24 @@ const ProdBoard = () => {
                           <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
                             <span className={`font-mono text-sm font-bold text-white px-2 py-0.5 rounded-sm shrink-0 ${oc?.chip ?? "bg-ink"}`}>{o.code}</span>
                             <div className="flex items-center gap-1 flex-wrap justify-end">
-                              {urg && (
-                                <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm border-2 ${urg.cls}`} title={deadline ? `Scadenza ${fmtDate(deadline)}` : undefined}>
-                                  {urg.label}
-                                </span>
-                              )}
-                              <span className={`text-[11px] font-mono uppercase font-bold px-2 py-0.5 rounded-sm ${urgent ? "bg-destructive text-destructive-foreground" : "bg-muted text-ink/60"}`}>
-                                {PRIORITY_LABEL[o.priorita]}
-                              </span>
+                              {(() => {
+                                const days = urg?.days ?? null;
+                                let dotCls = "bg-muted border-ink/20";
+                                let dotTitle = "Nessuna scadenza";
+                                if (days !== null) {
+                                  if (days <= 1) { dotCls = "bg-destructive border-destructive"; dotTitle = days < 0 ? `In ritardo di ${Math.abs(days)}g` : days === 0 ? "Scade oggi" : "Scade domani"; }
+                                  else if (days <= 3) { dotCls = "bg-amber-500 border-amber-600"; dotTitle = `Fra ${days}g`; }
+                                  else { dotCls = "bg-emerald-500 border-emerald-600"; dotTitle = `Fra ${days}g`; }
+                                  if (deadline) dotTitle += ` · ${fmtDate(deadline)}`;
+                                }
+                                return (
+                                  <span
+                                    className={`inline-block w-3 h-3 rounded-full border-2 ${dotCls} ${days !== null && days <= 0 ? "animate-pulse" : ""}`}
+                                    title={dotTitle}
+                                    aria-label={dotTitle}
+                                  />
+                                );
+                              })()}
                           {isAdmin && (
                             <button
                               type="button"
@@ -557,6 +567,7 @@ const ProdBoard = () => {
                             </button>
                           )}
                             </div>
+
                           </div>
 
                         );

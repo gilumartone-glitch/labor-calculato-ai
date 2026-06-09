@@ -609,14 +609,17 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
-          // Se mancano materiali, non interpellare il magazzino: se ne occupa Acquisti.
-          if (dept === "magazzino" && firstAcquistiId) continue;
+          const deptMacro = toMacroDept(dept);
+          // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.
+          if (dept === "magazzino" && acquistiByDept["magazzino"]) continue;
           const plan = planningFor(dept);
           const assignee = (plan.responsabile || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
             ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
             : (titolo.trim() || null);
+          // Blocca questo sub SOLO se mancano materiali di sua competenza.
+          const blockerForDept = acquistiByDept[deptMacro] ?? null;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
@@ -626,9 +629,10 @@ export const CreateCommessaButton = ({
               ordine: baseOrdine + i,
               note: noteForSub,
               files: [],
-              depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
-              status: firstAcquistiId ? "bloccato" : "in_attesa",
+              depends_on: blockerForDept, // bloccato solo se mancano materiali del SUO reparto
+              status: blockerForDept ? "bloccato" : "in_attesa",
               assignee_id: assignee,
+
               operator_ids: opIds,
               start_date: plan.startDate || null,
               end_date: plan.endDate || null,

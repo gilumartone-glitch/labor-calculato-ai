@@ -554,12 +554,13 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             a quale ufficio è destinata la lavorazione e a chi è assegnata. */}
         <div className={`${dc.chip} px-3 sm:px-5 py-3 sm:py-4 rounded-t-lg`}>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="text-3xl leading-none" aria-hidden>{dc.emoji}</div>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className="text-2xl sm:text-3xl leading-none" aria-hidden>{dc.emoji}</div>
             <div className="min-w-0">
-              <div className="text-[10px] font-mono uppercase tracking-[0.25em] opacity-80">Ufficio destinatario</div>
-              <div className="font-display text-2xl font-bold leading-tight">{DEPT_LABEL[sub.dept]}</div>
+              <div className="text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.25em] opacity-80">Ufficio destinatario</div>
+              <div className="font-display text-lg sm:text-2xl font-bold leading-tight">{DEPT_LABEL[sub.dept]}</div>
             </div>
+
             <div className="ml-auto flex items-center gap-2 flex-wrap">
               {canEditAssignee ? (
                 <div className="bg-white/15 border border-white/30 rounded-sm pl-2 pr-1 py-0.5 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">

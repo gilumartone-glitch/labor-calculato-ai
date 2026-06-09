@@ -595,11 +595,12 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
         <div className="px-3 sm:px-5 pb-5 space-y-4">
         <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-2 flex-wrap pt-3">
-            <Badge variant="outline" className={`font-mono ${dc.text} ${dc.border}`}>{sub.code}</Badge>
-            <span className="font-mono text-sm text-primary">{order.code}</span>
-            <span className="text-base">{order.cliente}</span>
+          <DialogTitle className="font-display flex items-center gap-1.5 sm:gap-2 flex-wrap pt-3 text-sm sm:text-base">
+            <Badge variant="outline" className={`font-mono text-[10px] sm:text-xs ${dc.text} ${dc.border}`}>{sub.code}</Badge>
+            <span className="font-mono text-xs sm:text-sm text-primary">{order.code}</span>
+            <span className="text-sm sm:text-base break-words min-w-0">{order.cliente}</span>
           </DialogTitle>
+
           {(order.production_name || order.customer_order_ref) && (
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {order.production_name && (

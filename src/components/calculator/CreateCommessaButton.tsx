@@ -152,6 +152,7 @@ export const CreateCommessaButton = ({
     generalManager: string;
     refType: RefType;
     refNumber: string;
+    delivery: "ritiro" | "mezzo_proprio" | "corriere";
   };
   const initialForm: FormState = {
     titolo: "", cliente: "", prodName: "",
@@ -163,16 +164,18 @@ export const CreateCommessaButton = ({
     generalManager: "",
     refType: "OC",
     refNumber: "",
+    delivery: "corriere",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>("calc:create-commessa", initialForm);
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
-  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, generalManager, refType, refNumber } = form;
+  const { titolo, cliente, prodName, importo, reparto, priorita, scadenza, note, warehouseOnly, materialOnlyDepts, excludedDepts, deptAssignees, deptPlanning, generalManager, refType, refNumber, delivery } = form;
   const setTitolo = (v: string) => patch({ titolo: v });
   const setCliente = (v: string) => patch({ cliente: v });
   const setProdName = (v: string) => patch({ prodName: v });
   const setImporto = (v: number) => patch({ importo: v });
   const setPriorita = (v: CommessaPriorita) => patch({ priorita: v });
   const setScadenza = (v: string) => patch({ scadenza: v });
+  const setDelivery = (v: FormState["delivery"]) => patch({ delivery: v });
   const setNote = (v: string) => patch({ note: v });
   const setWarehouseOnly = (v: boolean) => patch({ warehouseOnly: v });
   const setRefType = (v: RefType) => patch({ refType: v });
@@ -482,7 +485,7 @@ export const CreateCommessaButton = ({
           data: scadenza || todayIsoLocal(),
           note: orderNote,
           priorita: prodPrio,
-          delivery: isWarehouse ? "corriere" : "spedizione",
+          delivery: isWarehouse ? "corriere" : delivery,
           status: "in_corso",
           attachments: [],
           nesting_included: false,
@@ -957,6 +960,20 @@ export const CreateCommessaButton = ({
                 onChange={(e) => setScadenza(e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <Label>Consegna</Label>
+            <Select value={delivery} onValueChange={(v) => setDelivery(v as FormState["delivery"])}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ritiro">Ritira il cliente</SelectItem>
+                <SelectItem value="mezzo_proprio">Consegna Tecnofra</SelectItem>
+                <SelectItem value="corriere">Consegna Corriere</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

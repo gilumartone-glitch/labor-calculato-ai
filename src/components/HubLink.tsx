@@ -29,12 +29,13 @@ export const FloatingHubButton = () => {
       title="Torna all'Hub"
       aria-label="Torna all'Hub"
       style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
-        left: "calc(env(safe-area-inset-left, 0px) + 0.75rem)",
+        bottom: "max(env(safe-area-inset-bottom, 0px), 16px)",
+        left: "max(env(safe-area-inset-left, 0px), 12px)",
       }}
-      className="fixed z-[300] inline-flex items-center justify-center w-12 h-12 md:w-10 md:h-10 rounded-full bg-primary text-primary-foreground border-2 border-ink shadow-[3px_3px_0_0_hsl(var(--ink))] active:translate-y-px hover:bg-ink hover:text-paper transition-colors touch-manipulation"
+      className="fixed z-[300] inline-flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-full bg-primary text-primary-foreground border-2 border-ink shadow-[3px_3px_0_0_hsl(var(--ink))] active:translate-y-px hover:bg-ink hover:text-paper transition-colors touch-manipulation"
     >
-      <LayoutGrid className="w-5 h-5 md:w-4 md:h-4" />
+      <LayoutGrid className="w-6 h-6 md:w-4 md:h-4" />
     </Link>
   );
 };
+

@@ -549,10 +549,11 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:w-auto max-w-4xl max-h-[95vh] sm:max-h-[92vh] overflow-y-auto p-0">
         {/* Banner reparto/ufficio — colorato, BEN VISIBILE: dice immediatamente
             a quale ufficio è destinata la lavorazione e a chi è assegnata. */}
-        <div className={`${dc.chip} px-5 py-4 rounded-t-lg`}>
+        <div className={`${dc.chip} px-3 sm:px-5 py-3 sm:py-4 rounded-t-lg`}>
+
           <div className="flex items-center gap-3 flex-wrap">
             <div className="text-3xl leading-none" aria-hidden>{dc.emoji}</div>
             <div className="min-w-0">
@@ -591,7 +592,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           </div>
         </div>
 
-        <div className="px-5 pb-5 space-y-4">
+        <div className="px-3 sm:px-5 pb-5 space-y-4">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-2 flex-wrap pt-3">
             <Badge variant="outline" className={`font-mono ${dc.text} ${dc.border}`}>{sub.code}</Badge>
@@ -751,7 +752,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <Package className="w-3 h-3" /> Materiali necessari (da preventivo)
             </div>
-            <div className="border border-ink/15 rounded-sm overflow-hidden">
+            <div className="border border-ink/15 rounded-sm overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead className="bg-ink/5 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
                   <tr>

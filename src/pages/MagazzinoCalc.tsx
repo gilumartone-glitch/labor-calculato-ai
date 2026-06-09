@@ -404,7 +404,7 @@ export default function MagazzinoCalc() {
 }
 
 /* ============== Form ordine manuale → magazzino (riusabile) ============== */
-type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string };
+type ManualLine = { id: string; descrizione: string; qty: string; um: string; note: string; price: string };
 
 type PickedItem = { label: string; um: string };
 

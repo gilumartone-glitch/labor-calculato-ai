@@ -610,9 +610,8 @@ const ProdBoard = () => {
                                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                   {isSubLocked(s) && <Lock className="w-3 h-3 text-amber-600 shrink-0" />}
                                   <Eye className="w-3 h-3 opacity-50 shrink-0 group-hover:opacity-100" />
-                                  <span className="font-bold truncate">{s.code}</span>
                                   {pieceCount > 0 && (
-                                    <span className="text-ink/60 shrink-0">({pieceCount}p)</span>
+                                    <span className="text-ink/60 shrink-0">{pieceCount}p</span>
                                   )}
                                 </div>
                                 <select

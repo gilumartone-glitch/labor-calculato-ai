@@ -409,7 +409,7 @@ const ProdBoard = () => {
 
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4">
+      <div className="p-3 sm:p-6 space-y-4 md:h-full md:flex md:flex-col md:min-h-0">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>
@@ -460,15 +460,15 @@ const ProdBoard = () => {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
+        <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2 md:flex-1 md:min-h-0">
           {stages.map((st) => (
-            <div key={st.key} className={`w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col ${mobileStage !== null && st.key !== mobileStage ? "hidden md:flex" : ""}`}>
+            <div key={st.key} className={`w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col md:h-full md:min-h-0 ${mobileStage !== null && st.key !== mobileStage ? "hidden md:flex" : ""}`}>
 
               <div className="px-3 py-2.5 border-b-2 border-ink/15 flex items-center justify-between">
                 <div className="font-display font-semibold text-base">{st.label}</div>
                 <span className="font-mono text-xs text-muted-foreground">{st.items.length}</span>
               </div>
-              <div className="p-2 space-y-2 min-h-[120px] md:min-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:flex-1">
+              <div className="p-2 space-y-2 min-h-[120px] md:flex-1 md:min-h-0 md:overflow-y-auto">
 
                 {st.items.length === 0 ? (
                   <div className="text-center text-xs text-muted-foreground py-6 font-mono uppercase tracking-wider">Vuoto</div>

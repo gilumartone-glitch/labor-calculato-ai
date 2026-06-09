@@ -67,7 +67,7 @@ const fmtDate = (iso: string | null | undefined) => {
 };
 
 const STAGES: { key: string; label: string; match: (o: ProdOrder, subs: ProdSubOrder[]) => boolean }[] = [
-  { key: "nuovo", label: "Nuovo", match: (o, s) => o.status === "nuovo" || (o.status === "in_corso" && s.every((x) => x.status === "in_attesa")) },
+  { key: "nuovo", label: "Nuovo", match: (o, s) => o.status === "nuovo" || (o.status === "in_corso" && s.every((x) => x.status === "in_attesa" || x.status === "bloccato")) },
   { key: "reparti", label: "In reparti", match: (o, s) => o.status === "in_corso" && s.some((x) => x.status === "in_lavorazione" || x.status === "completato") && s.some((x) => x.status !== "completato") },
   { key: "pronto", label: "Pronto", match: (o, s) => s.length > 0 && s.every((x) => x.status === "completato") && o.status !== "spedito" && o.status !== "chiuso" },
   { key: "spedito", label: "Spedito · da fatturare", match: (o) => o.status === "spedito" },

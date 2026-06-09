@@ -155,22 +155,30 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
       if (t > 0) anyNonZeroTotal = true;
     }
   }
+  // Il magazzino entra in Flow SOLO quando c'è qualcosa da far uscire
+  // (carrello vendite con righe). Il fatto che la sezione "magazzino" abbia
+  // un totale per costi materiale NON è un motivo per creare attività di magazzino.
+  const anySnap: any = snap as any;
+  const carts: Record<string, any[]> =
+    (anySnap?.salesCarts && typeof anySnap.salesCarts === "object") ? anySnap.salesCarts :
+    (anySnap?.state?.salesCarts && typeof anySnap.state.salesCarts === "object") ? anySnap.state.salesCarts :
+    (anySnap?.designState?.salesCarts && typeof anySnap.designState.salesCarts === "object") ? anySnap.designState.salesCarts :
+    {};
+  const hasSalesLines = Object.keys(carts).some((k) => Array.isArray(carts[k]) && carts[k].length > 0);
   const result = new Set<ProdDept>();
   for (const d of depts) {
     const baseKey = d.key.toLowerCase();
     const pieces = d.state?.pieces ?? [];
     const materials = d.state?.materials ?? [];
     const total = totalsByKey.get(baseKey);
-    // "Vendite" è un reparto sintetico costruito dai salesCarts: non ha pieces
-    // né materials, ma ha un totale > 0. Va comunque portato in Flow come magazzino.
-    const isSalesOrWarehouse = baseKey === "magazzino" || baseKey === "vendite";
-    const hasPositiveTotal = (total ?? 0) > 0;
-    const noContent = pieces.length === 0 && materials.length === 0 && !(isSalesOrWarehouse && hasPositiveTotal);
-    // Se almeno un reparto ha total > 0 nel riepilogo, ci fidiamo dei totali e
-    // scartiamo i reparti con totale 0 (richiesta utente: "se un settore è a
-    // 0 € non deve essere preso in considerazione"). Se invece i totali non
-    // sono stati calcolati (tutti 0 / undefined), torniamo al check contenuto.
+    const noContent = pieces.length === 0 && materials.length === 0;
     const zeroTotal = anyNonZeroTotal && (total === undefined || total <= 0);
+    // Magazzino/vendite: includi SOLO se ci sono righe nei salesCarts
+    // (cioè qualcosa da spedire/consegnare). Niente materiali in arrivo → niente magazzino.
+    if (baseKey === "magazzino" || baseKey === "vendite") {
+      if (hasSalesLines) result.add("magazzino");
+      continue;
+    }
     if (noContent || zeroTotal) continue;
     if (baseKey === "tappezzeria") result.add("tappezzeria");
     else if (baseKey === "stampa") {
@@ -190,7 +198,6 @@ export const inferProdDeptsFromSnapshot = (snap: ProdSnapshot | null): ProdDept[
       if (hasTaglio) result.add("taglio");
       if (!hasStampa && !hasTaglio && pieces.length > 0) result.add("stampa");
     } else if (baseKey === "falegnameria") result.add("falegnameria");
-    else if (baseKey === "magazzino" || baseKey === "vendite") result.add("magazzino");
     else result.add("altro");
   }
   return Array.from(result);

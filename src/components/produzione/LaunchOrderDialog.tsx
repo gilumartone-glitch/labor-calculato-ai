@@ -39,6 +39,7 @@ type FormState = {
   warehouseOnly: boolean;
   magazzinoNote: string;
   macroReparto: MacroReparto | "";
+  coordinatorId: string;
 };
 
 const STORAGE_KEY = "prod:launch-order";
@@ -55,6 +56,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
     priorita: "normale", delivery: "corriere",
     warehouseOnly: !!warehouseOnlyDefault, magazzinoNote: "",
     macroReparto: "",
+    coordinatorId: "",
   };
   const [form, setForm, clearForm] = useLocalStorageState<FormState>(STORAGE_KEY, initial);
   const [uploading, setUploading] = useState(false);

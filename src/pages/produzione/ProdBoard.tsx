@@ -521,7 +521,7 @@ const ProdBoard = () => {
                   const prog = orderProgress(sb);
                   const urgent = o.priorita !== "normale";
                   const pcByDept = piecesCountByDept(o);
-                  const totalPieces = Object.values(pcByDept).reduce((a, b) => a + (b ?? 0), 0);
+                  
                   const oc = orderColor.get(o.id);
                   const tintBg = oc?.bg ?? "bg-paper";
                   const leftBorder = oc?.border ?? "border-l-ink/30";

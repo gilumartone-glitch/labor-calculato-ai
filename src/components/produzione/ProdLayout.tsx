@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Workflow, Package, MessagesSquare, Truck, FileText,
+  LayoutDashboard, Workflow, Package, MessagesSquare, Truck, FileText, ShoppingCart,
   ScrollText, ArrowLeft, LogOut, Bell, Wand2, PackageCheck, Menu, CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";

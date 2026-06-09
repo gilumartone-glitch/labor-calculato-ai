@@ -409,7 +409,7 @@ const ProdBoard = () => {
 
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4">
+      <div className="p-3 sm:p-6 space-y-4 md:h-full md:flex md:flex-col md:min-h-0">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>

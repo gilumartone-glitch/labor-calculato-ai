@@ -508,7 +508,6 @@ export const CreateCommessaButton = ({
       }));
 
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
-      let firstAcquistiId: string | null = null;
       // Mappa macro-reparto → primo sub-acquisti che ne blocca le lavorazioni.
       const acquistiByDept: Partial<Record<ProdDept, string>> = {};
       if (missingMaterials.length > 0 && d.acquisti_assignee_id) {
@@ -532,7 +531,6 @@ export const CreateCommessaButton = ({
           .insert(acquistiRows as any)
           .select("id");
         if (ea) throw ea;
-        firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
         // Associa ogni sub-acquisti al macro-reparto del materiale mancante.
         (acquistiSubs ?? []).forEach((row: any, idx: number) => {
           const dep = missingMaterials[idx]?.dept;

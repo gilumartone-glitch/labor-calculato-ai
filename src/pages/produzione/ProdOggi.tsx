@@ -212,7 +212,7 @@ export default function ProdOggi() {
 
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 w-full">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>

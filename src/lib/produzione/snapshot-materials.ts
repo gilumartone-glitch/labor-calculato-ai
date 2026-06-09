@@ -83,8 +83,9 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
       if (existing) {
         existing.qty = (existing.qty ?? 0) + qty;
       } else {
-        out.set(key, { key, label: name, detail, qty, unit, code: short });
+        out.set(key, { key, label: name, detail, qty, unit, code: short, dept: "magazzino" });
       }
+
     }
   }
   return Array.from(out.values()).sort((a, b) => a.label.localeCompare(b.label));

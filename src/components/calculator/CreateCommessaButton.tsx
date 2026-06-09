@@ -499,12 +499,19 @@ export const CreateCommessaButton = ({
         .single();
       if (e1) throw e1;
 
+      const materialDeptByKey = new Map(
+        extractMaterialsFromSnapshot(payload.productionSnapshot).map((m) => [m.key, m.dept ? toMacroDept(m.dept) : undefined]),
+      );
+      const missingMaterials = (d.missing ?? []).map((m) => ({
+        ...m,
+        dept: materialDeptByKey.get(m.key) ?? (m.dept ? toMacroDept(m.dept) : undefined),
+      }));
+
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
-      let firstAcquistiId: string | null = null;
       // Mappa macro-reparto → primo sub-acquisti che ne blocca le lavorazioni.
       const acquistiByDept: Partial<Record<ProdDept, string>> = {};
-      if (d.missing && d.missing.length > 0 && d.acquisti_assignee_id) {
-        const acquistiRows = d.missing.map((m, i) => ({
+      if (missingMaterials.length > 0 && d.acquisti_assignee_id) {
+        const acquistiRows = missingMaterials.map((m, i) => ({
           order_id: pord.id,
           code: subCode(code, SUB_DEPT_SUFFIX["acquisti"], i + 1),
           dept: "acquisti" as const,
@@ -524,17 +531,16 @@ export const CreateCommessaButton = ({
           .insert(acquistiRows as any)
           .select("id");
         if (ea) throw ea;
-        firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
         // Associa ogni sub-acquisti al macro-reparto del materiale mancante.
         (acquistiSubs ?? []).forEach((row: any, idx: number) => {
-          const dep = d.missing[idx]?.dept;
+          const dep = missingMaterials[idx]?.dept;
           if (dep && !acquistiByDept[dep]) acquistiByDept[dep] = row.id as string;
         });
 
         await notify({
           userIds: [d.acquisti_assignee_id],
           type: "magazzino_da_preparare",
-          message: `Acquisti — ${code}: ${d.missing.length} materiale/i da ordinare per ${payload.clienteName}`,
+          message: `Acquisti — ${code}: ${missingMaterials.length} materiale/i da ordinare per ${payload.clienteName}`,
           order_id: pord.id,
           link: "/produzione/acquisti",
           is_urgent: prodPrio !== "normale",
@@ -547,7 +553,7 @@ export const CreateCommessaButton = ({
       if (isWarehouse) {
         // Solo lavorazione: un unico sub del reparto scelto, dipendente dagli acquisti
         // SOLO se ci sono materiali mancanti che servono proprio a quel reparto.
-        const baseOrdine = d.missing?.length ?? 0;
+        const baseOrdine = missingMaterials.length;
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
         const workMacro = toMacroDept(d.work_dept);
         const blockerForWork = acquistiByDept[workMacro] ?? null;
@@ -581,8 +587,8 @@ export const CreateCommessaButton = ({
         await notify({
           userIds: [d.assignee_id],
           type: "magazzino_da_preparare",
-          message: d.missing?.length
-            ? `In attesa materiali — ${code} · ${payload.clienteName} (${d.missing.length})`
+          message: missingMaterials.length
+            ? `In attesa materiali — ${code} · ${payload.clienteName} (${missingMaterials.length})`
             : `Da lavorare: ${code} · ${payload.clienteName} (Ordine ${d.customer_order_ref})`,
           order_id: pord.id,
           link: "/produzione/board",
@@ -591,7 +597,7 @@ export const CreateCommessaButton = ({
       } else {
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
         const depts = payload.depts ?? [];
-        const baseOrdine = d.missing?.length ?? 0;
+        const baseOrdine = missingMaterials.length;
         // Carrello vendite (per arricchire la nota del sub magazzino).
         const ps: any = payload.productionSnapshot;
         const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
@@ -650,8 +656,8 @@ export const CreateCommessaButton = ({
           await notify({
             userIds: targets,
             type: "ordine_creato",
-            message: d.missing?.length
-              ? `Nuovo ordine ${code} per ${payload.clienteName} — in attesa acquisti (${d.missing.length})`
+            message: missingMaterials.length
+              ? `Nuovo ordine ${code} per ${payload.clienteName} — in attesa acquisti (${missingMaterials.length})`
               : `Nuovo ordine ${code} per ${payload.clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
             order_id: pord.id,
             link: `/produzione/board?order=${pord.id}`,

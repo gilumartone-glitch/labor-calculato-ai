@@ -751,11 +751,38 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
         {/* Materiali necessari aggregati dal preventivo */}
         {aggregatedMaterials.length > 0 && (
-          <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
+          <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-2">
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <Package className="w-3 h-3" /> Materiali necessari (da preventivo)
             </div>
-            <div className="border border-ink/15 rounded-sm overflow-x-auto">
+
+            {/* MOBILE: lista a card */}
+            <div className="sm:hidden space-y-2">
+              {aggregatedMaterials.map((m, i) => (
+                <div key={i} className="border border-ink/15 rounded-sm p-2 bg-paper text-[12px] space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="font-semibold break-words min-w-0">{m.name}</div>
+                    <div className="font-mono tabular-nums font-bold shrink-0">{m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : "—"}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground font-mono">
+                    {m.color && <span><span className="opacity-70">col.</span> {m.color}</span>}
+                    {m.base && <span><span className="opacity-70">base</span> {m.base}</span>}
+                    {m.height && <span><span className="opacity-70">h</span> {m.height}</span>}
+                  </div>
+                  {m.pieceLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {m.pieceLabels.map((pl, pi) => (
+                        <span key={pi} className="inline-block px-1.5 py-0.5 bg-muted/60 rounded-sm font-mono text-[10px] font-bold">{pl}</span>
+                      ))}
+                    </div>
+                  )}
+                  {m.note && <div className="text-[10px] text-muted-foreground italic">{m.note}</div>}
+                </div>
+              ))}
+            </div>
+
+            {/* DESKTOP / TABLET: tabella classica */}
+            <div className="hidden sm:block border border-ink/15 rounded-sm overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead className="bg-ink/5 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
                   <tr>
@@ -796,6 +823,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             </div>
           </div>
         )}
+
 
         {/* Checklist */}
         <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">

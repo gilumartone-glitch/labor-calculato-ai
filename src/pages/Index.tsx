@@ -265,9 +265,11 @@ const Index = () => {
     const refresh = () => setWorkshopTick((v) => v + 1);
     window.addEventListener("workshop-summary-updated", refresh);
     window.addEventListener("storage", refresh);
+    window.addEventListener("officina:draft-state-changed", refresh);
     return () => {
       window.removeEventListener("workshop-summary-updated", refresh);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener("officina:draft-state-changed", refresh);
     };
   }, []);
 

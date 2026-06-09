@@ -36,15 +36,21 @@ const todayIso = () => {
   return d.toISOString().slice(0, 10);
 };
 
-const fmtDateLabel = (iso: string | null) => {
-  if (!iso) return "Senza data";
-  try {
-    const d = new Date(iso);
-    const t = todayIso();
-    if (iso === t) return "Oggi";
-    return d.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" });
-  } catch { return iso; }
+const isoOf = (d: Date) => {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  return x.toISOString().slice(0, 10);
 };
+
+// Lunedì della settimana di `d` (giorni in formato ISO it: lun=primo)
+const mondayOf = (d: Date) => {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  const dow = (x.getDay() + 6) % 7; // 0=lun ... 6=dom
+  x.setDate(x.getDate() - dow);
+  return x;
+};
+
+const WEEKDAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+
 
 export default function ProdOggi() {
   const { user } = useAuth();

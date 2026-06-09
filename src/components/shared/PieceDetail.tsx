@@ -86,8 +86,8 @@ export const PieceDetail = ({ piece, deptLabel, catalog, index, filterDept }: Pi
   const showPrint = !filterDept || filterDept === "stampa";
 
   return (
-    <div className="border border-ink/15 rounded-sm p-4 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 bg-paper">
-      <div className="bg-ink/5 rounded-sm p-2 grid place-items-center">
+    <div className="border border-ink/15 rounded-sm p-3 sm:p-4 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3 sm:gap-4 bg-paper">
+      <div className="bg-ink/5 rounded-sm p-2 grid place-items-center w-full">
         <TechnicalDrawing
           width={piece.width}
           height={piece.height}
@@ -95,29 +95,30 @@ export const PieceDetail = ({ piece, deptLabel, catalog, index, filterDept }: Pi
           sides={sides}
           shape={piece.shape ?? "rect"}
           widthBottom={piece.widthBottom}
-          canvasWidth={260}
-          canvasHeight={200}
+          canvasWidth={340}
+          canvasHeight={260}
         />
       </div>
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="font-display text-base font-semibold">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h4 className="font-display text-lg sm:text-base font-bold sm:font-semibold">
             #{index} · {piece.productName || "Pezzo"}
             {(piece.quantity ?? 1) > 1 && (
-              <span className="ml-2 text-xs font-mono text-muted-foreground">× {piece.quantity}</span>
+              <span className="ml-2 text-sm font-mono text-muted-foreground">× {piece.quantity}</span>
             )}
           </h4>
-          <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-ink/10 text-ink/70 rounded-sm">
+          <span className="text-[11px] sm:text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-ink/10 text-ink/70 rounded-sm">
             {deptLabel}
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-[13px] sm:text-xs">
           <KV k="Dimensioni" v={`${piece.width} × ${piece.height} ${piece.dimUnit}`} />
           <KV k="Altezza tessuto" v={fabricHeight} />
           {piece.color && <KV k="Colore" v={piece.color} />}
           {piece.fireproof && <KV k="Ignifugo" v={piece.fireproof} />}
           {piece.thickness && <KV k="Spessore" v={piece.thickness} />}
           {piece.finish && <KV k="Finitura" v={piece.finish} />}
+
           {variant && (
             <KV
               k="Variante"

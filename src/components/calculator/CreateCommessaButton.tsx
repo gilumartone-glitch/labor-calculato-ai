@@ -545,6 +545,7 @@ export const CreateCommessaButton = ({
           note: `Ordine cliente: ${d.customer_order_ref}` + (d.missing?.length ? ` · in attesa materiali (${d.missing.length})` : ""),
           files: [],
           depends_on: firstAcquistiId,
+          status: firstAcquistiId ? "bloccato" : "in_attesa",
           assignee_id: d.assignee_id || null,
         } as any).select("id").single();
         if (e2) throw e2;
@@ -609,6 +610,7 @@ export const CreateCommessaButton = ({
               note: noteForSub,
               files: [],
               depends_on: firstAcquistiId, // bloccato finché gli acquisti non sono arrivati
+              status: firstAcquistiId ? "bloccato" : "in_attesa",
               assignee_id: assignee,
               operator_ids: opIds,
               start_date: plan.startDate || null,

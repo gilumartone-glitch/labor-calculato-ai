@@ -73,7 +73,7 @@ const PiecesNestingTabs = ({
         <button
           type="button"
           onClick={() => setTab("pezzi")}
-          className={`px-3 py-1.5 rounded-sm text-[11px] uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-sm text-[15px] sm:text-[13px] sm:text-[11px] uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5 ${
             tab === "pezzi" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
           }`}
         >
@@ -83,14 +83,14 @@ const PiecesNestingTabs = ({
           <button
             type="button"
             onClick={() => setTab("nesting")}
-            className={`px-3 py-1.5 rounded-sm text-[11px] uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-sm text-[15px] sm:text-[13px] sm:text-[11px] uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5 ${
               tab === "nesting" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
             }`}
           >
             <Layers className="w-3 h-3" /> Nesting
           </button>
         )}
-        <span className="ml-auto text-[10px] text-muted-foreground font-mono uppercase tracking-widest pr-2">
+        <span className="ml-auto text-[14px] sm:text-[12px] sm:text-[10px] text-muted-foreground font-mono uppercase tracking-widest pr-2">
           Reparto: {deptLabel}
         </span>
       </div>
@@ -108,7 +108,7 @@ const PiecesNestingTabs = ({
               />
             ))}
             {pieces.length === 0 && (
-              <div className="text-[12px] text-muted-foreground text-center py-4">Nessun pezzo da lavorare.</div>
+              <div className="text-[14px] sm:text-[12px] text-muted-foreground text-center py-4">Nessun pezzo da lavorare.</div>
             )}
           </div>
         )}
@@ -563,13 +563,13 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
             <div className="ml-auto flex items-center gap-2 flex-wrap">
               {canEditAssignee ? (
-                <div className="bg-white/15 border border-white/30 rounded-sm pl-2 pr-1 py-0.5 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <div className="bg-white/15 border border-white/30 rounded-sm pl-2 pr-1 py-0.5 text-[15px] sm:text-[13px] sm:text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <User className="w-3 h-3" />
                   <select
                     value={sub.assignee_id ?? ""}
                     disabled={savingAssignee}
                     onChange={(e) => changeAssignee(e.target.value)}
-                    className="bg-transparent text-white font-bold uppercase text-[11px] outline-none cursor-pointer hover:bg-white/10 rounded-sm px-1 py-0.5"
+                    className="bg-transparent text-white font-bold uppercase text-[15px] sm:text-[13px] sm:text-[11px] outline-none cursor-pointer hover:bg-white/10 rounded-sm px-1 py-0.5"
                     title="Cambia assegnatario"
                   >
                     <option value="" className="text-ink">— Non assegnato —</option>
@@ -579,13 +579,13 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </select>
                 </div>
               ) : (
-                <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <div className="bg-white/15 border border-white/30 rounded-sm px-2.5 py-1 text-[15px] sm:text-[13px] sm:text-[11px] font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <User className="w-3 h-3" />
                   {assignee ? <span className="font-bold">{assignee.display_name ?? "—"}</span> : <span className="opacity-80">Non assegnato</span>}
                 </div>
               )}
               {order.priorita !== "normale" && (
-                <div className="bg-white/95 text-destructive border border-white rounded-sm px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+                <div className="bg-white/95 text-destructive border border-white rounded-sm px-2.5 py-1 text-[15px] sm:text-[13px] sm:text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> {PRIORITY_LABEL[order.priorita]}
                 </div>
               )}
@@ -596,7 +596,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         <div className="px-3 sm:px-5 pb-5 space-y-4">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-1.5 sm:gap-2 flex-wrap pt-3 text-sm sm:text-base">
-            <Badge variant="outline" className={`font-mono text-[10px] sm:text-xs ${dc.text} ${dc.border}`}>{sub.code}</Badge>
+            <Badge variant="outline" className={`font-mono text-[14px] sm:text-[12px] sm:text-[10px] sm:text-xs ${dc.text} ${dc.border}`}>{sub.code}</Badge>
             <span className="font-mono text-xs sm:text-sm text-primary">{order.code}</span>
             <span className="text-sm sm:text-base break-words min-w-0">{order.cliente}</span>
           </DialogTitle>
@@ -604,18 +604,18 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
           {(order.production_name || order.customer_order_ref) && (
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {order.production_name && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 rounded-sm text-[12px] font-bold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 rounded-sm text-[14px] sm:text-[12px] font-bold">
                   {order.production_name}
                 </span>
               )}
               {order.customer_order_ref && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-ink/70 border border-ink/15 rounded-sm text-[11px] font-mono">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-ink/70 border border-ink/15 rounded-sm text-[15px] sm:text-[13px] sm:text-[11px] font-mono">
                   Rif. cliente: {order.customer_order_ref}
                 </span>
               )}
             </div>
           )}
-          <DialogDescription className="text-[12px]">
+          <DialogDescription className="text-[14px] sm:text-[12px]">
             Dettaglio completo della lavorazione assegnata. Scarica i file, controlla materiali e istruzioni.
           </DialogDescription>
         </DialogHeader>
@@ -625,7 +625,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {isLocked && predecessor && (
           <div className="border-2 border-amber-500 bg-amber-50 rounded-sm p-3 flex items-start gap-3">
             <Lock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-            <div className="text-[13px]">
+            <div className="text-[15px] sm:text-[13px]">
               <div className="font-bold text-amber-900">Lavorazione bloccata</div>
               <div className="text-amber-800">
                 Devi attendere il completamento di <span className="font-mono font-bold">{predecessor.code} — {DEPT_LABEL[predecessor.dept]}</span> (stato attuale: {SUB_STATUS_LABEL[predecessor.status]}).
@@ -636,7 +636,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
         {/* Banner: ordine manuale senza snapshot calcolatore */}
         {!snapshot && (
-          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 flex items-start gap-3 text-[12px]">
+          <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3 flex items-start gap-3 text-[14px] sm:text-[12px]">
             <FileText className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div>
               <div className="font-bold text-primary">Lavorazione manuale</div>
@@ -651,7 +651,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         <div className="grid md:grid-cols-2 gap-2 sm:gap-3">
           <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-1.5 text-[11px] sm:text-[12px]">
 
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commessa</div>
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commessa</div>
             <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /><strong>{order.cliente}</strong></div>
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
@@ -662,7 +662,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   value={order.data ?? ""}
                   disabled={savingDate}
                   onChange={(e) => changeOrderDate(e.target.value)}
-                  className="border border-ink/20 rounded-sm px-1.5 py-0.5 font-mono text-[12px] bg-paper"
+                  className="border border-ink/20 rounded-sm px-1.5 py-0.5 font-mono text-[14px] sm:text-[12px] bg-paper"
                 />
               ) : (
                 <span>{order.data}</span>
@@ -672,14 +672,14 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             {creator && <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" />Lanciato da: <strong>{creator.display_name ?? "—"}</strong></div>}
             {order.note && (
               <div className="mt-2 pt-2 border-t border-ink/10">
-                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Note generali</div>
-                <div className="whitespace-pre-wrap font-mono text-[11px]">{order.note}</div>
+                <div className="text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Note generali</div>
+                <div className="whitespace-pre-wrap font-mono text-[15px] sm:text-[13px] sm:text-[11px]">{order.note}</div>
               </div>
             )}
           </div>
 
           <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-1.5 text-[11px] sm:text-[12px]">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Lavorazione</div>
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Lavorazione</div>
             <div className="flex items-center gap-2">
               Reparto: <Badge variant="secondary" className="font-mono">{DEPT_LABEL[sub.dept]}</Badge>
             </div>
@@ -688,7 +688,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             </div>
             <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-muted-foreground" />Posizione in sequenza: <strong>#{sub.ordine + 1}</strong></div>
             {predecessor && (
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-[15px] sm:text-[13px] sm:text-[11px]">
                 <Lock className="w-3 h-3 text-muted-foreground" />Dipende da: <span className="font-mono">{predecessor.code} ({DEPT_LABEL[predecessor.dept]})</span>
               </div>
             )}
@@ -696,7 +696,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               <div className="mt-2 pt-2 border-t border-ink/10 flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5 text-primary" />
                 <span className="font-bold text-primary">Nesting incluso</span>
-                <span className="text-muted-foreground text-[11px]">— controlla i file allegati</span>
+                <span className="text-muted-foreground text-[15px] sm:text-[13px] sm:text-[11px]">— controlla i file allegati</span>
               </div>
             )}
           </div>
@@ -705,11 +705,11 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {/* Istruzioni del sub — modificabili */}
         <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
           <div className="flex items-center justify-between mb-2">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-primary">Istruzioni per te</div>
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-primary">Istruzioni per te</div>
             {canEditSub && editNote === null && (
               <button
                 onClick={() => setEditNote(sub.note ?? "")}
-                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
               >
                 <Pencil className="w-3 h-3" /> Modifica
               </button>
@@ -721,7 +721,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                 value={editNote}
                 onChange={(e) => setEditNote(e.target.value)}
                 rows={3}
-                className="w-full border border-ink/20 rounded-sm p-2 text-[12px] font-mono bg-paper resize-y"
+                className="w-full border border-ink/20 rounded-sm p-2 text-[14px] sm:text-[12px] font-mono bg-paper resize-y"
                 placeholder="Istruzioni per chi esegue questa lavorazione…"
                 autoFocus
               />
@@ -733,9 +733,9 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               </div>
             </div>
           ) : sub.note ? (
-            <div className="whitespace-pre-wrap font-mono text-[12px]">{sub.note}</div>
+            <div className="whitespace-pre-wrap font-mono text-[14px] sm:text-[12px]">{sub.note}</div>
           ) : (
-            <div className="text-[11px] text-muted-foreground italic">Nessuna istruzione</div>
+            <div className="text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground italic">Nessuna istruzione</div>
           )}
         </div>
 
@@ -752,19 +752,19 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {/* Materiali necessari aggregati dal preventivo */}
         {aggregatedMaterials.length > 0 && (
           <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-2">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <Package className="w-3 h-3" /> Materiali necessari (da preventivo)
             </div>
 
             {/* MOBILE: lista a card */}
             <div className="sm:hidden space-y-2">
               {aggregatedMaterials.map((m, i) => (
-                <div key={i} className="border border-ink/15 rounded-sm p-2 bg-paper text-[12px] space-y-1">
+                <div key={i} className="border border-ink/15 rounded-sm p-2 bg-paper text-[14px] sm:text-[12px] space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="font-semibold break-words min-w-0">{m.name}</div>
                     <div className="font-mono tabular-nums font-bold shrink-0">{m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : "—"}</div>
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground font-mono">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground font-mono">
                     {m.color && <span><span className="opacity-70">col.</span> {m.color}</span>}
                     {m.base && <span><span className="opacity-70">base</span> {m.base}</span>}
                     {m.height && <span><span className="opacity-70">h</span> {m.height}</span>}
@@ -772,19 +772,19 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   {m.pieceLabels.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {m.pieceLabels.map((pl, pi) => (
-                        <span key={pi} className="inline-block px-1.5 py-0.5 bg-muted/60 rounded-sm font-mono text-[10px] font-bold">{pl}</span>
+                        <span key={pi} className="inline-block px-1.5 py-0.5 bg-muted/60 rounded-sm font-mono text-[14px] sm:text-[12px] sm:text-[10px] font-bold">{pl}</span>
                       ))}
                     </div>
                   )}
-                  {m.note && <div className="text-[10px] text-muted-foreground italic">{m.note}</div>}
+                  {m.note && <div className="text-[14px] sm:text-[12px] sm:text-[10px] text-muted-foreground italic">{m.note}</div>}
                 </div>
               ))}
             </div>
 
             {/* DESKTOP / TABLET: tabella classica */}
             <div className="hidden sm:block border border-ink/15 rounded-sm overflow-x-auto">
-              <table className="w-full text-[12px]">
-                <thead className="bg-ink/5 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
+              <table className="w-full text-[14px] sm:text-[12px]">
+                <thead className="bg-ink/5 text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
                   <tr>
                     <th className="text-left px-2 py-1.5">Materiale</th>
                     <th className="text-left px-2 py-1.5">Colore</th>
@@ -801,7 +801,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                       <td className="px-2 py-1.5 text-muted-foreground">{m.color || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground font-mono">{m.base || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground">{m.height || "—"}</td>
-                      <td className="px-2 py-1.5 font-mono text-[11px]">
+                      <td className="px-2 py-1.5 font-mono text-[15px] sm:text-[13px] sm:text-[11px]">
                         {m.pieceLabels.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {m.pieceLabels.map((pl, pi) => (
@@ -814,7 +814,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                       </td>
                       <td className="px-2 py-1.5 text-right font-mono tabular-nums">
                         {m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : "—"}
-                        {m.note && <div className="text-[10px] text-muted-foreground font-normal">{m.note}</div>}
+                        {m.note && <div className="text-[14px] sm:text-[12px] sm:text-[10px] text-muted-foreground font-normal">{m.note}</div>}
                       </td>
                     </tr>
                   ))}
@@ -827,15 +827,15 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {/* Materiali */}
         {(involvedInv.length > 0 || reservedPieces.length > 0) && (
           <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <Package className="w-3 h-3" /> Materiali da usare
             </div>
             {involvedInv.map((inv) => {
               const pieces = reservedPieces.filter((p) => p.inventory_id === inv.id);
               return (
-                <div key={inv.id} className="border border-ink/10 rounded-sm p-2 text-[12px]">
+                <div key={inv.id} className="border border-ink/10 rounded-sm p-2 text-[14px] sm:text-[12px]">
                   <div className="font-medium">{inv.material_name ?? inv.nome}</div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[14px] sm:text-[12px] sm:text-[10px] text-muted-foreground">
                     <span className="font-mono font-bold text-ink">{inv.code}</span>
                     {inv.material_color && <> · {inv.material_color}</>}
                     {inv.material_height && <> · {inv.material_height}</>}
@@ -844,12 +844,12 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </div>
                   {pieces.length > 0 && (
                     <div className="mt-2 border-l-2 border-amber-500 pl-2 space-y-0.5">
-                      <div className="text-[10px] uppercase tracking-wider font-bold text-amber-700 flex items-center gap-1">
+                      <div className="text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-wider font-bold text-amber-700 flex items-center gap-1">
                         <Scissors className="w-3 h-3" /> Sfridi riservati per te
                       </div>
                       {pieces.map((p) => (
-                        <div key={p.id} className="text-[11px] font-mono">
-                          <Badge variant="outline" className="font-mono text-[10px] mr-1">{p.code}</Badge>
+                        <div key={p.id} className="text-[15px] sm:text-[13px] sm:text-[11px] font-mono">
+                          <Badge variant="outline" className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] mr-1">{p.code}</Badge>
                           {fmtMm(p.w_mm, p.h_mm)} {p.posizione && <>· pos {p.posizione}</>}
                         </div>
                       ))}
@@ -864,17 +864,17 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {/* Allegati */}
         <div className="border-2 border-ink/15 rounded-sm p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
               <FileText className="w-3 h-3" /> Allegati ({allFiles.length})
             </div>
-            <label className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2 py-1 border-2 border-ink/30 hover:border-primary hover:text-primary rounded-sm cursor-pointer">
+            <label className="inline-flex items-center gap-1 text-[15px] sm:text-[13px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-1 border-2 border-ink/30 hover:border-primary hover:text-primary rounded-sm cursor-pointer">
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
               Aggiungi file
               <input type="file" multiple className="hidden" onChange={(e) => uploadSubFile(e.target.files)} />
             </label>
           </div>
           {allFiles.length === 0 ? (
-            <div className="text-center text-[11px] text-muted-foreground py-3 font-mono">Nessun allegato</div>
+            <div className="text-center text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground py-3 font-mono">Nessun allegato</div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-2">
               {allFiles.map((f, i) => {
@@ -889,8 +889,8 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-[12px] truncate font-medium">{f.name}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">
+                      <div className="text-[14px] sm:text-[12px] truncate font-medium">{f.name}</div>
+                      <div className="text-[14px] sm:text-[12px] sm:text-[10px] text-muted-foreground font-mono">
                         {f._origin === "ordine" ? "Da ordine" : "Da sub-ordine"}
                         {f.size && <> · {Math.round(f.size / 1024)} KB</>}
                       </div>

@@ -159,7 +159,21 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const snapshot = (order?.snapshot as ProdSnapshot | null) ?? null;
   const snapshotDepts = useMemo(() => collectSnapshotDepartments(snapshot), [snapshot]);
   const allPieces = useMemo(() => collectSnapshotPieces(snapshotDepts), [snapshotDepts]);
-  const aggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(snapshotDepts), [snapshotDepts]);
+  /** Filtra i reparti dello snapshot al solo reparto del sub corrente, così
+   *  i "Materiali necessari" mostrati sono solo quelli che servono a QUESTO
+   *  reparto (es. Tappezzeria non deve vedere MOZAIK che è di Stampa). */
+  const subSnapshotDepts = useMemo(() => {
+    if (!sub) return snapshotDepts;
+    const dep = sub.dept;
+    return snapshotDepts.filter((d) => {
+      const k = (d.key ?? "").toLowerCase();
+      if (dep === "tappezzeria") return k === "tappezzeria";
+      if (dep === "falegnameria") return k === "falegnameria";
+      if (dep === "stampa" || dep === "taglio") return k === "stampa";
+      return k === String(dep).toLowerCase();
+    });
+  }, [snapshotDepts, sub]);
+  const aggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(subSnapshotDepts), [subSnapshotDepts]);
 
   /** Filtra i pezzi pertinenti al reparto del sub corrente. */
   const relevantPieces = useMemo(() => {

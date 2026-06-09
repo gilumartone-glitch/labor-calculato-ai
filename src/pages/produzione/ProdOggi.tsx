@@ -174,34 +174,40 @@ export default function ProdOggi() {
         className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg}`}
         title="Apri dettaglio lavorazione"
       >
-        <div className={`${dc.chip} px-2 py-1.5 flex items-center gap-1.5`}>
-          <span className="text-base leading-none" aria-hidden>{dc.emoji}</span>
-          <span className="font-display font-extrabold uppercase tracking-wide text-[12px] leading-none truncate">
+        <div className={`${dc.chip} px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5`}>
+          <span className="text-lg xl:text-base leading-none" aria-hidden>{dc.emoji}</span>
+          <span className="font-display font-extrabold uppercase tracking-wide text-[14px] xl:text-[12px] leading-none truncate">
             {DEPT_LABEL[s.dept]}
           </span>
           {u && (
-            <span className={`ml-auto text-[9px] font-mono uppercase font-bold px-1 py-0.5 rounded-sm border ${u.cls}`}>
+            <span className={`ml-auto text-[10px] xl:text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border ${u.cls}`}>
               {u.label}
             </span>
           )}
         </div>
-        <div className="p-1.5 space-y-1.5">
-          <div className="flex items-center justify-between gap-1">
-            <span className="font-mono text-[10px] font-bold bg-ink text-paper px-1 py-0.5 rounded-sm">{s.code}</span>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{SUB_STATUS_LABEL[s.status]}</span>
+        <div className="p-2.5 xl:p-1.5 space-y-2 xl:space-y-1.5">
+          {/* Cliente: info essenziale, prominente su mobile */}
+          <div className="text-[17px] xl:text-[13px] font-bold leading-tight line-clamp-2 xl:truncate">
+            {o?.cliente ?? "—"}
           </div>
-          <div className="text-[13px] font-semibold truncate">{o?.cliente ?? "—"}</div>
+          {/* Assegnatario con colore univoco */}
           <div
-            className="flex items-center gap-1 text-[13px] font-bold rounded-sm px-1.5 py-1 border"
+            className="flex items-center gap-1.5 text-[15px] xl:text-[13px] font-bold rounded-sm px-2 py-1.5 xl:px-1.5 xl:py-1 border"
             style={s.assignee_id ? { backgroundColor: uc.bg, color: uc.fg, borderColor: uc.border } : undefined}
           >
-            <User className="w-3.5 h-3.5 shrink-0" />
+            <User className="w-4 h-4 xl:w-3.5 xl:h-3.5 shrink-0" />
             <span className="truncate">{assignee ?? "Non assegnato"}</span>
+          </div>
+          {/* Codice + stato: dettagli secondari */}
+          <div className="flex items-center justify-between gap-1.5 pt-0.5">
+            <span className="font-mono text-[11px] xl:text-[10px] font-bold bg-ink text-paper px-1.5 py-0.5 rounded-sm">{s.code}</span>
+            <span className="text-[11px] xl:text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{SUB_STATUS_LABEL[s.status]}</span>
           </div>
         </div>
       </Link>
     );
   };
+
 
   const goPrevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); };
   const goNextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); };

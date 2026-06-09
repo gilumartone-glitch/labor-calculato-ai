@@ -575,11 +575,19 @@ const ProdBoard = () => {
                                   <option value="rimandato">↩ Revisiona…</option>
                                   {s.status === "bloccato" && <option value="bloccato">✕ Bloccato</option>}
                                 </select>
-                                <div className="flex items-center gap-1.5 text-[16px] font-bold text-ink">
-                                  {isSubLocked(s) && <Lock className="w-4 h-4 text-amber-600 shrink-0" />}
-                                  <User className="w-4 h-4 shrink-0" />
-                                  <span className="truncate">{assignee?.display_name ?? "Non assegnato"}</span>
-                                </div>
+                                {(() => {
+                                  const uc = userColor(s.assignee_id);
+                                  return (
+                                    <div
+                                      className="flex items-center gap-1.5 text-[16px] font-bold rounded-sm px-2 py-1.5 border"
+                                      style={s.assignee_id ? { backgroundColor: uc.bg, color: uc.fg, borderColor: uc.border } : undefined}
+                                    >
+                                      {isSubLocked(s) && <Lock className="w-4 h-4 text-amber-600 shrink-0" />}
+                                      <User className="w-4 h-4 shrink-0" />
+                                      <span className="truncate">{assignee?.display_name ?? "Non assegnato"}</span>
+                                    </div>
+                                  );
+                                })()}
 
 
                               {s.status === "rimandato" && s.rejection_reason && (

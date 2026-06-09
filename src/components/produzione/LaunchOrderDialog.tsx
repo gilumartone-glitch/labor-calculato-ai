@@ -280,6 +280,21 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
           </div>
 
           <div>
+            <Label>Responsabile progetto</Label>
+            <select
+              value={form.coordinatorId}
+              onChange={(e) => patch({ coordinatorId: e.target.value })}
+              className="w-full h-10 px-3 border-2 border-input rounded-md bg-background text-sm"
+            >
+              <option value="">— Io ({user?.email ?? "io"})</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.id.slice(0, 8)}</option>
+              ))}
+            </select>
+            <div className="text-[10px] text-muted-foreground mt-1">Vede tutte le lavorazioni del progetto con badge "Responsabile". Gli operatori vedono solo ciò che è assegnato a loro.</div>
+          </div>
+
+          <div>
             <Label>Note generali</Label>
             <Textarea rows={2} value={note} onChange={(e) => patch({ note: e.target.value })} placeholder="Descrivi cosa va fatto, materiali, misure, qualsiasi cosa utile a chi riceverà la lavorazione" />
           </div>

@@ -594,6 +594,8 @@ export const CreateCommessaButton = ({
         const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
+          // Se mancano materiali, non interpellare il magazzino: se ne occupa Acquisti.
+          if (dept === "magazzino" && firstAcquistiId) continue;
           const plan = planningFor(dept);
           const assignee = (plan.responsabile || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));

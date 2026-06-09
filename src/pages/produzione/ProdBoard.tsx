@@ -565,25 +565,6 @@ const ProdBoard = () => {
                         {o.cliente}
                         {o.production_name && <span className="ml-1 text-ink/60 font-normal italic">· Prod. {o.production_name}</span>}
                       </div>
-                      <div className="flex flex-wrap gap-x-2.5 gap-y-1 mb-2 text-[12px] font-mono text-ink/75">
-                        <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{fmtDate(o.data)}</span>
-                        <span className="inline-flex items-center gap-1">
-                          {o.delivery === "ritiro" ? <Package className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
-                          {DELIVERY_LABEL[o.delivery]}
-                        </span>
-                        {totalPieces > 0 && (
-                          <span className="inline-flex items-center gap-1 font-bold text-ink">
-                            {totalPieces} {totalPieces === 1 ? "pezzo" : "pezzi"}
-                          </span>
-                        )}
-                      </div>
-                      {o.note && (
-                        <div className="flex items-start gap-1 mb-2 text-[12px] text-ink/75 italic line-clamp-2">
-                          <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-
-                          <span className="leading-tight">{o.note}</span>
-                        </div>
-                      )}
                       <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2.5">
                         <div className="h-full bg-primary transition-all" style={{ width: `${prog}%` }} />
                       </div>

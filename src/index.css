@@ -153,10 +153,18 @@
   }
 }
 
-/* Riserva spazio in basso per il pulsante HUB fisso (safe-area iOS inclusa). */
+/* Riserva spazio in basso per il pulsante HUB fisso (safe-area iOS inclusa).
+   Lasciamo abbastanza padding sul mobile per non far sovrapporre il bottone
+   HUB e eventuali barre sticky al contenuto. */
 body:not(.no-hub-btn) {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
 }
+@media (min-width: 768px) {
+  body:not(.no-hub-btn) {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0px);
+  }
+}
+
 
 
 @layer components {

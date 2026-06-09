@@ -23,6 +23,7 @@ const NAV = [
   { to: "/produzione/logistica", label: "Logistica", Icon: Truck },
   { to: "/produzione/amministrazione", label: "Amministrazione", Icon: FileText },
   { to: "/produzione/log", label: "Log Attività", Icon: ScrollText },
+  { to: "/montaggi-pianificazione", label: "Pianificazione", Icon: CalendarRange },
 ];
 
 export const ProdLayout = ({ children }: { children: ReactNode }) => {

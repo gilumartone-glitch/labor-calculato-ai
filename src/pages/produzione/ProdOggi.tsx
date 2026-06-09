@@ -180,6 +180,14 @@ export default function ProdOggi() {
     return { byDay, overdue, future, undated };
   }, [subs, weekDays, weekStartIso, weekEndIso, orders, deadlines]);
 
+  // L'utente è OPERATORE di questa lavorazione, o solo RESPONSABILE?
+  const myRole = (s: Sub): "operator" | "coordinator" => {
+    if (!user) return "operator";
+    if (s.assignee_id === user.id) return "operator";
+    if ((s.operator_ids ?? []).includes(user.id)) return "operator";
+    return "coordinator";
+  };
+
   const renderCard = (s: Sub) => {
     const o = orders[s.order_id];
     const dl = subDate(s);
@@ -187,6 +195,8 @@ export default function ProdOggi() {
     const dc = DEPT_COLOR[s.dept];
     const assignee = s.assignee_id ? profiles[s.assignee_id]?.display_name : null;
     const uc = userColor(s.assignee_id);
+    const role = myRole(s);
+    const isCoord = role === "coordinator";
     const statusBg =
       s.status === "in_lavorazione" ? "bg-blue-50 border-blue-300" :
       s.status === "completato" ? "bg-emerald-50 border-emerald-300" :
@@ -197,14 +207,19 @@ export default function ProdOggi() {
       <Link
         key={s.id}
         to={`/produzione/board?sub=${s.id}`}
-        className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg}`}
-        title="Apri dettaglio lavorazione"
+        className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg} ${isCoord ? "ring-2 ring-amber-400/60" : ""}`}
+        title={isCoord ? "Sei il responsabile di questa lavorazione (non l'operatore)" : "Apri dettaglio lavorazione"}
       >
         <div className={`${dc.chip} px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5`}>
           <span className="text-lg xl:text-base leading-none" aria-hidden>{dc.emoji}</span>
           <span className="font-display font-extrabold uppercase tracking-wide text-[14px] xl:text-[12px] leading-none truncate">
             {DEPT_LABEL[s.dept]}
           </span>
+          {isCoord && (
+            <span className="ml-1 text-[9px] xl:text-[8px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm bg-amber-400 text-ink border border-amber-500" title="Sei responsabile, non operatore">
+              Responsabile
+            </span>
+          )}
           {u && (
             <span className={`ml-auto text-[10px] xl:text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border ${u.cls}`}>
               {u.label}

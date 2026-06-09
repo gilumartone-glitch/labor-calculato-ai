@@ -206,9 +206,10 @@ export const ConfirmToWarehouseDialog = ({
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])
     .map((m) => ({
-      key: m.key, label: m.label, detail: m.detail, qty: m.qty, unit: m.unit, code: m.code,
+      key: m.key, label: m.label, detail: m.detail, qty: m.qty, unit: m.unit, code: m.code, dept: m.dept,
       supplier_name: suppliers[m.key]?.trim() || null,
     }));
+
   const hasMissing = missing.length > 0;
 
   const assigneeName = useMemo(() => users.find((u) => u.id === assignee)?.display_name ?? "", [users, assignee]);

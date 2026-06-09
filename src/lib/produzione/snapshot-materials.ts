@@ -50,5 +50,31 @@ export const extractMaterialsFromSnapshot = (snap: any): SnapshotMaterial[] => {
       }
     } catch { /* ignore */ }
   }
+  // Aggiungi i prodotti del carrello vendite (reparto magazzino).
+  // Anche questi possono mancare e devono essere verificati prima della commessa.
+  const carts: Record<string, any[]> =
+    (snap?.salesCarts && typeof snap.salesCarts === "object") ? snap.salesCarts :
+    (snap?.state?.salesCarts && typeof snap.state.salesCarts === "object") ? snap.state.salesCarts :
+    (snap?.designState?.salesCarts && typeof snap.designState.salesCarts === "object") ? snap.designState.salesCarts :
+    {};
+  for (const cartKey of Object.keys(carts || {})) {
+    const lines = Array.isArray(carts[cartKey]) ? carts[cartKey] : [];
+    for (const l of lines) {
+      const name: string = String(l?.name ?? "").trim();
+      if (!name) continue;
+      const variant: string = String(l?.variant ?? "").trim();
+      const qty = Number(l?.qty) || 0;
+      const unit: string = String(l?.unit ?? "pz").trim() || "pz";
+      const key = `sale:${name}|${variant}|${unit}`;
+      const detail = ["Vendita", variant].filter(Boolean).join(" · ");
+      const short = name.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
+      const existing = out.get(key);
+      if (existing) {
+        existing.qty = (existing.qty ?? 0) + qty;
+      } else {
+        out.set(key, { key, label: name, detail, qty, unit, code: short });
+      }
+    }
+  }
   return Array.from(out.values()).sort((a, b) => a.label.localeCompare(b.label));
 };

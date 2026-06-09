@@ -117,23 +117,42 @@ export default function ProdOggi() {
   const subDate = (s: Sub): string | null =>
     s.due_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
 
-  // Raggruppa per data
-  const groups = useMemo(() => {
-    const map = new Map<string, Sub[]>();
-    for (const s of subs) {
-      const k = subDate(s) ?? "__none__";
-      const arr = map.get(k) ?? [];
-      arr.push(s);
-      map.set(k, arr);
-    }
-    const keys = Array.from(map.keys()).sort((a, b) => {
-      if (a === "__none__") return 1;
-      if (b === "__none__") return -1;
-      return a.localeCompare(b);
+  // Settimana corrente navigabile (lun → dom)
+  const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d;
     });
-    return keys.map((k) => ({ key: k, date: k === "__none__" ? null : k, items: map.get(k)! }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subs, orders, deadlines]);
+  }, [weekStart]);
+  const weekStartIso = isoOf(weekDays[0]);
+  const weekEndIso = isoOf(weekDays[6]);
+
+  // Raggruppa per giorno della settimana corrente + in ritardo + successivi
+  const { byDay, overdue, future, undated } = useMemo(() => {
+    const today = todayIso();
+    const byDay: Record<string, Sub[]> = {};
+    for (const d of weekDays) byDay[isoOf(d)] = [];
+    const overdue: Sub[] = [];
+    const future: Sub[] = [];
+    const undated: Sub[] = [];
+    for (const s of subs) {
+      const dl = subDate(s);
+      if (!dl) { undated.push(s); continue; }
+      if (dl < today && dl < weekStartIso) { overdue.push(s); continue; }
+      if (dl >= weekStartIso && dl <= weekEndIso) {
+        // Sub in ritardo ma all'interno della settimana: mostrali nel giorno
+        if (byDay[dl]) byDay[dl].push(s);
+        else overdue.push(s);
+      } else if (dl > weekEndIso) {
+        future.push(s);
+      } else {
+        overdue.push(s);
+      }
+    }
+    return { byDay, overdue, future, undated };
+  }, [subs, weekDays, weekStartIso, weekEndIso, orders, deadlines]);
 
   const renderCard = (s: Sub) => {
     const o = orders[s.order_id];
@@ -155,29 +174,28 @@ export default function ProdOggi() {
         className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg}`}
         title="Apri dettaglio lavorazione"
       >
-        {/* Header colorato del reparto (stesso stile Flow Board) */}
-        <div className={`${dc.chip} px-2.5 py-2 flex items-center gap-2`}>
-          <span className="text-xl leading-none" aria-hidden>{dc.emoji}</span>
-          <span className="font-display font-extrabold uppercase tracking-wide text-[16px] leading-none truncate">
+        <div className={`${dc.chip} px-2 py-1.5 flex items-center gap-1.5`}>
+          <span className="text-base leading-none" aria-hidden>{dc.emoji}</span>
+          <span className="font-display font-extrabold uppercase tracking-wide text-[12px] leading-none truncate">
             {DEPT_LABEL[s.dept]}
           </span>
           {u && (
-            <span className={`ml-auto text-[10px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border-2 ${u.cls}`}>
+            <span className={`ml-auto text-[9px] font-mono uppercase font-bold px-1 py-0.5 rounded-sm border ${u.cls}`}>
               {u.label}
             </span>
           )}
         </div>
-        <div className="p-2 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[11px] font-bold bg-ink text-paper px-1.5 py-0.5 rounded-sm">{s.code}</span>
-            <span className="text-[11px] font-mono uppercase tracking-wider text-ink/70">{SUB_STATUS_LABEL[s.status]}</span>
+        <div className="p-1.5 space-y-1.5">
+          <div className="flex items-center justify-between gap-1">
+            <span className="font-mono text-[10px] font-bold bg-ink text-paper px-1 py-0.5 rounded-sm">{s.code}</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{SUB_STATUS_LABEL[s.status]}</span>
           </div>
-          <div className="text-[14px] font-semibold truncate">{o?.cliente ?? "—"}</div>
+          <div className="text-[13px] font-semibold truncate">{o?.cliente ?? "—"}</div>
           <div
-            className="flex items-center gap-1.5 text-[16px] font-bold rounded-sm px-2 py-1.5 border"
+            className="flex items-center gap-1 text-[13px] font-bold rounded-sm px-1.5 py-1 border"
             style={s.assignee_id ? { backgroundColor: uc.bg, color: uc.fg, borderColor: uc.border } : undefined}
           >
-            <User className="w-4 h-4 shrink-0" />
+            <User className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{assignee ?? "Non assegnato"}</span>
           </div>
         </div>
@@ -185,9 +203,16 @@ export default function ProdOggi() {
     );
   };
 
+  const goPrevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); };
+  const goNextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); };
+  const goThisWeek = () => setWeekStart(mondayOf(new Date()));
+
+  const weekRangeLabel = `${weekDays[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} – ${weekDays[6].toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}`;
+  const today = todayIso();
+
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4 max-w-6xl mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 max-w-[1600px] mx-auto">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>
@@ -196,7 +221,7 @@ export default function ProdOggi() {
               Le mie Attività
             </h1>
             <div className="text-[11px] text-muted-foreground mt-1">
-              Le lavorazioni assegnate a te, divise per data di scadenza.
+              Le lavorazioni assegnate a te, divise per giorno della settimana.
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
@@ -204,45 +229,113 @@ export default function ProdOggi() {
           </Button>
         </div>
 
+        {/* Selettore settimana */}
+        <div className="flex items-center justify-between gap-2 flex-wrap border-2 border-ink/20 rounded-sm p-2 bg-background">
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={goPrevWeek} aria-label="Settimana precedente">
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={goThisWeek}>Oggi</Button>
+            <Button variant="outline" size="sm" onClick={goNextWeek} aria-label="Settimana successiva">
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="font-mono text-xs uppercase tracking-wider text-ink/70">{weekRangeLabel}</div>
+        </div>
+
         {loading ? (
           <div className="text-sm text-muted-foreground">Caricamento…</div>
-        ) : subs.length === 0 ? (
-          <div className="border-2 border-dashed border-ink/20 rounded-sm p-8 text-center text-sm text-muted-foreground italic">
-            Nessuna attività assegnata. Goditi la pausa.
-          </div>
         ) : (
-          <div className="space-y-5">
-            {groups.map((g) => {
-              const today = todayIso();
-              const isOverdue = g.date && g.date < today;
-              const isToday = g.date === today;
-              return (
-                <section
-                  key={g.key}
-                  className={`border-2 rounded-sm p-3 ${
-                    isOverdue ? "border-destructive bg-destructive/5" :
-                    isToday ? "border-primary bg-primary/5" :
-                    "border-ink/20"
-                  }`}
-                >
-                  <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
-                    <h2 className={`font-display text-base font-bold uppercase tracking-wider ${isOverdue ? "text-destructive" : ""}`}>
-                      {fmtDateLabel(g.date)}
-                      {isOverdue && <span className="ml-2 text-[11px] font-mono">· in ritardo</span>}
-                    </h2>
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      {g.items.length} lavorazion{g.items.length === 1 ? "e" : "i"}
-                    </span>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {g.items.map(renderCard)}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+          <>
+            {/* IN RITARDO (fuori settimana) */}
+            {overdue.length > 0 && (
+              <section className="border-2 border-destructive bg-destructive/5 rounded-sm p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                  <h2 className="font-display text-base font-bold text-destructive uppercase tracking-wider">
+                    In ritardo · {overdue.length}
+                  </h2>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {overdue.map(renderCard)}
+                </div>
+              </section>
+            )}
+
+            {/* SETTIMANA: 7 colonne giorni */}
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+              {weekDays.map((d, i) => {
+                const iso = isoOf(d);
+                const items = byDay[iso] ?? [];
+                const isToday = iso === today;
+                const isPast = iso < today;
+                return (
+                  <section
+                    key={iso}
+                    className={`border-2 rounded-sm p-2 min-h-[120px] flex flex-col ${
+                      isToday ? "border-primary bg-primary/5" :
+                      isPast ? "border-ink/15 bg-muted/30" :
+                      "border-ink/20"
+                    }`}
+                  >
+                    <div className="mb-2 pb-1.5 border-b border-ink/10">
+                      <div className={`font-display text-sm font-extrabold uppercase tracking-wider ${isToday ? "text-primary" : ""}`}>
+                        {WEEKDAYS[i]}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          {d.toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}
+                        </div>
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          {items.length > 0 ? `${items.length}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      {items.length === 0 ? (
+                        <div className="text-[11px] text-muted-foreground italic text-center py-3">—</div>
+                      ) : (
+                        items.map(renderCard)
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+
+            {/* FUTURE oltre la settimana */}
+            {future.length > 0 && (
+              <section className="border-2 border-ink/20 rounded-sm p-3">
+                <h2 className="font-display text-base font-bold uppercase tracking-wider mb-3">
+                  Settimane successive · {future.length}
+                </h2>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {future.map(renderCard)}
+                </div>
+              </section>
+            )}
+
+            {/* SENZA DATA */}
+            {undated.length > 0 && (
+              <section className="border-2 border-dashed border-ink/20 rounded-sm p-3">
+                <h2 className="font-display text-base font-bold uppercase tracking-wider mb-3">
+                  Senza data · {undated.length}
+                </h2>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {undated.map(renderCard)}
+                </div>
+              </section>
+            )}
+
+            {subs.length === 0 && (
+              <div className="border-2 border-dashed border-ink/20 rounded-sm p-8 text-center text-sm text-muted-foreground italic">
+                Nessuna attività assegnata. Goditi la pausa.
+              </div>
+            )}
+          </>
         )}
       </div>
     </ProdLayout>
   );
+
 }

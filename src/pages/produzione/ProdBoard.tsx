@@ -575,11 +575,12 @@ const ProdBoard = () => {
                                   <option value="rimandato">↩ Revisiona…</option>
                                   {s.status === "bloccato" && <option value="bloccato">✕ Bloccato</option>}
                                 </select>
-                                <div className="flex items-center gap-1 text-[12px] font-mono text-ink/70 shrink-0 min-w-0">
-                                  {isSubLocked(s) && <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
-                                  <User className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="truncate max-w-[110px]">{assignee?.display_name ?? "Non assegnato"}</span>
+                                <div className="flex items-center gap-1 text-[14px] font-bold text-ink shrink-0 min-w-0">
+                                  {isSubLocked(s) && <Lock className="w-4 h-4 text-amber-600 shrink-0" />}
+                                  <User className="w-4 h-4 shrink-0" />
+                                  <span className="truncate max-w-[130px]">{assignee?.display_name ?? "Non assegnato"}</span>
                                 </div>
+
                               </div>
 
                               {s.note && (

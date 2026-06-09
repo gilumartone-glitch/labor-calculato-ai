@@ -529,7 +529,12 @@ const Index = () => {
     state: stateForDept(k),
     catalog: catalogs[k],
     customerType: customerForDept(k),
-  })).concat(workshopSummaryData as any).concat(salesSummary ? [salesSummary as any] : []);
+  })).filter((d) => {
+    // Escludi reparti senza lavorazioni/materiali e con totale 0.
+    const s = d.state;
+    const hasContent = (s?.pieces?.length ?? 0) > 0 || (s?.materials?.length ?? 0) > 0;
+    return hasContent && (d.totals?.total ?? 0) > 0;
+  }).concat(workshopSummaryData as any).concat(salesSummary ? [salesSummary as any] : []);
 
   return (
     <div data-dept={activeTab} className="min-h-screen bg-dept-soft/35 transition-colors">

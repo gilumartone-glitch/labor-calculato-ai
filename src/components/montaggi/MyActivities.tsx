@@ -182,10 +182,16 @@ export const MyActivities = () => {
                     <Link
                       key={s.id}
                       to={`/produzione/board?sub=${s.id}`}
-                      className="block border border-ink/15 rounded-sm p-2 hover:bg-muted/40 hover:border-primary transition-colors"
+                      className={`block border rounded-sm p-2 hover:bg-muted/40 hover:border-primary transition-colors ${s._role === "coordinator" ? "border-amber-400/70 bg-amber-50/40" : "border-ink/15"}`}
+                      title={s._role === "coordinator" ? "Sei il responsabile (non l'operatore) di questa lavorazione" : undefined}
                     >
                       <div className="flex items-center justify-between gap-2 text-[13px]">
-                        <span className="font-bold truncate">{s.code}</span>
+                        <span className="font-bold truncate flex items-center gap-1.5">
+                          {s.code}
+                          {s._role === "coordinator" && (
+                            <span className="text-[9px] font-mono uppercase font-bold px-1 py-0.5 rounded-sm bg-amber-400 text-ink">Resp.</span>
+                          )}
+                        </span>
                         <span className="text-[10px] font-mono uppercase tracking-wider text-primary shrink-0">
                           {DEPT_LABEL[s.dept as keyof typeof DEPT_LABEL] ?? s.dept}
                         </span>

@@ -468,7 +468,7 @@ const ProdBoard = () => {
                 <div className="font-display font-semibold text-base">{st.label}</div>
                 <span className="font-mono text-xs text-muted-foreground">{st.items.length}</span>
               </div>
-              <div className="p-2 space-y-2 min-h-[120px] md:min-h-[200px] md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
+              <div className="p-2 space-y-2 min-h-[120px] md:min-h-[calc(100vh-200px)] md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:flex-1">
 
                 {st.items.length === 0 ? (
                   <div className="text-center text-xs text-muted-foreground py-6 font-mono uppercase tracking-wider">Vuoto</div>

@@ -71,13 +71,17 @@ export const MyActivities = () => {
     (async () => {
       setLoading(true);
       // operator ids legati a questo utente (operator.userId === user.id e fallback: operator.id === user.id)
-      const [subsR, plansByUser, plansByOperatorId, notifR] = await Promise.all([
+      const [subsOpR, myOrdersR, plansByUser, plansByOperatorId, notifR] = await Promise.all([
         supabase.from("production_sub_orders")
-          .select("id, code, dept, status, order_id, due_date, rejection_reason")
-          .eq("assignee_id", user.id)
+          .select("id, code, dept, status, order_id, due_date, rejection_reason, assignee_id, operator_ids, coordinator_id")
+          .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
           .neq("status", "completato")
           .order("due_date", { ascending: true })
           .limit(50),
+        supabase.from("production_orders")
+          .select("id")
+          .or(`coordinator_id.eq.${user.id},created_by.eq.${user.id}`)
+          .limit(200),
         supabase.from("montaggi_planning")
           .select("id, date, hours, cantiere_label, reparto, notes, operator_id")
           .gte("date", todayIso)
@@ -99,8 +103,27 @@ export const MyActivities = () => {
           .limit(10),
       ]);
 
+      // Sub-ordini come coordinator dell'ordine (anche se non operator del sub)
+      const coordOrderIds = (myOrdersR.data ?? []).map((o: any) => o.id);
+      const subsCoordR = coordOrderIds.length
+        ? await supabase.from("production_sub_orders")
+            .select("id, code, dept, status, order_id, due_date, rejection_reason, assignee_id, operator_ids, coordinator_id")
+            .in("order_id", coordOrderIds)
+            .neq("status", "completato")
+            .order("due_date", { ascending: true })
+            .limit(100)
+        : { data: [] as MySub[] };
+
       if (cancelled) return;
-      setSubs((subsR.data ?? []) as MySub[]);
+      const subMap = new Map<string, MySub>();
+      for (const s of (subsOpR.data ?? []) as MySub[]) subMap.set(s.id, { ...s, _role: "operator" });
+      for (const s of (subsCoordR.data ?? []) as MySub[]) {
+        if (!subMap.has(s.id)) {
+          const isOp = s.assignee_id === user.id || (s.operator_ids ?? []).includes(user.id);
+          subMap.set(s.id, { ...s, _role: isOp ? "operator" : "coordinator" });
+        }
+      }
+      setSubs(Array.from(subMap.values()));
 
       // Unisci pianificazioni: per operator_id = user.id (linking diretto)
       // Le pianificazioni indirette (via operator.userId) sono già gestite altrove —

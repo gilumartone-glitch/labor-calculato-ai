@@ -278,7 +278,9 @@ export default function ProdOggi() {
                 return (
                   <section
                     key={iso}
-                    className={`border-2 rounded-sm p-2 flex flex-col min-h-[160px] xl:min-h-[calc(100vh-220px)] ${
+                    className={`border-2 rounded-sm p-2 flex flex-col min-h-[100px] xl:min-h-[calc(100vh-220px)] ${
+                      items.length === 0 ? "hidden xl:flex" : ""
+                    } ${
                       isToday ? "border-primary bg-primary/5" :
                       isPast ? "border-ink/15 bg-muted/30" :
                       "border-ink/20"

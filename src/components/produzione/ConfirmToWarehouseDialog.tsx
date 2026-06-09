@@ -20,6 +20,8 @@ export type WarehouseMaterialItem = {
   unit?: string;
   /** Codice/identificativo materiale. */
   code?: string;
+  /** Macro-reparto che ha bisogno del materiale (per bloccare solo i sub interessati). */
+  dept?: ProdDept;
 };
 
 export type MissingMaterial = {
@@ -30,7 +32,9 @@ export type MissingMaterial = {
   qty?: number;
   unit?: string;
   code?: string;
+  dept?: ProdDept;
 };
+
 
 export type WarehouseConfirmData = {
   customer_order_ref: string;

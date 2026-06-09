@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ArrowLeft, ClipboardList, HardHat, AlertTriangle } from "lucide-react";
+import { CalendarClock, ArrowLeft, User } from "lucide-react";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DEPT_LABEL } from "@/lib/produzione/types";
+import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdSubStatus } from "@/lib/produzione/types";
 import { urgencyBadge } from "@/lib/urgency";
 import { Button } from "@/components/ui/button";
+import { userColor } from "@/lib/user-color";
 
 type Sub = {
   id: string;
   code: string;
-  dept: string;
-  status: string;
+  dept: ProdDept;
+  status: ProdSubStatus;
   order_id: string;
   due_date: string | null;
   assignee_id: string | null;
@@ -28,16 +29,6 @@ type Order = {
   source_commessa_id: string | null;
 };
 
-type Plan = {
-  id: string;
-  date: string;
-  hours: number;
-  cantiere_label: string;
-  reparto: string;
-  notes: string | null;
-  operator_id: string;
-};
-
 type Profile = { id: string; display_name: string | null };
 
 const todayIso = () => {
@@ -45,10 +36,14 @@ const todayIso = () => {
   return d.toISOString().slice(0, 10);
 };
 
-const fmtDay = (iso: string | null) => {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" }); }
-  catch { return iso; }
+const fmtDateLabel = (iso: string | null) => {
+  if (!iso) return "Senza data";
+  try {
+    const d = new Date(iso);
+    const t = todayIso();
+    if (iso === t) return "Oggi";
+    return d.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" });
+  } catch { return iso; }
 };
 
 export default function ProdOggi() {
@@ -56,24 +51,22 @@ export default function ProdOggi() {
   const [subs, setSubs] = useState<Sub[]>([]);
   const [orders, setOrders] = useState<Record<string, Order>>({});
   const [deadlines, setDeadlines] = useState<Record<string, string | null>>({});
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
-  const [scope, setScope] = useState<"mine" | "all">("mine");
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const today = todayIso();
 
-      // Sub-ordini ancora aperti con scadenza fino a oggi, OPPURE in lavorazione (devono finire)
+      // Solo sub-ordini assegnati all'utente, ancora aperti
       const subsQ = await supabase
         .from("production_sub_orders")
         .select("id, code, dept, status, order_id, due_date, assignee_id, start_date, end_date")
+        .eq("assignee_id", user.id)
         .not("status", "in", "(completato,annullato)")
-        .order("due_date", { ascending: true })
+        .order("due_date", { ascending: true, nullsFirst: false })
         .limit(500);
 
       const allSubs = (subsQ.data ?? []) as Sub[];
@@ -98,102 +91,89 @@ export default function ProdOggi() {
       const dlMap: Record<string, string | null> = {};
       for (const c of (commQ.data ?? []) as { id: string; data_scadenza: string | null }[]) dlMap[c.id] = c.data_scadenza;
 
-      // Pianificazione di oggi (tutti i reparti)
-      const planQ = await supabase
-        .from("montaggi_planning")
-        .select("id, date, hours, cantiere_label, reparto, notes, operator_id")
-        .eq("date", today)
-        .order("start_time", { ascending: true, nullsFirst: false });
-
-      const planList = (planQ.data ?? []) as Plan[];
-
-      const userIds = Array.from(new Set([
-        ...allSubs.map((s) => s.assignee_id).filter((x): x is string => !!x),
-        ...planList.map((p) => p.operator_id).filter((x): x is string => /^[0-9a-f-]{36}$/i.test(x)),
-      ]));
-      const profQ = userIds.length
-        ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
-        : { data: [] as Profile[] };
       const profMap: Record<string, Profile> = {};
-      for (const p of (profQ.data ?? []) as Profile[]) profMap[p.id] = p;
+      if (user.id) {
+        const me = await supabase.from("profiles").select("id, display_name").eq("id", user.id).maybeSingle();
+        if (me.data) profMap[me.data.id] = me.data as Profile;
+      }
 
       if (cancelled) return;
       setSubs(allSubs);
       setOrders(orderMap);
       setDeadlines(dlMap);
-      setPlans(planList);
       setProfiles(profMap);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [user]);
 
-  // Filtra sub-ordini "da fare oggi": in lavorazione, oppure due_date <= today,
-  // oppure deadline commessa <= today
-  const todaySubs = useMemo(() => {
-    const today = todayIso();
-    return subs.filter((s) => {
-      const dl = s.due_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
-      const isOverdueOrToday = dl ? dl <= today : false;
-      const inProgress = s.status === "in_lavorazione";
-      const startedToday = s.start_date && s.start_date <= today && (!s.end_date || s.end_date >= today);
-      return isOverdueOrToday || inProgress || startedToday;
-    });
-  }, [subs, deadlines, orders]);
+  // Calcola data effettiva per ciascun sub (due_date oppure scadenza commessa)
+  const subDate = (s: Sub): string | null =>
+    s.due_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
 
-  const filteredSubs = useMemo(() => {
-    if (scope === "all") return todaySubs;
-    return todaySubs.filter((s) => s.assignee_id === user?.id);
-  }, [todaySubs, scope, user]);
-
-  const filteredPlans = useMemo(() => {
-    if (scope === "all") return plans;
-    return plans.filter((p) => p.operator_id === user?.id);
-  }, [plans, scope, user]);
-
-  // Raggruppa sub per stato di urgenza
+  // Raggruppa per data
   const groups = useMemo(() => {
-    const today = todayIso();
-    const overdue: Sub[] = [];
-    const oggi: Sub[] = [];
-    const inLavoro: Sub[] = [];
-    for (const s of filteredSubs) {
-      const dl = s.due_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
-      if (dl && dl < today) overdue.push(s);
-      else if (dl === today) oggi.push(s);
-      else inLavoro.push(s);
+    const map = new Map<string, Sub[]>();
+    for (const s of subs) {
+      const k = subDate(s) ?? "__none__";
+      const arr = map.get(k) ?? [];
+      arr.push(s);
+      map.set(k, arr);
     }
-    return { overdue, oggi, inLavoro };
-  }, [filteredSubs, deadlines, orders]);
+    const keys = Array.from(map.keys()).sort((a, b) => {
+      if (a === "__none__") return 1;
+      if (b === "__none__") return -1;
+      return a.localeCompare(b);
+    });
+    return keys.map((k) => ({ key: k, date: k === "__none__" ? null : k, items: map.get(k)! }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subs, orders, deadlines]);
 
-  const renderSub = (s: Sub) => {
+  const renderCard = (s: Sub) => {
     const o = orders[s.order_id];
-    const dl = s.due_date ?? deadlines[o?.source_commessa_id ?? ""] ?? null;
+    const dl = subDate(s);
     const u = urgencyBadge(dl, { done: false });
+    const dc = DEPT_COLOR[s.dept];
     const assignee = s.assignee_id ? profiles[s.assignee_id]?.display_name : null;
+    const uc = userColor(s.assignee_id);
+    const statusBg =
+      s.status === "in_lavorazione" ? "bg-blue-50 border-blue-300" :
+      s.status === "completato" ? "bg-emerald-50 border-emerald-300" :
+      s.status === "rimandato" ? "bg-orange-50 border-orange-300" :
+      s.status === "bloccato" ? "bg-destructive/10 border-destructive/40" :
+      "bg-muted/40 border-ink/15";
     return (
       <Link
         key={s.id}
         to={`/produzione/board?sub=${s.id}`}
-        className="block border-2 border-ink/15 rounded-sm p-3 hover:border-primary hover:bg-muted/30 transition-colors"
+        className={`block border rounded-sm overflow-hidden transition-colors hover:brightness-95 ${statusBg}`}
+        title="Apri dettaglio lavorazione"
       >
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono text-xs font-bold bg-ink text-paper px-1.5 py-0.5 rounded-sm">{s.code}</span>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-primary">
-              {DEPT_LABEL[s.dept as keyof typeof DEPT_LABEL] ?? s.dept}
-            </span>
-          </div>
+        {/* Header colorato del reparto (stesso stile Flow Board) */}
+        <div className={`${dc.chip} px-2.5 py-2 flex items-center gap-2`}>
+          <span className="text-xl leading-none" aria-hidden>{dc.emoji}</span>
+          <span className="font-display font-extrabold uppercase tracking-wide text-[16px] leading-none truncate">
+            {DEPT_LABEL[s.dept]}
+          </span>
           {u && (
-            <span className={`text-[10px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border-2 ${u.cls}`}>
+            <span className={`ml-auto text-[10px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border-2 ${u.cls}`}>
               {u.label}
             </span>
           )}
         </div>
-        <div className="text-sm font-semibold truncate">{o?.cliente ?? "—"}</div>
-        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground mt-1">
-          <span className="font-mono uppercase tracking-wider">{s.status}</span>
-          <span>{assignee ? `→ ${assignee}` : <span className="italic">non assegnato</span>}</span>
+        <div className="p-2 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono text-[11px] font-bold bg-ink text-paper px-1.5 py-0.5 rounded-sm">{s.code}</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-ink/70">{SUB_STATUS_LABEL[s.status]}</span>
+          </div>
+          <div className="text-[14px] font-semibold truncate">{o?.cliente ?? "—"}</div>
+          <div
+            className="flex items-center gap-1.5 text-[16px] font-bold rounded-sm px-2 py-1.5 border"
+            style={s.assignee_id ? { backgroundColor: uc.bg, color: uc.fg, borderColor: uc.border } : undefined}
+          >
+            <User className="w-4 h-4 shrink-0" />
+            <span className="truncate">{assignee ?? "Non assegnato"}</span>
+          </div>
         </div>
       </Link>
     );
@@ -201,115 +181,60 @@ export default function ProdOggi() {
 
   return (
     <ProdLayout>
-      <div className="p-3 sm:p-6 space-y-4 max-w-5xl mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 max-w-6xl mx-auto">
         <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">// Produzione</div>
             <h1 className="font-display text-2xl font-semibold flex items-center gap-2">
               <CalendarClock className="w-6 h-6 text-primary" />
-              Da fare oggi
+              Le mie Attività
             </h1>
             <div className="text-[11px] text-muted-foreground mt-1">
-              {new Date().toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+              Le lavorazioni assegnate a te, divise per data di scadenza.
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex border-2 border-ink/20 rounded-sm overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setScope("mine")}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${scope === "mine" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-              >
-                Le mie
-              </button>
-              <button
-                type="button"
-                onClick={() => setScope("all")}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider border-l-2 border-ink/20 ${scope === "all" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-              >
-                Tutte
-              </button>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/produzione/board"><ArrowLeft className="w-3.5 h-3.5 mr-1" /> Board</Link>
-            </Button>
-          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/produzione/board"><ArrowLeft className="w-3.5 h-3.5 mr-1" /> Flow Board</Link>
+          </Button>
         </div>
 
         {loading ? (
           <div className="text-sm text-muted-foreground">Caricamento…</div>
+        ) : subs.length === 0 ? (
+          <div className="border-2 border-dashed border-ink/20 rounded-sm p-8 text-center text-sm text-muted-foreground italic">
+            Nessuna attività assegnata. Goditi la pausa.
+          </div>
         ) : (
-          <>
-            {/* IN RITARDO */}
-            {groups.overdue.length > 0 && (
-              <section className="border-2 border-destructive bg-destructive/5 rounded-sm p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-destructive" />
-                  <h2 className="font-display text-base font-bold text-destructive uppercase tracking-wider">
-                    In ritardo · {groups.overdue.length}
-                  </h2>
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">{groups.overdue.map(renderSub)}</div>
-              </section>
-            )}
-
-            {/* OGGI */}
-            <section className="border-2 border-ink/20 rounded-sm p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <ClipboardList className="w-4 h-4 text-primary" />
-                <h2 className="font-display text-base font-bold uppercase tracking-wider">
-                  Lavorazioni di oggi · {groups.oggi.length + groups.inLavoro.length}
-                </h2>
-              </div>
-              {groups.oggi.length === 0 && groups.inLavoro.length === 0 ? (
-                <div className="text-sm text-muted-foreground italic">Nessuna lavorazione attiva.</div>
-              ) : (
-                <div className="grid gap-2 md:grid-cols-2">
-                  {[...groups.oggi, ...groups.inLavoro].map(renderSub)}
-                </div>
-              )}
-            </section>
-
-            {/* PIANIFICAZIONE */}
-            <section className="border-2 border-ink/20 rounded-sm p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <HardHat className="w-4 h-4 text-primary" />
-                <h2 className="font-display text-base font-bold uppercase tracking-wider">
-                  Pianificazione oggi · {filteredPlans.length}
-                </h2>
-              </div>
-              {filteredPlans.length === 0 ? (
-                <div className="text-sm text-muted-foreground italic">Nessun turno pianificato.</div>
-              ) : (
-                <div className="grid gap-2 md:grid-cols-2">
-                  {filteredPlans.map((p) => {
-                    const op = profiles[p.operator_id]?.display_name ?? p.operator_id;
-                    return (
-                      <Link
-                        key={p.id}
-                        to="/montaggi-pianificazione"
-                        className="block border-2 border-ink/15 rounded-sm p-3 hover:border-primary hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-bold truncate">{p.cantiere_label || "Senza cantiere"}</span>
-                          <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm shrink-0">
-                            {p.hours}h
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span className="font-mono uppercase tracking-wider">{p.reparto}</span>
-                          <span>→ {op}</span>
-                        </div>
-                        {p.notes && (
-                          <div className="text-[11px] mt-1 italic line-clamp-2">{p.notes}</div>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </>
+          <div className="space-y-5">
+            {groups.map((g) => {
+              const today = todayIso();
+              const isOverdue = g.date && g.date < today;
+              const isToday = g.date === today;
+              return (
+                <section
+                  key={g.key}
+                  className={`border-2 rounded-sm p-3 ${
+                    isOverdue ? "border-destructive bg-destructive/5" :
+                    isToday ? "border-primary bg-primary/5" :
+                    "border-ink/20"
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
+                    <h2 className={`font-display text-base font-bold uppercase tracking-wider ${isOverdue ? "text-destructive" : ""}`}>
+                      {fmtDateLabel(g.date)}
+                      {isOverdue && <span className="ml-2 text-[11px] font-mono">· in ritardo</span>}
+                    </h2>
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      {g.items.length} lavorazion{g.items.length === 1 ? "e" : "i"}
+                    </span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {g.items.map(renderCard)}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         )}
       </div>
     </ProdLayout>

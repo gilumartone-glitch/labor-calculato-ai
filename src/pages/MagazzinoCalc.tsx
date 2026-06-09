@@ -2458,24 +2458,44 @@ function SaleProductSection({
 
               {cart.length > 0 && (
                 <div className="border-2 border-ink/15 rounded-sm">
-                  <div className="px-3 py-2 bg-muted/40 border-b font-mono text-[10px] uppercase tracking-widest">Carrello ordine ({cart.length})</div>
+                  <div className="px-3 py-2 bg-muted/40 border-b font-mono text-[10px] uppercase tracking-widest">Carrello ordine ({cart.length}) — prezzo modificabile per riga</div>
                   <div className="divide-y">
                     {cart.map((l) => {
                       const t = lineTotal(l);
+                      const unit = l.unit || (t.material ? unitOf(t.material) : "");
                       return (
-                        <div key={l.id} className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center">
+                        <div key={l.id} className="grid grid-cols-[1fr,80px,110px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center">
                           <div>
-                            <strong>{t.material?.name ?? "—"}</strong>
-                            {t.material && <span className="text-muted-foreground"> · {labelOf(t.material)}</span>}
+                            <strong>{l.name ?? t.material?.name ?? "—"}</strong>
+                            {(l.variant || t.material) && (
+                              <span className="text-muted-foreground"> · {l.variant ?? (t.material ? labelOf(t.material) : "")}</span>
+                            )}
                           </div>
-                          <div className="text-right font-mono">{fmt(l.qty)} {t.material ? unitOf(t.material) : ""}</div>
+                          <Input
+                            type="number" step="0.01" min="0"
+                            value={l.qty || ""}
+                            onChange={(e) => setCart(cart.map((x) => x.id === l.id ? { ...x, qty: Number(e.target.value) || 0 } : x))}
+                            className="h-7 text-[12px] text-right font-mono"
+                            title={`Quantità (${unit})`}
+                          />
+                          <div className="relative">
+                            <Input
+                              type="number" step="0.01" min="0"
+                              value={l.priceSell ?? ""}
+                              onChange={(e) => setCart(cart.map((x) => x.id === l.id ? { ...x, priceSell: Number(e.target.value) || 0 } : x))}
+                              className="h-7 text-[12px] text-right font-mono pr-8"
+                              title={`Prezzo unitario di vendita (€/${unit})`}
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground pointer-events-none">€/{unit}</span>
+                          </div>
                           <div className="text-right font-mono font-bold">{eur(t.sell)}</div>
                           <button onClick={() => setCart(cart.filter((x) => x.id !== l.id))} className="text-ink/40 hover:text-destructive p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       );
                     })}
-                    <div className="grid grid-cols-[1fr,80px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center bg-dept-soft/30">
+                    <div className="grid grid-cols-[1fr,80px,110px,100px,32px] gap-2 px-3 py-2 text-[12px] items-center bg-dept-soft/30">
                       <div className="font-bold">Totale vendita</div>
+                      <div></div>
                       <div></div>
                       <div className="text-right font-mono font-bold text-dept">{eur(cartTotals.sell)}</div>
                       <div></div>

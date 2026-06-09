@@ -16,6 +16,7 @@ const NAV = [
   { to: "/produzione/oggi", label: "Le mie Attività", Icon: CalendarClock },
   { to: "/produzione/board", label: "Flow Board", Icon: Workflow },
   { to: "/produzione/magazzino", label: "Magazzino", Icon: Package },
+  { to: "/produzione/acquisti", label: "Acquisti", Icon: ShoppingCart },
   { to: "/produzione/trova-materiale", label: "Trova materiale", Icon: Wand2 },
   { to: "/produzione/chat", label: "Chat", Icon: MessagesSquare },
   { to: "/produzione/preparazione", label: "Preparazione", Icon: PackageCheck },

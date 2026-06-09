@@ -429,7 +429,7 @@ const ProdBoard = () => {
           )}
         </div>
 
-        <CantieriStrip />
+        
 
 
 

@@ -17,6 +17,8 @@ type Sub = {
   order_id: string;
   due_date: string | null;
   assignee_id: string | null;
+  operator_ids: string[] | null;
+  coordinator_id: string | null;
   start_date: string | null;
   end_date: string | null;
 };
@@ -27,6 +29,8 @@ type Order = {
   cliente: string;
   status: string;
   source_commessa_id: string | null;
+  coordinator_id: string | null;
+  created_by: string | null;
 };
 
 type Profile = { id: string; display_name: string | null };

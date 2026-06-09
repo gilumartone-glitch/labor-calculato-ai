@@ -57,22 +57,45 @@ export const ProdLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         <nav className="flex-1 p-2 space-y-0.5">
-          {NAV.map(({ to, end, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-sm text-[12px] font-medium transition-colors ${
-                  isActive ? "bg-primary text-primary-foreground" : "text-ink/70 hover:bg-muted hover:text-ink"
-                }`
-              }
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-            </NavLink>
-          ))}
+          {NAV.map(({ to, end, label, Icon }) => {
+            const isFlowBoard = to === "/produzione/board";
+            if (isFlowBoard) {
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-3 py-2.5 my-1.5 rounded-sm text-[13px] font-bold uppercase tracking-wider border-2 border-ink transition-all ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-[3px_3px_0_0_hsl(var(--ink))]"
+                        : "bg-paper text-ink hover:bg-primary hover:text-primary-foreground shadow-[3px_3px_0_0_hsl(var(--ink))] hover:shadow-[1px_1px_0_0_hsl(var(--ink))] hover:translate-x-[2px] hover:translate-y-[2px]"
+                    }`
+                  }
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </NavLink>
+              );
+            }
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2 rounded-sm text-[12px] font-medium transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground" : "text-ink/70 hover:bg-muted hover:text-ink"
+                  }`
+                }
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t-2 border-ink/15 flex items-center justify-between gap-2">

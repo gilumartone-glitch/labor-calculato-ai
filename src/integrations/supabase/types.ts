@@ -1741,6 +1741,10 @@ export type Database = {
         Args: { _roles: string[]; _user_id: string }
         Returns: undefined
       }
+      can_view_order: {
+        Args: { _order_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_view_sub_order: {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean

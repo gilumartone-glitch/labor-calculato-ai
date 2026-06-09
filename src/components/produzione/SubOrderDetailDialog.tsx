@@ -549,10 +549,11 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:w-auto max-w-4xl max-h-[95vh] sm:max-h-[92vh] overflow-y-auto p-0">
         {/* Banner reparto/ufficio — colorato, BEN VISIBILE: dice immediatamente
             a quale ufficio è destinata la lavorazione e a chi è assegnata. */}
-        <div className={`${dc.chip} px-5 py-4 rounded-t-lg`}>
+        <div className={`${dc.chip} px-3 sm:px-5 py-3 sm:py-4 rounded-t-lg`}>
+
           <div className="flex items-center gap-3 flex-wrap">
             <div className="text-3xl leading-none" aria-hidden>{dc.emoji}</div>
             <div className="min-w-0">

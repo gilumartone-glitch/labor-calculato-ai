@@ -678,7 +678,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
             )}
           </div>
 
-          <div className="border-2 border-ink/15 rounded-sm p-3 space-y-1.5 text-[12px]">
+          <div className="border-2 border-ink/15 rounded-sm p-2.5 sm:p-3 space-y-1.5 text-[11px] sm:text-[12px]">
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Lavorazione</div>
             <div className="flex items-center gap-2">
               Reparto: <Badge variant="secondary" className="font-mono">{DEPT_LABEL[sub.dept]}</Badge>

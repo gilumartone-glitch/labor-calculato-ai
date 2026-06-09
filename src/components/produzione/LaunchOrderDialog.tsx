@@ -132,6 +132,7 @@ export const LaunchOrderDialog = ({ open, onOpenChange, warehouseOnlyDefault }: 
         attachments, nesting_included: nesting, created_by: user.id,
         production_name: production_name.trim() || null,
         customer_order_ref: customer_order_ref.trim() || null,
+        coordinator_id: form.coordinatorId || user.id,
       } as any).select().single();
       if (error) throw error;
 

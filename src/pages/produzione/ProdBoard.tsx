@@ -21,6 +21,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { collectSnapshotDepartments } from "@/lib/produzione/snapshot";
 
 import { urgencyBadge } from "@/lib/urgency";
+import { userColor } from "@/lib/user-color";
 
 /** Conta pezzi dello snapshot per ProdDept. */
 const piecesCountByDept = (order: ProdOrder): Partial<Record<ProdDept, number>> => {

@@ -677,7 +677,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
                           {(() => {
                             const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
                             if (!lp || !labCatalog) return null;
-                            const panels = panelsNeededForElement(selectedElement, lp);
+                            const panels = labPiecePanels(lp, labCatalog);
                             const cad = labPieceUnitCost(lp, labCatalog);
                             const tot = panels * cad;
                             return (

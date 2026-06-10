@@ -796,9 +796,23 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               <NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" />
             )}
           </Field>
-          <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
+          <Field label={line.fromLab ? "Costo a noi €/pannello" : "Prezzo unitario"}>
             {line.fromLab ? (
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
+              <div className="flex items-stretch gap-1">
+                <NumberInput
+                  value={unitCost}
+                  onChange={(value) => updateMaterialLine(line.id, { unitCost: value > 0 ? value : undefined })}
+                  prefix="€/pann."
+                />
+                {hasOverride && (
+                  <button
+                    type="button"
+                    className="rounded-md border border-input bg-muted px-2 text-xs hover:bg-accent"
+                    title={`Ripristina valore automatico dal Laboratorio (${eur(labUnit)})`}
+                    onClick={() => updateMaterialLine(line.id, { unitCost: undefined })}
+                  >Auto</button>
+                )}
+              </div>
             ) : (
               <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
             )}

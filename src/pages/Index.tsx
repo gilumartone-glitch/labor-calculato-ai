@@ -347,6 +347,18 @@ const Index = () => {
     try {
       localStorage.removeItem(STATE_KEY);
       const activeDraftId = localStorage.getItem("officina:active-draft");
+      // Pulisci anche lo stato locale dei moduli "workshop" (Falegnameria, Montaggi):
+      // hanno i propri storage indipendenti, sia globale che per-bozza.
+      const workshopLegacy: Record<keyof typeof WORKSHOP_KEYS, string> = {
+        falegnameria: "officina:falegnameria-module:v1",
+        montaggi: "officina:montaggi-module:v1",
+      };
+      (Object.keys(WORKSHOP_KEYS) as Array<keyof typeof WORKSHOP_KEYS>).forEach((k) => {
+        const base = WORKSHOP_KEYS[k];
+        localStorage.removeItem(base);
+        localStorage.removeItem(workshopLegacy[k]);
+        if (activeDraftId) localStorage.removeItem(`${base}:${activeDraftId}`);
+      });
       if (activeDraftId) {
         const { supabase } = await import("@/integrations/supabase/client");
         await supabase

@@ -344,7 +344,10 @@ export const TrasferteCalculator = ({
               suffix="ore"
             />
           </Field>
-          <Field label="Costo orario viaggio">
+          <Field
+            label="Costo orario viaggio"
+            hint={useRealCosts ? `Auto: media costo squadra ${eur(avgHourly)}/h` : "Usato solo se non c'è una squadra assegnata"}
+          >
             <NumberField value={cfg.hourlyRate} onChange={(n) => set({ hourlyRate: n ?? 0 })} suffix="€/h" />
           </Field>
         </div>

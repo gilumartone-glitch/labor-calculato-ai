@@ -788,10 +788,17 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
             {/* MOBILE: lista a card */}
             <div className="sm:hidden space-y-2">
-              {aggregatedMaterials.map((m, i) => (
+              {aggregatedMaterials.map((m: any, i) => (
                 <div key={i} className="border border-ink/15 rounded-sm p-2 bg-paper text-[14px] sm:text-[12px] space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="font-semibold break-words min-w-0">{m.name}</div>
+                    <div className="font-semibold break-words min-w-0 flex items-center gap-1.5 flex-wrap">
+                      {m.name}
+                      {m._fromDept && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-sm font-mono text-[10px] uppercase tracking-wider font-bold">
+                          ⇣ da {DEPT_LABEL[m._fromDept] ?? m._fromDept}
+                        </span>
+                      )}
+                    </div>
                     <div className="font-mono tabular-nums font-bold shrink-0">{m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : "—"}</div>
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground font-mono">
@@ -801,7 +808,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </div>
                   {m.pieceLabels.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-0.5">
-                      {m.pieceLabels.map((pl, pi) => (
+                      {m.pieceLabels.map((pl: string, pi: number) => (
                         <span key={pi} className="inline-block px-1.5 py-0.5 bg-muted/60 rounded-sm font-mono text-[14px] sm:text-[12px] sm:text-[10px] font-bold">{pl}</span>
                       ))}
                     </div>

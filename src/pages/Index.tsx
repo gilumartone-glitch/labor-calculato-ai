@@ -533,7 +533,7 @@ const Index = () => {
       return {
         key,
         label,
-        totals: { materials: Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0), operations: labor, perimeters: 0, pieces: Number(materialsByCategory.accessori ?? 0), transports, total },
+        totals: { materials: Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0), operations: labor, perimeters: 0, pieces: Number(materialsByCategory.accessori ?? 0), transports: transports + trasferta, total },
         details: {
           materials: (project.materials ?? []).map((line: any) => {
             const item: any = materialById.get(line.materialId);

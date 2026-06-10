@@ -67,13 +67,22 @@ const eur = (n: number) =>
 
 /** Variante "pure" che lavora solo sullo snapshot kmAuto del config — non richiede
  *  il dataset città. Usata dai totali del progetto. */
-export const computeTrasferteTotalsFromConfig = (cfg: TrasferteConfig, workersAuto: number): TrasferteTotals => {
+export const computeTrasferteTotalsFromConfig = (
+  cfg: TrasferteConfig,
+  workersAuto: number,
+  workersHourlyTotal?: number,
+): TrasferteTotals => {
   const baseKm = cfg.kmOverride != null && cfg.kmOverride > 0 ? cfg.kmOverride : cfg.kmAuto ?? 0;
   const km = baseKm * (cfg.andataRitorno ? 2 : 1);
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
   const hours = cfg.hoursOverride != null && cfg.hoursOverride >= 0 ? cfg.hoursOverride : cfg.kmh > 0 ? km / cfg.kmh : 0;
   const carburante = cfg.carburanteOverride ?? km * cfg.costPerKm;
-  const oreViaggio = cfg.oreViaggioCostOverride ?? hours * cfg.hourlyRate * workers;
+  // Se ci viene passato il monte-costo orario reale della squadra (somma dei
+  // costi orari di ciascun addetto assegnato) lo usiamo. Altrimenti fallback
+  // al vecchio comportamento "hourlyRate × workers".
+  const hourlyTotalForTravel =
+    workersHourlyTotal != null && workersHourlyTotal > 0 ? workersHourlyTotal : cfg.hourlyRate * workers;
+  const oreViaggio = cfg.oreViaggioCostOverride ?? hours * hourlyTotalForTravel;
   const vitto = cfg.vittoTotalOverride ?? cfg.vittoPerDay * workers * cfg.days;
   const alloggioBase = cfg.alloggioPerDay * workers * cfg.days;
   const alloggioMin = cfg.alloggioMinDay * cfg.days;
@@ -86,9 +95,10 @@ export const computeTrasferteTotals = (
   origin: ItalianCity | undefined,
   dest: ItalianCity | undefined,
   workersAuto: number,
+  workersHourlyTotal?: number,
 ): TrasferteTotals => {
   const kmAuto = origin && dest ? estimateRoadKm(origin, dest) : cfg.kmAuto ?? 0;
-  return computeTrasferteTotalsFromConfig({ ...cfg, kmAuto }, workersAuto);
+  return computeTrasferteTotalsFromConfig({ ...cfg, kmAuto }, workersAuto, workersHourlyTotal);
 };
 
 const Field = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (

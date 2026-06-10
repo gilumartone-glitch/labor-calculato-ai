@@ -727,6 +727,15 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
         const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        // Nº pannelli auto via nesting: somma su tutti gli elementi del disegnatore
+        // che collegano lo stesso pezzo Lab.
+        const autoPanels = line.fromLab && lp
+          ? project.elements.reduce(
+              (s, el) => (el.fromLab && el.labPieceId === line.labPieceId ? s + panelsNeededForElement(el, lp) : s),
+              0,
+            )
+          : 0;
+        const qty = line.fromLab ? autoPanels : line.quantity;
         return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
@@ -735,7 +744,15 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             </select>
           </Field>
           <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
-          <Field label={line.fromLab ? "Nº pannelli" : "Quantità"}><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix={line.fromLab ? "Pannelli" : "Qtà"} /></Field>
+          <Field label={line.fromLab ? "Nº pannelli (auto)" : "Quantità"}>
+            {line.fromLab ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Calcolato automaticamente dal nesting degli elementi del disegnatore collegati a questo pezzo Lab.">
+                {qty || "—"}
+              </div>
+            ) : (
+              <NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" />
+            )}
+          </Field>
           <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
             {line.fromLab ? (
               <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
@@ -743,7 +760,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
             )}
           </Field>
-          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * unitCost)}</div></Field>
+          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(qty * unitCost)}</div></Field>
           <IconButton onClick={() => updateProject({ materials: project.materials.filter((row) => row.id !== line.id) })} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -752,7 +769,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               size="sm"
               variant={line.fromLab ? "default" : "outline"}
               onClick={() => updateMaterialLine(line.id, { fromLab: !line.fromLab, labPieceId: line.fromLab ? null : line.labPieceId ?? null })}
-              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato."
+              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato e i pannelli arrivano dal nesting degli elementi disegnati."
             >
               <Layers className="h-4 w-4" />{line.fromLab ? "Da Laboratorio" : "Prendi da Laboratorio"}
             </Button>
@@ -774,7 +791,9 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             )}
             {line.fromLab && lp && labCatalog && (
               <div className="font-mono text-xs text-muted-foreground">
-                {line.quantity || 0} pannell{(line.quantity || 0) === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(line.quantity * unitCost)}</span>
+                {qty === 0
+                  ? "Nessun elemento del disegnatore collegato a questo pezzo Lab"
+                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(nesting auto)</span></>}
               </div>
             )}
           </div>

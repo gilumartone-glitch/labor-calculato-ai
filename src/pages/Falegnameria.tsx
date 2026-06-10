@@ -720,6 +720,9 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
               <Summary label="Totale manodopera" value={totals.labor} />
               <Summary label="Totale trasporti" value={totals.transports} />
               <Summary label="Totale materie prime" value={totals.rawMaterials} />
+              {totals.labMaterials > 0 && (
+                <Summary label="— di cui da Laboratorio" value={totals.labMaterials} />
+              )}
               <Summary label="Totale accessori" value={totals.materialsByCategory.accessori} />
               <div className="rule-line" />
               <Summary label="Costo totale produzione" value={totals.production} strong />

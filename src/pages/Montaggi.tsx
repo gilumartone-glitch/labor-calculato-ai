@@ -709,7 +709,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   </>;
 };
 
-const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
+const TransportUsageSection = ({ project, updateProject, workersHourlyTotal }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; workersHourlyTotal?: number }) => {
   const workersAuto = project.labor.filter((l) => l.workerId).length || 1;
   const cfg = project.trasferte ?? defaultTrasferte();
   return (
@@ -719,7 +719,7 @@ const TransportUsageSection = ({ project, updateProject }: { project: WoodProjec
           <CardTitle>Calcolo trasferta squadra</CardTitle>
         </CardHeader>
         <CardContent>
-          <TrasferteCalculator cfg={cfg} workersAuto={workersAuto} onChange={(trasferte) => updateProject({ trasferte })} />
+          <TrasferteCalculator cfg={cfg} workersAuto={workersAuto} workersHourlyTotal={workersHourlyTotal} onChange={(trasferte) => updateProject({ trasferte })} />
         </CardContent>
       </Card>
 

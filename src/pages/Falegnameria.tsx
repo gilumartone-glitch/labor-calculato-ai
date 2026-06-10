@@ -979,7 +979,27 @@ const MontaggioSection = ({ project, updateProject, dips }: { project: WoodProje
 
 const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => (
   <Card className="border-2 border-dept shadow-soft">
-    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Trasporti</CardTitle><Button size="sm" onClick={() => updateProject({ transports: [...project.transports, { id: uid(), description: "Trasporto", quantity: 1, unitCost: 0 }] })}><Plus className="h-4 w-4" />Trasporto</Button></CardHeader>
+    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardTitle>Trasporti</CardTitle>
+      <div className="flex items-center gap-2">
+        {project.transports.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm(`Rimuovere tutti i ${project.transports.length} trasporti?`)) {
+                updateProject({ transports: [] });
+              }
+            }}
+            title="Svuota tutti i trasporti"
+          >
+            <Trash2 className="h-4 w-4" />
+            Svuota
+          </Button>
+        )}
+        <Button size="sm" onClick={() => updateProject({ transports: [...project.transports, { id: uid(), description: "Trasporto", quantity: 1, unitCost: 0 }] })}><Plus className="h-4 w-4" />Trasporto</Button>
+      </div>
+    </CardHeader>
     <CardContent className="space-y-3">
       {project.transports.map((line) => (
         <div key={line.id} className="rounded-sm border border-border bg-background p-3">

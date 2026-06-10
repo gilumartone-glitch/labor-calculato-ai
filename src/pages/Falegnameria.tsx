@@ -750,26 +750,30 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
         const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
-        // Nº pannelli auto via nesting: somma su tutti gli elementi del disegnatore
-        // che collegano lo stesso pezzo Lab.
-        const autoPanels = line.fromLab && lp
-          ? project.elements.reduce(
-              (s, el) => (el.fromLab && el.labPieceId === line.labPieceId ? s + panelsNeededForElement(el, lp) : s),
-              0,
-            )
-          : 0;
+        // Nº pannelli automatico = pannelli effettivamente calcolati dal nesting del Laboratorio
+        // su questo pezzo Lab (es. 3 pannelli necessari per ricavare quel pezzo).
+        const autoPanels = line.fromLab && lp && labCatalog ? labPiecePanels(lp, labCatalog) : 0;
         const qty = line.fromLab ? autoPanels : line.quantity;
         return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
-            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
-              {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
-            </select>
+            {line.fromLab && lp ? (
+              <div
+                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium truncate"
+                title={labPieceVoceLabel(lp)}
+              >
+                {labPieceVoceLabel(lp)}
+              </div>
+            ) : (
+              <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
+                {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
+              </select>
+            )}
           </Field>
           <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
           <Field label={line.fromLab ? "Nº pannelli (auto)" : "Quantità"}>
             {line.fromLab ? (
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Calcolato automaticamente dal nesting degli elementi del disegnatore collegati a questo pezzo Lab.">
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Pannelli necessari calcolati dal nesting del Laboratorio per questo pezzo Lab.">
                 {qty || "—"}
               </div>
             ) : (

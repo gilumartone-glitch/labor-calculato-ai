@@ -758,7 +758,13 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
             <CardHeader><CardTitle>Riepilogo preventivo</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <Summary label="Totale manodopera" value={totals.labor} />
-              <Summary label="Totale trasporti" value={totals.transports} />
+              <Summary label="Totale montaggio" value={totals.montaggio} />
+              {totals.trasferta > 0 && (
+                <Summary label="— di cui trasferta squadra" value={totals.trasferta} />
+              )}
+              {totals.transports > 0 && (
+                <Summary label="— di cui trasporti / extra" value={totals.transports} />
+              )}
               <Summary label="Totale materie prime" value={totals.rawMaterials} />
               {totals.labMaterials > 0 && (
                 <Summary label="— di cui da Laboratorio" value={totals.labMaterials} />

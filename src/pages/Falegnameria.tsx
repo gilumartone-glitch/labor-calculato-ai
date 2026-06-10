@@ -944,10 +944,26 @@ const MontaggioSection = ({ project, updateProject, dips }: { project: WoodProje
     const worker = project.workers.find((w) => w.id === line.workerId);
     return sum + (worker ? workerHourlyCost(worker) : 0);
   }, 0);
+  const hasData = !!project.trasferte;
   return (
     <Card className="border-2 border-dept shadow-soft">
-      <CardHeader>
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Montaggio in cantiere · trasferta squadra</CardTitle>
+        {hasData && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm("Rimuovere tutti i dati del montaggio (trasferta squadra)?")) {
+                updateProject({ trasferte: undefined });
+              }
+            }}
+            title="Rimuovi montaggio: azzera trasferta squadra"
+          >
+            <Trash2 className="h-4 w-4" />
+            Svuota
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <TrasferteCalculator

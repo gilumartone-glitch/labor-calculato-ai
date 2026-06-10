@@ -1725,7 +1725,7 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                     })}
                     <div className="flex flex-wrap gap-2 items-center pt-2">
                       <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
-                        <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi al carrello ordine
+                        <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi all'ordine
                       </Button>
                       <div className="text-[10px] font-mono text-muted-foreground">
                         {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}

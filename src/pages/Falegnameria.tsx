@@ -586,11 +586,57 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
                     <div className="max-h-48 space-y-1 overflow-auto rounded-sm border border-border p-2">
                       {project.materialCatalog.map((m) => <label key={m.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedElement.materialIds.includes(m.id)} onChange={(e) => updateElement(selectedElement.id, { materialIds: e.target.checked ? [...selectedElement.materialIds, m.id] : selectedElement.materialIds.filter((id) => id !== m.id) })} />{materialLabel(m)}</label>)}
                     </div>
+                    <div className="space-y-2 border-t border-border pt-3">
+                      <Label className="flex items-center gap-2"><Layers className="h-4 w-4" />Prendi materiale da Laboratorio</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedElement.fromLab ? "default" : "outline"}
+                        onClick={() => updateElement(selectedElement.id, { fromLab: !selectedElement.fromLab })}
+                      >
+                        <Layers className="h-4 w-4" />{selectedElement.fromLab ? "Materiale dal Laboratorio" : "Prendi dal Laboratorio"}
+                      </Button>
+                      {selectedElement.fromLab && (
+                        <>
+                          {(labPieces?.length ?? 0) === 0 ? (
+                            <p className="text-xs text-destructive">Nessun pezzo in Laboratorio · creane uno per poterlo collegare</p>
+                          ) : (
+                            <select
+                              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                              value={selectedElement.labPieceId ?? ""}
+                              onChange={(e) => updateElement(selectedElement.id, { labPieceId: e.target.value || null })}
+                            >
+                              <option value="">— Scegli pezzo Laboratorio —</option>
+                              {(labPieces ?? []).map((lp, i) => (
+                                <option key={lp.id} value={lp.id}>{labPieceOptionLabel(lp, i)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {(() => {
+                            const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
+                            if (!lp || !labCatalog) return null;
+                            const panelArea = labPieceAreaM2(lp);
+                            const elArea = elementAreaM2(selectedElement);
+                            const panels = panelArea > 0 ? Math.max(1, Math.ceil(elArea / panelArea)) : 0;
+                            const cad = labPieceUnitCost(lp, labCatalog);
+                            const tot = panels * cad;
+                            return (
+                              <div className="grid grid-cols-3 gap-2 rounded-sm border border-dept/30 bg-dept-soft/40 p-2 text-xs">
+                                <div><div className="label-cap">Pannelli</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
+                                <div><div className="label-cap">Cadauno</div><div className="font-mono">{eur(cad)}</div></div>
+                                <div><div className="label-cap">Totale</div><div className="font-mono font-semibold">{eur(tot)}</div></div>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      )}
+                    </div>
                     <Button variant="destructive" size="sm" onClick={() => { updateProject({ elements: project.elements.filter((el) => el.id !== selectedElement.id) }); setSelectedId(null); }}><Trash2 className="h-4 w-4" />Elimina elemento</Button>
                   </> : <p className="text-sm text-muted-foreground">Seleziona o trascina un elemento sul disegno per quote e materiali.</p>}
                   <div className="space-y-2 border-t border-border pt-3">
                     <Label className="flex items-center gap-2"><Layers className="h-4 w-4" />Elementi</Label>
                     {project.elements.map((el) => <button key={el.id} type="button" onClick={() => setSelectedId(el.id)} className={`w-full rounded-sm border p-2 text-left text-sm ${selectedId === el.id ? "border-dept bg-dept-soft" : "border-border bg-card"}`}>{el.label} · {el.w}×{el.h}×{el.d} {el.unit}</button>)}
+
                   </div>
                 </div>
               </CardContent>

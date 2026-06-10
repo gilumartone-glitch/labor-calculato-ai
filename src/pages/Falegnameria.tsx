@@ -923,15 +923,7 @@ const TransportUsageSection = ({ project, updateProject }: { project: WoodProjec
   </Card>
 );
 
-const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
-  const [dips, setDips] = useState<Dipendente[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    fetchDipendenti(true).then((all) => {
-      if (!cancelled) setDips(filterDipendentiByMacro(all, "laboratorio"));
-    });
-    return () => { cancelled = true; };
-  }, []);
+const LaborUsageSection = ({ project, updateProject, dips }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; dips: Dipendente[] }) => {
   const costOf = (id: string) => {
     const d = dips.find((x) => `dip:${x.id}` === id);
     if (d) return dipendenteHourlyCost(d);

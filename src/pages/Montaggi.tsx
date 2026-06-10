@@ -137,6 +137,7 @@ const initialProject = (): WoodProject => ({
   marginPct: 30,
   elements: [],
   tools: [],
+  trasferte: defaultTrasferte(),
 });
 
 const categoryLabel: Record<MaterialCategory, string> = {

@@ -698,9 +698,10 @@ function ManualMagazzinoOrderForm({
                   <Plus className="w-3 h-3 mr-1" />Scegli dal listino
                 </Button>
               )}
-              <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => addLine()}>
-                <Plus className="w-3 h-3 mr-1" />Riga manuale
+              <Button size="sm" className="h-7 text-[11px]" onClick={() => addLine()}>
+                <Plus className="w-3 h-3 mr-1" />Aggiungi all'ordine
               </Button>
+
             </div>
           </div>
           <div className="divide-y">

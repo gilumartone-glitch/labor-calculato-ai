@@ -621,6 +621,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
               addMaterialLine={addMaterialLine}
               labCatalog={labCatalog}
               labPieces={labPieces}
+              dips={dips}
             />
           )}
 

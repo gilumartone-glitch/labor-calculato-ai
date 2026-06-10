@@ -383,10 +383,14 @@ export const TrasferteCalculator = ({
         />
         <VoiceRow
           label="Ore di viaggio squadra"
-          auto={(cfg.hoursOverride ?? totals.hours) * cfg.hourlyRate * workers}
+          auto={(cfg.hoursOverride ?? totals.hours) * (useRealCosts ? (workersHourlyTotal as number) : cfg.hourlyRate * workers)}
           override={cfg.oreViaggioCostOverride}
           onChange={(n) => set({ oreViaggioCostOverride: n })}
-          hint={`${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × ${eur(cfg.hourlyRate)}/h × ${workers} ${workers === 1 ? "addetto" : "addetti"}`}
+          hint={
+            useRealCosts
+              ? `${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × somma costi squadra (${eur(workersHourlyTotal as number)}/h totali · ${workers} ${workers === 1 ? "addetto" : "addetti"})`
+              : `${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × ${eur(cfg.hourlyRate)}/h × ${workers} ${workers === 1 ? "addetto" : "addetti"}`
+          }
         />
         <VoiceRow
           label="Vitto"

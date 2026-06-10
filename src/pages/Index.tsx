@@ -330,7 +330,12 @@ const Index = () => {
       departments.tappezzeria.materials.length +
       departments.stampa.materials.length +
       departments.falegnameria.materials.length;
-    if (totalPieces === 0 && totalMaterials === 0) {
+    const activeDraftIdPeek = typeof window !== "undefined" ? localStorage.getItem("officina:active-draft") : null;
+    const hasWorkshopData = (Object.keys(WORKSHOP_KEYS) as Array<keyof typeof WORKSHOP_KEYS>).some((k) => {
+      const base = WORKSHOP_KEYS[k];
+      return !!localStorage.getItem(base) || (activeDraftIdPeek && !!localStorage.getItem(`${base}:${activeDraftIdPeek}`));
+    });
+    if (totalPieces === 0 && totalMaterials === 0 && !hasWorkshopData) {
       toast.info("Il preventivo è già vuoto");
       return;
     }

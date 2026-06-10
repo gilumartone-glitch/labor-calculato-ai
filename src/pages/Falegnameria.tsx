@@ -657,14 +657,12 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
                           {(() => {
                             const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
                             if (!lp || !labCatalog) return null;
-                            const panelArea = labPieceAreaM2(lp);
-                            const elArea = elementAreaM2(selectedElement);
-                            const panels = panelArea > 0 ? Math.max(1, Math.ceil(elArea / panelArea)) : 0;
+                            const panels = panelsNeededForElement(selectedElement, lp);
                             const cad = labPieceUnitCost(lp, labCatalog);
                             const tot = panels * cad;
                             return (
                               <div className="grid grid-cols-3 gap-2 rounded-sm border border-dept/30 bg-dept-soft/40 p-2 text-xs">
-                                <div><div className="label-cap">Pannelli</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
+                                <div><div className="label-cap">Pannelli (nesting)</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
                                 <div><div className="label-cap">Cadauno</div><div className="font-mono">{eur(cad)}</div></div>
                                 <div><div className="label-cap">Totale</div><div className="font-mono font-semibold">{eur(tot)}</div></div>
                               </div>

@@ -832,9 +832,18 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </tr>
                 </thead>
                 <tbody>
-                  {aggregatedMaterials.map((m, i) => (
+                  {aggregatedMaterials.map((m: any, i) => (
                     <tr key={i} className="border-t border-ink/10">
-                      <td className="px-2 py-1.5 font-semibold">{m.name}</td>
+                      <td className="px-2 py-1.5 font-semibold">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {m.name}
+                          {m._fromDept && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-sm font-mono text-[10px] uppercase tracking-wider font-bold">
+                              ⇣ da {DEPT_LABEL[m._fromDept] ?? m._fromDept}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-2 py-1.5 text-muted-foreground">{m.color || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground font-mono">{m.base || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground">{m.height || "—"}</td>

@@ -400,6 +400,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
   }, [labPieces]);
   const effectiveLineUnitCost = (line: MaterialLine, item?: WoodMaterial): number => {
     if (line.fromLab && line.labPieceId && labCatalog) {
+      // Se l'utente ha sovrascritto il "costo a noi" sulla riga, vince quello.
+      if (typeof line.unitCost === "number" && line.unitCost > 0) return line.unitCost;
       const lp = labPieceById.get(line.labPieceId);
       if (lp) return labPieceUnitCost(lp, labCatalog);
     }
@@ -423,13 +425,22 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
       return sum + (worker ? workerHourlyCost(worker) * line.hours : 0);
     }, 0);
     const transports = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    let labMaterials = 0;
     const materialsByCategory = project.materials.reduce(
       (acc, line) => {
         const item = materialById.get(line.materialId);
-        if (!item) return acc;
         const unit = effectiveLineUnitCost(line, item);
         const qty = effectiveLineQuantity(line);
-        return { ...acc, [item.category]: acc[item.category] + qty * unit };
+        const lineTotal = qty * unit;
+        // Le righe "Da Laboratorio" vengono sempre conteggiate come materie prime
+        // (categoria legno) anche se non c'è un item del catalogo corrispondente,
+        // così non si perde il costo nel preventivo.
+        if (line.fromLab && line.labPieceId) {
+          labMaterials += lineTotal;
+          return { ...acc, legno: acc.legno + lineTotal };
+        }
+        if (!item) return acc;
+        return { ...acc, [item.category]: acc[item.category] + lineTotal };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
@@ -437,7 +448,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     const production = labor + rawMaterials + materialsByCategory.accessori + transports;
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
+    return { labor, transports, materialsByCategory, labMaterials, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
   }, [materialById, project, labPieceById, labCatalog]);
 
 
@@ -711,6 +722,9 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
               <Summary label="Totale manodopera" value={totals.labor} />
               <Summary label="Totale trasporti" value={totals.transports} />
               <Summary label="Totale materie prime" value={totals.rawMaterials} />
+              {totals.labMaterials > 0 && (
+                <Summary label="— di cui da Laboratorio" value={totals.labMaterials} />
+              )}
               <Summary label="Totale accessori" value={totals.materialsByCategory.accessori} />
               <div className="rule-line" />
               <Summary label="Costo totale produzione" value={totals.production} strong />
@@ -746,7 +760,12 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const fallbackUnit = line.unitCost ?? item?.unitCost ?? 0;
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
-        const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        // "Costo a noi" override: se l'utente ha digitato un valore in modalità Lab,
+        // quello vince sull'auto calcolato dal nesting del Laboratorio.
+        const hasOverride = line.fromLab && typeof line.unitCost === "number" && line.unitCost > 0;
+        const unitCost = line.fromLab
+          ? (hasOverride ? (line.unitCost as number) : labUnit)
+          : fallbackUnit;
         // Nº pannelli automatico = pannelli effettivamente calcolati dal nesting del Laboratorio
         // su questo pezzo Lab (es. 3 pannelli necessari per ricavare quel pezzo).
         const autoPanels = line.fromLab && lp && labCatalog ? labPiecePanels(lp, labCatalog) : 0;
@@ -777,9 +796,23 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               <NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" />
             )}
           </Field>
-          <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
+          <Field label={line.fromLab ? "Costo a noi €/pannello" : "Prezzo unitario"}>
             {line.fromLab ? (
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
+              <div className="flex items-stretch gap-1">
+                <NumberInput
+                  value={unitCost}
+                  onChange={(value) => updateMaterialLine(line.id, { unitCost: value > 0 ? value : undefined })}
+                  prefix="€/pann."
+                />
+                {hasOverride && (
+                  <button
+                    type="button"
+                    className="rounded-md border border-input bg-muted px-2 text-xs hover:bg-accent"
+                    title={`Ripristina valore automatico dal Laboratorio (${eur(labUnit)})`}
+                    onClick={() => updateMaterialLine(line.id, { unitCost: undefined })}
+                  >Auto</button>
+                )}
+              </div>
             ) : (
               <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
             )}

@@ -585,6 +585,20 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 }
 
 const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void }) => {
+  const [dips, setDips] = useState<Dipendente[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDipendenti(true).then((all) => {
+      if (!cancelled) setDips(filterDipendentiByMacro(all, "montaggi"));
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const hourlyCostOf = (id: string): number => {
+    const d = dips.find((x) => `dip:${x.id}` === id);
+    if (d) return dipendenteHourlyCost(d);
+    const w = project.workers.find((x) => x.id === id);
+    return w ? workerHourlyCost(w) : 0;
+  };
   const materialById = new Map(project.materialCatalog.map((m) => [m.id, m]));
   const renderUsageRows = (category: MaterialCategory | "materie-prime", emptyText: string) => {
     const allowedCatalog = project.materialCatalog.filter((m) => (category === "materie-prime" ? m.category !== "accessori" : m.category === category));
@@ -619,8 +633,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   const materialById2 = materialById;
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
-      const worker = project.workers.find((w) => w.id === line.workerId);
-      const baseHourly = worker ? workerHourlyCost(worker) : 0;
+      const baseHourly = hourlyCostOf(line.workerId);
       return sum + (baseHourly + (line.travel ? 2.5 : 0)) * line.hours;
     }, 0);
     const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
@@ -635,7 +648,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     const marginEuro = production * ((project.marginPct ?? 0) / 100);
     const sale = production + marginEuro;
     return { labor, transports, materials, production, marginEuro, sale };
-  }, [project, materialById2]);
+  }, [project, materialById2, dips]);
 
   return <>
     <LaborUsageSection project={project} updateProject={updateProject} />

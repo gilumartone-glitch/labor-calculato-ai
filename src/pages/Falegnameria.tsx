@@ -400,6 +400,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
   }, [labPieces]);
   const effectiveLineUnitCost = (line: MaterialLine, item?: WoodMaterial): number => {
     if (line.fromLab && line.labPieceId && labCatalog) {
+      // Se l'utente ha sovrascritto il "costo a noi" sulla riga, vince quello.
+      if (typeof line.unitCost === "number" && line.unitCost > 0) return line.unitCost;
       const lp = labPieceById.get(line.labPieceId);
       if (lp) return labPieceUnitCost(lp, labCatalog);
     }

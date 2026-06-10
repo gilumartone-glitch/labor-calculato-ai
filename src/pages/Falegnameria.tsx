@@ -758,7 +758,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
   return embedded ? content : <div data-dept="falegnameria" className="min-h-screen bg-dept-soft/50 text-foreground">{content}</div>;
 }
 
-const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine, labCatalog, labPieces }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void; labCatalog?: CalcCatalog; labPieces?: PieceLine[] }) => {
+const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine, labCatalog, labPieces, dips }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void; labCatalog?: CalcCatalog; labPieces?: PieceLine[]; dips: Dipendente[] }) => {
   const materialById = new Map(project.materialCatalog.map((m) => [m.id, m]));
   const labPiecesArr = labPieces ?? [];
   const labPieceFor = (id?: string | null) => (id ? labPiecesArr.find((p) => p.id === id) : undefined);

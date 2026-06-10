@@ -656,7 +656,12 @@ const Index = () => {
                 departments={summaryData}
               />
             ) : activeTab === "falegnameria" ? (
-              <Falegnameria embedded />
+              <Falegnameria
+                embedded
+                labCatalog={catalogs.stampa}
+                labPieces={departments.stampa.pieces}
+              />
+
             ) : activeTab === "magazzino" ? (
               <MagazzinoCalc />
             ) : activeTab === "montaggi" ? (

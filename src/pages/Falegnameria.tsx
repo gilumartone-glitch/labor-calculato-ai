@@ -45,6 +45,36 @@ import {
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
+import { pieceTotal } from "@/lib/piece";
+import { convertLength } from "@/lib/perimeter";
+import type { Catalog as CalcCatalog, PieceLine } from "@/components/calculator/types";
+
+/** Costo cadauno (€) di un pannello del Laboratorio: pieceTotal / quantità del pezzo Lab. */
+const labPieceUnitCost = (lp: PieceLine, cat: CalcCatalog): number => {
+  const qty = Math.max(1, Math.floor(Number(lp.quantity) || 1));
+  return pieceTotal(lp, cat) / qty;
+};
+/** Area in m² del singolo pannello Lab (senza margini di lavorazione). */
+const labPieceAreaM2 = (lp: PieceLine): number => {
+  const w = convertLength(Number(lp.width) || 0, lp.dimUnit, "m");
+  const h = convertLength(Number(lp.height) || 0, lp.dimUnit, "m");
+  return Math.max(0, w * h);
+};
+/** Area in m² di un elemento del disegnatore (w × h espressi in mm o cm). */
+const elementAreaM2 = (el: DrawingElement): number => {
+  const u = el.unit === "mm" ? "mm" : "cm";
+  const w = convertLength(Number(el.w) || 0, u, "m");
+  const h = convertLength(Number(el.h) || 0, u, "m");
+  return Math.max(0, w * h);
+};
+/** Etichetta breve per il select dei pezzi Lab. */
+const labPieceOptionLabel = (lp: PieceLine, idx: number): string => {
+  const name = lp.productName || `Pezzo Lab #${idx + 1}`;
+  const dim = `${lp.width || "?"}×${lp.height || "?"} ${lp.dimUnit}`;
+  const qty = Math.max(1, Math.floor(Number(lp.quantity) || 1));
+  return `#${String(idx + 1).padStart(2, "0")} · ${name} · ${dim} · ×${qty}`;
+};
+
 
 
 type WorkerProfile = {
@@ -63,7 +93,16 @@ type LaborLine = { id: string; workerId: string; hours: number };
 type TransportLine = { id: string; description: string; quantity: number; unitCost: number };
 type MaterialCategory = WorkshopMaterialCategory;
 type WoodMaterial = WorkshopMaterial;
-type MaterialLine = { id: string; materialId: string; quantity: number; unitCost?: number };
+type MaterialLine = {
+  id: string;
+  materialId: string;
+  quantity: number;
+  unitCost?: number;
+  /** Se true, il materiale è prelevato dal Laboratorio: `quantity` = nº pannelli,
+   *  `unitCost` = costo cadauno calcolato sul pezzo Lab collegato. */
+  fromLab?: boolean;
+  labPieceId?: string | null;
+};
 type ShapeType = "rect" | "l" | "base";
 type DrawingElement = {
   id: string;
@@ -76,6 +115,9 @@ type DrawingElement = {
   d: number;
   unit: "mm" | "cm";
   materialIds: string[];
+  /** Se true, oltre alla preview grafica si stima quanti pannelli Lab servono. */
+  fromLab?: boolean;
+  labPieceId?: string | null;
 };
 type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno";
 
@@ -97,7 +139,15 @@ type WoodProject = {
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };
 type StoredWoodProject = Omit<Partial<WoodProject>, "materials"> & { materials?: LegacyMaterialLine[] };
 
-type FalegnameriaProps = { embedded?: boolean };
+type FalegnameriaProps = {
+  embedded?: boolean;
+  /** Catalogo del Laboratorio (reparto Stampa) usato per il pulsante
+   *  "Prendi materiale da Laboratorio". */
+  labCatalog?: import("@/components/calculator/types").Catalog;
+  /** Pezzi presenti in Laboratorio da cui si possono prelevare i pannelli. */
+  labPieces?: import("@/components/calculator/types").PieceLine[];
+};
+
 
 const STORAGE_KEY = "officina:falegnameria-module:v2";
 const LEGACY_STORAGE_KEY = "officina:falegnameria-module:v1";
@@ -230,7 +280,7 @@ const drawElement = (ctx: CanvasRenderingContext2D, el: DrawingElement, selected
   ctx.restore();
 };
 
-export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
+export default function Falegnameria({ embedded = false, labCatalog, labPieces }: FalegnameriaProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [project, setProject] = useState<WoodProject>(() => initialProject());
@@ -293,6 +343,19 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
 
   const materialById = useMemo(() => new Map(project.materialCatalog.map((m) => [m.id, m])), [project.materialCatalog]);
 
+  const labPieceById = useMemo(() => {
+    const m = new Map<string, PieceLine>();
+    (labPieces ?? []).forEach((p) => m.set(p.id, p));
+    return m;
+  }, [labPieces]);
+  const effectiveLineUnitCost = (line: MaterialLine, item?: WoodMaterial): number => {
+    if (line.fromLab && line.labPieceId && labCatalog) {
+      const lp = labPieceById.get(line.labPieceId);
+      if (lp) return labPieceUnitCost(lp, labCatalog);
+    }
+    return line.unitCost ?? item?.unitCost ?? 0;
+  };
+
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
       const worker = project.workers.find((w) => w.id === line.workerId);
@@ -303,7 +366,8 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
       (acc, line) => {
         const item = materialById.get(line.materialId);
         if (!item) return acc;
-        return { ...acc, [item.category]: acc[item.category] + line.quantity * (line.unitCost ?? item.unitCost) };
+        const unit = effectiveLineUnitCost(line, item);
+        return { ...acc, [item.category]: acc[item.category] + line.quantity * unit };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
@@ -312,7 +376,8 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
     return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
-  }, [materialById, project]);
+  }, [materialById, project, labPieceById, labCatalog]);
+
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;
 
@@ -462,8 +527,16 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
           </Card>
 
           {section === "progetto" && (
-            <ProjectSection project={project} updateProject={updateProject} updateMaterialLine={updateMaterialLine} addMaterialLine={addMaterialLine} />
+            <ProjectSection
+              project={project}
+              updateProject={updateProject}
+              updateMaterialLine={updateMaterialLine}
+              addMaterialLine={addMaterialLine}
+              labCatalog={labCatalog}
+              labPieces={labPieces}
+            />
           )}
+
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
@@ -513,11 +586,57 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
                     <div className="max-h-48 space-y-1 overflow-auto rounded-sm border border-border p-2">
                       {project.materialCatalog.map((m) => <label key={m.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedElement.materialIds.includes(m.id)} onChange={(e) => updateElement(selectedElement.id, { materialIds: e.target.checked ? [...selectedElement.materialIds, m.id] : selectedElement.materialIds.filter((id) => id !== m.id) })} />{materialLabel(m)}</label>)}
                     </div>
+                    <div className="space-y-2 border-t border-border pt-3">
+                      <Label className="flex items-center gap-2"><Layers className="h-4 w-4" />Prendi materiale da Laboratorio</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedElement.fromLab ? "default" : "outline"}
+                        onClick={() => updateElement(selectedElement.id, { fromLab: !selectedElement.fromLab })}
+                      >
+                        <Layers className="h-4 w-4" />{selectedElement.fromLab ? "Materiale dal Laboratorio" : "Prendi dal Laboratorio"}
+                      </Button>
+                      {selectedElement.fromLab && (
+                        <>
+                          {(labPieces?.length ?? 0) === 0 ? (
+                            <p className="text-xs text-destructive">Nessun pezzo in Laboratorio · creane uno per poterlo collegare</p>
+                          ) : (
+                            <select
+                              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                              value={selectedElement.labPieceId ?? ""}
+                              onChange={(e) => updateElement(selectedElement.id, { labPieceId: e.target.value || null })}
+                            >
+                              <option value="">— Scegli pezzo Laboratorio —</option>
+                              {(labPieces ?? []).map((lp, i) => (
+                                <option key={lp.id} value={lp.id}>{labPieceOptionLabel(lp, i)}</option>
+                              ))}
+                            </select>
+                          )}
+                          {(() => {
+                            const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
+                            if (!lp || !labCatalog) return null;
+                            const panelArea = labPieceAreaM2(lp);
+                            const elArea = elementAreaM2(selectedElement);
+                            const panels = panelArea > 0 ? Math.max(1, Math.ceil(elArea / panelArea)) : 0;
+                            const cad = labPieceUnitCost(lp, labCatalog);
+                            const tot = panels * cad;
+                            return (
+                              <div className="grid grid-cols-3 gap-2 rounded-sm border border-dept/30 bg-dept-soft/40 p-2 text-xs">
+                                <div><div className="label-cap">Pannelli</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
+                                <div><div className="label-cap">Cadauno</div><div className="font-mono">{eur(cad)}</div></div>
+                                <div><div className="label-cap">Totale</div><div className="font-mono font-semibold">{eur(tot)}</div></div>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      )}
+                    </div>
                     <Button variant="destructive" size="sm" onClick={() => { updateProject({ elements: project.elements.filter((el) => el.id !== selectedElement.id) }); setSelectedId(null); }}><Trash2 className="h-4 w-4" />Elimina elemento</Button>
                   </> : <p className="text-sm text-muted-foreground">Seleziona o trascina un elemento sul disegno per quote e materiali.</p>}
                   <div className="space-y-2 border-t border-border pt-3">
                     <Label className="flex items-center gap-2"><Layers className="h-4 w-4" />Elementi</Label>
                     {project.elements.map((el) => <button key={el.id} type="button" onClick={() => setSelectedId(el.id)} className={`w-full rounded-sm border p-2 text-left text-sm ${selectedId === el.id ? "border-dept bg-dept-soft" : "border-border bg-card"}`}>{el.label} · {el.w}×{el.h}×{el.d} {el.unit}</button>)}
+
                   </div>
                 </div>
               </CardContent>
@@ -550,8 +669,10 @@ export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
   return embedded ? content : <div data-dept="falegnameria" className="min-h-screen bg-dept-soft/50 text-foreground">{content}</div>;
 }
 
-const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void }) => {
+const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine, labCatalog, labPieces }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void; labCatalog?: CalcCatalog; labPieces?: PieceLine[] }) => {
   const materialById = new Map(project.materialCatalog.map((m) => [m.id, m]));
+  const labPiecesArr = labPieces ?? [];
+  const labPieceFor = (id?: string | null) => (id ? labPiecesArr.find((p) => p.id === id) : undefined);
   const renderUsageRows = (category: MaterialCategory | "materie-prime", emptyText: string) => {
     const allowedCatalog = project.materialCatalog.filter((m) => (category === "materie-prime" ? m.category !== "accessori" : m.category === category));
     const rows = project.materials.filter((line) => {
@@ -562,25 +683,68 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     return <CardContent className="space-y-3">
       {rows.map((line) => {
         const item = materialById.get(line.materialId);
-        const unitCost = line.unitCost ?? item?.unitCost ?? 0;
-        return <div key={line.id} className="rounded-sm border border-border bg-background p-3">
+        const fallbackUnit = line.unitCost ?? item?.unitCost ?? 0;
+        const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
+        const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
+        const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
               {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
             </select>
           </Field>
-          <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{item?.unit ?? "unità"}</div></Field>
-          <Field label="Quantità"><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" /></Field>
-          <Field label="Prezzo unitario"><NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" /></Field>
+          <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
+          <Field label={line.fromLab ? "Nº pannelli" : "Quantità"}><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix={line.fromLab ? "Pannelli" : "Qtà"} /></Field>
+          <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
+            {line.fromLab ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
+            ) : (
+              <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
+            )}
+          </Field>
           <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * unitCost)}</div></Field>
           <IconButton onClick={() => updateProject({ materials: project.materials.filter((row) => row.id !== line.id) })} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={line.fromLab ? "default" : "outline"}
+              onClick={() => updateMaterialLine(line.id, { fromLab: !line.fromLab, labPieceId: line.fromLab ? null : line.labPieceId ?? null })}
+              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato."
+            >
+              <Layers className="h-4 w-4" />{line.fromLab ? "Da Laboratorio" : "Prendi da Laboratorio"}
+            </Button>
+            {line.fromLab && (
+              labPiecesArr.length === 0 ? (
+                <span className="text-xs text-destructive">Nessun pezzo in Laboratorio · creane uno per poterlo collegare</span>
+              ) : (
+                <select
+                  className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm"
+                  value={line.labPieceId ?? ""}
+                  onChange={(e) => updateMaterialLine(line.id, { labPieceId: e.target.value || null })}
+                >
+                  <option value="">— Scegli pezzo Laboratorio —</option>
+                  {labPiecesArr.map((p, i) => (
+                    <option key={p.id} value={p.id}>{labPieceOptionLabel(p, i)}</option>
+                  ))}
+                </select>
+              )
+            )}
+            {line.fromLab && lp && labCatalog && (
+              <div className="font-mono text-xs text-muted-foreground">
+                {line.quantity || 0} pannell{(line.quantity || 0) === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(line.quantity * unitCost)}</span>
+              </div>
+            )}
           </div>
         </div>;
       })}
       {rows.length === 0 && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">{emptyText}</p>}
     </CardContent>;
   };
+
+
 
   return <>
     <Card className="border-2 border-dept shadow-soft">

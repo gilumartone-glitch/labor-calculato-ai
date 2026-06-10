@@ -229,10 +229,15 @@ export const TrasferteCalculator = ({
   cfg,
   onChange,
   workersAuto,
+  workersHourlyTotal,
 }: {
   cfg: TrasferteConfig;
   onChange: (next: TrasferteConfig) => void;
   workersAuto: number;
+  /** Somma dei costi orari (€/h, costo azienda) degli addetti assegnati alla
+   *  squadra. Quando >0 viene usato al posto di `hourlyRate × workers` per il
+   *  calcolo delle ore di viaggio. */
+  workersHourlyTotal?: number;
 }) => {
   const [cities, setCities] = useState<ItalianCity[]>([]);
   useEffect(() => {
@@ -255,13 +260,15 @@ export const TrasferteCalculator = ({
   }, [kmAuto]);
 
   const totals = useMemo(
-    () => computeTrasferteTotals(cfg, origin, dest, workersAuto),
-    [cfg, origin, dest, workersAuto],
+    () => computeTrasferteTotals(cfg, origin, dest, workersAuto, workersHourlyTotal),
+    [cfg, origin, dest, workersAuto, workersHourlyTotal],
   );
 
   const set = (patch: Partial<TrasferteConfig>) => onChange({ ...cfg, ...patch });
 
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
+  const useRealCosts = workersHourlyTotal != null && workersHourlyTotal > 0;
+  const avgHourly = useRealCosts ? workersHourlyTotal / Math.max(workers, 1) : cfg.hourlyRate;
 
   return (
     <div className="space-y-4">

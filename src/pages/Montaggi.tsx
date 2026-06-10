@@ -623,7 +623,10 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       const baseHourly = worker ? workerHourlyCost(worker) : 0;
       return sum + (baseHourly + (line.travel ? 2.5 : 0)) * line.hours;
     }, 0);
-    const transports = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const workersCount = project.labor.filter((l) => l.workerId).length || 1;
+    const trasferteCalc = project.trasferte ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount).total : 0;
+    const transports = transportsExtra + trasferteCalc;
     const materials = project.materials.reduce((sum, line) => {
       const item = materialById2.get(line.materialId);
       return sum + line.quantity * (line.unitCost ?? item?.unitCost ?? 0);

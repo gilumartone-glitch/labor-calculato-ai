@@ -527,8 +527,16 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
           </Card>
 
           {section === "progetto" && (
-            <ProjectSection project={project} updateProject={updateProject} updateMaterialLine={updateMaterialLine} addMaterialLine={addMaterialLine} />
+            <ProjectSection
+              project={project}
+              updateProject={updateProject}
+              updateMaterialLine={updateMaterialLine}
+              addMaterialLine={addMaterialLine}
+              labCatalog={labCatalog}
+              labPieces={labPieces}
+            />
           )}
+
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}

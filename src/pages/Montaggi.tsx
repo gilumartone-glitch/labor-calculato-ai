@@ -103,6 +103,7 @@ type WoodProject = {
   marginPct: number;
   elements: DrawingElement[];
   tools: ToolLine[];
+  trasferte?: TrasferteConfig;
   guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 

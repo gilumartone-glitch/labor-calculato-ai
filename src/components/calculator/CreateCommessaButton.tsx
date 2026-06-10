@@ -499,13 +499,29 @@ export const CreateCommessaButton = ({
         .single();
       if (e1) throw e1;
 
+      const extractedMaterials = extractMaterialsFromSnapshot(payload.productionSnapshot);
       const materialDeptByKey = new Map(
-        extractMaterialsFromSnapshot(payload.productionSnapshot).map((m) => [m.key, m.dept]),
+        extractedMaterials.map((m) => [m.key, m.dept]),
       );
-      const missingMaterials = (d.missing ?? []).map((m) => ({
-        ...m,
-        dept: materialDeptByKey.get(m.key) ?? m.dept,
-      }));
+      // Risolve la regola di dipendenza per ogni materiale "missing" (rispetto al suo reparto).
+      const { matchMaterialDependency } = await import("@/lib/material-dependencies");
+      const rawMissing = (d.missing ?? []).map((m) => {
+        const dept = materialDeptByKey.get(m.key) ?? m.dept;
+        const rule = matchMaterialDependency(m.label ?? "", dept as any);
+        return {
+          ...m,
+          dept,
+          producedByDept: rule?.produced_by_dept,
+          mode: rule?.mode ?? "blocking",
+        };
+      });
+      // I materiali "ignore" vengono saltati del tutto (no acquisti, no blocco).
+      const missingMaterials = rawMissing.filter((m) => m.mode !== "ignore");
+      // I materiali "autonomous" non generano blocco sul reparto consumatore, ma vengono
+      // comunque ordinati al reparto produttore tramite acquisti? No: in modalità autonoma
+      // il reparto consumatore non li attende, quindi servono comunque agli acquisti.
+      // Il blocco viene rimosso più sotto, quando costruiamo acquistiByDept.
+
 
       // acquisti subs (one per missing material) — propedeutici alle lavorazioni/magazzino
       // Mappa reparto tecnico → primo sub-acquisti che ne blocca solo quella lavorazione.

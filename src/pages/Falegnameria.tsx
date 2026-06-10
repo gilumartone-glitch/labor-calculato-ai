@@ -897,7 +897,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       {renderUsageRows("accessori", "Aggiungi qui ferramenta, viti, cerniere o altri accessori usati nel progetto.")}
     </Card>
 
-    <LaborUsageSection project={project} updateProject={updateProject} />
+    <LaborUsageSection project={project} updateProject={updateProject} dips={dips} />
     <TransportUsageSection project={project} updateProject={updateProject} />
   </>;
 };

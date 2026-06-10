@@ -1,93 +1,59 @@
-## Obiettivo
+## Cosa costruisco
 
-1. Far comparire automaticamente tutti gli operatori del settore "Montaggi" anche dentro la pianificazione della singola commessa.
-2. Aggiungere alla pagina **Pianificazione** una tab "Lavorazioni" (laboratorio / tappezzeria / vendite) parallela a quella "Montaggi", con la stessa logica.
-3. Rendere lo spostamento delle assegnazioni veloce: **drag & drop** in calendario + **click veloce con popover** per modificare giorni/durata/eliminare senza aprire il dialog completo.
+Un sistema in **Impostazioni → Reparti** (sezione *Dipendenti → Gestione reparti*) per dichiarare, per ogni materiale o lavorazione, **chi lo produce internamente** e **come si comportano i reparti che lo consumano**.
 
-Niente modifiche al DB: la tabella `montaggi_planning` ha già la colonna `reparto` ed è già reparto-agnostica.
+### Esempio concreto
+- *MOZAIK* viene prodotto da **Stampa**.
+- *Tappezzeria* può essere configurata in due modi:
+  - **Dipendente** → la lavorazione Tappezzeria parte solo quando Stampa ha consegnato il MOZAIK (oggi è il default).
+  - **Autonoma** → Tappezzeria parte subito; nella sua scheda compare il MOZAIK con badge *"in arrivo da Stampa"*, ma non blocca.
 
----
+## 1. Nuova tabella `material_dependencies`
 
-## Sezione 1 — Operatori mancanti in assegnazione (commessa)
-
-**File:** `src/components/montaggi/PianificazioneSection.tsx`
-
-- Aggiungere `settori` alla query profili (riga ~198) → `.select("id, display_name, settori")`.
-- Aggiungere un memo `profileOps` analogo a quello già presente in `CalendarGlobalView.tsx` (righe 143-153): filtra i profili con `settori.includes("montaggi")`, deduplica contro gli operatori già presenti.
-- Modificare la riga 160 (`operators = view === "progetto" ? projectOperators : ops.state`) in modo che in modalità progetto restituisca `[...projectOperators, ...profileOps]`. Così sia la griglia del calendario che il dropdown "Assegna intervallo veloce" interno alla commessa li includono.
-
-Risultato: nessun setup manuale richiesto, basta che l'utente abbia il settore "Montaggi" nel profilo.
-
----
-
-## Sezione 2 — Pianificazione con tab "Lavorazioni" + "Montaggi"
-
-**Pagina:** `src/pages/MontaggiPianificazione.tsx` (rinomino concettualmente in "Pianificazione" ma lascio la route com'è per compatibilità).
-
-Layout:
-
-```text
-┌──────────────────────────────────────────────────┐
-│ [ Montaggi ] [ Lavorazioni ]    Reparto: [ ▾ ]   │
-├──────────────────────────────────────────────────┤
-│ ← settimana →    Oggi    Cantiere/Commessa: [ ▾ ]│
-│                                                  │
-│  OPERAIO  | LUN | MAR | MER | GIO | VEN | …      │
-│  …                                               │
-└──────────────────────────────────────────────────┘
+```sql
+material_pattern   text       -- es. "MOZAIK", "Panno Oscurante" (match case-insensitive sul nome)
+produced_by_dept   text       -- "stampa", "falegnameria"...
+consumer_dept      text NULL  -- NULL = vale per tutti; altrimenti specifico
+mode               text       -- 'blocking' | 'autonomous' | 'ignore'
+note               text
 ```
 
-- **Tab "Montaggi"**: comportamento attuale di `CalendarGlobalView` filtrato su `reparto = "montaggi"`. Operatori = profili con settore montaggi (già fatto).
-- **Tab "Lavorazioni"**: stesso componente riutilizzato in modalità "lavorazioni"; filtro reparto interno con tre valori (`laboratorio`, `tappezzeria`, `vendite`), default "tutti". Operatori = profili con almeno uno di quei settori.
-- Filtro reparto rimane visibile sopra la griglia per restringere ulteriormente.
-- Le righe della tabella `montaggi_planning` con `reparto ∈ {laboratorio, tappezzeria, vendite}` sono già supportate, basta filtrare in lettura e settare il default corretto in scrittura.
+RLS: read per `authenticated`, write per `admin`.
 
-Stessa griglia, stessi colori (già definiti in `COLORS`), stessa dialog di edit con `reparto` selezionabile.
+## 2. UI in `Dipendenti.tsx` → nuovo blocco `MaterialDependenciesManager`
 
----
+Sotto al `RepartiManager` esistente, una card "Dipendenze materiali tra reparti" con:
+- elenco regole esistenti
+- form per aggiungere: nome materiale (testo libero o suggerito dai cataloghi), reparto che produce, reparto che consuma (o "tutti"), modalità (`blocca` / `autonomo` / `ignora`).
+- modifica/eliminazione in linea
 
-## Sezione 3 — Spostamento veloce (drag & drop + click popover)
+## 3. Applicazione nelle commesse
 
-Uso `@dnd-kit/core` (già installato). Nessuna nuova dipendenza.
+**`snapshot-materials.ts`** estrae i materiali come oggi, ma ogni `SnapshotMaterial` ottiene anche:
+- `producedByDept?: ProdDept` — dal match della regola
+- `mode?: 'blocking' | 'autonomous' | 'ignore'`
 
-**Drag & drop:**
-- Ogni chip assegnazione in calendario diventa `useDraggable` (id = assignment.id).
-- Ogni cella `<td>` operatore×giorno diventa `useDroppable` (id = `${operator_id}|${dateStr}`).
-- Su drop: `UPDATE montaggi_planning SET operator_id=…, date=… WHERE id=…` via `saveAssignment`.
-- Drag su un bordo laterale della chip (mini-handle) → estende/riduce di 1 giorno: crea/duplica righe sui giorni vicini con la stessa `cantiere_label`/`reparto`/`hours` (la tabella usa 1 riga per giorno, quindi "estendere" = inserire righe contigue).
+**`CreateCommessaButton.tsx`** — al momento di creare gli acquisti e i `depends_on`:
+- regola `blocking` → comportamento attuale (sub consumatore attende acquisti / sub produttore)
+- regola `autonomous` → niente `depends_on`; il sub consumatore parte subito
+- regola `ignore` → il materiale non genera né acquisto né dipendenza
 
-**Click veloce con popover:**
-- Click semplice sulla chip: apre un `Popover` inline (shadcn) ancorato alla chip con:
-  - input ore (numero)
-  - pulsanti `−1g` / `+1g` per spostare la data
-  - input "Dal / Al" per propagare l'assegnazione a un intervallo
-  - bottone Elimina
-  - link "Modifica avanzata…" che apre il dialog completo
-- Doppio click: apre direttamente il dialog completo (comportamento attuale).
-- Click sul `+` di una cella vuota: resta com'è (apre dialog).
+**`SubOrderDetailDialog.tsx`** — nella lista "Materiali necessari" del sub consumatore, quando il materiale è `autonomous` con `producedByDept ≠ sub.dept`, mostra un badge **"in arrivo da {Reparto}"** invece di nasconderlo (come avviene ora).
 
-Feedback visivo: durante il drag la chip diventa semitrasparente; la cella droppable evidenziata con `ring-2 ring-primary`.
+## 4. Default e migrazione
 
----
+- Nessuna regola = comportamento attuale (il materiale è del reparto che lo usa, niente cross-dependency).
+- Le regole si applicano solo alle commesse create *dopo* il salvataggio.
 
-## File modificati / creati
+## Dettagli tecnici
 
-- **edit** `src/components/montaggi/PianificazioneSection.tsx` — merge `profileOps` per settore montaggi.
-- **edit** `src/components/montaggi/CalendarGlobalView.tsx` —
-  - prop `mode: "montaggi" | "lavorazioni"` per scegliere reparti predefiniti, settori da matchare per `profileOps`, colore default, valore reparto di default nel dialog;
-  - wrap chip con `useDraggable`, cella con `useDroppable`, gestione drop;
-  - nuovo `QuickEditPopover` (componente inline o file dedicato `src/components/montaggi/QuickEditPopover.tsx`);
-  - sostituzione `onClick` chip → apertura popover; doppio click → dialog completo.
-- **edit** `src/pages/MontaggiPianificazione.tsx` — Tabs con "Montaggi" / "Lavorazioni", ognuna renderizza `CalendarGlobalView` con `mode` diverso.
-- **new** `src/components/montaggi/QuickEditPopover.tsx` (se conviene estrarlo).
+- Nuovo file `src/lib/material-dependencies.ts` con hook `useMaterialDependencies()` + `matchRule(materialName, consumerDept)`.
+- Match: case-insensitive, `material_pattern` confrontato come *contains* sul nome materiale.
+- I tipi `ProdDept` esistono già in `src/lib/produzione/types.ts` — riuso quelli.
+- Migrazione separata con GRANT su `authenticated` + `service_role`.
 
-Nessuna migrazione DB.
+## Fuori scopo
 
----
-
-## Note tecniche
-
-- Tipi `Reparto` in `CalendarGlobalView`: già include `laboratorio`, `tappezzeria`, manca `vendite` → lo aggiungo nei `REPARTI`, `COLORS`, `REPARTO_LABEL`.
-- Settori da matchare per la tab "Lavorazioni": `["laboratorio", "tappezzeria", "vendite"]` (valori del tipo `AppSettore`).
-- `DndContext` avvolge solo la griglia operai (non i filtri/header) per evitare interferenze con i bottoni esistenti.
-- `PointerSensor` con `activationConstraint: { distance: 4 }` così un click semplice non viene interpretato come drag e apre il popover.
+- Override per singola commessa (puoi aggiungerlo dopo).
+- UI di gestione regole nelle commesse già create (le regole valgono solo per nuove commesse).
+- Inferenza automatica da catalogo: tutte le regole sono manuali.

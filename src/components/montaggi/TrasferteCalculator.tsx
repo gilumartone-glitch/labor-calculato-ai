@@ -325,7 +325,7 @@ export const TrasferteCalculator = ({
 
       {/* Squadra & ore viaggio */}
       <div className="rounded-sm border border-border bg-background p-3 space-y-3">
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-3">
           <Field label="N° addetti" hint={`Auto: ${workersAuto} dalla squadra`}>
             <NumberField
               value={cfg.workersOverride ?? workersAuto}
@@ -337,18 +337,15 @@ export const TrasferteCalculator = ({
           <Field label="Velocità media">
             <NumberField value={cfg.kmh} onChange={(n) => set({ kmh: n ?? 0 })} suffix="km/h" step="1" />
           </Field>
-          <Field label="Ore viaggio (auto)" hint="km totali / velocità">
+          <Field
+            label="Ore viaggio (auto)"
+            hint={useRealCosts ? `km totali / velocità · costo medio squadra ${eur(avgHourly)}/h` : "km totali / velocità"}
+          >
             <NumberField
               value={cfg.hoursOverride ?? Number(totals.hours.toFixed(2))}
               onChange={(n) => set({ hoursOverride: n })}
               suffix="ore"
             />
-          </Field>
-          <Field
-            label="Costo orario viaggio"
-            hint={useRealCosts ? `Auto: media costo squadra ${eur(avgHourly)}/h` : "Usato solo se non c'è una squadra assegnata"}
-          >
-            <NumberField value={cfg.hourlyRate} onChange={(n) => set({ hourlyRate: n ?? 0 })} suffix="€/h" />
           </Field>
         </div>
       </div>

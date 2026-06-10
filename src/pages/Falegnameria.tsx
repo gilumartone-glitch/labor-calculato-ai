@@ -60,12 +60,39 @@ const labPieceAreaM2 = (lp: PieceLine): number => {
   const h = convertLength(Number(lp.height) || 0, lp.dimUnit, "m");
   return Math.max(0, w * h);
 };
+/** Dimensioni di un elemento del disegnatore in metri. */
+const elementDimsM = (el: DrawingElement): { w: number; h: number } => {
+  const u = el.unit === "mm" ? "mm" : "cm";
+  return {
+    w: convertLength(Number(el.w) || 0, u, "m"),
+    h: convertLength(Number(el.h) || 0, u, "m"),
+  };
+};
 /** Area in m² di un elemento del disegnatore (w × h espressi in mm o cm). */
 const elementAreaM2 = (el: DrawingElement): number => {
-  const u = el.unit === "mm" ? "mm" : "cm";
-  const w = convertLength(Number(el.w) || 0, u, "m");
-  const h = convertLength(Number(el.h) || 0, u, "m");
+  const { w, h } = elementDimsM(el);
   return Math.max(0, w * h);
+};
+/** Dimensioni del pannello Lab in metri. */
+const labPieceDimsM = (lp: PieceLine): { w: number; h: number } => ({
+  w: convertLength(Number(lp.width) || 0, lp.dimUnit, "m"),
+  h: convertLength(Number(lp.height) || 0, lp.dimUnit, "m"),
+});
+/**
+ * Nesting reale: quanti pannelli (ew × eh) servono per ricavare un elemento (W × H),
+ * considerando rotazione e tiling (split su più pannelli se l'elemento è più grande).
+ * Restituisce 0 se le dimensioni non sono valide.
+ */
+const panelsNeededForElement = (el: DrawingElement, lp: PieceLine): number => {
+  const { w: ew, h: eh } = elementDimsM(el);
+  const { w: pw, h: ph } = labPieceDimsM(lp);
+  if (ew <= 0 || eh <= 0 || pw <= 0 || ph <= 0) return 0;
+  const eps = 1e-6;
+  // Orientamento naturale
+  const tileA = Math.ceil(ew / pw - eps) * Math.ceil(eh / ph - eps);
+  // Orientamento ruotato
+  const tileB = Math.ceil(ew / ph - eps) * Math.ceil(eh / pw - eps);
+  return Math.max(1, Math.min(tileA, tileB));
 };
 /** Etichetta breve per il select dei pezzi Lab. */
 const labPieceOptionLabel = (lp: PieceLine, idx: number): string => {

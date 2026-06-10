@@ -343,6 +343,19 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
 
   const materialById = useMemo(() => new Map(project.materialCatalog.map((m) => [m.id, m])), [project.materialCatalog]);
 
+  const labPieceById = useMemo(() => {
+    const m = new Map<string, PieceLine>();
+    (labPieces ?? []).forEach((p) => m.set(p.id, p));
+    return m;
+  }, [labPieces]);
+  const effectiveLineUnitCost = (line: MaterialLine, item?: WoodMaterial): number => {
+    if (line.fromLab && line.labPieceId && labCatalog) {
+      const lp = labPieceById.get(line.labPieceId);
+      if (lp) return labPieceUnitCost(lp, labCatalog);
+    }
+    return line.unitCost ?? item?.unitCost ?? 0;
+  };
+
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
       const worker = project.workers.find((w) => w.id === line.workerId);
@@ -353,7 +366,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
       (acc, line) => {
         const item = materialById.get(line.materialId);
         if (!item) return acc;
-        return { ...acc, [item.category]: acc[item.category] + line.quantity * (line.unitCost ?? item.unitCost) };
+        const unit = effectiveLineUnitCost(line, item);
+        return { ...acc, [item.category]: acc[item.category] + line.quantity * unit };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
@@ -362,7 +376,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
     return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
-  }, [materialById, project]);
+  }, [materialById, project, labPieceById, labCatalog]);
+
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;
 

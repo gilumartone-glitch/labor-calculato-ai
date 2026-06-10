@@ -429,6 +429,12 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
 
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
+      // Supporta sia ID di tipo `dip:<uuid>` (Dipendenti del DB) sia ID dei worker
+      // del progetto. Senza questo, le righe con dipendenti reali venivano contate 0.
+      const dip = line.workerId.startsWith("dip:")
+        ? dips.find((d) => `dip:${d.id}` === line.workerId)
+        : undefined;
+      if (dip) return sum + dipendenteHourlyCost(dip) * line.hours;
       const worker = project.workers.find((w) => w.id === line.workerId);
       return sum + (worker ? workerHourlyCost(worker) * line.hours : 0);
     }, 0);

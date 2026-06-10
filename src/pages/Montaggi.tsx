@@ -319,7 +319,12 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
       const worker = project.workers.find((w) => w.id === line.workerId);
       return sum + (worker ? (workerHourlyCost(worker) + (line.travel ? 2.5 : 0)) * line.hours : 0);
     }, 0);
-    const transports = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const workersCount = project.labor.filter((l) => l.workerId).length || 1;
+    const trasferteCalc = project.trasferte
+      ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount).total
+      : 0;
+    const transports = transportsExtra + trasferteCalc;
     const materialsByCategory = project.materials.reduce(
       (acc, line) => {
         const item = materialById.get(line.materialId);

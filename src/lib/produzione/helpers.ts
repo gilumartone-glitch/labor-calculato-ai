@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ProdOrder, ProdSubOrder } from "./types";
+import { ProdOrder, ProdSubOrder, isNotifType, PROD_NOTIF_TYPES } from "./types";
 
 /** Genera un codice ordine ORD-YYYY-### incrementale per anno corrente.
  *  Usa una funzione SECURITY DEFINER per leggere TUTTI gli ordini, anche quelli
@@ -62,6 +62,12 @@ export async function notify(opts: {
   is_urgent?: boolean;
 }) {
   if (!opts.userIds.length) return;
+  if (!isNotifType(opts.type)) {
+    console.error(
+      `[notify] tipo notifica non valido: "${opts.type}". Valori ammessi: ${PROD_NOTIF_TYPES.join(", ")}`
+    );
+    return;
+  }
   const rows = opts.userIds.map((uid) => ({
     user_id: uid,
     type: opts.type,

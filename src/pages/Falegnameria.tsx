@@ -405,15 +405,12 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     }
     return line.unitCost ?? item?.unitCost ?? 0;
   };
-  /** Nº pannelli auto: somma dei pannelli richiesti da TUTTI gli elementi del disegnatore
-   *  che fanno riferimento allo stesso pezzo Lab. Se la riga non è "fromLab" → quantity manuale. */
+  /** Nº pannelli auto = pannelli effettivi calcolati dal nesting del Laboratorio
+   *  per il pezzo Lab collegato (stesso valore che vede l'utente in Laboratorio). */
   const autoPanelsForLabPiece = (labPieceId: string): number => {
     const lp = labPieceById.get(labPieceId);
-    if (!lp) return 0;
-    return project.elements.reduce((sum, el) => {
-      if (!el.fromLab || el.labPieceId !== labPieceId) return sum;
-      return sum + panelsNeededForElement(el, lp);
-    }, 0);
+    if (!lp || !labCatalog) return 0;
+    return labPiecePanels(lp, labCatalog);
   };
   const effectiveLineQuantity = (line: MaterialLine): number => {
     if (line.fromLab && line.labPieceId) return autoPanelsForLabPiece(line.labPieceId);

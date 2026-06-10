@@ -423,13 +423,22 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
       return sum + (worker ? workerHourlyCost(worker) * line.hours : 0);
     }, 0);
     const transports = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    let labMaterials = 0;
     const materialsByCategory = project.materials.reduce(
       (acc, line) => {
         const item = materialById.get(line.materialId);
-        if (!item) return acc;
         const unit = effectiveLineUnitCost(line, item);
         const qty = effectiveLineQuantity(line);
-        return { ...acc, [item.category]: acc[item.category] + qty * unit };
+        const lineTotal = qty * unit;
+        // Le righe "Da Laboratorio" vengono sempre conteggiate come materie prime
+        // (categoria legno) anche se non c'è un item del catalogo corrispondente,
+        // così non si perde il costo nel preventivo.
+        if (line.fromLab && line.labPieceId) {
+          labMaterials += lineTotal;
+          return { ...acc, legno: acc.legno + lineTotal };
+        }
+        if (!item) return acc;
+        return { ...acc, [item.category]: acc[item.category] + lineTotal };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
@@ -437,7 +446,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     const production = labor + rawMaterials + materialsByCategory.accessori + transports;
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
+    return { labor, transports, materialsByCategory, labMaterials, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
   }, [materialById, project, labPieceById, labCatalog]);
 
 

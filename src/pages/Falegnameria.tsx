@@ -933,6 +933,34 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   </>;
 };
 
+const MontaggioSection = ({ project, updateProject, dips }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; dips: Dipendente[] }) => {
+  const cfg = project.trasferte ?? defaultTrasferte();
+  const workersAuto = project.labor.filter((l) => l.workerId).length || 1;
+  const workersHourlyTotal = project.labor.reduce((sum, line) => {
+    const dip = line.workerId.startsWith("dip:")
+      ? dips.find((d) => `dip:${d.id}` === line.workerId)
+      : undefined;
+    if (dip) return sum + dipendenteHourlyCost(dip);
+    const worker = project.workers.find((w) => w.id === line.workerId);
+    return sum + (worker ? workerHourlyCost(worker) : 0);
+  }, 0);
+  return (
+    <Card className="border-2 border-dept shadow-soft">
+      <CardHeader>
+        <CardTitle>Montaggio in cantiere · trasferta squadra</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <TrasferteCalculator
+          cfg={cfg}
+          workersAuto={workersAuto}
+          workersHourlyTotal={workersHourlyTotal}
+          onChange={(trasferte) => updateProject({ trasferte })}
+        />
+      </CardContent>
+    </Card>
+  );
+};
+
 const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => (
   <Card className="border-2 border-dept shadow-soft">
     <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Trasporti</CardTitle><Button size="sm" onClick={() => updateProject({ transports: [...project.transports, { id: uid(), description: "Trasporto", quantity: 1, unitCost: 0 }] })}><Plus className="h-4 w-4" />Trasporto</Button></CardHeader>

@@ -760,7 +760,12 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const fallbackUnit = line.unitCost ?? item?.unitCost ?? 0;
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
-        const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        // "Costo a noi" override: se l'utente ha digitato un valore in modalità Lab,
+        // quello vince sull'auto calcolato dal nesting del Laboratorio.
+        const hasOverride = line.fromLab && typeof line.unitCost === "number" && line.unitCost > 0;
+        const unitCost = line.fromLab
+          ? (hasOverride ? (line.unitCost as number) : labUnit)
+          : fallbackUnit;
         // Nº pannelli automatico = pannelli effettivamente calcolati dal nesting del Laboratorio
         // su questo pezzo Lab (es. 3 pannelli necessari per ricavare quel pezzo).
         const autoPanels = line.fromLab && lp && labCatalog ? labPiecePanels(lp, labCatalog) : 0;

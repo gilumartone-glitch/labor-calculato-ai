@@ -338,10 +338,18 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
   const [section, setSection] = useState<WoodSection>("progetto");
   const [projectReady, setProjectReady] = useState(false);
   const [profiles, setProfiles] = useState<{ id: string; display_name: string | null; settori?: string[] | null }[]>([]);
+  const [dips, setDips] = useState<Dipendente[]>([]);
   useEffect(() => {
     supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
       if (data) setProfiles(data as never);
     });
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDipendenti(true).then((all) => {
+      if (!cancelled) setDips(filterDipendentiByMacro(all, "laboratorio"));
+    });
+    return () => { cancelled = true; };
   }, []);
   const draftId = (typeof window !== "undefined" && localStorage.getItem("officina:active-draft")) || "default";
   const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:${draftId}`;

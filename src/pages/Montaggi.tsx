@@ -52,7 +52,7 @@ import {
   defaultTrasferte,
   type TrasferteConfig,
 } from "@/components/montaggi/TrasferteCalculator";
-import { CASORIA, cityKey, loadItalianCities, parseCityKey, type ItalianCity } from "@/lib/italian-cities";
+
 
 
 type WorkerProfile = {

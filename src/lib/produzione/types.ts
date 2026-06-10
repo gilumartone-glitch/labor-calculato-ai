@@ -88,10 +88,24 @@ export type ProdDelivery = "spedizione" | "ritiro" | "mezzo_proprio" | "corriere
 export type ProdOrderStatus = "nuovo" | "in_corso" | "pronto" | "spedito" | "chiuso" | "annullato";
 export type ProdSubStatus = "in_attesa" | "in_lavorazione" | "completato" | "bloccato" | "rimandato";
 export type InvKind = "nuovo" | "sfrido";
-export type NotifType =
-  | "ordine_creato" | "subordine_assegnato" | "subordine_completato"
-  | "ordine_pronto" | "ordine_chiuso" | "stock_basso" | "chat_messaggio" | "priorita_cambiata"
-  | "subordine_rimandato" | "ordine_rimandato" | "magazzino_da_preparare";
+/** Mantieni allineato a `prod_notif_type` in Postgres. */
+export const PROD_NOTIF_TYPES = [
+  "ordine_creato",
+  "subordine_assegnato",
+  "subordine_completato",
+  "ordine_pronto",
+  "ordine_chiuso",
+  "stock_basso",
+  "chat_messaggio",
+  "priorita_cambiata",
+  "subordine_rimandato",
+  "ordine_rimandato",
+  "magazzino_da_preparare",
+  "sub_sbloccato",
+] as const;
+export type NotifType = typeof PROD_NOTIF_TYPES[number];
+export const isNotifType = (v: unknown): v is NotifType =>
+  typeof v === "string" && (PROD_NOTIF_TYPES as readonly string[]).includes(v);
 
 export const DELIVERY_LABEL: Record<ProdDelivery, string> = {
   ritiro: "Ritira il cliente",

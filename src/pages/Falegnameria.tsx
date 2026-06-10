@@ -60,12 +60,39 @@ const labPieceAreaM2 = (lp: PieceLine): number => {
   const h = convertLength(Number(lp.height) || 0, lp.dimUnit, "m");
   return Math.max(0, w * h);
 };
+/** Dimensioni di un elemento del disegnatore in metri. */
+const elementDimsM = (el: DrawingElement): { w: number; h: number } => {
+  const u = el.unit === "mm" ? "mm" : "cm";
+  return {
+    w: convertLength(Number(el.w) || 0, u, "m"),
+    h: convertLength(Number(el.h) || 0, u, "m"),
+  };
+};
 /** Area in m² di un elemento del disegnatore (w × h espressi in mm o cm). */
 const elementAreaM2 = (el: DrawingElement): number => {
-  const u = el.unit === "mm" ? "mm" : "cm";
-  const w = convertLength(Number(el.w) || 0, u, "m");
-  const h = convertLength(Number(el.h) || 0, u, "m");
+  const { w, h } = elementDimsM(el);
   return Math.max(0, w * h);
+};
+/** Dimensioni del pannello Lab in metri. */
+const labPieceDimsM = (lp: PieceLine): { w: number; h: number } => ({
+  w: convertLength(Number(lp.width) || 0, lp.dimUnit, "m"),
+  h: convertLength(Number(lp.height) || 0, lp.dimUnit, "m"),
+});
+/**
+ * Nesting reale: quanti pannelli (ew × eh) servono per ricavare un elemento (W × H),
+ * considerando rotazione e tiling (split su più pannelli se l'elemento è più grande).
+ * Restituisce 0 se le dimensioni non sono valide.
+ */
+const panelsNeededForElement = (el: DrawingElement, lp: PieceLine): number => {
+  const { w: ew, h: eh } = elementDimsM(el);
+  const { w: pw, h: ph } = labPieceDimsM(lp);
+  if (ew <= 0 || eh <= 0 || pw <= 0 || ph <= 0) return 0;
+  const eps = 1e-6;
+  // Orientamento naturale
+  const tileA = Math.ceil(ew / pw - eps) * Math.ceil(eh / ph - eps);
+  // Orientamento ruotato
+  const tileB = Math.ceil(ew / ph - eps) * Math.ceil(eh / pw - eps);
+  return Math.max(1, Math.min(tileA, tileB));
 };
 /** Etichetta breve per il select dei pezzi Lab. */
 const labPieceOptionLabel = (lp: PieceLine, idx: number): string => {
@@ -355,6 +382,20 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     }
     return line.unitCost ?? item?.unitCost ?? 0;
   };
+  /** Nº pannelli auto: somma dei pannelli richiesti da TUTTI gli elementi del disegnatore
+   *  che fanno riferimento allo stesso pezzo Lab. Se la riga non è "fromLab" → quantity manuale. */
+  const autoPanelsForLabPiece = (labPieceId: string): number => {
+    const lp = labPieceById.get(labPieceId);
+    if (!lp) return 0;
+    return project.elements.reduce((sum, el) => {
+      if (!el.fromLab || el.labPieceId !== labPieceId) return sum;
+      return sum + panelsNeededForElement(el, lp);
+    }, 0);
+  };
+  const effectiveLineQuantity = (line: MaterialLine): number => {
+    if (line.fromLab && line.labPieceId) return autoPanelsForLabPiece(line.labPieceId);
+    return line.quantity;
+  };
 
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
@@ -367,7 +408,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
         const item = materialById.get(line.materialId);
         if (!item) return acc;
         const unit = effectiveLineUnitCost(line, item);
-        return { ...acc, [item.category]: acc[item.category] + line.quantity * unit };
+        const qty = effectiveLineQuantity(line);
+        return { ...acc, [item.category]: acc[item.category] + qty * unit };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
@@ -615,14 +657,12 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
                           {(() => {
                             const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
                             if (!lp || !labCatalog) return null;
-                            const panelArea = labPieceAreaM2(lp);
-                            const elArea = elementAreaM2(selectedElement);
-                            const panels = panelArea > 0 ? Math.max(1, Math.ceil(elArea / panelArea)) : 0;
+                            const panels = panelsNeededForElement(selectedElement, lp);
                             const cad = labPieceUnitCost(lp, labCatalog);
                             const tot = panels * cad;
                             return (
                               <div className="grid grid-cols-3 gap-2 rounded-sm border border-dept/30 bg-dept-soft/40 p-2 text-xs">
-                                <div><div className="label-cap">Pannelli</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
+                                <div><div className="label-cap">Pannelli (nesting)</div><div className="font-mono font-semibold">{panels || "—"}</div></div>
                                 <div><div className="label-cap">Cadauno</div><div className="font-mono">{eur(cad)}</div></div>
                                 <div><div className="label-cap">Totale</div><div className="font-mono font-semibold">{eur(tot)}</div></div>
                               </div>
@@ -687,6 +727,15 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
         const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        // Nº pannelli auto via nesting: somma su tutti gli elementi del disegnatore
+        // che collegano lo stesso pezzo Lab.
+        const autoPanels = line.fromLab && lp
+          ? project.elements.reduce(
+              (s, el) => (el.fromLab && el.labPieceId === line.labPieceId ? s + panelsNeededForElement(el, lp) : s),
+              0,
+            )
+          : 0;
+        const qty = line.fromLab ? autoPanels : line.quantity;
         return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
@@ -695,7 +744,15 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             </select>
           </Field>
           <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
-          <Field label={line.fromLab ? "Nº pannelli" : "Quantità"}><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix={line.fromLab ? "Pannelli" : "Qtà"} /></Field>
+          <Field label={line.fromLab ? "Nº pannelli (auto)" : "Quantità"}>
+            {line.fromLab ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Calcolato automaticamente dal nesting degli elementi del disegnatore collegati a questo pezzo Lab.">
+                {qty || "—"}
+              </div>
+            ) : (
+              <NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" />
+            )}
+          </Field>
           <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
             {line.fromLab ? (
               <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
@@ -703,7 +760,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
             )}
           </Field>
-          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * unitCost)}</div></Field>
+          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(qty * unitCost)}</div></Field>
           <IconButton onClick={() => updateProject({ materials: project.materials.filter((row) => row.id !== line.id) })} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -712,7 +769,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
               size="sm"
               variant={line.fromLab ? "default" : "outline"}
               onClick={() => updateMaterialLine(line.id, { fromLab: !line.fromLab, labPieceId: line.fromLab ? null : line.labPieceId ?? null })}
-              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato."
+              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato e i pannelli arrivano dal nesting degli elementi disegnati."
             >
               <Layers className="h-4 w-4" />{line.fromLab ? "Da Laboratorio" : "Prendi da Laboratorio"}
             </Button>
@@ -734,7 +791,9 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             )}
             {line.fromLab && lp && labCatalog && (
               <div className="font-mono text-xs text-muted-foreground">
-                {line.quantity || 0} pannell{(line.quantity || 0) === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(line.quantity * unitCost)}</span>
+                {qty === 0
+                  ? "Nessun elemento del disegnatore collegato a questo pezzo Lab"
+                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(nesting auto)</span></>}
               </div>
             )}
           </div>

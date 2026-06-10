@@ -196,6 +196,7 @@ const hydrateProject = (rawProject: StoredWoodProject): WoodProject => {
     materialCatalog: catalog,
     materials,
     elements: Array.isArray(rawProject.elements) ? rawProject.elements : [],
+    trasferte: { ...defaultTrasferte(), ...(rawProject.trasferte ?? {}) },
   };
 };
 

@@ -65,18 +65,10 @@ const eur = (n: number) =>
     ? n.toLocaleString("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })
     : "—";
 
-export const computeTrasferteTotals = (
-  cfg: TrasferteConfig,
-  origin: ItalianCity | undefined,
-  dest: ItalianCity | undefined,
-  workersAuto: number,
-): TrasferteTotals => {
-  const baseKm =
-    cfg.kmOverride != null && cfg.kmOverride > 0
-      ? cfg.kmOverride
-      : origin && dest
-        ? estimateRoadKm(origin, dest)
-        : 0;
+/** Variante "pure" che lavora solo sullo snapshot kmAuto del config — non richiede
+ *  il dataset città. Usata dai totali del progetto. */
+export const computeTrasferteTotalsFromConfig = (cfg: TrasferteConfig, workersAuto: number): TrasferteTotals => {
+  const baseKm = cfg.kmOverride != null && cfg.kmOverride > 0 ? cfg.kmOverride : cfg.kmAuto ?? 0;
   const km = baseKm * (cfg.andataRitorno ? 2 : 1);
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
   const hours = cfg.hoursOverride != null && cfg.hoursOverride >= 0 ? cfg.hoursOverride : cfg.kmh > 0 ? km / cfg.kmh : 0;
@@ -87,6 +79,16 @@ export const computeTrasferteTotals = (
   const alloggioMin = cfg.alloggioMinDay * cfg.days;
   const alloggio = cfg.alloggioTotalOverride ?? Math.max(alloggioBase, alloggioMin);
   return { km, hours, workers, carburante, oreViaggio, vitto, alloggio, total: carburante + oreViaggio + vitto + alloggio };
+};
+
+export const computeTrasferteTotals = (
+  cfg: TrasferteConfig,
+  origin: ItalianCity | undefined,
+  dest: ItalianCity | undefined,
+  workersAuto: number,
+): TrasferteTotals => {
+  const kmAuto = origin && dest ? estimateRoadKm(origin, dest) : cfg.kmAuto ?? 0;
+  return computeTrasferteTotalsFromConfig({ ...cfg, kmAuto }, workersAuto);
 };
 
 const Field = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (

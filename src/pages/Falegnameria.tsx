@@ -183,6 +183,8 @@ type WoodProject = {
   materials: MaterialLine[];
   marginPct: number;
   elements: DrawingElement[];
+  /** Calcolo trasferta squadra (montaggio in cantiere). */
+  trasferte?: import("@/components/montaggi/TrasferteCalculator").TrasferteConfig;
   guided?: import("@/components/shared/LavorazioneGuidedForm").GuidedValue;
 };
 

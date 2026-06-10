@@ -638,7 +638,10 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     }, 0);
     const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
     const workersCount = project.labor.filter((l) => l.workerId).length || 1;
-    const trasferteCalc = project.trasferte ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount).total : 0;
+    // Somma dei costi orari (€/h) di ciascun addetto assegnato alla squadra,
+    // usato per applicare il costo reale alle ore di viaggio.
+    const workersHourlyTotal = project.labor.reduce((sum, line) => sum + (line.workerId ? hourlyCostOf(line.workerId) : 0), 0);
+    const trasferteCalc = project.trasferte ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount, workersHourlyTotal).total : 0;
     const transports = transportsExtra + trasferteCalc;
     const materials = project.materials.reduce((sum, line) => {
       const item = materialById2.get(line.materialId);
@@ -647,12 +650,13 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     const production = labor + transports + materials;
     const marginEuro = production * ((project.marginPct ?? 0) / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materials, production, marginEuro, sale };
+    return { labor, transports, materials, production, marginEuro, sale, workersHourlyTotal };
   }, [project, materialById2, dips]);
 
   return <>
     <LaborUsageSection project={project} updateProject={updateProject} />
-    <TransportUsageSection project={project} updateProject={updateProject} />
+    <TransportUsageSection project={project} updateProject={updateProject} workersHourlyTotal={totals.workersHourlyTotal} />
+
 
     <Card className="border-2 border-dept shadow-soft">
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -705,7 +709,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   </>;
 };
 
-const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
+const TransportUsageSection = ({ project, updateProject, workersHourlyTotal }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; workersHourlyTotal?: number }) => {
   const workersAuto = project.labor.filter((l) => l.workerId).length || 1;
   const cfg = project.trasferte ?? defaultTrasferte();
   return (
@@ -715,7 +719,7 @@ const TransportUsageSection = ({ project, updateProject }: { project: WoodProjec
           <CardTitle>Calcolo trasferta squadra</CardTitle>
         </CardHeader>
         <CardContent>
-          <TrasferteCalculator cfg={cfg} workersAuto={workersAuto} onChange={(trasferte) => updateProject({ trasferte })} />
+          <TrasferteCalculator cfg={cfg} workersAuto={workersAuto} workersHourlyTotal={workersHourlyTotal} onChange={(trasferte) => updateProject({ trasferte })} />
         </CardContent>
       </Card>
 

@@ -67,13 +67,22 @@ const eur = (n: number) =>
 
 /** Variante "pure" che lavora solo sullo snapshot kmAuto del config — non richiede
  *  il dataset città. Usata dai totali del progetto. */
-export const computeTrasferteTotalsFromConfig = (cfg: TrasferteConfig, workersAuto: number): TrasferteTotals => {
+export const computeTrasferteTotalsFromConfig = (
+  cfg: TrasferteConfig,
+  workersAuto: number,
+  workersHourlyTotal?: number,
+): TrasferteTotals => {
   const baseKm = cfg.kmOverride != null && cfg.kmOverride > 0 ? cfg.kmOverride : cfg.kmAuto ?? 0;
   const km = baseKm * (cfg.andataRitorno ? 2 : 1);
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
   const hours = cfg.hoursOverride != null && cfg.hoursOverride >= 0 ? cfg.hoursOverride : cfg.kmh > 0 ? km / cfg.kmh : 0;
   const carburante = cfg.carburanteOverride ?? km * cfg.costPerKm;
-  const oreViaggio = cfg.oreViaggioCostOverride ?? hours * cfg.hourlyRate * workers;
+  // Se ci viene passato il monte-costo orario reale della squadra (somma dei
+  // costi orari di ciascun addetto assegnato) lo usiamo. Altrimenti fallback
+  // al vecchio comportamento "hourlyRate × workers".
+  const hourlyTotalForTravel =
+    workersHourlyTotal != null && workersHourlyTotal > 0 ? workersHourlyTotal : cfg.hourlyRate * workers;
+  const oreViaggio = cfg.oreViaggioCostOverride ?? hours * hourlyTotalForTravel;
   const vitto = cfg.vittoTotalOverride ?? cfg.vittoPerDay * workers * cfg.days;
   const alloggioBase = cfg.alloggioPerDay * workers * cfg.days;
   const alloggioMin = cfg.alloggioMinDay * cfg.days;
@@ -86,9 +95,10 @@ export const computeTrasferteTotals = (
   origin: ItalianCity | undefined,
   dest: ItalianCity | undefined,
   workersAuto: number,
+  workersHourlyTotal?: number,
 ): TrasferteTotals => {
   const kmAuto = origin && dest ? estimateRoadKm(origin, dest) : cfg.kmAuto ?? 0;
-  return computeTrasferteTotalsFromConfig({ ...cfg, kmAuto }, workersAuto);
+  return computeTrasferteTotalsFromConfig({ ...cfg, kmAuto }, workersAuto, workersHourlyTotal);
 };
 
 const Field = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (
@@ -219,10 +229,15 @@ export const TrasferteCalculator = ({
   cfg,
   onChange,
   workersAuto,
+  workersHourlyTotal,
 }: {
   cfg: TrasferteConfig;
   onChange: (next: TrasferteConfig) => void;
   workersAuto: number;
+  /** Somma dei costi orari (€/h, costo azienda) degli addetti assegnati alla
+   *  squadra. Quando >0 viene usato al posto di `hourlyRate × workers` per il
+   *  calcolo delle ore di viaggio. */
+  workersHourlyTotal?: number;
 }) => {
   const [cities, setCities] = useState<ItalianCity[]>([]);
   useEffect(() => {
@@ -245,13 +260,15 @@ export const TrasferteCalculator = ({
   }, [kmAuto]);
 
   const totals = useMemo(
-    () => computeTrasferteTotals(cfg, origin, dest, workersAuto),
-    [cfg, origin, dest, workersAuto],
+    () => computeTrasferteTotals(cfg, origin, dest, workersAuto, workersHourlyTotal),
+    [cfg, origin, dest, workersAuto, workersHourlyTotal],
   );
 
   const set = (patch: Partial<TrasferteConfig>) => onChange({ ...cfg, ...patch });
 
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
+  const useRealCosts = workersHourlyTotal != null && workersHourlyTotal > 0;
+  const avgHourly = useRealCosts ? workersHourlyTotal / Math.max(workers, 1) : cfg.hourlyRate;
 
   return (
     <div className="space-y-4">
@@ -327,7 +344,10 @@ export const TrasferteCalculator = ({
               suffix="ore"
             />
           </Field>
-          <Field label="Costo orario viaggio">
+          <Field
+            label="Costo orario viaggio"
+            hint={useRealCosts ? `Auto: media costo squadra ${eur(avgHourly)}/h` : "Usato solo se non c'è una squadra assegnata"}
+          >
             <NumberField value={cfg.hourlyRate} onChange={(n) => set({ hourlyRate: n ?? 0 })} suffix="€/h" />
           </Field>
         </div>
@@ -363,10 +383,14 @@ export const TrasferteCalculator = ({
         />
         <VoiceRow
           label="Ore di viaggio squadra"
-          auto={(cfg.hoursOverride ?? totals.hours) * cfg.hourlyRate * workers}
+          auto={(cfg.hoursOverride ?? totals.hours) * (useRealCosts ? (workersHourlyTotal as number) : cfg.hourlyRate * workers)}
           override={cfg.oreViaggioCostOverride}
           onChange={(n) => set({ oreViaggioCostOverride: n })}
-          hint={`${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × ${eur(cfg.hourlyRate)}/h × ${workers} ${workers === 1 ? "addetto" : "addetti"}`}
+          hint={
+            useRealCosts
+              ? `${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × somma costi squadra (${eur(workersHourlyTotal as number)}/h totali · ${workers} ${workers === 1 ? "addetto" : "addetti"})`
+              : `${(cfg.hoursOverride ?? totals.hours).toFixed(2)} h × ${eur(cfg.hourlyRate)}/h × ${workers} ${workers === 1 ? "addetto" : "addetti"}`
+          }
         />
         <VoiceRow
           label="Vitto"

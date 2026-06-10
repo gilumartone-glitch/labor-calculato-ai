@@ -698,9 +698,10 @@ function ManualMagazzinoOrderForm({
                   <Plus className="w-3 h-3 mr-1" />Scegli dal listino
                 </Button>
               )}
-              <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => addLine()}>
-                <Plus className="w-3 h-3 mr-1" />Riga manuale
+              <Button size="sm" className="h-7 text-[11px]" onClick={() => addLine()}>
+                <Plus className="w-3 h-3 mr-1" />Aggiungi all'ordine
               </Button>
+
             </div>
           </div>
           <div className="divide-y">
@@ -1723,15 +1724,16 @@ function FireSection({ products, setProducts }: { products: FireProduct[]; setPr
                         </div>
                       );
                     })}
-                    <div className="flex flex-wrap gap-2 items-center pt-2">
-                      <Button size="sm" onClick={addToCart} className="h-8 text-[12px]">
-                        <Plus className="w-3.5 h-3.5 mr-1" />Aggiungi all'ordine
-                      </Button>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                       <div className="text-[10px] font-mono text-muted-foreground">
                         {needColor.trim() ? `prezzi del colore "${needColor.trim()}"` : "prezzi base (nessun colore selezionato)"}
                         {calc.layers.some((l) => l.hasOverride) ? ` · override colore attivo` : ""}
                       </div>
+                      <Button size="sm" onClick={addToCart}>
+                        <Plus className="w-4 h-4 mr-1" /> Aggiungi all'ordine
+                      </Button>
                     </div>
+
                   </>
                 ) : <div className="text-[11px] text-muted-foreground">{hasFinish ? "Seleziona layer (base/finitura), classe e superficie per calcolare." : "Inserisci classe e superficie: il sistema sceglierà il miglior formato."}</div>}
               </>

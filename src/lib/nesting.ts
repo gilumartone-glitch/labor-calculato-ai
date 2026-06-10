@@ -433,12 +433,14 @@ const explodePieces = (
     // ----- LASTRE: se un rettangolo non entra in un singolo foglio in nessuna
     // orientazione, lo splittiamo in pannelli (cuciture verticali), così non
     // viene scartato. Ogni pannello deve entrare in W×H del foglio. -----
+    // Per le lastre lo split è automatico quando il pezzo non entra in un
+    // singolo foglio: spezziamo in pannelli affiancati e mostriamo nel
+    // riepilogo quante lastre/pannelli servono (non serve `allowSplit`).
     if (
       materialFormat === "lastra" &&
       isRect &&
       rollWidthM > 0 &&
-      sheetHeightM > 0 &&
-      allowSplit
+      sheetHeightM > 0
     ) {
       const fitsAsIs = w <= rollWidthM + 1e-6 && h <= sheetHeightM + 1e-6;
       const fitsRotated =

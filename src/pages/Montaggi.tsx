@@ -633,8 +633,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   const materialById2 = materialById;
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
-      const worker = project.workers.find((w) => w.id === line.workerId);
-      const baseHourly = worker ? workerHourlyCost(worker) : 0;
+      const baseHourly = hourlyCostOf(line.workerId);
       return sum + (baseHourly + (line.travel ? 2.5 : 0)) * line.hours;
     }, 0);
     const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
@@ -649,7 +648,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     const marginEuro = production * ((project.marginPct ?? 0) / 100);
     const sale = production + marginEuro;
     return { labor, transports, materials, production, marginEuro, sale };
-  }, [project, materialById2]);
+  }, [project, materialById2, dips]);
 
   return <>
     <LaborUsageSection project={project} updateProject={updateProject} />

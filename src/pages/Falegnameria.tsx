@@ -47,7 +47,30 @@ import {
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
 import { pieceTotal } from "@/lib/piece";
 import { convertLength } from "@/lib/perimeter";
+import { computeNesting } from "@/lib/nesting";
 import type { Catalog as CalcCatalog, PieceLine } from "@/components/calculator/types";
+
+/** Nº pannelli reali ottenuti dal nesting del Laboratorio sul pezzo Lab. */
+const labPiecePanels = (lp: PieceLine, cat: CalcCatalog): number => {
+  try {
+    const groups = computeNesting([lp], cat);
+    const g = groups[0];
+    if (!g) return 0;
+    if (typeof g.sheetsNeeded === "number" && g.sheetsNeeded > 0) return g.sheetsNeeded;
+    // Fallback rotolo / non-lastra: distinti sheetIndex degli items.
+    const idxs = new Set<number>();
+    g.items.forEach((it) => { if (typeof it.sheetIndex === "number") idxs.add(it.sheetIndex); });
+    return idxs.size > 0 ? idxs.size : (g.items.length > 0 ? 1 : 0);
+  } catch {
+    return 0;
+  }
+};
+/** Etichetta della voce Lab (per la cella "Voce" della riga materiale). */
+const labPieceVoceLabel = (lp: PieceLine): string => {
+  const name = lp.productName || "Pezzo Laboratorio";
+  const dim = `${lp.width || "?"}×${lp.height || "?"} ${lp.dimUnit}`;
+  return `Lab · ${name} · ${dim}`;
+};
 
 /** Costo cadauno (€) di un pannello del Laboratorio: pieceTotal / quantità del pezzo Lab. */
 const labPieceUnitCost = (lp: PieceLine, cat: CalcCatalog): number => {
@@ -382,15 +405,12 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     }
     return line.unitCost ?? item?.unitCost ?? 0;
   };
-  /** Nº pannelli auto: somma dei pannelli richiesti da TUTTI gli elementi del disegnatore
-   *  che fanno riferimento allo stesso pezzo Lab. Se la riga non è "fromLab" → quantity manuale. */
+  /** Nº pannelli auto = pannelli effettivi calcolati dal nesting del Laboratorio
+   *  per il pezzo Lab collegato (stesso valore che vede l'utente in Laboratorio). */
   const autoPanelsForLabPiece = (labPieceId: string): number => {
     const lp = labPieceById.get(labPieceId);
-    if (!lp) return 0;
-    return project.elements.reduce((sum, el) => {
-      if (!el.fromLab || el.labPieceId !== labPieceId) return sum;
-      return sum + panelsNeededForElement(el, lp);
-    }, 0);
+    if (!lp || !labCatalog) return 0;
+    return labPiecePanels(lp, labCatalog);
   };
   const effectiveLineQuantity = (line: MaterialLine): number => {
     if (line.fromLab && line.labPieceId) return autoPanelsForLabPiece(line.labPieceId);
@@ -657,7 +677,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
                           {(() => {
                             const lp = (labPieces ?? []).find((p) => p.id === selectedElement.labPieceId);
                             if (!lp || !labCatalog) return null;
-                            const panels = panelsNeededForElement(selectedElement, lp);
+                            const panels = labPiecePanels(lp, labCatalog);
                             const cad = labPieceUnitCost(lp, labCatalog);
                             const tot = panels * cad;
                             return (
@@ -727,26 +747,30 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
         const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
         const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
         const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
-        // Nº pannelli auto via nesting: somma su tutti gli elementi del disegnatore
-        // che collegano lo stesso pezzo Lab.
-        const autoPanels = line.fromLab && lp
-          ? project.elements.reduce(
-              (s, el) => (el.fromLab && el.labPieceId === line.labPieceId ? s + panelsNeededForElement(el, lp) : s),
-              0,
-            )
-          : 0;
+        // Nº pannelli automatico = pannelli effettivamente calcolati dal nesting del Laboratorio
+        // su questo pezzo Lab (es. 3 pannelli necessari per ricavare quel pezzo).
+        const autoPanels = line.fromLab && lp && labCatalog ? labPiecePanels(lp, labCatalog) : 0;
         const qty = line.fromLab ? autoPanels : line.quantity;
         return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
-            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
-              {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
-            </select>
+            {line.fromLab && lp ? (
+              <div
+                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium truncate"
+                title={labPieceVoceLabel(lp)}
+              >
+                {labPieceVoceLabel(lp)}
+              </div>
+            ) : (
+              <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
+                {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
+              </select>
+            )}
           </Field>
           <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
           <Field label={line.fromLab ? "Nº pannelli (auto)" : "Quantità"}>
             {line.fromLab ? (
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Calcolato automaticamente dal nesting degli elementi del disegnatore collegati a questo pezzo Lab.">
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold" title="Pannelli necessari calcolati dal nesting del Laboratorio per questo pezzo Lab.">
                 {qty || "—"}
               </div>
             ) : (
@@ -792,8 +816,8 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             {line.fromLab && lp && labCatalog && (
               <div className="font-mono text-xs text-muted-foreground">
                 {qty === 0
-                  ? "Nessun elemento del disegnatore collegato a questo pezzo Lab"
-                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(nesting auto)</span></>}
+                  ? "Pannelli non calcolabili — verifica dimensioni del pezzo Lab e listino"
+                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(da nesting Laboratorio)</span></>}
               </div>
             )}
           </div>

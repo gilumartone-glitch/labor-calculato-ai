@@ -1219,10 +1219,14 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
                       </div>
                     </div>
 
-                    {/* Invia al Flow: ordine magazzino con override manuale */}
-                    <div className="flex justify-end">
+                    {/* Aggiungi al carrello vendite (come Tessuti) + Invia diretto al Flow */}
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button size="sm" onClick={addToCart}>
+                        <Plus className="w-4 h-4 mr-1" /> Aggiungi all'ordine
+                      </Button>
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => {
                           setFlowCliente("");
                           setFlowRef("");
@@ -1234,7 +1238,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
                           setFlowOpen(true);
                         }}
                       >
-                        <PackageCheck className="w-4 h-4 mr-2" />
+                        <PackageCheck className="w-4 h-4 mr-1" />
                         Invia al Flow
                       </Button>
                     </div>

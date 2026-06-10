@@ -243,6 +243,7 @@ export default function Dipendenti() {
         </Card>
 
         {canWrite && <RepartiManager />}
+        {canWrite && <MaterialDepsManager />}
 
 
 

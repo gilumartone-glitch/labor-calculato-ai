@@ -467,10 +467,25 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );
     const rawMaterials = materialsByCategory.legno + materialsByCategory.plastica;
-    const production = labor + rawMaterials + materialsByCategory.accessori + transports;
+    // Montaggio = trasferta squadra (carburante, ore viaggio, vitto, alloggio) + trasporti vari
+    const workersAuto = project.labor.filter((l) => l.workerId).length || 1;
+    const workersHourlyTotal = project.labor.reduce((sum, line) => {
+      const dip = line.workerId.startsWith("dip:")
+        ? dips.find((d) => `dip:${d.id}` === line.workerId)
+        : undefined;
+      if (dip) return sum + dipendenteHourlyCost(dip);
+      const worker = project.workers.find((w) => w.id === line.workerId);
+      return sum + (worker ? workerHourlyCost(worker) : 0);
+    }, 0);
+    const trasferteTotals = project.trasferte
+      ? computeTrasferteTotalsFromConfig(project.trasferte, workersAuto, workersHourlyTotal)
+      : null;
+    const trasferta = trasferteTotals?.total ?? 0;
+    const montaggio = trasferta + transports;
+    const production = labor + rawMaterials + materialsByCategory.accessori + montaggio;
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materialsByCategory, labMaterials, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
+    return { labor, transports, trasferta, montaggio, materialsByCategory, labMaterials, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
   }, [materialById, project, labPieceById, labCatalog, dips]);
 
 

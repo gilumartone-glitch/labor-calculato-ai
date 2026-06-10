@@ -27,6 +27,7 @@ import {
 import { PieceDetail } from "@/components/shared/PieceDetail";
 import { NestingPreview } from "@/components/calculator/NestingPreview";
 import { mergeCatalogs } from "@/lib/nesting";
+import { matchMaterialDependency, DEPT_LABEL_DEFAULTS } from "@/lib/material-dependencies";
 
 type FileItem = { name: string; type?: string; path?: string; size?: number };
 

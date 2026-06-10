@@ -992,6 +992,72 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
     };
   }, [selected, activePoints, customPoints, stageW, stageH, direction, tapeType, chosenOptionKey]);
 
+  /** "Aggiungi all'ordine": come per Tessuti/Ignifughe, scrive nel carrello vendite
+   *  (salesCarts.danza) della draft attiva. Il Flow lo legge tramite CreateCommessaButton. */
+  const addToCart = () => {
+    if (!selected || !calc?.best) {
+      toast.error("Calcolo non disponibile");
+      return;
+    }
+    const cart = readDraftSalesCart("danza");
+    const colorTag = chosenColor || needColor.trim();
+    const baseLabel = `Tappeto ${selected.name}${colorTag ? ` · ${colorTag}` : ""}${selected.thicknessMm ? ` · ${fmt(selected.thicknessMm)}mm` : ""}`;
+    const unitPrice = Number(selected.pricePerSqm ?? 0);
+    const cutSurcharge = 1.2;
+    const w = selected.rollWidth;
+    const L = selected.rollLength;
+    const newLines: CartLine[] = [];
+    if (calc.best.wholeRolls > 0) {
+      // prezzo per rotolo intero = L × w × prezzo/m²
+      const perRoll = L * w * unitPrice;
+      newLines.push({
+        id: uid(),
+        materialId: "",
+        qty: calc.best.wholeRolls,
+        name: `${baseLabel} — rotolo intero`,
+        variant: `${fmt(L)} × ${fmt(w)} m`,
+        unit: "rotoli" as any,
+        priceSell: perRoll,
+        pricePurchase: perRoll,
+        category: "danza",
+      });
+    }
+    if (calc.best.cutMeters > 0) {
+      // €/m al taglio = w × prezzo/m² × cutSurcharge
+      const perMeter = w * unitPrice * cutSurcharge;
+      newLines.push({
+        id: uid(),
+        materialId: "",
+        qty: calc.best.cutMeters,
+        name: `${baseLabel} — al taglio`,
+        variant: `larghezza ${fmt(w)} m`,
+        unit: "m" as any,
+        priceSell: perMeter,
+        pricePurchase: perMeter,
+        category: "danza",
+      });
+    }
+    if (calc.tapeRolls > 0) {
+      newLines.push({
+        id: uid(),
+        materialId: "",
+        qty: calc.tapeRolls,
+        name: `Nastro ${tapeType === "danza" ? "danza" : "biadesivo"}`,
+        variant: `rotoli da ${calc.tapeRollLen} m`,
+        unit: "rotoli" as any,
+        priceSell: 0,
+        pricePurchase: 0,
+        category: "danza",
+      });
+    }
+    if (newLines.length === 0) {
+      toast.error("Nessun articolo da aggiungere");
+      return;
+    }
+    writeDraftSalesCart("danza", [...cart, ...newLines]);
+    toast.success(`Aggiunto all'ordine: ${newLines.length} riga/e per ${selected.name}`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">

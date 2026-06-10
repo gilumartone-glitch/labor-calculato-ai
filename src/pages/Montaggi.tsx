@@ -48,7 +48,7 @@ import { ClipboardCheck } from "lucide-react";
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
 import {
   TrasferteCalculator,
-  computeTrasferteTotals,
+  computeTrasferteTotalsFromConfig,
   defaultTrasferte,
   type TrasferteConfig,
 } from "@/components/montaggi/TrasferteCalculator";

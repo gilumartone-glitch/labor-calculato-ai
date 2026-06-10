@@ -19,6 +19,7 @@ import {
 export type TrasferteConfig = {
   originKey?: string;
   destKey?: string;
+  kmAuto?: number; // distanza stradale calcolata da partenza/arrivo (snapshot)
   kmOverride?: number;
   andataRitorno: boolean;
   costPerKm: number;

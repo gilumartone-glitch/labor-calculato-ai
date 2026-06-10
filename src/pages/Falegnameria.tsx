@@ -47,7 +47,30 @@ import {
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
 import { pieceTotal } from "@/lib/piece";
 import { convertLength } from "@/lib/perimeter";
+import { computeNesting } from "@/lib/nesting";
 import type { Catalog as CalcCatalog, PieceLine } from "@/components/calculator/types";
+
+/** Nº pannelli reali ottenuti dal nesting del Laboratorio sul pezzo Lab. */
+const labPiecePanels = (lp: PieceLine, cat: CalcCatalog): number => {
+  try {
+    const groups = computeNesting([lp], cat);
+    const g = groups[0];
+    if (!g) return 0;
+    if (typeof g.sheetsNeeded === "number" && g.sheetsNeeded > 0) return g.sheetsNeeded;
+    // Fallback rotolo / non-lastra: distinti sheetIndex degli items.
+    const idxs = new Set<number>();
+    g.items.forEach((it) => { if (typeof it.sheetIndex === "number") idxs.add(it.sheetIndex); });
+    return idxs.size > 0 ? idxs.size : (g.items.length > 0 ? 1 : 0);
+  } catch {
+    return 0;
+  }
+};
+/** Etichetta della voce Lab (per la cella "Voce" della riga materiale). */
+const labPieceVoceLabel = (lp: PieceLine): string => {
+  const name = lp.productName || "Pezzo Laboratorio";
+  const dim = `${lp.width || "?"}×${lp.height || "?"} ${lp.dimUnit}`;
+  return `Lab · ${name} · ${dim}`;
+};
 
 /** Costo cadauno (€) di un pannello del Laboratorio: pieceTotal / quantità del pezzo Lab. */
 const labPieceUnitCost = (lp: PieceLine, cat: CalcCatalog): number => {

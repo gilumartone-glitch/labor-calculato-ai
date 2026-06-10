@@ -159,9 +159,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const snapshot = (order?.snapshot as ProdSnapshot | null) ?? null;
   const snapshotDepts = useMemo(() => collectSnapshotDepartments(snapshot), [snapshot]);
   const allPieces = useMemo(() => collectSnapshotPieces(snapshotDepts), [snapshotDepts]);
-  /** Filtra i reparti dello snapshot al solo reparto del sub corrente, così
-   *  i "Materiali necessari" mostrati sono solo quelli che servono a QUESTO
-   *  reparto (es. Tappezzeria non deve vedere MOZAIK che è di Stampa). */
+  /** Materiali del SOLO reparto del sub corrente (es. Tappezzeria non vede MOZAIK di Stampa). */
   const subSnapshotDepts = useMemo(() => {
     if (!sub) return snapshotDepts;
     const dep = sub.dept;
@@ -173,7 +171,24 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
       return k === String(dep).toLowerCase();
     });
   }, [snapshotDepts, sub]);
-  const aggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(subSnapshotDepts), [subSnapshotDepts]);
+  const baseAggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(subSnapshotDepts), [subSnapshotDepts]);
+  /** Materiali "in arrivo" da altri reparti: regola autonomous che ha questo sub come consumer. */
+  const incomingMaterials = useMemo(() => {
+    if (!sub) return [] as Array<ReturnType<typeof aggregateSnapshotMaterials>[number] & { _fromDept?: string }>;
+    const otherDepts = snapshotDepts.filter((d) => !subSnapshotDepts.includes(d));
+    const all = aggregateSnapshotMaterials(otherDepts);
+    return all
+      .map((m) => {
+        const rule = matchMaterialDependency(m.name, sub.dept as any);
+        if (!rule || rule.mode !== "autonomous") return null;
+        return { ...m, _fromDept: rule.produced_by_dept as string };
+      })
+      .filter(Boolean) as Array<ReturnType<typeof aggregateSnapshotMaterials>[number] & { _fromDept?: string }>;
+  }, [sub, snapshotDepts, subSnapshotDepts]);
+  const aggregatedMaterials = useMemo(
+    () => [...baseAggregatedMaterials, ...incomingMaterials],
+    [baseAggregatedMaterials, incomingMaterials],
+  );
 
   /** Filtra i pezzi pertinenti al reparto del sub corrente. */
   const relevantPieces = useMemo(() => {

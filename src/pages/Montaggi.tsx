@@ -601,17 +601,27 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     </CardContent>;
   };
 
+  const materialById2 = materialById;
+  const totals = useMemo(() => {
+    const labor = project.labor.reduce((sum, line) => {
+      const worker = project.workers.find((w) => w.id === line.workerId);
+      const baseHourly = worker ? workerHourlyCost(worker) : 0;
+      return sum + (baseHourly + (line.travel ? 2.5 : 0)) * line.hours;
+    }, 0);
+    const transports = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const materials = project.materials.reduce((sum, line) => {
+      const item = materialById2.get(line.materialId);
+      return sum + line.quantity * (line.unitCost ?? item?.unitCost ?? 0);
+    }, 0);
+    const production = labor + transports + materials;
+    const marginEuro = production * ((project.marginPct ?? 0) / 100);
+    const sale = production + marginEuro;
+    return { labor, transports, materials, production, marginEuro, sale };
+  }, [project, materialById2]);
+
   return <>
-    <Card className="border-2 border-dept shadow-soft">
-      <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Dati progetto</CardTitle></CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field label="Nome progetto"><Input value={project.name} onChange={(e) => updateProject({ name: e.target.value })} /></Field>
-        <Field label="Cliente"><Input value={project.customer} onChange={(e) => updateProject({ customer: e.target.value })} /></Field>
-        <Field label="Indirizzo cantiere"><Input value={project.address} onChange={(e) => updateProject({ address: e.target.value })} placeholder="Via, città, CAP" /></Field>
-        <Field label="Data"><Input type="date" value={project.date} onChange={(e) => updateProject({ date: e.target.value })} /></Field>
-        <div className="md:col-span-2"><Field label="Descrizione"><Input value={project.description} onChange={(e) => updateProject({ description: e.target.value })} /></Field></div>
-      </CardContent>
-    </Card>
+    <LaborUsageSection project={project} updateProject={updateProject} />
+    <TransportUsageSection project={project} updateProject={updateProject} />
 
     <Card className="border-2 border-dept shadow-soft">
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -640,8 +650,27 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       {renderUsageRows("accessori", "Aggiungi qui tasselli, staffe, silicone, minuteria o altri accessori usati nel progetto.")}
     </Card>
 
-    <LaborUsageSection project={project} updateProject={updateProject} />
-    <TransportUsageSection project={project} updateProject={updateProject} />
+    <Card className="border-2 border-dept shadow-soft">
+      <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Calcolo lavorazione e margine</CardTitle></CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-[1fr_260px]">
+        <div className="space-y-2 rounded-sm border border-border bg-background p-4">
+          <Summary label="Manodopera squadra" value={totals.labor} />
+          <Summary label="Trasferte e trasporti" value={totals.transports} />
+          <Summary label="Materiali e accessori" value={totals.materials} />
+          <div className="my-2 border-t border-border" />
+          <Summary label="Costo di produzione" value={totals.production} strong />
+          <Summary label={`Margine (${(project.marginPct ?? 0).toFixed(0)}%)`} value={totals.marginEuro} />
+          <div className="my-2 border-t border-border" />
+          <Summary label="Prezzo di vendita" value={totals.sale} strong />
+        </div>
+        <div className="space-y-3 rounded-sm border border-dept bg-dept-soft/40 p-4">
+          <Field label="Margine da applicare">
+            <NumberInput value={project.marginPct ?? 0} onChange={(marginPct) => updateProject({ marginPct })} prefix="%" />
+          </Field>
+          <p className="text-xs text-muted-foreground">Il margine viene applicato sul costo di produzione (manodopera + trasferte + materiali) per ottenere il prezzo di vendita.</p>
+        </div>
+      </CardContent>
+    </Card>
   </>;
 };
 

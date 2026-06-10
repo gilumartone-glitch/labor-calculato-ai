@@ -446,60 +446,71 @@ const explodePieces = (
       const fitsRotated =
         p.allowRotation && h <= rollWidthM + 1e-6 && w <= sheetHeightM + 1e-6;
       if (!fitsAsIs && !fitsRotated) {
-        // Scelgo l'orientazione con meno pannelli necessari
-        type Orient = { crossM: number; alongM: number; panels: number; sheetSpan: number };
+        // Scelgo l'orientazione con meno pannelli necessari.
+        // Lo split è 2D: cross = colonne (su larghezza foglio), along = righe
+        // (su altezza foglio). Così anche pezzi più grandi del foglio in
+        // entrambe le dimensioni vengono spezzati in una griglia di pannelli.
+        type Orient = {
+          crossM: number;
+          alongM: number;
+          cols: number;
+          rows: number;
+        };
         const orientations: Orient[] = [];
-        // orientazione default: cross = w (split sulla larghezza del foglio),
-        // along = h (deve stare nell'altezza del foglio)
-        if (h <= sheetHeightM + 1e-6) {
-          orientations.push({
-            crossM: w,
-            alongM: h,
-            panels: Math.max(1, Math.ceil(w / rollWidthM)),
-            sheetSpan: 1,
-          });
-        }
-        // ruotata: cross = h, along = w
-        if (p.allowRotation && w <= sheetHeightM + 1e-6) {
+        orientations.push({
+          crossM: w,
+          alongM: h,
+          cols: Math.max(1, Math.ceil(w / rollWidthM)),
+          rows: Math.max(1, Math.ceil(h / sheetHeightM)),
+        });
+        if (p.allowRotation) {
           orientations.push({
             crossM: h,
             alongM: w,
-            panels: Math.max(1, Math.ceil(h / rollWidthM)),
-            sheetSpan: 1,
+            cols: Math.max(1, Math.ceil(h / rollWidthM)),
+            rows: Math.max(1, Math.ceil(w / sheetHeightM)),
           });
         }
-        if (orientations.length > 0) {
-          orientations.sort(
-            (a, b) =>
-              a.panels * a.alongM - b.panels * b.alongM ||
-              a.panels - b.panels ||
-              a.alongM - b.alongM,
-          );
-          const best = orientations[0];
-          for (let c = 0; c < qty; c++) {
-            const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;
+        orientations.sort(
+          (a, b) =>
+            a.cols * a.rows - b.cols * b.rows ||
+            a.cols + a.rows - (b.cols + b.rows),
+        );
+        const best = orientations[0];
+        for (let c = 0; c < qty; c++) {
+          const copyLabel = qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel;
+          const totalPanels = best.cols * best.rows;
+          let panelIdx = 0;
+          let remainingAlongM = best.alongM;
+          for (let r = 0; r < best.rows; r++) {
+            const panelAlongM = Math.min(sheetHeightM, remainingAlongM);
             let remainingCrossM = best.crossM;
-            for (let s = 0; s < best.panels; s++) {
+            for (let s = 0; s < best.cols; s++) {
               const panelCrossM = Math.min(rollWidthM, remainingCrossM);
+              panelIdx += 1;
               items.push({
                 pieceId: p.id,
                 copy: c,
-                label: best.panels > 1 ? `${copyLabel}~${s + 1}/${best.panels}` : copyLabel,
+                label:
+                  totalPanels > 1
+                    ? `${copyLabel}~${panelIdx}/${totalPanels}`
+                    : copyLabel,
                 shape: "rect",
                 w: panelCrossM,
-                h: best.alongM,
+                h: panelAlongM,
                 widthBottomM: panelCrossM,
                 allowRotation: false,
-                realArea: panelCrossM * best.alongM,
+                realArea: panelCrossM * panelAlongM,
               });
               remainingCrossM = Math.max(0, remainingCrossM - panelCrossM);
             }
-            seamLengthM += (best.panels - 1) * best.alongM;
+            remainingAlongM = Math.max(0, remainingAlongM - panelAlongM);
           }
-          continue;
+          // cuciture: verticali tra colonne + orizzontali tra righe
+          seamLengthM +=
+            (best.cols - 1) * best.alongM + (best.rows - 1) * best.crossM;
         }
-        // se nessuna orientazione regge nemmeno splittando (along > sheetH),
-        // lascio che l'unit finisca in unplaced col flusso normale
+        continue;
       }
     }
 

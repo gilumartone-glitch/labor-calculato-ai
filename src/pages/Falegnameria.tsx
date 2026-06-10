@@ -816,8 +816,8 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
             {line.fromLab && lp && labCatalog && (
               <div className="font-mono text-xs text-muted-foreground">
                 {qty === 0
-                  ? "Nessun elemento del disegnatore collegato a questo pezzo Lab"
-                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(nesting auto)</span></>}
+                  ? "Pannelli non calcolabili — verifica dimensioni del pezzo Lab e listino"
+                  : <>{qty} pannell{qty === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(qty * unitCost)}</span> <span className="opacity-70">(da nesting Laboratorio)</span></>}
               </div>
             )}
           </div>

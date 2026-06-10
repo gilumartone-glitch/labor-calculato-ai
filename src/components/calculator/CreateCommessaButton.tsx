@@ -547,11 +547,17 @@ export const CreateCommessaButton = ({
           .insert(acquistiRows as any)
           .select("id");
         if (ea) throw ea;
-        // Associa ogni sub-acquisti al reparto tecnico del materiale mancante.
+        // Associa ogni sub-acquisti al reparto tecnico del materiale mancante,
+        // ma SOLO se la regola è "blocking". I materiali "autonomous" generano comunque
+        // un sub acquisti, ma non bloccano il reparto consumatore.
         (acquistiSubs ?? []).forEach((row: any, idx: number) => {
-          const dep = missingMaterials[idx]?.dept;
-          if (dep && !acquistiByDept[dep]) acquistiByDept[dep] = row.id as string;
+          const mm = missingMaterials[idx];
+          const dep = mm?.dept;
+          if (dep && mm?.mode !== "autonomous" && !acquistiByDept[dep]) {
+            acquistiByDept[dep] = row.id as string;
+          }
         });
+
 
         await notify({
           userIds: [d.acquisti_assignee_id],

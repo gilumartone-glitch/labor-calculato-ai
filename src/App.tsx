@@ -6,7 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { loadRepartiConfig } from "@/lib/reparti";
+import { loadMaterialDependencies } from "@/lib/material-dependencies";
 loadRepartiConfig();
+loadMaterialDependencies();
 
 import { RouteGuard } from "@/components/RouteGuard";
 import { FloatingHubButton } from "@/components/HubLink";

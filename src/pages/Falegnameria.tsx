@@ -669,8 +669,10 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
   return embedded ? content : <div data-dept="falegnameria" className="min-h-screen bg-dept-soft/50 text-foreground">{content}</div>;
 }
 
-const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void }) => {
+const ProjectSection = ({ project, updateProject, updateMaterialLine, addMaterialLine, labCatalog, labPieces }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void; updateMaterialLine: (id: string, patch: Partial<MaterialLine>) => void; addMaterialLine: (category?: MaterialCategory) => void; labCatalog?: CalcCatalog; labPieces?: PieceLine[] }) => {
   const materialById = new Map(project.materialCatalog.map((m) => [m.id, m]));
+  const labPiecesArr = labPieces ?? [];
+  const labPieceFor = (id?: string | null) => (id ? labPiecesArr.find((p) => p.id === id) : undefined);
   const renderUsageRows = (category: MaterialCategory | "materie-prime", emptyText: string) => {
     const allowedCatalog = project.materialCatalog.filter((m) => (category === "materie-prime" ? m.category !== "accessori" : m.category === category));
     const rows = project.materials.filter((line) => {
@@ -681,25 +683,68 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     return <CardContent className="space-y-3">
       {rows.map((line) => {
         const item = materialById.get(line.materialId);
-        const unitCost = line.unitCost ?? item?.unitCost ?? 0;
-        return <div key={line.id} className="rounded-sm border border-border bg-background p-3">
+        const fallbackUnit = line.unitCost ?? item?.unitCost ?? 0;
+        const lp = line.fromLab ? labPieceFor(line.labPieceId) : undefined;
+        const labUnit = lp && labCatalog ? labPieceUnitCost(lp, labCatalog) : 0;
+        const unitCost = line.fromLab && lp && labCatalog ? labUnit : fallbackUnit;
+        return <div key={line.id} className="rounded-sm border border-border bg-background p-3 space-y-2">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.4fr)_90px_110px_130px_110px_40px] xl:items-end">
           <Field label="Voce">
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={line.materialId} onChange={(e) => updateMaterialLine(line.id, { materialId: e.target.value, unitCost: undefined })}>
               {allowedCatalog.map((m) => <option key={m.id} value={m.id}>{categoryLabel[m.category]} · {materialLabel(m)}</option>)}
             </select>
           </Field>
-          <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{item?.unit ?? "unità"}</div></Field>
-          <Field label="Quantità"><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix="Qtà" /></Field>
-          <Field label="Prezzo unitario"><NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" /></Field>
+          <Field label="Unità"><div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">{line.fromLab ? "pannelli" : (item?.unit ?? "unità")}</div></Field>
+          <Field label={line.fromLab ? "Nº pannelli" : "Quantità"}><NumberInput value={line.quantity} onChange={(quantity) => updateMaterialLine(line.id, { quantity })} prefix={line.fromLab ? "Pannelli" : "Qtà"} /></Field>
+          <Field label={line.fromLab ? "Cadauno (auto)" : "Prezzo unitario"}>
+            {line.fromLab ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 font-mono text-sm font-semibold">{eur(unitCost)}</div>
+            ) : (
+              <NumberInput value={unitCost} onChange={(value) => updateMaterialLine(line.id, { unitCost: value })} prefix="€/unità" />
+            )}
+          </Field>
           <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * unitCost)}</div></Field>
           <IconButton onClick={() => updateProject({ materials: project.materials.filter((row) => row.id !== line.id) })} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={line.fromLab ? "default" : "outline"}
+              onClick={() => updateMaterialLine(line.id, { fromLab: !line.fromLab, labPieceId: line.fromLab ? null : line.labPieceId ?? null })}
+              title="Se attivo, il materiale viene prelevato dal Laboratorio: il prezzo cadauno è calcolato sul pezzo Lab collegato."
+            >
+              <Layers className="h-4 w-4" />{line.fromLab ? "Da Laboratorio" : "Prendi da Laboratorio"}
+            </Button>
+            {line.fromLab && (
+              labPiecesArr.length === 0 ? (
+                <span className="text-xs text-destructive">Nessun pezzo in Laboratorio · creane uno per poterlo collegare</span>
+              ) : (
+                <select
+                  className="h-9 flex-1 min-w-[200px] rounded-md border border-input bg-background px-2 text-sm"
+                  value={line.labPieceId ?? ""}
+                  onChange={(e) => updateMaterialLine(line.id, { labPieceId: e.target.value || null })}
+                >
+                  <option value="">— Scegli pezzo Laboratorio —</option>
+                  {labPiecesArr.map((p, i) => (
+                    <option key={p.id} value={p.id}>{labPieceOptionLabel(p, i)}</option>
+                  ))}
+                </select>
+              )
+            )}
+            {line.fromLab && lp && labCatalog && (
+              <div className="font-mono text-xs text-muted-foreground">
+                {line.quantity || 0} pannell{(line.quantity || 0) === 1 ? "o" : "i"} × {eur(unitCost)} = <span className="font-semibold text-foreground">{eur(line.quantity * unitCost)}</span>
+              </div>
+            )}
           </div>
         </div>;
       })}
       {rows.length === 0 && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">{emptyText}</p>}
     </CardContent>;
   };
+
+
 
   return <>
     <Card className="border-2 border-dept shadow-soft">

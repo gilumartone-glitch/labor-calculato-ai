@@ -280,7 +280,7 @@ const drawElement = (ctx: CanvasRenderingContext2D, el: DrawingElement, selected
   ctx.restore();
 };
 
-export default function Falegnameria({ embedded = false }: FalegnameriaProps) {
+export default function Falegnameria({ embedded = false, labCatalog, labPieces }: FalegnameriaProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [project, setProject] = useState<WoodProject>(() => initialProject());

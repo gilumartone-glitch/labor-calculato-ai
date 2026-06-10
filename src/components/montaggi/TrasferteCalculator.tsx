@@ -235,6 +235,14 @@ export const TrasferteCalculator = ({
 
   const origin = cfg.originKey ? parseCityKey(cfg.originKey, cities) : undefined;
   const dest = cfg.destKey ? parseCityKey(cfg.destKey, cities) : undefined;
+  const kmAuto = origin && dest ? estimateRoadKm(origin, dest) : 0;
+
+  // Snapshot kmAuto nel config così i totali possono essere calcolati anche
+  // senza il dataset città caricato (es. nella card di riepilogo del progetto).
+  useEffect(() => {
+    if (kmAuto && cfg.kmAuto !== kmAuto) onChange({ ...cfg, kmAuto });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kmAuto]);
 
   const totals = useMemo(
     () => computeTrasferteTotals(cfg, origin, dest, workersAuto),
@@ -243,7 +251,6 @@ export const TrasferteCalculator = ({
 
   const set = (patch: Partial<TrasferteConfig>) => onChange({ ...cfg, ...patch });
 
-  const kmAuto = origin && dest ? estimateRoadKm(origin, dest) : 0;
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
 
   return (

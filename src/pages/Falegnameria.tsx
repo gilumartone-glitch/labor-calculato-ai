@@ -45,6 +45,36 @@ import {
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
+import { pieceTotal } from "@/lib/piece";
+import { convertLength } from "@/lib/perimeter";
+import type { Catalog as CalcCatalog, PieceLine } from "@/components/calculator/types";
+
+/** Costo cadauno (€) di un pannello del Laboratorio: pieceTotal / quantità del pezzo Lab. */
+const labPieceUnitCost = (lp: PieceLine, cat: CalcCatalog): number => {
+  const qty = Math.max(1, Math.floor(Number(lp.quantity) || 1));
+  return pieceTotal(lp, cat) / qty;
+};
+/** Area in m² del singolo pannello Lab (senza margini di lavorazione). */
+const labPieceAreaM2 = (lp: PieceLine): number => {
+  const w = convertLength(Number(lp.width) || 0, lp.dimUnit, "m");
+  const h = convertLength(Number(lp.height) || 0, lp.dimUnit, "m");
+  return Math.max(0, w * h);
+};
+/** Area in m² di un elemento del disegnatore (w × h espressi in mm o cm). */
+const elementAreaM2 = (el: DrawingElement): number => {
+  const u = el.unit === "mm" ? "mm" : "cm";
+  const w = convertLength(Number(el.w) || 0, u, "m");
+  const h = convertLength(Number(el.h) || 0, u, "m");
+  return Math.max(0, w * h);
+};
+/** Etichetta breve per il select dei pezzi Lab. */
+const labPieceOptionLabel = (lp: PieceLine, idx: number): string => {
+  const name = lp.productName || `Pezzo Lab #${idx + 1}`;
+  const dim = `${lp.width || "?"}×${lp.height || "?"} ${lp.dimUnit}`;
+  const qty = Math.max(1, Math.floor(Number(lp.quantity) || 1));
+  return `#${String(idx + 1).padStart(2, "0")} · ${name} · ${dim} · ×${qty}`;
+};
+
 
 
 type WorkerProfile = {

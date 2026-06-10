@@ -62,6 +62,12 @@ export async function notify(opts: {
   is_urgent?: boolean;
 }) {
   if (!opts.userIds.length) return;
+  if (!isNotifType(opts.type)) {
+    console.error(
+      `[notify] tipo notifica non valido: "${opts.type}". Valori ammessi: ${PROD_NOTIF_TYPES.join(", ")}`
+    );
+    return;
+  }
   const rows = opts.userIds.map((uid) => ({
     user_id: uid,
     type: opts.type,

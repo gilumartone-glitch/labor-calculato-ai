@@ -689,25 +689,43 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
   </>;
 };
 
-const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => (
-  <Card className="border-2 border-dept shadow-soft">
-    <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Trasporti, trasferte e mezzi</CardTitle><Button size="sm" onClick={() => updateProject({ transports: [...project.transports, { id: uid(), description: "Trasporto / trasferta", quantity: 1, unitCost: 0 }] })}><Plus className="h-4 w-4" />Trasporto / trasferta</Button></CardHeader>
-    <CardContent className="space-y-3">
-      {project.transports.map((line) => (
-        <div key={line.id} className="rounded-sm border border-border bg-background p-3">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_110px_130px_110px_40px] xl:items-end">
-          <Field label="Descrizione"><Input value={line.description} onChange={(e) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, description: e.target.value } : t) })} /></Field>
-          <Field label="Quantità"><NumberInput value={line.quantity} onChange={(quantity) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, quantity } : t) })} prefix="Qtà" /></Field>
-          <Field label="Prezzo unitario"><NumberInput value={line.unitCost} onChange={(unitCost) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, unitCost } : t) })} prefix="€/unità" /></Field>
-          <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * line.unitCost)}</div></Field>
-          <IconButton onClick={() => updateProject({ transports: project.transports.filter((t) => t.id !== line.id) })} />
-          </div>
-        </div>
-      ))}
-      {project.transports.length === 0 && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">Aggiungi qui trasferte, parcheggi, noleggi mezzi, piattaforme o consegne.</p>}
-    </CardContent>
-  </Card>
-);
+const TransportUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
+  const workersAuto = project.labor.filter((l) => l.workerId).length || 1;
+  const cfg = project.trasferte ?? defaultTrasferte();
+  return (
+    <>
+      <Card className="border-2 border-dept shadow-soft">
+        <CardHeader>
+          <CardTitle>Calcolo trasferta squadra</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrasferteCalculator cfg={cfg} workersAuto={workersAuto} onChange={(trasferte) => updateProject({ trasferte })} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-2 border-dept shadow-soft">
+        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle>Altre voci · trasporti, parcheggi, noleggi</CardTitle>
+          <Button size="sm" onClick={() => updateProject({ transports: [...project.transports, { id: uid(), description: "Voce extra", quantity: 1, unitCost: 0 }] })}><Plus className="h-4 w-4" />Voce</Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {project.transports.map((line) => (
+            <div key={line.id} className="rounded-sm border border-border bg-background p-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_110px_130px_110px_40px] xl:items-end">
+                <Field label="Descrizione"><Input value={line.description} onChange={(e) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, description: e.target.value } : t) })} /></Field>
+                <Field label="Quantità"><NumberInput value={line.quantity} onChange={(quantity) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, quantity } : t) })} prefix="Qtà" /></Field>
+                <Field label="Prezzo unitario"><NumberInput value={line.unitCost} onChange={(unitCost) => updateProject({ transports: project.transports.map((t) => t.id === line.id ? { ...t, unitCost } : t) })} prefix="€/unità" /></Field>
+                <Field label="Totale"><div className="flex h-10 items-center font-mono font-semibold">{eur(line.quantity * line.unitCost)}</div></Field>
+                <IconButton onClick={() => updateProject({ transports: project.transports.filter((t) => t.id !== line.id) })} />
+              </div>
+            </div>
+          ))}
+          {project.transports.length === 0 && <p className="rounded-sm border border-border bg-background p-3 text-sm text-muted-foreground">Aggiungi qui parcheggi, noleggi mezzi, piattaforme, consegne o altre voci non comprese nel calcolo trasferta.</p>}
+        </CardContent>
+      </Card>
+    </>
+  );
+};
 
 const LaborUsageSection = ({ project, updateProject }: { project: WoodProject; updateProject: (patch: Partial<WoodProject>) => void }) => {
   const [dips, setDips] = useState<Dipendente[]>([]);

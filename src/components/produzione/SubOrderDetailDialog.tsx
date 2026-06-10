@@ -27,6 +27,7 @@ import {
 import { PieceDetail } from "@/components/shared/PieceDetail";
 import { NestingPreview } from "@/components/calculator/NestingPreview";
 import { mergeCatalogs } from "@/lib/nesting";
+import { matchMaterialDependency } from "@/lib/material-dependencies";
 
 type FileItem = { name: string; type?: string; path?: string; size?: number };
 
@@ -159,9 +160,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const snapshot = (order?.snapshot as ProdSnapshot | null) ?? null;
   const snapshotDepts = useMemo(() => collectSnapshotDepartments(snapshot), [snapshot]);
   const allPieces = useMemo(() => collectSnapshotPieces(snapshotDepts), [snapshotDepts]);
-  /** Filtra i reparti dello snapshot al solo reparto del sub corrente, così
-   *  i "Materiali necessari" mostrati sono solo quelli che servono a QUESTO
-   *  reparto (es. Tappezzeria non deve vedere MOZAIK che è di Stampa). */
+  /** Materiali del SOLO reparto del sub corrente (es. Tappezzeria non vede MOZAIK di Stampa). */
   const subSnapshotDepts = useMemo(() => {
     if (!sub) return snapshotDepts;
     const dep = sub.dept;
@@ -173,7 +172,24 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
       return k === String(dep).toLowerCase();
     });
   }, [snapshotDepts, sub]);
-  const aggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(subSnapshotDepts), [subSnapshotDepts]);
+  const baseAggregatedMaterials = useMemo(() => aggregateSnapshotMaterials(subSnapshotDepts), [subSnapshotDepts]);
+  /** Materiali "in arrivo" da altri reparti: regola autonomous che ha questo sub come consumer. */
+  const incomingMaterials = useMemo(() => {
+    if (!sub) return [] as Array<ReturnType<typeof aggregateSnapshotMaterials>[number] & { _fromDept?: string }>;
+    const otherDepts = snapshotDepts.filter((d) => !subSnapshotDepts.includes(d));
+    const all = aggregateSnapshotMaterials(otherDepts);
+    return all
+      .map((m) => {
+        const rule = matchMaterialDependency(m.name, sub.dept as any);
+        if (!rule || rule.mode !== "autonomous") return null;
+        return { ...m, _fromDept: rule.produced_by_dept as string };
+      })
+      .filter(Boolean) as Array<ReturnType<typeof aggregateSnapshotMaterials>[number] & { _fromDept?: string }>;
+  }, [sub, snapshotDepts, subSnapshotDepts]);
+  const aggregatedMaterials = useMemo(
+    () => [...baseAggregatedMaterials, ...incomingMaterials],
+    [baseAggregatedMaterials, incomingMaterials],
+  );
 
   /** Filtra i pezzi pertinenti al reparto del sub corrente. */
   const relevantPieces = useMemo(() => {
@@ -772,10 +788,17 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
 
             {/* MOBILE: lista a card */}
             <div className="sm:hidden space-y-2">
-              {aggregatedMaterials.map((m, i) => (
+              {aggregatedMaterials.map((m: any, i) => (
                 <div key={i} className="border border-ink/15 rounded-sm p-2 bg-paper text-[14px] sm:text-[12px] space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="font-semibold break-words min-w-0">{m.name}</div>
+                    <div className="font-semibold break-words min-w-0 flex items-center gap-1.5 flex-wrap">
+                      {m.name}
+                      {m._fromDept && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-sm font-mono text-[10px] uppercase tracking-wider font-bold">
+                          ⇣ da {DEPT_LABEL[m._fromDept] ?? m._fromDept}
+                        </span>
+                      )}
+                    </div>
                     <div className="font-mono tabular-nums font-bold shrink-0">{m.unit ? `${m.qty.toFixed(2)} ${m.unit}` : "—"}</div>
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground font-mono">
@@ -785,7 +808,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </div>
                   {m.pieceLabels.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-0.5">
-                      {m.pieceLabels.map((pl, pi) => (
+                      {m.pieceLabels.map((pl: string, pi: number) => (
                         <span key={pi} className="inline-block px-1.5 py-0.5 bg-muted/60 rounded-sm font-mono text-[14px] sm:text-[12px] sm:text-[10px] font-bold">{pl}</span>
                       ))}
                     </div>
@@ -809,9 +832,18 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                   </tr>
                 </thead>
                 <tbody>
-                  {aggregatedMaterials.map((m, i) => (
+                  {aggregatedMaterials.map((m: any, i) => (
                     <tr key={i} className="border-t border-ink/10">
-                      <td className="px-2 py-1.5 font-semibold">{m.name}</td>
+                      <td className="px-2 py-1.5 font-semibold">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {m.name}
+                          {m._fromDept && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-sm font-mono text-[10px] uppercase tracking-wider font-bold">
+                              ⇣ da {DEPT_LABEL[m._fromDept] ?? m._fromDept}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-2 py-1.5 text-muted-foreground">{m.color || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground font-mono">{m.base || "—"}</td>
                       <td className="px-2 py-1.5 text-muted-foreground">{m.height || "—"}</td>

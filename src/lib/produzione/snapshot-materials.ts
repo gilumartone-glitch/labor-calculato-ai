@@ -1,6 +1,7 @@
 import { computeNesting } from "@/lib/nesting";
 import type { Catalog, DepartmentState } from "@/components/calculator/types";
 import type { ProdDept } from "@/lib/produzione/types";
+import { matchMaterialDependency, type MaterialDependencyMode } from "@/lib/material-dependencies";
 
 export type SnapshotMaterial = {
   key: string;
@@ -12,8 +13,28 @@ export type SnapshotMaterial = {
   unit?: string;
   /** Codice/identificativo breve del materiale (es. PAN-300). */
   code?: string;
-  /** Macro-reparto di provenienza del materiale (per bloccare solo i sub interessati). */
+  /** Reparto tecnico in cui il materiale è effettivamente utilizzato (deriva dal preventivo). */
   dept?: ProdDept;
+  /** Reparto che produce internamente il materiale (da regola configurata). */
+  producedByDept?: ProdDept;
+  /** Comportamento configurato verso il reparto consumatore: blocking | autonomous | ignore. */
+  mode?: MaterialDependencyMode;
+};
+
+/** Applica le regole di dipendenza ai materiali rispetto a un reparto consumatore. */
+export const applyMaterialDependencies = (
+  materials: SnapshotMaterial[],
+  consumerDept?: ProdDept,
+): SnapshotMaterial[] => {
+  return materials.map((m) => {
+    const rule = matchMaterialDependency(m.label, consumerDept ?? m.dept);
+    if (!rule) return m;
+    return {
+      ...m,
+      producedByDept: rule.produced_by_dept,
+      mode: rule.mode,
+    };
+  });
 };
 
 type DeptLike = { label?: string; key?: string; state?: DepartmentState; catalog?: Catalog };

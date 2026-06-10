@@ -11,6 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MACRO_REPARTI, MICRO_BY_MACRO, microLabel, useRepartiConfig, addMacroReparto, addMicroReparto, deleteRepartoConfig, type MacroReparto } from "@/lib/reparti";
+import {
+  useMaterialDependencies,
+  upsertMaterialDependency,
+  deleteMaterialDependency,
+  type MaterialDependencyMode,
+  type MaterialDependencyRule,
+} from "@/lib/material-dependencies";
+import { DEPT_LABEL, type ProdDept } from "@/lib/produzione/types";
 import type { Dipendente } from "@/lib/dipendenti";
 
 const NET_TO_GROSS_RATIO = 0.82;
@@ -235,6 +243,7 @@ export default function Dipendenti() {
         </Card>
 
         {canWrite && <RepartiManager />}
+        {canWrite && <MaterialDepsManager />}
 
 
 
@@ -515,6 +524,160 @@ function RepartiManager() {
                 </div>
               ))}
             </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+const PROD_DEPTS: ProdDept[] = [
+  "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
+  "falegnameria", "assemblaggio", "laboratorio", "magazzino",
+  "acquisti", "vendite", "montaggi", "altro",
+];
+
+const MODE_LABEL: Record<MaterialDependencyMode, string> = {
+  blocking: "Blocca (attende l'altro reparto)",
+  autonomous: "Autonomo (vede 'in arrivo da', non blocca)",
+  ignore: "Ignora (non mostrare)",
+};
+
+function MaterialDepsManager() {
+  const { rules, reload } = useMaterialDependencies();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<Partial<MaterialDependencyRule>>({
+    material_pattern: "",
+    produced_by_dept: "stampa",
+    consumer_dept: null,
+    mode: "autonomous",
+    note: "",
+  });
+
+  const onSave = async () => {
+    if (!draft.material_pattern || !String(draft.material_pattern).trim()) {
+      toast.error("Inserisci il nome (o frammento) del materiale");
+      return;
+    }
+    if (!draft.produced_by_dept) {
+      toast.error("Scegli il reparto che produce il materiale");
+      return;
+    }
+    setBusy(true);
+    try {
+      await upsertMaterialDependency({
+        material_pattern: String(draft.material_pattern).trim(),
+        produced_by_dept: draft.produced_by_dept as ProdDept,
+        consumer_dept: (draft.consumer_dept as ProdDept) || null,
+        mode: (draft.mode as MaterialDependencyMode) ?? "blocking",
+        note: draft.note ?? null,
+      });
+      setDraft({ material_pattern: "", produced_by_dept: "stampa", consumer_dept: null, mode: "autonomous", note: "" });
+      toast.success("Regola salvata");
+    } catch (e: any) {
+      toast.error("Errore", { description: e.message ?? "Impossibile salvare" });
+    } finally { setBusy(false); }
+  };
+
+  const onDelete = async (id: string) => {
+    if (!confirm("Eliminare questa regola?")) return;
+    setBusy(true);
+    try {
+      await deleteMaterialDependency(id);
+      toast.success("Regola eliminata");
+    } catch (e: any) {
+      toast.error("Errore", { description: e.message ?? "Impossibile eliminare" });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="border-2 border-ink/20 bg-paper">
+      <CardHeader className="pb-3">
+        <button className="w-full flex items-center justify-between gap-2" onClick={() => setOpen((v) => !v)}>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Dipendenze materiali tra reparti
+          </CardTitle>
+          <span className="text-xs text-muted-foreground">{open ? "Chiudi" : "Apri"}</span>
+        </button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-5">
+          <p className="text-xs text-muted-foreground">
+            Dichiara che un materiale (es. <em>MOZAIK</em>) è prodotto internamente da un reparto
+            (es. <em>Stampa</em>). Puoi scegliere se i reparti che lo usano (es. <em>Tappezzeria</em>)
+            devono <strong>attenderlo</strong> oppure partire <strong>autonomi</strong> mostrandolo
+            solo come "in arrivo da".
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end border border-ink/15 rounded-sm p-3">
+            <div className="md:col-span-2">
+              <Label className="text-[11px]">Materiale (nome o frammento)</Label>
+              <Input value={String(draft.material_pattern ?? "")} placeholder="Es. MOZAIK"
+                onChange={(e) => setDraft((d) => ({ ...d, material_pattern: e.target.value }))} disabled={busy} />
+            </div>
+            <div>
+              <Label className="text-[11px]">Prodotto da</Label>
+              <select className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                value={String(draft.produced_by_dept ?? "")}
+                onChange={(e) => setDraft((d) => ({ ...d, produced_by_dept: e.target.value as ProdDept }))} disabled={busy}>
+                {PROD_DEPTS.map((p) => <option key={p} value={p}>{DEPT_LABEL[p]}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-[11px]">Consumato da</Label>
+              <select className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                value={String(draft.consumer_dept ?? "")}
+                onChange={(e) => setDraft((d) => ({ ...d, consumer_dept: (e.target.value || null) as any }))} disabled={busy}>
+                <option value="">— Tutti i reparti —</option>
+                {PROD_DEPTS.map((p) => <option key={p} value={p}>{DEPT_LABEL[p]}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-[11px]">Comportamento</Label>
+              <select className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                value={String(draft.mode ?? "blocking")}
+                onChange={(e) => setDraft((d) => ({ ...d, mode: e.target.value as MaterialDependencyMode }))} disabled={busy}>
+                {(Object.keys(MODE_LABEL) as MaterialDependencyMode[]).map((m) => (
+                  <option key={m} value={m}>{MODE_LABEL[m]}</option>
+                ))}
+              </select>
+            </div>
+            <Button onClick={onSave} disabled={busy}>
+              <Plus className="w-4 h-4" /> Aggiungi
+            </Button>
+          </div>
+
+          <div className="border border-ink/15 rounded-sm overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-ink/5 uppercase tracking-wider text-[10px] font-mono text-muted-foreground">
+                <tr>
+                  <th className="text-left px-2 py-2">Materiale</th>
+                  <th className="text-left px-2 py-2">Prodotto da</th>
+                  <th className="text-left px-2 py-2">Consumato da</th>
+                  <th className="text-left px-2 py-2">Modalità</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rules.length === 0 && (
+                  <tr><td colSpan={5} className="text-center text-muted-foreground italic py-4">Nessuna regola configurata</td></tr>
+                )}
+                {rules.map((r) => (
+                  <tr key={r.id} className="border-t border-ink/10">
+                    <td className="px-2 py-1.5 font-semibold">{r.material_pattern}</td>
+                    <td className="px-2 py-1.5">{DEPT_LABEL[r.produced_by_dept] ?? r.produced_by_dept}</td>
+                    <td className="px-2 py-1.5">{r.consumer_dept ? (DEPT_LABEL[r.consumer_dept] ?? r.consumer_dept) : <span className="text-muted-foreground italic">tutti</span>}</td>
+                    <td className="px-2 py-1.5">{MODE_LABEL[r.mode]}</td>
+                    <td className="px-2 py-1.5 text-right">
+                      <button onClick={() => onDelete(r.id)} disabled={busy} className="text-destructive hover:opacity-80" title="Elimina">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       )}

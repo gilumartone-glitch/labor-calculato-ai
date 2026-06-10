@@ -382,6 +382,20 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     }
     return line.unitCost ?? item?.unitCost ?? 0;
   };
+  /** Nº pannelli auto: somma dei pannelli richiesti da TUTTI gli elementi del disegnatore
+   *  che fanno riferimento allo stesso pezzo Lab. Se la riga non è "fromLab" → quantity manuale. */
+  const autoPanelsForLabPiece = (labPieceId: string): number => {
+    const lp = labPieceById.get(labPieceId);
+    if (!lp) return 0;
+    return project.elements.reduce((sum, el) => {
+      if (!el.fromLab || el.labPieceId !== labPieceId) return sum;
+      return sum + panelsNeededForElement(el, lp);
+    }, 0);
+  };
+  const effectiveLineQuantity = (line: MaterialLine): number => {
+    if (line.fromLab && line.labPieceId) return autoPanelsForLabPiece(line.labPieceId);
+    return line.quantity;
+  };
 
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
@@ -394,7 +408,8 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
         const item = materialById.get(line.materialId);
         if (!item) return acc;
         const unit = effectiveLineUnitCost(line, item);
-        return { ...acc, [item.category]: acc[item.category] + line.quantity * unit };
+        const qty = effectiveLineQuantity(line);
+        return { ...acc, [item.category]: acc[item.category] + qty * unit };
       },
       { legno: 0, plastica: 0, accessori: 0 } as Record<MaterialCategory, number>,
     );

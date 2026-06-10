@@ -45,10 +45,30 @@ export const GeneralSummary = ({
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
   const cost = departments.reduce((s, d) => s + d.totals.total, 0);
-  const marginAmount = 0;
-  const net = cost;
-  const vatAmount = 0;
-  const total = cost;
+
+  // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
+  // Persistito in localStorage per non perdere le scelte tra refresh.
+  const STORAGE = "officina:summary:deptMargins";
+  const [deptMargins, setDeptMargins] = useState<Record<string, number>>(() => {
+    try {
+      if (typeof window === "undefined") return {};
+      const raw = localStorage.getItem(STORAGE);
+      return raw ? (JSON.parse(raw) ?? {}) : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE, JSON.stringify(deptMargins)); } catch { /* ignore */ }
+  }, [deptMargins]);
+  const marginFor = (k: string) => (deptMargins[k] ?? margin);
+  const setMarginFor = (k: string, v: number) => setDeptMargins((prev) => ({ ...prev, [k]: v }));
+  const resetMarginFor = (k: string) => setDeptMargins((prev) => { const next = { ...prev }; delete next[k]; return next; });
+  const deptTotalWithMargin = (d: GeneralSummaryProps["departments"][number]) =>
+    d.totals.total * (1 + marginFor(d.key) / 100);
+
+  const marginAmount = departments.reduce((s, d) => s + d.totals.total * (marginFor(d.key) / 100), 0);
+  const net = cost + marginAmount;
+  const vatAmount = applyVat ? net * (vat / 100) : 0;
+  const total = net + vatAmount;
 
   // Titolo schedina (draft attivo) come default per il dialog "Crea commessa nel Flow"
   const schedinaTitle = (() => {

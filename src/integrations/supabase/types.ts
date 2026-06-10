@@ -885,6 +885,42 @@ export type Database = {
         }
         Relationships: []
       }
+      material_dependencies: {
+        Row: {
+          consumer_dept: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          material_pattern: string
+          mode: string
+          note: string | null
+          produced_by_dept: string
+          updated_at: string
+        }
+        Insert: {
+          consumer_dept?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          material_pattern: string
+          mode?: string
+          note?: string | null
+          produced_by_dept: string
+          updated_at?: string
+        }
+        Update: {
+          consumer_dept?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          material_pattern?: string
+          mode?: string
+          note?: string | null
+          produced_by_dept?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       montaggi_assignment_items: {
         Row: {
           commessa_id: string

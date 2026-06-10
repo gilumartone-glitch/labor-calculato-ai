@@ -314,15 +314,33 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
 
   const materialById = useMemo(() => new Map(project.materialCatalog.map((m) => [m.id, m])), [project.materialCatalog]);
 
+  // Dipendenti Montaggi: servono per calcolare il costo orario REALE della
+  // squadra sia per la manodopera sia per le ore di viaggio in trasferta.
+  const [montaggiDips, setMontaggiDips] = useState<Dipendente[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDipendenti(true).then((all) => {
+      if (!cancelled) setMontaggiDips(filterDipendentiByMacro(all, "montaggi"));
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const hourlyCostFor = (id: string): number => {
+    const d = montaggiDips.find((x) => `dip:${x.id}` === id);
+    if (d) return dipendenteHourlyCost(d);
+    const w = project.workers.find((x) => x.id === id);
+    return w ? workerHourlyCost(w) : 0;
+  };
+
   const totals = useMemo(() => {
     const labor = project.labor.reduce((sum, line) => {
-      const worker = project.workers.find((w) => w.id === line.workerId);
-      return sum + (worker ? (workerHourlyCost(worker) + (line.travel ? 2.5 : 0)) * line.hours : 0);
+      const base = hourlyCostFor(line.workerId);
+      return sum + (base + (line.travel ? 2.5 : 0)) * line.hours;
     }, 0);
     const transportsExtra = project.transports.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
     const workersCount = project.labor.filter((l) => l.workerId).length || 1;
+    const workersHourlyTotal = project.labor.reduce((sum, line) => sum + (line.workerId ? hourlyCostFor(line.workerId) : 0), 0);
     const trasferteCalc = project.trasferte
-      ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount).total
+      ? computeTrasferteTotalsFromConfig(project.trasferte, workersCount, workersHourlyTotal).total
       : 0;
     const transports = transportsExtra + trasferteCalc;
     const materialsByCategory = project.materials.reduce(
@@ -338,7 +356,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
     return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
-  }, [materialById, project]);
+  }, [materialById, project, montaggiDips]);
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;
 

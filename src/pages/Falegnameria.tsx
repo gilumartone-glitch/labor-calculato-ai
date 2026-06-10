@@ -928,6 +928,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
     </Card>
 
     <LaborUsageSection project={project} updateProject={updateProject} dips={dips} />
+    <MontaggioSection project={project} updateProject={updateProject} dips={dips} />
     <TransportUsageSection project={project} updateProject={updateProject} />
   </>;
 };

@@ -46,6 +46,13 @@ import {
 import { AssegnazioneSection } from "@/components/montaggi/AssegnazioneSection";
 import { ClipboardCheck } from "lucide-react";
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
+import {
+  TrasferteCalculator,
+  computeTrasferteTotals,
+  defaultTrasferte,
+  type TrasferteConfig,
+} from "@/components/montaggi/TrasferteCalculator";
+import { CASORIA, cityKey, loadItalianCities, parseCityKey, type ItalianCity } from "@/lib/italian-cities";
 
 
 type WorkerProfile = {

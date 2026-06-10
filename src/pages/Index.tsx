@@ -10,6 +10,7 @@ import { loadCatalog, saveCatalog, emptyCatalog } from "@/lib/catalog";
 import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
 import { buildPerimeterOpsForDept, perimeterCost } from "@/lib/perimeter";
 import { pieceTotal, aggregateScrapDeduction } from "@/lib/piece";
+import { computeNesting } from "@/lib/nesting";
 import { buildGhostMaterialsForLab } from "@/lib/ghost-materials";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { syncMaterialFromLabDimensions } from "@/lib/lab-sync";

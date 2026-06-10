@@ -1930,6 +1930,7 @@ export type Database = {
         | "subordine_rimandato"
         | "ordine_rimandato"
         | "magazzino_da_preparare"
+        | "sub_sbloccato"
       prod_order_status:
         | "nuovo"
         | "in_corso"
@@ -2154,6 +2155,7 @@ export const Constants = {
         "subordine_rimandato",
         "ordine_rimandato",
         "magazzino_da_preparare",
+        "sub_sbloccato",
       ],
       prod_order_status: [
         "nuovo",

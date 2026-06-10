@@ -1,0 +1,1 @@
+ALTER TYPE public.prod_notif_type ADD VALUE IF NOT EXISTS 'sub_sbloccato';

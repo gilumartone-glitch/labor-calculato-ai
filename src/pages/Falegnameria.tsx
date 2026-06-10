@@ -463,7 +463,7 @@ export default function Falegnameria({ embedded = false, labCatalog, labPieces }
     const marginEuro = production * (project.marginPct / 100);
     const sale = production + marginEuro;
     return { labor, transports, materialsByCategory, labMaterials, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
-  }, [materialById, project, labPieceById, labCatalog]);
+  }, [materialById, project, labPieceById, labCatalog, dips]);
 
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;

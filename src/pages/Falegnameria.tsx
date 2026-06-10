@@ -49,6 +49,12 @@ import { pieceTotal } from "@/lib/piece";
 import { convertLength } from "@/lib/perimeter";
 import { computeNesting } from "@/lib/nesting";
 import type { Catalog as CalcCatalog, PieceLine } from "@/components/calculator/types";
+import {
+  TrasferteCalculator,
+  defaultTrasferte,
+  computeTrasferteTotalsFromConfig,
+  type TrasferteConfig,
+} from "@/components/montaggi/TrasferteCalculator";
 
 /** Nº pannelli reali ottenuti dal nesting del Laboratorio sul pezzo Lab. */
 const labPiecePanels = (lp: PieceLine, cat: CalcCatalog): number => {

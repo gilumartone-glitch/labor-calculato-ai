@@ -63,7 +63,16 @@ type LaborLine = { id: string; workerId: string; hours: number };
 type TransportLine = { id: string; description: string; quantity: number; unitCost: number };
 type MaterialCategory = WorkshopMaterialCategory;
 type WoodMaterial = WorkshopMaterial;
-type MaterialLine = { id: string; materialId: string; quantity: number; unitCost?: number };
+type MaterialLine = {
+  id: string;
+  materialId: string;
+  quantity: number;
+  unitCost?: number;
+  /** Se true, il materiale è prelevato dal Laboratorio: `quantity` = nº pannelli,
+   *  `unitCost` = costo cadauno calcolato sul pezzo Lab collegato. */
+  fromLab?: boolean;
+  labPieceId?: string | null;
+};
 type ShapeType = "rect" | "l" | "base";
 type DrawingElement = {
   id: string;
@@ -76,6 +85,9 @@ type DrawingElement = {
   d: number;
   unit: "mm" | "cm";
   materialIds: string[];
+  /** Se true, oltre alla preview grafica si stima quanti pannelli Lab servono. */
+  fromLab?: boolean;
+  labPieceId?: string | null;
 };
 type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno";
 
@@ -97,7 +109,15 @@ type WoodProject = {
 type LegacyMaterialLine = Partial<WoodMaterial> & Partial<MaterialLine> & { id: string };
 type StoredWoodProject = Omit<Partial<WoodProject>, "materials"> & { materials?: LegacyMaterialLine[] };
 
-type FalegnameriaProps = { embedded?: boolean };
+type FalegnameriaProps = {
+  embedded?: boolean;
+  /** Catalogo del Laboratorio (reparto Stampa) usato per il pulsante
+   *  "Prendi materiale da Laboratorio". */
+  labCatalog?: import("@/components/calculator/types").Catalog;
+  /** Pezzi presenti in Laboratorio da cui si possono prelevare i pannelli. */
+  labPieces?: import("@/components/calculator/types").PieceLine[];
+};
+
 
 const STORAGE_KEY = "officina:falegnameria-module:v2";
 const LEGACY_STORAGE_KEY = "officina:falegnameria-module:v1";

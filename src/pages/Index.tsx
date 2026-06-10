@@ -10,6 +10,7 @@ import { loadCatalog, saveCatalog, emptyCatalog } from "@/lib/catalog";
 import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
 import { buildPerimeterOpsForDept, perimeterCost } from "@/lib/perimeter";
 import { pieceTotal, aggregateScrapDeduction } from "@/lib/piece";
+import { computeNesting } from "@/lib/nesting";
 import { buildGhostMaterialsForLab } from "@/lib/ghost-materials";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { syncMaterialFromLabDimensions } from "@/lib/lab-sync";
@@ -462,8 +463,43 @@ const Index = () => {
       if (!raw) return null;
       const project = JSON.parse(raw);
       const materialById = new Map((project.materialCatalog ?? []).map((m: any) => [m.id, m]));
+      // Per Falegnameria: alcune righe materiale arrivano dal Laboratorio (fromLab).
+      // In quel caso il costo unitario è il pieceTotal del pezzo Lab / sua qty,
+      // e la quantità è il numero di pannelli ricavati dal nesting.
+      const labPieces: PieceLine[] = key === "falegnameria" ? (departments.stampa.pieces ?? []) : [];
+      const labCat = key === "falegnameria" ? catalogs.stampa : undefined;
+      const labPieceById = new Map(labPieces.map((p) => [p.id, p]));
+      const computeLabUnit = (lp: PieceLine): number => {
+        if (!labCat) return 0;
+        const qty = Math.max(1, Math.floor(Number(lp.quantity) || 1));
+        return pieceTotal(lp, labCat, "dealer") / qty;
+      };
+      const computeLabPanels = (lp: PieceLine): number => {
+        if (!labCat) return 0;
+        try {
+          const groups = computeNesting([lp], labCat);
+          const g = groups[0];
+          if (!g) return 0;
+          if (typeof g.sheetsNeeded === "number" && g.sheetsNeeded > 0) return g.sheetsNeeded;
+          const idxs = new Set<number>();
+          g.items.forEach((it: any) => { if (typeof it.sheetIndex === "number") idxs.add(it.sheetIndex); });
+          return idxs.size > 0 ? idxs.size : (g.items.length > 0 ? 1 : 0);
+        } catch { return 0; }
+      };
       const materialsByCategory = (project.materials ?? []).reduce((acc: Record<string, number>, line: any) => {
         const item: any = materialById.get(line.materialId);
+        // Riga "Da Laboratorio": valorizzala con il pezzo Lab vero (può non avere
+        // unitCost esplicito nella riga salvata) e usa i pannelli del nesting come qty.
+        if (line.fromLab && line.labPieceId) {
+          const lp = labPieceById.get(line.labPieceId);
+          if (lp) {
+            const unit = (typeof line.unitCost === "number" && line.unitCost > 0)
+              ? line.unitCost : computeLabUnit(lp);
+            const qty = computeLabPanels(lp) || Number(line.quantity) || 0;
+            acc.legno = (acc.legno ?? 0) + qty * unit;
+            return acc;
+          }
+        }
         const category = item?.category ?? "legno";
         acc[category] = (acc[category] ?? 0) + (Number(line.quantity) || 0) * (Number(line.unitCost ?? item?.unitCost) || 0);
         return acc;
@@ -474,12 +510,30 @@ const Index = () => {
       }, 0);
       const laborHours = (project.labor ?? []).reduce((sum: number, line: any) => sum + (Number(line.hours) || 0), 0);
       const transports = (project.transports ?? []).reduce((sum: number, line: any) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0), 0);
-      const production = Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0) + Number(materialsByCategory.accessori ?? 0) + labor + transports;
+      // Montaggio: trasferta squadra (carburante, ore viaggio, vitto, alloggio).
+      // Replichiamo il calcolo di TrasferteCalculator per riportarlo nel riepilogo.
+      let trasferta = 0;
+      if (project.trasferte) {
+        const t = project.trasferte;
+        const workersAuto = (project.labor ?? []).filter((l: any) => l.workerId).length || 1;
+        const workersHourlyTotal = (project.labor ?? []).reduce((s: number, line: any) => {
+          const w = (project.workers ?? []).find((x: any) => x.id === line.workerId);
+          return s + (w ? workerHourlyCost(w) : 0);
+        }, 0);
+        const nWorkers = Number(t.workersOverride) > 0 ? Number(t.workersOverride) : workersAuto;
+        const carburante = (Number(t.kmAndata) || 0) * 2 * (Number(t.consumoLkm) || 0) / 100 * (Number(t.prezzoCarburante) || 0);
+        const oreViaggio = (Number(t.oreViaggio) || 0) * (workersHourlyTotal || 0);
+        const vitto = (Number(t.pastiPerGiorno) || 0) * (Number(t.giorni) || 0) * nWorkers * (Number(t.costoPasto) || 0);
+        const alloggio = (Number(t.nottiPerGiorno) || 0) * (Number(t.giorni) || 0) * nWorkers * (Number(t.costoNotte) || 0);
+        const extra = Number(t.extra) || 0;
+        trasferta = carburante + oreViaggio + vitto + alloggio + extra;
+      }
+      const production = Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0) + Number(materialsByCategory.accessori ?? 0) + labor + transports + trasferta;
       const total = production + production * ((Number(project.marginPct) || 0) / 100);
       return {
         key,
         label,
-        totals: { materials: Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0), operations: labor, perimeters: 0, pieces: Number(materialsByCategory.accessori ?? 0), transports, total },
+        totals: { materials: Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0), operations: labor, perimeters: 0, pieces: Number(materialsByCategory.accessori ?? 0), transports: transports + trasferta, total },
         details: {
           materials: (project.materials ?? []).map((line: any) => {
             const item: any = materialById.get(line.materialId);

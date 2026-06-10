@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { eur, num } from "@/lib/format";
 import { Catalog, DepartmentState, DepartmentTotals } from "./types";
 import { CustomerType } from "@/lib/pricing";
@@ -44,10 +45,30 @@ export const GeneralSummary = ({
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
   const cost = departments.reduce((s, d) => s + d.totals.total, 0);
-  const marginAmount = 0;
-  const net = cost;
-  const vatAmount = 0;
-  const total = cost;
+
+  // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
+  // Persistito in localStorage per non perdere le scelte tra refresh.
+  const STORAGE = "officina:summary:deptMargins";
+  const [deptMargins, setDeptMargins] = useState<Record<string, number>>(() => {
+    try {
+      if (typeof window === "undefined") return {};
+      const raw = localStorage.getItem(STORAGE);
+      return raw ? (JSON.parse(raw) ?? {}) : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE, JSON.stringify(deptMargins)); } catch { /* ignore */ }
+  }, [deptMargins]);
+  const marginFor = (k: string) => (deptMargins[k] ?? margin);
+  const setMarginFor = (k: string, v: number) => setDeptMargins((prev) => ({ ...prev, [k]: v }));
+  const resetMarginFor = (k: string) => setDeptMargins((prev) => { const next = { ...prev }; delete next[k]; return next; });
+  const deptTotalWithMargin = (d: GeneralSummaryProps["departments"][number]) =>
+    d.totals.total * (1 + marginFor(d.key) / 100);
+
+  const marginAmount = departments.reduce((s, d) => s + d.totals.total * (marginFor(d.key) / 100), 0);
+  const net = cost + marginAmount;
+  const vatAmount = applyVat ? net * (vat / 100) : 0;
+  const total = net + vatAmount;
 
   // Titolo schedina (draft attivo) come default per il dialog "Crea commessa nel Flow"
   const schedinaTitle = (() => {
@@ -161,14 +182,87 @@ export const GeneralSummary = ({
           className="w-full bg-transparent border-0 border-b border-paper/30 text-paper font-display text-2xl pb-2 mb-6 focus:outline-none focus:border-primary placeholder:text-paper/30"
         />
 
-        <dl className="space-y-2.5 font-mono text-sm">
-          {departments.map((d) => (
-            <div key={d.key} className="flex justify-between text-paper/80">
-              <dt className="text-xs uppercase tracking-wider">{d.label}</dt>
-              <dd className="tabular-nums">{eur(d.totals.total)}</dd>
-            </div>
-          ))}
+        <dl className="space-y-3 font-mono text-sm">
+          {departments.map((d) => {
+            const m = marginFor(d.key);
+            const hasOverride = deptMargins[d.key] !== undefined;
+            return (
+              <div key={d.key} className="text-paper/80">
+                <div className="flex justify-between items-center">
+                  <dt className="text-xs uppercase tracking-wider">{d.label}</dt>
+                  <dd className="tabular-nums">{eur(d.totals.total)}</dd>
+                </div>
+                <div className="flex justify-between items-center mt-1 text-[10px] text-paper/50">
+                  <div className="flex items-center gap-1">
+                    <span className="uppercase tracking-wider">Margine</span>
+                    <input
+                      type="number"
+                      step={0.5}
+                      value={m}
+                      onChange={(e) => setMarginFor(d.key, parseFloat(e.target.value) || 0)}
+                      className="w-12 bg-transparent border-b border-paper/30 text-center font-mono focus:outline-none focus:border-primary text-paper"
+                      title={hasOverride ? "Margine personalizzato per questo reparto" : "Usa il margine globale (clic per modificare)"}
+                    />
+                    <span>%</span>
+                    {hasOverride && (
+                      <button
+                        type="button"
+                        onClick={() => resetMarginFor(d.key)}
+                        className="ml-1 text-paper/40 hover:text-primary"
+                        title="Torna al margine globale"
+                      >↺</button>
+                    )}
+                  </div>
+                  <span className="tabular-nums text-paper/70">→ {eur(deptTotalWithMargin(d))}</span>
+                </div>
+              </div>
+            );
+          })}
           <div className="h-px bg-paper/20 my-3" />
+          <div className="flex justify-between items-center">
+            <dt className="text-xs uppercase tracking-wider text-paper/60">Margine globale (default)</dt>
+            <dd className="flex items-center gap-1">
+              <input
+                type="number"
+                step={0.5}
+                value={margin}
+                onChange={(e) => setMargin(parseFloat(e.target.value) || 0)}
+                className="w-14 bg-transparent border-b border-paper/30 text-center font-mono focus:outline-none focus:border-primary text-paper"
+              />
+              <span className="text-paper/60">%</span>
+            </dd>
+          </div>
+          <div className="flex justify-between items-center">
+            <dt className="text-xs uppercase tracking-wider text-paper/60">Subtotale costi</dt>
+            <dd className="tabular-nums text-paper/70">{eur(cost)}</dd>
+          </div>
+          <div className="flex justify-between items-center">
+            <dt className="text-xs uppercase tracking-wider text-paper/60">Margine</dt>
+            <dd className="tabular-nums text-paper/70">{eur(marginAmount)}</dd>
+          </div>
+          <div className="flex justify-between items-center">
+            <dt className="text-xs uppercase tracking-wider text-paper/60">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyVat}
+                  onChange={(e) => setApplyVat(e.target.checked)}
+                  className="accent-primary"
+                />
+                IVA
+              </label>
+              <input
+                type="number"
+                step={0.5}
+                value={vat}
+                onChange={(e) => setVat(parseFloat(e.target.value) || 0)}
+                disabled={!applyVat}
+                className="w-12 ml-2 bg-transparent border-b border-paper/30 text-center font-mono focus:outline-none focus:border-primary text-paper disabled:opacity-40"
+              />
+              <span className="ml-1">%</span>
+            </dt>
+            <dd className="tabular-nums text-paper/70">{eur(vatAmount)}</dd>
+          </div>
         </dl>
 
         <div className="rule-line my-6 opacity-40" />

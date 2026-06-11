@@ -35,6 +35,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
   const { items, add, update, remove } = useLavorazioni(draftId);
   const { items: templates } = useLavorazioneTemplates();
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [templatePicker, setTemplatePicker] = useState(false);
   const [piecePickerOpen, setPiecePickerOpen] = useState(false);
   const [pieces, setPieces] = useState<DraftPieceRef[]>([]);
@@ -142,16 +143,12 @@ export const LavorazioniSection = ({ draftId }: Props) => {
             <p className="text-xs text-muted-foreground mt-1">Ogni voce è autonoma: causale, operatore, ore, stato e costo separati.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={openPiecePicker}>
-              <Package className="h-4 w-4" />Da reparti
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setTemplatePicker(true)}>
-              <Library className="h-4 w-4" />Da causale
-            </Button>
             <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
               <Wrench className="h-4 w-4" />Gestisci causali
             </Button>
-            <Button size="sm" onClick={addManual}><Plus className="h-4 w-4" />Nuova</Button>
+            <Button size="sm" onClick={() => setChooserOpen(true)}>
+              <Plus className="h-4 w-4" />Nuova
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -240,7 +237,77 @@ export const LavorazioniSection = ({ draftId }: Props) => {
       </Card>
 
       <TemplateManagerDialog open={templateOpen} onOpenChange={setTemplateOpen} />
-      <TemplateManagerDialog open={templatePicker} onOpenChange={setTemplatePicker} onPick={addFromTemplate} />
+
+      {/* Chooser: Reparti o Causale */}
+      <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuova lavorazione di montaggio</DialogTitle>
+            <DialogDescription>Da dove vuoi partire?</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <button
+              type="button"
+              onClick={() => { setChooserOpen(false); openPiecePicker(); }}
+              className="flex items-center gap-3 rounded-md border-2 border-border bg-background p-4 text-left hover:border-dept hover:bg-dept-soft"
+            >
+              <Package className="h-5 w-5" />
+              <div>
+                <div className="font-semibold">Da reparti</div>
+                <div className="text-xs text-muted-foreground">Recupera un pezzo da Laboratorio, Tappezzeria o Falegnameria.</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setChooserOpen(false); setTemplatePicker(true); }}
+              className="flex items-center gap-3 rounded-md border-2 border-border bg-background p-4 text-left hover:border-dept hover:bg-dept-soft"
+            >
+              <Library className="h-5 w-5" />
+              <div>
+                <div className="font-semibold">Da causale</div>
+                <div className="text-xs text-muted-foreground">Scegli una causale salvata (es. Posa pavimento, Ignifugazione).</div>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Picker semplice di causale (senza editor) */}
+      <Dialog open={templatePicker} onOpenChange={setTemplatePicker}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Scegli una causale</DialogTitle>
+            <DialogDescription>Tocca una causale per aggiungere la lavorazione.</DialogDescription>
+          </DialogHeader>
+          {templates.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nessuna causale salvata. Usa "Gestisci causali" per crearne una.
+            </p>
+          )}
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => addFromTemplate(t)}
+                className="flex w-full items-center justify-between rounded-sm border border-border bg-background p-3 text-left hover:border-dept hover:bg-dept-soft"
+              >
+                <div>
+                  <div className="font-medium">{t.nome}</div>
+                  {t.descrizione && <div className="text-xs text-muted-foreground">{t.descrizione}</div>}
+                  <div className="text-xs text-muted-foreground mt-0.5">{t.ore_stimate}h · €{t.costo_orario_default}/h</div>
+                </div>
+                <Plus className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button size="sm" variant="outline" onClick={() => { setTemplatePicker(false); setTemplateOpen(true); }}>
+              <Wrench className="h-4 w-4" />Crea/modifica causali
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={piecePickerOpen} onOpenChange={setPiecePickerOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

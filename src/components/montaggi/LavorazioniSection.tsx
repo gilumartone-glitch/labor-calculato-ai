@@ -39,7 +39,18 @@ export const LavorazioniSection = ({ draftId }: Props) => {
   const [templatePicker, setTemplatePicker] = useState(false);
   const [piecePickerOpen, setPiecePickerOpen] = useState(false);
   const [pieces, setPieces] = useState<DraftPieceRef[]>([]);
+  const [selectedPieceKeys, setSelectedPieceKeys] = useState<Set<string>>(new Set());
   const [dips, setDips] = useState<Dipendente[]>([]);
+
+  const pieceKey = (p: DraftPieceRef) => `${p.dept}-${p.id}`;
+  const togglePieceSelection = (p: DraftPieceRef) => {
+    setSelectedPieceKeys((prev) => {
+      const next = new Set(prev);
+      const k = pieceKey(p);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;

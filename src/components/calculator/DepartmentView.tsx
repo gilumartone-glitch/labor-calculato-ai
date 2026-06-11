@@ -368,6 +368,26 @@ export const DepartmentView = ({
     setState({ ...state, pieces: [...pieces, newLine] });
   };
 
+  const copyLastPiece = () => {
+    if (pieces.length === 0) {
+      addPiece();
+      return;
+    }
+    const last = pieces[pieces.length - 1];
+    const copy: PieceLine = {
+      ...last,
+      id: uid(),
+      width: 0,
+      height: 0,
+      widthBottom: undefined,
+      materialQty: 0,
+      // Mantieni perimetri/lavorazioni ma rigenera gli ID per evitare collisioni
+      perimeters: (last.perimeters ?? []).map((pp) => ({ ...pp, id: uid() })),
+      customWorks: (last.customWorks ?? []).map((cw) => ({ ...cw, id: uid() })),
+    };
+    setState({ ...state, pieces: [...pieces, copy] });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header reparto */}
@@ -785,16 +805,32 @@ export const DepartmentView = ({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={addPiece}
-              className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary hover:text-ink transition-colors group"
-            >
-              <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <Plus className="w-3 h-3" strokeWidth={3} />
-              </span>
-              Aggiungi pezzo
-            </button>
+            <div className="mt-4 flex items-center gap-4 flex-wrap">
+              <button
+                type="button"
+                onClick={addPiece}
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary hover:text-ink transition-colors group"
+              >
+                <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Plus className="w-3 h-3" strokeWidth={3} />
+                </span>
+                Aggiungi pezzo
+              </button>
+              {pieces.length > 0 && (
+                <button
+                  type="button"
+                  onClick={copyLastPiece}
+                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-ink transition-colors group"
+                  title="Duplica l'ultimo pezzo senza le dimensioni"
+                >
+                  <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current">
+                    <Plus className="w-3 h-3" strokeWidth={3} />
+                  </span>
+                  Copia pezzo
+                </button>
+              )}
+            </div>
+
           </section>
 
         </motion.div>

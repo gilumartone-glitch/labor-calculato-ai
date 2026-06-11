@@ -1049,6 +1049,7 @@ export type Database = {
           id: string
           note: string | null
           operatore_id: string | null
+          operatore_ids: string[]
           ordine: number
           ore: number
           source_kind: string
@@ -1067,6 +1068,7 @@ export type Database = {
           id?: string
           note?: string | null
           operatore_id?: string | null
+          operatore_ids?: string[]
           ordine?: number
           ore?: number
           source_kind?: string
@@ -1085,6 +1087,7 @@ export type Database = {
           id?: string
           note?: string | null
           operatore_id?: string | null
+          operatore_ids?: string[]
           ordine?: number
           ore?: number
           source_kind?: string

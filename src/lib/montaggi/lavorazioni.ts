@@ -40,6 +40,7 @@ export type Lavorazione = {
   ore: number;
   costo_orario: number;
   operatore_id: string | null;
+  operatore_ids: string[];
   stato: LavorazioneStato;
   note: string | null;
   ordine: number;
@@ -163,7 +164,8 @@ export const useLavorazioni = (draftId: string | null | undefined) => {
       source_ref: input.source_ref ?? null,
       ore: input.ore,
       costo_orario: input.costo_orario,
-      operatore_id: input.operatore_id,
+      operatore_id: input.operatore_id ?? null,
+      operatore_ids: input.operatore_ids ?? [],
       stato: input.stato,
       note: input.note,
       ordine: nextOrdine,

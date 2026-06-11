@@ -66,7 +66,7 @@ export const useLavorazioneTemplates = () => {
   useEffect(() => {
     load();
     const channel = supabase
-      .channel("montaggi_templates")
+      .channel(`montaggi_templates:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "montaggi_lavorazione_templates" },

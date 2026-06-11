@@ -368,6 +368,26 @@ export const DepartmentView = ({
     setState({ ...state, pieces: [...pieces, newLine] });
   };
 
+  const copyLastPiece = () => {
+    if (pieces.length === 0) {
+      addPiece();
+      return;
+    }
+    const last = pieces[pieces.length - 1];
+    const copy: PieceLine = {
+      ...last,
+      id: uid(),
+      width: 0,
+      height: 0,
+      widthBottom: undefined,
+      materialQty: 0,
+      // Mantieni perimetri/lavorazioni ma rigenera gli ID per evitare collisioni
+      perimeters: (last.perimeters ?? []).map((pp) => ({ ...pp, id: uid() })),
+      customWorks: (last.customWorks ?? []).map((cw) => ({ ...cw, id: uid() })),
+    };
+    setState({ ...state, pieces: [...pieces, copy] });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header reparto */}

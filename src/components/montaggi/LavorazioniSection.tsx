@@ -29,7 +29,10 @@ import { eur } from "@/lib/format";
 
 type Props = { draftId: string };
 
-const STATI: LavorazioneStato[] = ["da_fare", "in_corso", "fatto"];
+const STATI: LavorazioneStato[] = ["bloccato", "da_fare", "in_corso", "fatto"];
+const REPARTO_KINDS = new Set(["stampa", "tappezzeria", "falegnameria"]);
+const isLockedSource = (row: { source_kind: string; source_ref: any }) =>
+  REPARTO_KINDS.has(row.source_kind) || !!row.source_ref?.grouped;
 
 export const LavorazioniSection = ({ draftId }: Props) => {
   const { items, add, update, remove } = useLavorazioni(draftId);

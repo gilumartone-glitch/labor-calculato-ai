@@ -999,6 +999,110 @@ export type Database = {
         }
         Relationships: []
       }
+      montaggi_lavorazione_templates: {
+        Row: {
+          costo_orario_default: number
+          created_at: string
+          created_by: string
+          descrizione: string | null
+          id: string
+          materiali: Json
+          nome: string
+          note: string | null
+          ore_stimate: number
+          updated_at: string
+        }
+        Insert: {
+          costo_orario_default?: number
+          created_at?: string
+          created_by: string
+          descrizione?: string | null
+          id?: string
+          materiali?: Json
+          nome: string
+          note?: string | null
+          ore_stimate?: number
+          updated_at?: string
+        }
+        Update: {
+          costo_orario_default?: number
+          created_at?: string
+          created_by?: string
+          descrizione?: string | null
+          id?: string
+          materiali?: Json
+          nome?: string
+          note?: string | null
+          ore_stimate?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      montaggi_lavorazioni: {
+        Row: {
+          causale: string
+          costo_orario: number
+          created_at: string
+          created_by: string
+          descrizione: string | null
+          draft_id: string
+          id: string
+          note: string | null
+          operatore_id: string | null
+          ordine: number
+          ore: number
+          source_kind: string
+          source_ref: Json | null
+          stato: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          causale: string
+          costo_orario?: number
+          created_at?: string
+          created_by: string
+          descrizione?: string | null
+          draft_id: string
+          id?: string
+          note?: string | null
+          operatore_id?: string | null
+          ordine?: number
+          ore?: number
+          source_kind?: string
+          source_ref?: Json | null
+          stato?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          causale?: string
+          costo_orario?: number
+          created_at?: string
+          created_by?: string
+          descrizione?: string | null
+          draft_id?: string
+          id?: string
+          note?: string | null
+          operatore_id?: string | null
+          ordine?: number
+          ore?: number
+          source_kind?: string
+          source_ref?: Json | null
+          stato?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "montaggi_lavorazioni_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "montaggi_lavorazione_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       montaggi_materiali: {
         Row: {
           categoria: string | null

@@ -209,16 +209,33 @@ export const LavorazioniSection = ({ draftId }: Props) => {
                       {row.source_kind === "preset" ? "Da causale" : `Da ${row.source_kind}`}
                     </Badge>
                   )}
+                  {row.source_ref?.grouped && (
+                    <Badge variant="secondary" className="mt-1 ml-1 text-[10px]">Combinato {row.source_ref?.pieces?.length ?? ""}</Badge>
+                  )}
+                  {row.stato === "bloccato" && isLockedSource(row) && (
+                    <Badge variant="destructive" className="mt-1 ml-1 text-[10px]">In attesa reparto</Badge>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs">Stato</Label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={row.stato}
-                    onChange={(e) => update(row.id, { stato: e.target.value as LavorazioneStato })}
-                  >
-                    {STATI.map((s) => <option key={s} value={s}>{STATO_LABEL[s]}</option>)}
-                  </select>
+                  <div className="flex gap-1">
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-60"
+                      value={row.stato}
+                      disabled={row.stato === "bloccato" && isLockedSource(row)}
+                      onChange={(e) => update(row.id, { stato: e.target.value as LavorazioneStato })}
+                    >
+                      {STATI.map((s) => <option key={s} value={s}>{STATO_LABEL[s]}</option>)}
+                    </select>
+                    {row.stato === "bloccato" && isLockedSource(row) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title="Sblocca: lavorazione di reparto completata"
+                        onClick={() => update(row.id, { stato: "da_fare" })}
+                      >Sblocca</Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Totale</Label>

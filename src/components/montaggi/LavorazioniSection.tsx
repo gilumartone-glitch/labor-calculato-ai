@@ -35,6 +35,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
   const { items, add, update, remove } = useLavorazioni(draftId);
   const { items: templates } = useLavorazioneTemplates();
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [templatePicker, setTemplatePicker] = useState(false);
   const [piecePickerOpen, setPiecePickerOpen] = useState(false);
   const [pieces, setPieces] = useState<DraftPieceRef[]>([]);
@@ -142,16 +143,12 @@ export const LavorazioniSection = ({ draftId }: Props) => {
             <p className="text-xs text-muted-foreground mt-1">Ogni voce è autonoma: causale, operatore, ore, stato e costo separati.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={openPiecePicker}>
-              <Package className="h-4 w-4" />Da reparti
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setTemplatePicker(true)}>
-              <Library className="h-4 w-4" />Da causale
-            </Button>
             <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
               <Wrench className="h-4 w-4" />Gestisci causali
             </Button>
-            <Button size="sm" onClick={addManual}><Plus className="h-4 w-4" />Nuova</Button>
+            <Button size="sm" onClick={() => setChooserOpen(true)}>
+              <Plus className="h-4 w-4" />Nuova
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

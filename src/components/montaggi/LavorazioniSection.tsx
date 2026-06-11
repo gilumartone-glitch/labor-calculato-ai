@@ -92,7 +92,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
         costo_orario: 25,
         operatore_id: null,
         operatore_ids: [],
-        stato: "da_fare",
+        stato: "bloccato",
         note: null,
       });
       toast.success(`Aggiunto montaggio combinato (${selected.length} pezzi)`);

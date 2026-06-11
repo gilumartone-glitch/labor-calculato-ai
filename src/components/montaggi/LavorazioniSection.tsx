@@ -49,7 +49,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
   }, []);
 
   const operatorOptions = useMemo(
-    () => dips.map((d) => ({ id: d.id, label: d.nome_completo || d.email || "Operatore", hourly: dipendenteHourlyCost(d) })),
+    () => dips.map((d) => ({ id: d.id, label: d.nome || "Operatore", hourly: dipendenteHourlyCost(d) })),
     [dips],
   );
 

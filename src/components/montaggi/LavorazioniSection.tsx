@@ -348,39 +348,79 @@ export const LavorazioniSection = ({ draftId }: Props) => {
       </Dialog>
 
       <Dialog open={piecePickerOpen} onOpenChange={setPiecePickerOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Recupera lavorazioni dai reparti</DialogTitle>
-            <DialogDescription>Pezzi del progetto attivo presenti in Laboratorio, Tappezzeria e Falegnameria.</DialogDescription>
+            <DialogDescription>
+              Seleziona uno o più pezzi: puoi aggiungerli separatamente o riunirli in un unico montaggio.
+            </DialogDescription>
           </DialogHeader>
           {pieces.length === 0 && <p className="text-sm text-muted-foreground">Nessun pezzo trovato nel progetto attivo.</p>}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {(["stampa", "tappezzeria", "falegnameria"] as const).map((d) => {
               const group = pieces.filter((p) => p.dept === d);
               if (group.length === 0) return null;
               return (
                 <div key={d} className="space-y-1">
                   <h4 className="text-xs font-semibold uppercase text-muted-foreground">{group[0].deptLabel}</h4>
-                  {group.map((p) => (
-                    <button
-                      key={`${p.dept}-${p.id}`}
-                      type="button"
-                      onClick={() => addFromPiece(p)}
-                      className="flex w-full items-center justify-between rounded-sm border border-border bg-background p-3 text-left text-sm hover:border-dept hover:bg-dept-soft"
-                    >
-                      <div>
-                        <div className="font-medium">{p.productName}</div>
-                        <div className="text-xs text-muted-foreground">{p.width}×{p.height} {p.dimUnit}{p.quantity > 1 ? ` · ×${p.quantity}` : ""}</div>
-                      </div>
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  ))}
+                  {group.map((p) => {
+                    const k = pieceKey(p);
+                    const checked = selectedPieceKeys.has(k);
+                    return (
+                      <label
+                        key={k}
+                        className={`flex w-full items-center gap-3 rounded-sm border bg-background p-3 text-sm cursor-pointer ${checked ? "border-dept bg-dept-soft" : "border-border hover:border-dept/60"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => togglePieceSelection(p)}
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">{p.productName}</div>
+                          <div className="text-xs text-muted-foreground">{p.width}×{p.height} {p.dimUnit}{p.quantity > 1 ? ` · ×${p.quantity}` : ""}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               );
             })}
           </div>
+          {pieces.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
+              <span className="text-xs text-muted-foreground">
+                {selectedPieceKeys.size === 0 ? "Nessun pezzo selezionato" : `${selectedPieceKeys.size} selezionati`}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={selectedPieceKeys.size === 0}
+                  onClick={async () => {
+                    const sel = pieces.filter((p) => selectedPieceKeys.has(pieceKey(p)));
+                    for (const p of sel) await addFromPiece(p);
+                    setPiecePickerOpen(false);
+                  }}
+                >
+                  Aggiungi separati
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={selectedPieceKeys.size === 0}
+                  onClick={() => {
+                    const sel = pieces.filter((p) => selectedPieceKeys.has(pieceKey(p)));
+                    addGroupedFromPieces(sel);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />Riunisci in un unico montaggio
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

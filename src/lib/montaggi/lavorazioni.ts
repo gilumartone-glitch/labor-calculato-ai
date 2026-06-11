@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type LavorazioneStato = "da_fare" | "in_corso" | "fatto";
+export type LavorazioneStato = "bloccato" | "da_fare" | "in_corso" | "fatto";
 
 export const STATO_LABEL: Record<LavorazioneStato, string> = {
+  bloccato: "Bloccato",
   da_fare: "Da fare",
   in_corso: "In corso",
   fatto: "Fatto",

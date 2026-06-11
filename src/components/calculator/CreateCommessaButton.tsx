@@ -199,18 +199,17 @@ export const CreateCommessaButton = ({
     setForm((f) => {
       const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
       const next = { ...cur, ...p };
-      // Smart fill date (solo con anno valido ≥1900, per evitare il bug di onChange
-      // intermedio dell'input date che emette "0002-..." mentre digiti "2026"):
-      // - se imposti SOLO la data di consegna → inizio e fine = consegna
-      // - se imposti SOLO inizio lavorazione → fine e consegna = inizio
+      // Smart fill date (solo con anno valido ≥1900):
+      // - inizio lavorazione è indipendente: riempie fine/consegna SOLO se vuote
+      // - se imposti fine lavorazione e la consegna è vuota → consegna = fine
+      // - la consegna non propaga mai sugli altri campi
       const isFullYear = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && parseInt(s.slice(0, 4), 10) >= 1900;
-      if ("deliveryDate" in p && isFullYear(p.deliveryDate)) {
-        if (!cur.startDate || cur.startDate === cur.deliveryDate) next.startDate = p.deliveryDate!;
-        if (!cur.endDate || cur.endDate === cur.deliveryDate) next.endDate = p.deliveryDate!;
-      }
       if ("startDate" in p && isFullYear(p.startDate)) {
-        if (!cur.endDate || cur.endDate === cur.startDate) next.endDate = p.startDate!;
-        if (!cur.deliveryDate || cur.deliveryDate === cur.startDate) next.deliveryDate = p.startDate!;
+        if (!cur.endDate) next.endDate = p.startDate!;
+        if (!cur.deliveryDate) next.deliveryDate = p.startDate!;
+      }
+      if ("endDate" in p && isFullYear(p.endDate)) {
+        if (!cur.deliveryDate) next.deliveryDate = p.endDate!;
       }
 
       return {

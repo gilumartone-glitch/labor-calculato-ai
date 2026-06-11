@@ -44,7 +44,8 @@ import {
   type WorkshopMaterialCategory,
 } from "@/lib/workshop-shared";
 import { AssegnazioneSection } from "@/components/montaggi/AssegnazioneSection";
-import { ClipboardCheck } from "lucide-react";
+import { LavorazioniSection } from "@/components/montaggi/LavorazioniSection";
+import { ClipboardCheck, ClipboardList } from "lucide-react";
 import { fetchDipendenti, filterDipendentiByMacro, dipendenteHourlyCost, type Dipendente } from "@/lib/dipendenti";
 import {
   TrasferteCalculator,
@@ -85,7 +86,7 @@ type DrawingElement = {
   unit: "mm" | "cm";
   materialIds: string[];
 };
-type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "assegnazione";
+type WoodSection = "progetto" | "materiali" | "lavoratori" | "disegno" | "assegnazione" | "lavorazioni";
 
 type ToolLine = { id: string; name: string; qty?: number };
 
@@ -155,7 +156,7 @@ const categoryDefaults: Record<MaterialCategory, Partial<WoodMaterial>> = {
 const sectionTabs: { key: WoodSection; label: string; icon: typeof FileText }[] = [
   { key: "progetto", label: "Progetto", icon: FileText },
   { key: "materiali", label: "Materiali", icon: Package },
-  
+  { key: "lavorazioni", label: "Lavorazioni", icon: ClipboardList },
   { key: "assegnazione", label: "Assegnazione", icon: ClipboardCheck },
   { key: "disegno", label: "Disegnatore", icon: Ruler },
 ];
@@ -510,6 +511,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
           )}
 
           {section === "lavoratori" && <WorkersSection project={project} updateProject={updateProject} updateWorker={updateWorker} />}
+          {section === "lavorazioni" && <LavorazioniSection draftId={draftId} />}
           {section === "materiali" && <MaterialsSection project={project} addCatalogMaterial={addCatalogMaterial} updateMaterialCatalog={updateMaterialCatalog} updateProject={updateProject} />}
           {section === "assegnazione" && <AssegnazioneSection
             draftId={draftId}

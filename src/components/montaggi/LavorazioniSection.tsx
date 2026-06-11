@@ -67,7 +67,34 @@ export const LavorazioniSection = ({ draftId }: Props) => {
 
   const openPiecePicker = () => {
     setPieces(readDraftPieces());
+    setSelectedPieceKeys(new Set());
     setPiecePickerOpen(true);
+  };
+
+  const addGroupedFromPieces = async (selected: DraftPieceRef[]) => {
+    if (selected.length === 0) return;
+    if (selected.length === 1) { await addFromPiece(selected[0]); setPiecePickerOpen(false); return; }
+    const deptLabels = Array.from(new Set(selected.map((p) => p.deptLabel.toLowerCase())));
+    const descrizione = selected
+      .map((p) => `• ${p.deptLabel}: ${p.productName}${p.quantity > 1 ? ` ×${p.quantity}` : ""} (${p.width}×${p.height} ${p.dimUnit})`)
+      .join("\n");
+    try {
+      await add({
+        template_id: null,
+        causale: `Montaggio combinato (${selected.length} pezzi: ${deptLabels.join(", ")})`,
+        descrizione,
+        source_kind: "manuale",
+        source_ref: { grouped: true, pieces: selected.map((p) => ({ piece_id: p.id, dept: p.dept, productName: p.productName, width: p.width, height: p.height, dimUnit: p.dimUnit, quantity: p.quantity })) } as any,
+        ore: selected.length,
+        costo_orario: 25,
+        operatore_id: null,
+        operatore_ids: [],
+        stato: "da_fare",
+        note: null,
+      });
+      toast.success(`Aggiunto montaggio combinato (${selected.length} pezzi)`);
+      setPiecePickerOpen(false);
+    } catch (e: any) { toast.error(e.message ?? "Errore"); }
   };
 
   const addFromTemplate = async (t: LavorazioneTemplate) => {

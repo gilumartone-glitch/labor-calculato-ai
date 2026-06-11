@@ -192,15 +192,26 @@ export const LavorazioniSection = ({ draftId }: Props) => {
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_140px_140px]">
                 <div>
-                  <Label className="text-xs">Operatore</Label>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={row.operatore_id ?? ""}
-                    onChange={(e) => setOperatore(row, e.target.value || null)}
-                  >
-                    <option value="">— non assegnato —</option>
-                    {operatorOptions.map((o) => <option key={o.id} value={o.id}>{o.label} · €{o.hourly.toFixed(2)}/h</option>)}
-                  </select>
+                  <Label className="text-xs">Operatori ({(row.operatore_ids ?? []).length})</Label>
+                  <div className="max-h-32 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
+                    {operatorOptions.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Nessun dipendente con macro-reparto Montaggi.</p>
+                    )}
+                    {operatorOptions.map((o) => {
+                      const checked = (row.operatore_ids ?? []).includes(o.id);
+                      return (
+                        <label key={o.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleOperatore(row, o.id)}
+                          />
+                          <span className="flex-1">{o.label}</span>
+                          <span className="text-xs text-muted-foreground">€{o.hourly.toFixed(2)}/h</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Ore</Label>
@@ -208,7 +219,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
                     onChange={(e) => update(row.id, { ore: Number(e.target.value) || 0 })} />
                 </div>
                 <div>
-                  <Label className="text-xs">€/ora</Label>
+                  <Label className="text-xs">€/ora (squadra)</Label>
                   <Input type="number" min={0} step="0.5" value={row.costo_orario}
                     onChange={(e) => update(row.id, { costo_orario: Number(e.target.value) || 0 })} />
                 </div>

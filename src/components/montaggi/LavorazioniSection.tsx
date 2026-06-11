@@ -69,6 +69,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
         ore: Number(t.ore_stimate) || 0,
         costo_orario: Number(t.costo_orario_default) || 0,
         operatore_id: null,
+        operatore_ids: [],
         stato: "da_fare",
         note: t.note,
       });
@@ -88,6 +89,7 @@ export const LavorazioniSection = ({ draftId }: Props) => {
         ore: 1,
         costo_orario: 25,
         operatore_id: null,
+        operatore_ids: [],
         stato: "da_fare",
         note: null,
       });
@@ -106,15 +108,27 @@ export const LavorazioniSection = ({ draftId }: Props) => {
         ore: 1,
         costo_orario: 25,
         operatore_id: null,
+        operatore_ids: [],
         stato: "da_fare",
         note: null,
       });
     } catch (e: any) { toast.error(e.message ?? "Errore"); }
   };
 
-  const setOperatore = (row: Lavorazione, operatoreId: string | null) => {
-    const op = operatorOptions.find((x) => x.id === operatoreId);
-    update(row.id, { operatore_id: operatoreId, costo_orario: op ? op.hourly : row.costo_orario });
+  const toggleOperatore = (row: Lavorazione, operatoreId: string) => {
+    const current = row.operatore_ids ?? [];
+    const next = current.includes(operatoreId)
+      ? current.filter((id) => id !== operatoreId)
+      : [...current, operatoreId];
+    const hourlySum = next.reduce((s, id) => {
+      const op = operatorOptions.find((x) => x.id === id);
+      return s + (op?.hourly ?? 0);
+    }, 0);
+    update(row.id, {
+      operatore_ids: next,
+      operatore_id: next[0] ?? null,
+      costo_orario: hourlySum > 0 ? hourlySum : row.costo_orario,
+    });
   };
 
   const totalCost = items.reduce((s, x) => s + x.ore * x.costo_orario, 0);

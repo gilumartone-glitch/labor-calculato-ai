@@ -1,0 +1,2 @@
+ALTER TABLE public.montaggi_lavorazioni DROP CONSTRAINT IF EXISTS montaggi_lavorazioni_stato_check;
+ALTER TABLE public.montaggi_lavorazioni ADD CONSTRAINT montaggi_lavorazioni_stato_check CHECK (stato IN ('bloccato','da_fare','in_corso','fatto'));

@@ -40,6 +40,7 @@ export type Lavorazione = {
   ore: number;
   costo_orario: number;
   operatore_id: string | null;
+  operatore_ids: string[];
   stato: LavorazioneStato;
   note: string | null;
   ordine: number;

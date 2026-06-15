@@ -80,6 +80,23 @@ type Salary = {
   cassaContanti: number;   // manuale
 };
 
+type SalaryCalcRow = {
+  id: string;
+  name: string;
+  month: number; // 0-11
+  daysWorked: number;
+  overtimeHours: number;
+  holidayDays: number;
+  vacationDays: number;
+};
+
+type SalaryRate = {
+  id: string;
+  name: string;
+  dailyCost: number;
+  overtimeHourCost: number;
+};
+
 export type AccountingGoals = {
   dailyEntrate?: number;
   monthlyEntrate?: number;

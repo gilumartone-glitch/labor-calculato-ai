@@ -2859,7 +2859,161 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             )}
           </table>
         </div>
+        <SalaryCalculatorCard openMonth={openMonth} rows={salaryCalc} setRows={setSalaryCalc} rates={salaryRates} />
+        {isAdmin && <SalaryRatesCard rates={salaryRates} setRates={setSalaryRates} calcRows={salaryCalc} />}
       </CardContent>
+    </Card>
+  );
+};
+
+const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates }: { openMonth: number; rows: SalaryCalcRow[]; setRows: (r: SalaryCalcRow[]) => void; rates: SalaryRate[] }) => {
+  const monthRows = rows.filter((r) => r.month === openMonth);
+  const update = (id: string, patch: Partial<SalaryCalcRow>) => setRows(rows.map((r) => r.id === id ? { ...r, ...patch } : r));
+  const addRow = () => setRows([...rows, { id: uid(), name: "Nuovo dipendente", month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }]);
+  const removeRow = (id: string) => setRows(rows.filter((r) => r.id !== id));
+  const copyFromPrev = () => {
+    const order: number[] = [];
+    for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
+    const src = order.find((m) => rows.some((r) => r.month === m));
+    if (src === undefined) { toast.error("Nessun mese precedente da cui copiare"); return; }
+    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }));
+    setRows([...rows, ...prefilled]);
+    toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
+  };
+  const rateOf = (name: string) => rates.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+  const computeCost = (r: SalaryCalcRow) => {
+    const rt = rateOf(r.name);
+    if (!rt) return null;
+    return (r.daysWorked + r.holidayDays + r.vacationDays) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
+  };
+  const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
+  const totals = monthRows.reduce((acc, r) => ({
+    days: acc.days + r.daysWorked,
+    ot: acc.ot + r.overtimeHours,
+    hol: acc.hol + r.holidayDays,
+    vac: acc.vac + r.vacationDays,
+    cost: acc.cost + (computeCost(r) ?? 0),
+  }), { days: 0, ot: 0, hol: 0, vac: 0, cost: 0 });
+  return (
+    <Card className="mt-4 border-2 border-dept/60 shadow-soft">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="text-base">Calcolatore presenze · {MONTHS[openMonth]}</CardTitle>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={copyFromPrev}>Importa nomi</Button>
+          <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="border-b-2 border-dept bg-dept-soft/40">
+                <th className="border border-border px-2 py-1.5 text-left label-cap">Dipendente</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni lavorati</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Ore straordinario</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni festa</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni ferie</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Costo calcolato</th>
+                <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthRows.length === 0 ? (
+                <tr><td colSpan={7} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
+              ) : monthRows.map((r) => {
+                const cost = computeCost(r);
+                return (
+                  <tr key={r.id} className="border-b border-border hover:bg-dept-soft/20">
+                    <td className="border border-border p-1"><TextInput className="h-9 text-xs font-medium" value={r.name} onCommit={(name) => update(r.id, { name })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.daysWorked} onChange={(daysWorked) => update(r.id, { daysWorked })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHours} onChange={(overtimeHours) => update(r.id, { overtimeHours })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.holidayDays} onChange={(holidayDays) => update(r.id, { holidayDays })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.vacationDays} onChange={(vacationDays) => update(r.id, { vacationDays })} /></td>
+                    <td className="border border-border px-2 py-1.5 text-right font-mono">{cost === null ? <span className="text-muted-foreground text-[10px]">— costi non impostati</span> : eur(cost)}</td>
+                    <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            {monthRows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
+                  <td className="border border-border px-2 py-1.5 text-right label-cap">Totali</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.days}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.ot}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.hol}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.vac}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono text-dept">{eur(totals.cost)}</td>
+                  <td className="border border-border" />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const SalaryRatesCard = ({ rates, setRates, calcRows }: { rates: SalaryRate[]; setRates: (r: SalaryRate[]) => void; calcRows: SalaryCalcRow[] }) => {
+  const [open, setOpen] = useState(false);
+  const update = (id: string, patch: Partial<SalaryRate>) => setRates(rates.map((r) => r.id === id ? { ...r, ...patch } : r));
+  const addRow = () => setRates([...rates, { id: uid(), name: "Nuovo dipendente", dailyCost: 0, overtimeHourCost: 0 }]);
+  const removeRow = (id: string) => setRates(rates.filter((r) => r.id !== id));
+  const importFromCalc = () => {
+    const existing = new Set(rates.map((r) => r.name.trim().toLowerCase()));
+    const unique: SalaryRate[] = [];
+    for (const c of calcRows) {
+      const key = c.name.trim().toLowerCase();
+      if (key && !existing.has(key) && !unique.find((u) => u.name.trim().toLowerCase() === key)) {
+        unique.push({ id: uid(), name: c.name, dailyCost: 0, overtimeHourCost: 0 });
+      }
+    }
+    if (unique.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
+    setRates([...rates, ...unique]);
+    toast.success(`Importati ${unique.length} dipendenti`);
+  };
+  const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
+  return (
+    <Card className="mt-4 border-2 border-destructive/40 shadow-soft">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between cursor-pointer" onClick={() => setOpen((v) => !v)}>
+        <CardTitle className="text-base flex items-center gap-2">
+          🔒 Costi per dipendente <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider">solo admin</span>
+        </CardTitle>
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}>{open ? "Chiudi" : "Apri"}</Button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-3">
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={importFromCalc}>Importa da presenze</Button>
+            <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="border-b-2 border-destructive/40 bg-destructive/5">
+                  <th className="border border-border px-2 py-1.5 text-left label-cap">Dipendente</th>
+                  <th className="border border-border px-2 py-1.5 text-right label-cap">Costo / giorno</th>
+                  <th className="border border-border px-2 py-1.5 text-right label-cap">Costo / ora straordinario</th>
+                  <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rates.length === 0 ? (
+                  <tr><td colSpan={4} className="border border-border p-3 text-center text-muted-foreground">Nessun costo impostato</td></tr>
+                ) : rates.map((r) => (
+                  <tr key={r.id} className="border-b border-border hover:bg-destructive/5">
+                    <td className="border border-border p-1"><TextInput className="h-9 text-xs font-medium" value={r.name} onCommit={(name) => update(r.id, { name })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.dailyCost} onChange={(dailyCost) => update(r.id, { dailyCost })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHourCost} onChange={(overtimeHourCost) => update(r.id, { overtimeHourCost })} /></td>
+                    <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 };

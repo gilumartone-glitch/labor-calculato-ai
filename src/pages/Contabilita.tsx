@@ -1154,7 +1154,7 @@ export default function Contabilita() {
           <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Gestione contabile</CardTitle>
             <div className="flex flex-wrap gap-2">
-              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, { key: "stipendi", label: "Stipendi" }, { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
+              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...(isAdmin ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
                 <Button key={item.key} size="sm" variant={tab === item.key ? "default" : "outline"} onClick={() => setTab(item.key)}>{item.label}</Button>
               ))}
             </div>

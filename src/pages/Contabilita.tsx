@@ -22,6 +22,7 @@ import { MARCH_2026_MOVEMENTS } from "@/lib/march-2026-seed";
 import { AnagraficaView } from "@/components/contabilita/AnagraficaView";
 import { Contact, suggestContacts, normalizeText, movementMatchesContact } from "@/components/contabilita/contacts";
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";

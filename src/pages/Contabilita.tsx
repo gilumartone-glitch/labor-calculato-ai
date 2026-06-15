@@ -123,6 +123,8 @@ type AccountingState = {
   salariesProcessed?: boolean[]; // length 12, true = "Stipendi elaborati" per quel mese
   salaryPayDates?: string[]; // length 12, data pagamento stipendi per mese
   salaryPayDays?: number[]; // legacy: giorno del mese (1-28)
+  salaryCalc?: SalaryCalcRow[]; // calcolatore presenze per mese
+  salaryRates?: SalaryRate[]; // costi giornalieri/straordinario per dipendente
   goals?: AccountingGoals;
   contacts?: Contact[];
   // Tombstones: ID di righe eliminate. Servono perché il merge realtime

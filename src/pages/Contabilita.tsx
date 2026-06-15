@@ -2690,7 +2690,7 @@ const ContactAutocompleteInput = ({ value, onChange, contacts, movementType, onA
   );
 };
 
-const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void }) => {
+const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, salaryCalc, setSalaryCalc, salaryRates, setSalaryRates, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; salaryCalc: SalaryCalcRow[]; setSalaryCalc: (rows: SalaryCalcRow[]) => void; salaryRates: SalaryRate[]; setSalaryRates: (rates: SalaryRate[]) => void; isAdmin: boolean }) => {
   const [openMonth, setOpenMonth] = useState<number>(new Date().getMonth());
   const monthRows = salaries.filter((s) => s.month === openMonth);
   const updateRow = (id: string, patch: Partial<Salary>) => setSalaries(salaries.map((s) => s.id === id ? { ...s, ...patch } : s));

@@ -883,7 +883,13 @@ export const CreateCommessaButton = ({
       }
       navigate("/flow");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Errore creazione ordine");
+      console.error("[CreateCommessaButton] errore creazione ordine", err);
+      const msg = err instanceof Error
+        ? err.message
+        : (err && typeof err === "object" && "message" in (err as any))
+          ? String((err as any).message)
+          : (typeof err === "string" ? err : JSON.stringify(err));
+      toast.error(`Errore creazione ordine: ${msg}`);
     } finally {
       setSaving(false);
     }

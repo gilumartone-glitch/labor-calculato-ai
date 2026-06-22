@@ -88,6 +88,7 @@ type SalaryCalcRow = {
   overtimeHours: number;
   holidayDays: number;
   vacationDays: number;
+  tripDays: number;
 };
 
 type SalaryRate = {
@@ -2869,7 +2870,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
 const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }: { openMonth: number; rows: SalaryCalcRow[]; setRows: (r: SalaryCalcRow[]) => void; rates: SalaryRate[]; monthSalaries: Salary[] }) => {
   const monthRows = rows.filter((r) => r.month === openMonth);
   const update = (id: string, patch: Partial<SalaryCalcRow>) => setRows(rows.map((r) => r.id === id ? { ...r, ...patch } : r));
-  const addRow = () => setRows([...rows, { id: uid(), name: "Nuovo dipendente", month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }]);
+  const addRow = () => setRows([...rows, { id: uid(), name: "Nuovo dipendente", month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 }]);
   const removeRow = (id: string) => setRows(rows.filter((r) => r.id !== id));
   const importFromSalaries = () => {
     const existing = new Set(monthRows.map((r) => r.name.trim().toLowerCase()));
@@ -2877,7 +2878,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     for (const s of monthSalaries) {
       const key = s.name.trim().toLowerCase();
       if (key && !existing.has(key) && !toAdd.find((u) => u.name.trim().toLowerCase() === key)) {
-        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 });
+        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 });
       }
     }
     if (toAdd.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
@@ -2889,7 +2890,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
     const src = order.find((m) => rows.some((r) => r.month === m));
     if (src === undefined) { toast.error("Nessun mese precedente da cui copiare"); return; }
-    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }));
+    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 }));
     setRows([...rows, ...prefilled]);
     toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
   };
@@ -2897,7 +2898,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
   const computeCost = (r: SalaryCalcRow) => {
     const rt = rateOf(r.name);
     if (!rt) return null;
-    return (r.daysWorked + r.holidayDays + r.vacationDays) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
+    return (r.daysWorked + r.holidayDays + r.vacationDays + (r.tripDays ?? 0)) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
   };
   const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
   const totals = monthRows.reduce((acc, r) => ({
@@ -2905,8 +2906,9 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     ot: acc.ot + r.overtimeHours,
     hol: acc.hol + r.holidayDays,
     vac: acc.vac + r.vacationDays,
+    trip: acc.trip + (r.tripDays ?? 0),
     cost: acc.cost + (computeCost(r) ?? 0),
-  }), { days: 0, ot: 0, hol: 0, vac: 0, cost: 0 });
+  }), { days: 0, ot: 0, hol: 0, vac: 0, trip: 0, cost: 0 });
   return (
     <Card className="mt-4 border-2 border-dept/60 shadow-soft">
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2927,13 +2929,14 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Ore straordinario</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni festa</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni ferie</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni trasferta</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Costo calcolato</th>
                 <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
               </tr>
             </thead>
             <tbody>
               {monthRows.length === 0 ? (
-                <tr><td colSpan={7} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
+                <tr><td colSpan={8} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
               ) : monthRows.map((r) => {
                 const cost = computeCost(r);
                 return (
@@ -2943,6 +2946,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHours} onChange={(overtimeHours) => update(r.id, { overtimeHours })} /></td>
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.holidayDays} onChange={(holidayDays) => update(r.id, { holidayDays })} /></td>
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.vacationDays} onChange={(vacationDays) => update(r.id, { vacationDays })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.tripDays ?? 0} onChange={(tripDays) => update(r.id, { tripDays })} /></td>
                     <td className="border border-border px-2 py-1.5 text-right font-mono">{cost === null ? <span className="text-muted-foreground text-[10px]">— costi non impostati</span> : eur(cost)}</td>
                     <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
                   </tr>
@@ -2957,6 +2961,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.ot}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.hol}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.vac}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.trip}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono text-dept">{eur(totals.cost)}</td>
                   <td className="border border-border" />
                 </tr>

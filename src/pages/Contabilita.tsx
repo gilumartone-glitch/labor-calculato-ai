@@ -2912,7 +2912,8 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base">Calcolatore presenze · {MONTHS[openMonth]}</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={copyFromPrev}>Importa nomi</Button>
+          <Button size="sm" variant="outline" onClick={importFromSalaries}>Importa da Stipendi mese</Button>
+          <Button size="sm" variant="outline" onClick={copyFromPrev}>Copia mese precedente</Button>
           <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
         </div>
       </CardHeader>

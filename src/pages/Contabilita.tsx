@@ -522,7 +522,7 @@ export default function Contabilita() {
     } catch { /* ignore */ }
     return "generale";
   });
-  useEffect(() => { if (!isAdmin && tab === "stipendi") setTab("generale"); }, [isAdmin, tab]);
+  useEffect(() => { if (!canStipendi && tab === "stipendi") setTab("generale"); }, [canStipendi, tab]);
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:month");

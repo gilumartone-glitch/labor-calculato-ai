@@ -511,7 +511,8 @@ const sortForStableJson = (value: unknown): unknown => {
 const serializeAccountingState = (value: AccountingState) => JSON.stringify(sortForStableJson(normalizeState(value)));
 
 export default function Contabilita() {
-  const { isAdmin } = usePermissions();
+  const { isAdmin, can } = usePermissions();
+  const canStipendi = isAdmin || can("contabilita", "write");
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {

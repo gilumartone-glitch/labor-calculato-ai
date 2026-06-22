@@ -2866,11 +2866,24 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   );
 };
 
-const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates }: { openMonth: number; rows: SalaryCalcRow[]; setRows: (r: SalaryCalcRow[]) => void; rates: SalaryRate[] }) => {
+const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }: { openMonth: number; rows: SalaryCalcRow[]; setRows: (r: SalaryCalcRow[]) => void; rates: SalaryRate[]; monthSalaries: Salary[] }) => {
   const monthRows = rows.filter((r) => r.month === openMonth);
   const update = (id: string, patch: Partial<SalaryCalcRow>) => setRows(rows.map((r) => r.id === id ? { ...r, ...patch } : r));
   const addRow = () => setRows([...rows, { id: uid(), name: "Nuovo dipendente", month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }]);
   const removeRow = (id: string) => setRows(rows.filter((r) => r.id !== id));
+  const importFromSalaries = () => {
+    const existing = new Set(monthRows.map((r) => r.name.trim().toLowerCase()));
+    const toAdd: SalaryCalcRow[] = [];
+    for (const s of monthSalaries) {
+      const key = s.name.trim().toLowerCase();
+      if (key && !existing.has(key) && !toAdd.find((u) => u.name.trim().toLowerCase() === key)) {
+        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 });
+      }
+    }
+    if (toAdd.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
+    setRows([...rows, ...toAdd]);
+    toast.success(`Importati ${toAdd.length} dipendenti da Stipendi ${MONTHS[openMonth]}`);
+  };
   const copyFromPrev = () => {
     const order: number[] = [];
     for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);

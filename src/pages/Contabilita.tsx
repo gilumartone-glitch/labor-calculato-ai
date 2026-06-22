@@ -2898,7 +2898,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
   const computeCost = (r: SalaryCalcRow) => {
     const rt = rateOf(r.name);
     if (!rt) return null;
-    return (r.daysWorked + r.holidayDays + r.vacationDays) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
+    return (r.daysWorked + r.holidayDays + r.vacationDays + (r.tripDays ?? 0)) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
   };
   const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
   const totals = monthRows.reduce((acc, r) => ({
@@ -2906,8 +2906,9 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     ot: acc.ot + r.overtimeHours,
     hol: acc.hol + r.holidayDays,
     vac: acc.vac + r.vacationDays,
+    trip: acc.trip + (r.tripDays ?? 0),
     cost: acc.cost + (computeCost(r) ?? 0),
-  }), { days: 0, ot: 0, hol: 0, vac: 0, cost: 0 });
+  }), { days: 0, ot: 0, hol: 0, vac: 0, trip: 0, cost: 0 });
   return (
     <Card className="mt-4 border-2 border-dept/60 shadow-soft">
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">

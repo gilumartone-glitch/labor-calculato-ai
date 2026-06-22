@@ -2859,7 +2859,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             )}
           </table>
         </div>
-        <SalaryCalculatorCard openMonth={openMonth} rows={salaryCalc} setRows={setSalaryCalc} rates={salaryRates} />
+        <SalaryCalculatorCard openMonth={openMonth} rows={salaryCalc} setRows={setSalaryCalc} rates={salaryRates} monthSalaries={monthRows} />
         {isAdmin && <SalaryRatesCard rates={salaryRates} setRates={setSalaryRates} calcRows={salaryCalc} />}
       </CardContent>
     </Card>

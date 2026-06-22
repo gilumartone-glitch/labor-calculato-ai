@@ -2878,7 +2878,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     for (const s of monthSalaries) {
       const key = s.name.trim().toLowerCase();
       if (key && !existing.has(key) && !toAdd.find((u) => u.name.trim().toLowerCase() === key)) {
-        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 });
+        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 });
       }
     }
     if (toAdd.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
@@ -2890,7 +2890,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
     const src = order.find((m) => rows.some((r) => r.month === m));
     if (src === undefined) { toast.error("Nessun mese precedente da cui copiare"); return; }
-    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0 }));
+    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 }));
     setRows([...rows, ...prefilled]);
     toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
   };

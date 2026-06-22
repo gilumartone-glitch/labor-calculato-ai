@@ -88,6 +88,7 @@ type SalaryCalcRow = {
   overtimeHours: number;
   holidayDays: number;
   vacationDays: number;
+  tripDays: number;
 };
 
 type SalaryRate = {

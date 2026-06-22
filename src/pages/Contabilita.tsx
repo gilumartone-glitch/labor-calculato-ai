@@ -2929,13 +2929,14 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Ore straordinario</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni festa</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni ferie</th>
+                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni trasferta</th>
                 <th className="border border-border px-2 py-1.5 text-right label-cap">Costo calcolato</th>
                 <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
               </tr>
             </thead>
             <tbody>
               {monthRows.length === 0 ? (
-                <tr><td colSpan={7} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
+                <tr><td colSpan={8} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
               ) : monthRows.map((r) => {
                 const cost = computeCost(r);
                 return (
@@ -2945,6 +2946,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHours} onChange={(overtimeHours) => update(r.id, { overtimeHours })} /></td>
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.holidayDays} onChange={(holidayDays) => update(r.id, { holidayDays })} /></td>
                     <td className="border border-border p-1"><NumberInput className={cell} value={r.vacationDays} onChange={(vacationDays) => update(r.id, { vacationDays })} /></td>
+                    <td className="border border-border p-1"><NumberInput className={cell} value={r.tripDays ?? 0} onChange={(tripDays) => update(r.id, { tripDays })} /></td>
                     <td className="border border-border px-2 py-1.5 text-right font-mono">{cost === null ? <span className="text-muted-foreground text-[10px]">— costi non impostati</span> : eur(cost)}</td>
                     <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
                   </tr>
@@ -2959,6 +2961,7 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.ot}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.hol}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.vac}</td>
+                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.trip}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono text-dept">{eur(totals.cost)}</td>
                   <td className="border border-border" />
                 </tr>

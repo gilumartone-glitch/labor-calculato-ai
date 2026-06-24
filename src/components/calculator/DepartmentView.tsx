@@ -524,12 +524,15 @@ export const DepartmentView = ({
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
 
-            {/* Lastre per materiale + checkbox "Addebita sfrido" */}
+            {/* Lastre/Rotoli per materiale + checkbox "Addebita sfrido" */}
             {lastraGroups.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="label-cap mb-2">Lastre per materiale</div>
+                <div className="label-cap mb-2">
+                  {deptKey === "tappezzeria" ? "Materiali (lastre/rotoli)" : "Lastre per materiale"}
+                </div>
                 <div className="space-y-1.5">
                   {lastraGroups.map((g) => {
+                    const isRoll = g.format === "rotolo";
                     const sheets = g.sheetsNeeded ?? 0;
                     const leftoverM2 = Math.max(0, g.totalAreaM2 - g.usedAreaM2);
                     const sellPerSqm =
@@ -538,8 +541,9 @@ export const DepartmentView = ({
                         : 0;
                     const extra = leftoverM2 * sellPerSqm;
                     const checked = !!chargeNestingScrap[g.key];
-                    const dim =
-                      g.sheetWidthM && g.sheetHeightM
+                    const dim = isRoll
+                      ? ` · rotolo h ${Math.round((g.rollWidthM ?? 0) * 100)} cm × ${(g.totalLengthM ?? 0).toFixed(2)} m`
+                      : g.sheetWidthM && g.sheetHeightM
                         ? ` · ${Math.round(g.sheetWidthM * 100)}×${Math.round(
                             g.sheetHeightM * 100,
                           )} cm`
@@ -554,10 +558,17 @@ export const DepartmentView = ({
                           <span className="text-muted-foreground">{dim}</span>
                         </div>
                         <div className="flex items-center gap-4 shrink-0">
-                          <span className="tabular-nums">
-                            <strong>{sheets}</strong>{" "}
-                            <span className="text-muted-foreground">lastre</span>
-                          </span>
+                          {isRoll ? (
+                            <span className="tabular-nums">
+                              <strong>{(g.totalLengthM ?? 0).toFixed(2)}</strong>{" "}
+                              <span className="text-muted-foreground">m lineari</span>
+                            </span>
+                          ) : (
+                            <span className="tabular-nums">
+                              <strong>{sheets}</strong>{" "}
+                              <span className="text-muted-foreground">lastre</span>
+                            </span>
+                          )}
                           <span className="tabular-nums text-muted-foreground">
                             sfrido {leftoverM2.toFixed(2)} m²
                           </span>

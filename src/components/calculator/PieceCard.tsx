@@ -1248,16 +1248,54 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               <div className="label-cap mb-0.5">Larghezza rullo</div>
               <div className="font-mono tabular-nums">{fmtM(mat.rollWidthM)} m</div>
             </div>
-            <div className="col-span-6 md:col-span-2">
-              <div className="label-cap mb-0.5">N. teli</div>
-              <div className="font-mono tabular-nums">
-                {mat.panels} × {fmtM(mat.panelLengthM)} m
-              </div>
-            </div>
-            <div className="col-span-6 md:col-span-2">
-              <div className="label-cap mb-0.5">Tessuto totale</div>
-              <div className="font-mono tabular-nums font-semibold">{fmtM(mat.totalMetersM)} m</div>
-            </div>
+            {(() => {
+              // In Tappezzeria (catalog __skipInitialScrap) il rotolo viene
+              // "nestato" anche tra le copie dello stesso pezzo: piazziamo più
+              // copie affiancate sulla larghezza del rullo. Mostriamo i metri
+              // lineari effettivi consumati da TUTTE le qty, coerenti con il
+              // calcolo prezzo (che già ottimizza l'affianco interno).
+              const isRollNested =
+                (mat.material?.format ?? "rotolo") === "rotolo" &&
+                !!(catalog as { __skipInitialScrap?: boolean }).__skipInitialScrap &&
+                mat.rollWidthM > 0 &&
+                mat.pieceWidthM > 0 &&
+                mat.pieceWidthM <= mat.rollWidthM;
+              const piecesPerShelf = isRollNested
+                ? Math.max(1, Math.floor(mat.rollWidthM / mat.pieceWidthM))
+                : 1;
+              const shelves = isRollNested
+                ? Math.ceil(qty / piecesPerShelf)
+                : mat.panels;
+              const totalMetersQtyM = isRollNested
+                ? shelves * mat.panelLengthM
+                : mat.totalMetersM;
+              return (
+                <>
+                  <div className="col-span-6 md:col-span-2">
+                    <div className="label-cap mb-0.5">N. teli</div>
+                    <div className="font-mono tabular-nums">
+                      {shelves} × {fmtM(mat.panelLengthM)} m
+                    </div>
+                    {isRollNested && qty > 1 && (
+                      <div className="font-mono text-[9px] text-muted-foreground">
+                        {piecesPerShelf} pz/telo × {shelves} teli = {qty} pz
+                      </div>
+                    )}
+                  </div>
+                  <div className="col-span-6 md:col-span-2">
+                    <div className="label-cap mb-0.5">Tessuto totale</div>
+                    <div className="font-mono tabular-nums font-semibold">
+                      {fmtM(totalMetersQtyM)} m
+                    </div>
+                    {isRollNested && qty > 1 && (
+                      <div className="font-mono text-[9px] text-muted-foreground">
+                        per {qty} pz
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
             <div className="col-span-6 md:col-span-2">
               <div className="label-cap mb-0.5">Cuciture teli</div>
               <div className="font-mono tabular-nums">

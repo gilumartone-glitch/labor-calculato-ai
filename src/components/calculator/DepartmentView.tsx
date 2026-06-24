@@ -71,9 +71,14 @@ export const DepartmentView = ({
     deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog;
   const nestingGroups = computeNesting(pieces, nestingCatalog, customerType);
   const chargeNestingScrap = state.nestingState?.chargeNestingScrap ?? {};
-  // Solo gruppi LASTRA: lo sfrido per-lastra ha senso lì (per il rotolo c'è già
-  // lo sfrido iniziale 1,5 m e l'opzione per-pezzo).
-  const lastraGroups = nestingGroups.filter((g) => g.format === "lastra");
+  // Gruppi su cui è possibile addebitare lo sfrido del nesting.
+  // - LASTRA: sempre (lo sfrido per-lastra ha senso ovunque).
+  // - ROTOLO: solo in Tappezzeria, dove l'utente vuole poter fatturare il
+  //   tessuto effettivamente srotolato (consumo nesting) anziché la sola
+  //   somma delle aree teoriche dei pezzi.
+  const lastraGroups = nestingGroups.filter(
+    (g) => g.format === "lastra" || (deptKey === "tappezzeria" && g.format === "rotolo"),
+  );
   /** Per ogni gruppo lastra: costo extra dello sfrido addebitato (€). */
   const nestingScrapExtraByGroup: Record<string, number> = {};
   for (const g of lastraGroups) {

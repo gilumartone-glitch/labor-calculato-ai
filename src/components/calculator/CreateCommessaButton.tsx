@@ -642,21 +642,7 @@ export const CreateCommessaButton = ({
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
         const depts = payload.depts ?? [];
         const baseOrdine = missingMaterials.length;
-        // Carrello vendite (per arricchire la nota del sub magazzino).
-        const ps: any = payload.productionSnapshot;
-        const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
-          ? ps.salesCarts
-          : (ps?.designState?.salesCarts && typeof ps.designState.salesCarts === "object" ? ps.designState.salesCarts : {});
-        const salesLines: string[] = [];
-        for (const k of Object.keys(carts || {})) {
-          for (const l of (carts[k] || [])) {
-            const desc = [l.name, l.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
-            const q = Number(l.qty) || 0;
-            const sell = (Number(l.priceSell) || 0) * q;
-            salesLines.push(`• ${desc} — ${q} ${l.unit || ""}${sell > 0 ? ` · ${sell.toFixed(2)}€` : ""}`.trim());
-          }
-        }
-        const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
+        // Carrello vendite già calcolato sopra (salesNote) per arricchire il sub magazzino.
         for (let i = 0; i < depts.length; i++) {
           const dept = depts[i];
           // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.

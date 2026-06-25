@@ -472,8 +472,26 @@ export const CreateCommessaButton = ({
       const code = await nextOrderCode();
       const prodPrio = PRIO_TO_PROD[priorita];
       const isWarehouse = payload.mode === "warehouse";
+
+      // Estrai descrizione del carrello vendite (colore/variante/quantità)
+      // dallo snapshot, così la riportiamo all'operatore di magazzino.
+      const ps: any = payload.productionSnapshot;
+      const carts: Record<string, any[]> = (ps?.salesCarts && typeof ps.salesCarts === "object")
+        ? ps.salesCarts
+        : (ps?.designState?.salesCarts && typeof ps.designState.salesCarts === "object" ? ps.designState.salesCarts : {});
+      const salesLines: string[] = [];
+      for (const k of Object.keys(carts || {})) {
+        for (const l of (carts[k] || [])) {
+          const desc = [l.name, l.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
+          const q = Number(l.qty) || 0;
+          const sell = (Number(l.priceSell) || 0) * q;
+          salesLines.push(`• ${desc} — ${q} ${l.unit || ""}${sell > 0 ? ` · ${sell.toFixed(2)}€` : ""}`.trim());
+        }
+      }
+      const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
+
       const orderNote = isWarehouse
-        ? `Senza lavorazione — da preventivo: ${titolo.trim()}`
+        ? [`Senza lavorazione — da preventivo: ${titolo.trim()}`, note.trim() || null, salesNote || null].filter(Boolean).join(" — ")
         : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
 
       const { data: pord, error: e1 } = await supabase
@@ -484,7 +502,7 @@ export const CreateCommessaButton = ({
           data: scadenza || todayIsoLocal(),
           note: orderNote,
           priorita: prodPrio,
-          delivery: isWarehouse ? "corriere" : delivery,
+          delivery,
           status: "in_corso",
           attachments: [],
           nesting_included: false,

@@ -595,12 +595,18 @@ export const CreateCommessaButton = ({
         const baseOrdine = missingMaterials.length;
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
         const blockerForWork = acquistiByDept[d.work_dept] ?? null;
+        const subNoteParts = [
+          `Ordine cliente: ${d.customer_order_ref}`,
+          blockerForWork ? "in attesa materiali" : null,
+          note.trim() || null,
+          salesNote || null,
+        ].filter(Boolean) as string[];
         const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(code, workSuffix, 1),
           dept: d.work_dept,
           ordine: baseOrdine,
-          note: `Ordine cliente: ${d.customer_order_ref}` + (blockerForWork ? ` · in attesa materiali` : ""),
+          note: subNoteParts.join("\n"),
           files: [],
           depends_on: blockerForWork,
           status: blockerForWork ? "bloccato" : "in_attesa",

@@ -19,7 +19,7 @@ import {
   type MaterialDependencyRule,
 } from "@/lib/material-dependencies";
 import { DEPT_LABEL, type ProdDept } from "@/lib/produzione/types";
-import { dipendenteHourlyCost as dipHourlyCost, EFFECTIVE_ANNUAL_HOURS, type Dipendente } from "@/lib/dipendenti";
+import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, type Dipendente } from "@/lib/dipendenti";
 import { NetToCostCalculator } from "@/components/dipendenti/NetToCostCalculator";
 
 type Profile = { id: string; display_name: string | null };

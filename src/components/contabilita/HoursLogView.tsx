@@ -294,7 +294,8 @@ const MonthTable = ({
               <tr><td colSpan={nDays + 8} className="px-4 py-6 text-center text-muted-foreground">Nessun dipendente. Apri il mese per popolare la lista o usa "Importa da Dipendenti".</td></tr>
             )}
             {data.rows.map((row) => {
-              const totals = computeRowTotals(row);
+              const contractH = contractHoursFor(row, dipendenti);
+              const totals = computeRowTotals(row, contractH);
               return (
                 <tr key={row.id} className="border-t hover:bg-muted/30">
                   <td className="sticky left-0 z-10 bg-paper px-2 py-1 font-medium">

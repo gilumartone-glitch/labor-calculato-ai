@@ -793,11 +793,21 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
                       return (
                         <div key={i}>
                           <div className="text-[14px] sm:text-[12px] uppercase tracking-wider font-bold text-primary mb-2">Ordine</div>
-                          <ul className="list-disc pl-6 space-y-1.5">
+                          <div className="space-y-2">
                             {items.map((it, j) => (
-                              <li key={j} className="font-sans text-[18px] sm:text-[16px] font-semibold leading-snug text-ink">{it}</li>
+                              <div
+                                key={j}
+                                className="flex items-start gap-3 border-2 border-primary/30 bg-paper rounded-sm p-3"
+                              >
+                                <span className="font-mono text-[14px] sm:text-[12px] font-bold text-primary bg-primary/10 rounded-sm px-2 py-0.5 shrink-0">
+                                  {j + 1}
+                                </span>
+                                <div className="font-sans text-[18px] sm:text-[16px] font-semibold leading-snug text-ink flex-1">
+                                  {it}
+                                </div>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       );
                     }

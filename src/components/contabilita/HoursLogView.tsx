@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, BarChart3, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, BarChart3, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
 import { uid } from "@/lib/format";
 
 export type DayType = "lavoro" | "trasferta" | "ferie" | "permesso" | "malattia" | "festivo";
-export type DayCell = { h: number; t: DayType };
+export type DaySegment = { t: DayType; h: number };
+// New format: { segments: [...] }. Legacy format: { h, t } — handled transparently.
+export type DayCell = { segments: DaySegment[] } | { h: number; t: DayType };
 export type HoursRow = {
   id: string;
   dipendenteId?: string;
@@ -22,15 +25,22 @@ export type HoursLog = Record<string, HoursMonth>; // key `${year}-${monthIndex}
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const DAY_NAMES = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 
-const TYPE_OPTIONS: { value: DayType; label: string; short: string; color: string }[] = [
-  { value: "lavoro", label: "Lavoro", short: "L", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  { value: "trasferta", label: "Trasferta", short: "T", color: "bg-blue-100 text-blue-800 border-blue-300" },
-  { value: "ferie", label: "Ferie", short: "F", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  { value: "permesso", label: "Permesso", short: "P", color: "bg-purple-100 text-purple-800 border-purple-300" },
-  { value: "malattia", label: "Malattia", short: "M", color: "bg-rose-100 text-rose-800 border-rose-300" },
-  { value: "festivo", label: "Festivo", short: "X", color: "bg-slate-100 text-slate-700 border-slate-300" },
+const TYPE_OPTIONS: { value: DayType; label: string; short: string; color: string; dot: string }[] = [
+  { value: "lavoro", label: "Lavoro", short: "L", color: "bg-emerald-100 text-emerald-800 border-emerald-300", dot: "bg-emerald-500" },
+  { value: "trasferta", label: "Trasferta", short: "T", color: "bg-blue-100 text-blue-800 border-blue-300", dot: "bg-blue-500" },
+  { value: "ferie", label: "Ferie", short: "F", color: "bg-amber-100 text-amber-800 border-amber-300", dot: "bg-amber-500" },
+  { value: "permesso", label: "Permesso", short: "P", color: "bg-purple-100 text-purple-800 border-purple-300", dot: "bg-purple-500" },
+  { value: "malattia", label: "Malattia", short: "M", color: "bg-rose-100 text-rose-800 border-rose-300", dot: "bg-rose-500" },
+  { value: "festivo", label: "Festivo", short: "X", color: "bg-slate-100 text-slate-700 border-slate-300", dot: "bg-slate-400" },
 ];
 const typeMeta = (t: DayType) => TYPE_OPTIONS.find((o) => o.value === t) ?? TYPE_OPTIONS[0];
+
+const getSegments = (cell: DayCell | undefined): DaySegment[] => {
+  if (!cell) return [];
+  if ("segments" in cell) return cell.segments.filter((s) => s && s.t);
+  if (cell.h > 0 || cell.t) return [{ t: cell.t, h: Number(cell.h) || 0 }];
+  return [];
+};
 
 const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const monthKey = (year: number, month: number) => `${year}-${month}`;
@@ -39,29 +49,37 @@ type RowTotals = {
   ore: number;
   straordinario: number;
   trasfertaGiorni: number;
+  trasfertaOre: number;
   ferieGiorni: number;
   permessoOre: number;
   malattiaGiorni: number;
 };
 
 const computeRowTotals = (row: HoursRow): RowTotals => {
-  let ore = 0, straordinario = 0, trasfertaGiorni = 0, ferieGiorni = 0, permessoOre = 0, malattiaGiorni = 0;
-  Object.values(row.days || {}).forEach((c) => {
-    if (!c) return;
-    const h = Math.max(0, Number(c.h) || 0);
-    if (c.t === "lavoro" || c.t === "trasferta") {
-      ore += Math.min(h, 8);
-      straordinario += Math.max(h - 8, 0);
-      if (c.t === "trasferta" && h > 0) trasfertaGiorni += 1;
-    } else if (c.t === "ferie") {
-      if (h > 0) ferieGiorni += 1;
-    } else if (c.t === "permesso") {
-      permessoOre += h;
-    } else if (c.t === "malattia") {
-      if (h > 0) malattiaGiorni += 1;
-    }
+  let ore = 0, straordinario = 0, trasfertaGiorni = 0, trasfertaOre = 0, ferieGiorni = 0, permessoOre = 0, malattiaGiorni = 0;
+  Object.values(row.days || {}).forEach((cell) => {
+    const segs = getSegments(cell);
+    if (segs.length === 0) return;
+    // Sum work hours (lavoro+trasferta) per day for overtime calc
+    let workH = 0;
+    let hadTrasferta = false;
+    let hadFerie = false;
+    let hadMalattia = false;
+    segs.forEach((s) => {
+      const h = Math.max(0, Number(s.h) || 0);
+      if (s.t === "lavoro") workH += h;
+      else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
+      else if (s.t === "permesso") permessoOre += h;
+      else if (s.t === "ferie") hadFerie = true;
+      else if (s.t === "malattia") hadMalattia = true;
+    });
+    ore += Math.min(workH, 8);
+    straordinario += Math.max(workH - 8, 0);
+    if (hadTrasferta) trasfertaGiorni += 1;
+    if (hadFerie) ferieGiorni += 1;
+    if (hadMalattia) malattiaGiorni += 1;
   });
-  return { ore, straordinario, trasfertaGiorni, ferieGiorni, permessoOre, malattiaGiorni };
+  return { ore, straordinario, trasfertaGiorni, trasfertaOre, ferieGiorni, permessoOre, malattiaGiorni };
 };
 
 type Props = {
@@ -209,6 +227,19 @@ const MonthTable = ({
     onChange({ rows: [...data.rows, { id: uid(), name, dipendenteId, days: {} }] });
   };
 
+  const setDaySegments = (rowId: string, dayNum: number, segments: DaySegment[]) => {
+    updateRow(rowId, (r) => {
+      const nextDays = { ...r.days };
+      const clean = segments.filter((s) => s && s.t && (Number(s.h) || 0) > 0);
+      if (clean.length === 0) {
+        delete nextDays[dayNum];
+      } else {
+        nextDays[dayNum] = { segments: clean };
+      }
+      return { ...r, days: nextDays };
+    });
+  };
+
   return (
     <div className="space-y-2">
       {canEdit && (
@@ -229,7 +260,7 @@ const MonthTable = ({
                 const dow = date.getDay();
                 const weekend = dow === 0 || dow === 6;
                 return (
-                  <th key={d} className={`px-1 py-1 text-center font-medium min-w-[52px] ${weekend ? "bg-amber-50" : ""}`}>
+                  <th key={d} className={`px-1 py-1 text-center font-medium min-w-[56px] ${weekend ? "bg-amber-50" : ""}`}>
                     <div className="font-bold">{d}</div>
                     <div className="text-[10px] text-muted-foreground">{DAY_NAMES[dow]}</div>
                   </th>
@@ -266,37 +297,15 @@ const MonthTable = ({
                     const date = new Date(year, month, d);
                     const dow = date.getDay();
                     const weekend = dow === 0 || dow === 6;
-                    const cell = row.days[d] ?? { h: 0, t: "lavoro" as DayType };
-                    const meta = typeMeta(cell.t);
+                    const segs = getSegments(row.days[d]);
                     return (
-                      <td key={d} className={`p-0.5 ${weekend ? "bg-amber-50/40" : ""}`}>
-                        <div className="flex flex-col items-stretch gap-0.5">
-                          <input
-                            type="number"
-                            min={0}
-                            max={24}
-                            step={0.5}
-                            disabled={!canEdit}
-                            value={cell.h || ""}
-                            onChange={(e) => {
-                              const h = Number(e.target.value) || 0;
-                              updateRow(row.id, (r) => ({ ...r, days: { ...r.days, [d]: { h, t: cell.t } } }));
-                            }}
-                            className="w-12 rounded border px-1 py-0.5 text-center text-xs"
-                          />
-                          <select
-                            disabled={!canEdit}
-                            value={cell.t}
-                            onChange={(e) => {
-                              const t = e.target.value as DayType;
-                              updateRow(row.id, (r) => ({ ...r, days: { ...r.days, [d]: { h: cell.h, t } } }));
-                            }}
-                            className={`w-12 rounded border px-0.5 text-[10px] ${meta.color}`}
-                            title={meta.label}
-                          >
-                            {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.short}</option>)}
-                          </select>
-                        </div>
+                      <td key={d} className={`p-0.5 align-top ${weekend ? "bg-amber-50/40" : ""}`}>
+                        <DayCellEditor
+                          segments={segs}
+                          canEdit={canEdit}
+                          onChange={(next) => setDaySegments(row.id, d, next)}
+                          headerLabel={`${row.name} — ${d}/${month + 1}/${year}`}
+                        />
                       </td>
                     );
                   })}
@@ -324,7 +333,104 @@ const MonthTable = ({
         {TYPE_OPTIONS.map((o) => (
           <span key={o.value} className={`px-1.5 py-0.5 rounded border ${o.color}`}>{o.short} = {o.label}</span>
         ))}
-        <span>· Ore &gt; 8 = straordinario</span>
+        <span>· Ore lavoro+trasferta &gt; 8 = straordinario · Clicca una cella per inserire più voci (es. 6h L + 2h P)</span>
+      </div>
+    </div>
+  );
+};
+
+const DayCellEditor = ({
+  segments, canEdit, onChange, headerLabel,
+}: { segments: DaySegment[]; canEdit: boolean; onChange: (next: DaySegment[]) => void; headerLabel: string }) => {
+  const totalH = segments.reduce((s, x) => s + (Number(x.h) || 0), 0);
+  const summary = (
+    <div className="flex w-full flex-col items-stretch">
+      <div className="rounded border px-1 py-0.5 text-center text-xs font-mono bg-paper hover:bg-muted/50 transition min-h-[22px]">
+        {totalH > 0 ? totalH.toFixed(totalH % 1 ? 1 : 0) : <span className="text-muted-foreground">·</span>}
+      </div>
+      <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 min-h-[14px]">
+        {segments.length === 0 && <span className="text-[9px] text-muted-foreground/60">—</span>}
+        {segments.map((s, i) => {
+          const meta = typeMeta(s.t);
+          return (
+            <span key={i} className={`text-[9px] leading-none px-1 py-[1px] rounded border ${meta.color}`} title={`${s.h}h ${meta.label}`}>
+              {meta.short}{s.h % 1 === 0 ? s.h : s.h.toFixed(1)}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (!canEdit) return summary;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="block w-full">{summary}</button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="start">
+        <div className="text-xs font-semibold mb-2">{headerLabel}</div>
+        <SegmentsEditor segments={segments} onChange={onChange} />
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const SegmentsEditor = ({ segments, onChange }: { segments: DaySegment[]; onChange: (next: DaySegment[]) => void }) => {
+  const [draft, setDraft] = useState<DaySegment[]>(segments.length ? segments : [{ t: "lavoro", h: 0 }]);
+
+  useEffect(() => {
+    setDraft(segments.length ? segments : [{ t: "lavoro", h: 0 }]);
+  }, [segments]);
+
+  const apply = (next: DaySegment[]) => {
+    setDraft(next);
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      {draft.map((s, i) => {
+        const meta = typeMeta(s.t);
+        return (
+          <div key={i} className="flex items-center gap-1">
+            <select
+              value={s.t}
+              onChange={(e) => {
+                const next = [...draft];
+                next[i] = { ...next[i], t: e.target.value as DayType };
+                apply(next);
+              }}
+              className={`rounded border px-1 py-1 text-xs ${meta.color}`}
+            >
+              {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <Input
+              type="number" min={0} max={24} step={0.5}
+              value={s.h || ""}
+              onChange={(e) => {
+                const next = [...draft];
+                next[i] = { ...next[i], h: Number(e.target.value) || 0 };
+                apply(next);
+              }}
+              className="h-7 w-16 text-xs"
+              placeholder="ore"
+            />
+            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => apply(draft.filter((_, j) => j !== i))} title="Rimuovi voce">
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      })}
+      <div className="flex justify-between items-center pt-1 border-t">
+        <Button size="sm" variant="outline" className="h-7" onClick={() => apply([...draft, { t: "permesso", h: 0 }])}>
+          <Plus className="h-3 w-3 mr-1" />Aggiungi voce
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => apply([])}>Svuota</Button>
+      </div>
+      <div className="text-[10px] text-muted-foreground">
+        Esempio: 6h <span className="font-semibold">Lavoro</span> + 2h <span className="font-semibold">Permesso</span> nello stesso giorno.
       </div>
     </div>
   );
@@ -393,6 +499,7 @@ const EmployeeStatsDialog = ({
       ore: acc.ore + m.ore,
       straordinario: acc.straordinario + m.straordinario,
       trasfertaGiorni: acc.trasfertaGiorni + m.trasfertaGiorni,
+      trasfertaOre: acc.trasfertaOre + m.trasfertaOre,
       ferieGiorni: acc.ferieGiorni + m.ferieGiorni,
       permessoOre: acc.permessoOre + m.permessoOre,
       malattiaGiorni: acc.malattiaGiorni + m.malattiaGiorni,
@@ -403,11 +510,10 @@ const EmployeeStatsDialog = ({
   const bestMonth = [...monthlyStats].sort((a, b) => b.ore - a.ore)[0];
   const worstMonth = [...monthlyStats].filter((m) => m.ore > 0).sort((a, b) => a.ore - b.ore)[0];
   const maxOre = Math.max(...monthlyStats.map((m) => m.ore), 1);
-  const lavorativiAnno = 220; // approx working days/year
+  const lavorativiAnno = 220;
   const oreAttese = lavorativiAnno * 8;
   const presenzaPct = oreAttese > 0 ? Math.min(100, (annual.ore / oreAttese) * 100) : 0;
 
-  // Avg across other employees in the same year for comparison
   let totalOreAll = 0, countAll = 0;
   Object.values(hoursLog).forEach((m) => {
     m.rows.forEach((r) => {
@@ -522,7 +628,7 @@ const EmployeeStatsDialog = ({
   );
 };
 
-const emptyTotals = (): RowTotals => ({ ore: 0, straordinario: 0, trasfertaGiorni: 0, ferieGiorni: 0, permessoOre: 0, malattiaGiorni: 0 });
+const emptyTotals = (): RowTotals => ({ ore: 0, straordinario: 0, trasfertaGiorni: 0, trasfertaOre: 0, ferieGiorni: 0, permessoOre: 0, malattiaGiorni: 0 });
 
 const StatCard = ({ label, value, color }: { label: string; value: string; color: string }) => {
   const map: Record<string, string> = {

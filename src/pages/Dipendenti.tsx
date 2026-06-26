@@ -41,6 +41,7 @@ const empty = (): Editable => ({
   tfr_pct: 7.4,
   extra_costs: 0,
   annual_hours: EFFECTIVE_ANNUAL_HOURS,
+  contract_hours_per_day: 8,
   attivo: true,
   note: "",
 });

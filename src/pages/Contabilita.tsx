@@ -430,6 +430,9 @@ const normalizeState = (saved: Partial<AccountingState>): AccountingState => {
       : Array.isArray((saved as AccountingState).salaryPayDays)
         ? Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i, (saved as AccountingState).salaryPayDays?.[i] ?? 28))
         : defaultSalaryPayDates(),
+    salaryCalc: Array.isArray((saved as AccountingState).salaryCalc) ? (saved as AccountingState).salaryCalc : [],
+    salaryRates: Array.isArray((saved as AccountingState).salaryRates) ? (saved as AccountingState).salaryRates : [],
+    hoursLog: (saved as AccountingState).hoursLog && typeof (saved as AccountingState).hoursLog === "object" ? (saved as AccountingState).hoursLog : {},
     goals,
     contacts: Array.isArray(saved.contacts) ? saved.contacts as Contact[] : [],
     deletedIds: {

@@ -763,9 +763,9 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               </div>
             </div>
           ) : sub.note ? (
-            <div className="whitespace-pre-wrap font-mono text-[14px] sm:text-[12px]">{sub.note}</div>
+            <div className="whitespace-pre-wrap font-sans text-[18px] sm:text-[16px] font-semibold leading-relaxed text-ink">{sub.note}</div>
           ) : (
-            <div className="text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground italic">Nessuna istruzione</div>
+            <div className="text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground italic">Nessun dettaglio</div>
           )}
         </div>
 

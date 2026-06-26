@@ -158,22 +158,29 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
       </CardHeader>
       <CardContent className="space-y-3">
         <Tabs value={String(activeMonth)} onValueChange={(v) => setActiveMonth(Number(v))}>
-          <TabsList className="flex flex-wrap h-auto justify-start gap-1 bg-muted/40 p-1">
+          <TabsList className="grid grid-cols-6 md:grid-cols-12 h-auto w-full gap-1.5 bg-muted/40 p-1.5">
             {MONTHS.map((label, m) => {
               const key = monthKey(year, m);
               const month = hoursLog[key] ?? { rows: [] };
               const totals = month.rows.reduce(
                 (acc, r) => {
-                  const t = computeRowTotals(r);
+                  const t = computeRowTotals(r, contractHoursFor(r, dipendenti));
                   acc.ore += t.ore + t.straordinario;
                   return acc;
                 },
                 { ore: 0 },
               );
+              const isCurrent = m === now.getMonth() && year === now.getFullYear();
               return (
-                <TabsTrigger key={m} value={String(m)} className="flex flex-col items-center gap-0 px-3 py-1.5 data-[state=active]:bg-dept data-[state=active]:text-dept-foreground">
-                  <span className="text-xs font-semibold">{label.slice(0, 3)}</span>
-                  <span className="text-[10px] opacity-70">{totals.ore > 0 ? `${totals.ore.toFixed(0)}h` : "—"}</span>
+                <TabsTrigger
+                  key={m}
+                  value={String(m)}
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 min-h-[58px] text-sm font-semibold rounded-md border border-transparent data-[state=active]:bg-dept data-[state=active]:text-dept-foreground data-[state=active]:border-dept data-[state=active]:shadow-md hover:bg-muted"
+                >
+                  <span className="text-sm font-bold leading-tight">{label}</span>
+                  <span className="text-[11px] opacity-80 leading-tight">
+                    {totals.ore > 0 ? `${totals.ore.toFixed(0)}h` : (isCurrent ? "oggi" : "—")}
+                  </span>
                 </TabsTrigger>
               );
             })}

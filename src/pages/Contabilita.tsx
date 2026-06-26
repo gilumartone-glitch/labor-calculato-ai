@@ -2739,6 +2739,7 @@ type DayDetail = {
 type ComputedSalary = {
   name: string;
   dipendenteId?: string;
+  source?: "auto" | "saved";
   hourlyRate: number;
   contractH: number;
   totale: number;
@@ -2807,6 +2808,7 @@ const computeSalaryForRow = (
   return {
     name: row.name,
     dipendenteId: row.dipendenteId,
+    source: "auto",
     hourlyRate,
     contractH,
     totale,
@@ -2817,6 +2819,17 @@ const computeSalaryForRow = (
 
 const prevMonthYear = (year: number, month: number) =>
   month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
+
+const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSalary => ({
+  name: salary.name,
+  dipendenteId: dip?.id,
+  source: "saved",
+  hourlyRate: Number(dip?.hourly_rate) || 0,
+  contractH: Math.max(0, Number(dip?.contract_hours_per_day) || 8),
+  totale: Number(salary.totale) || 0,
+  breakdown: [],
+  totals: { normalH: 0, overtimeH: 0, paidH: 0, holidayDays: 0, trasfertaDays: 0, ferieDays: 0, malattiaDays: 0, permessoH: 0 },
+});
 
 const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean }) => {
   const now = new Date();
@@ -2831,6 +2844,12 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const { year: prevY, month: prevM } = prevMonthYear(year, openMonth);
   const prevKey = `${prevY}-${prevM}`;
   const prevHoursMonth = hoursLog[prevKey] ?? { rows: [] };
+  const isProcessed = !!processed[openMonth];
+  const savedRowsForMonth = useMemo(
+    () => salaries.filter((s) => s.month === openMonth).sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
+    [salaries, openMonth],
+  );
+  const useSavedRows = isProcessed && savedRowsForMonth.length > 0;
 
   const computedRows: ComputedSalary[] = useMemo(() => {
     return prevHoursMonth.rows.map((r) => {
@@ -2838,6 +2857,17 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
       return computeSalaryForRow(r, dip, prevY, prevM);
     });
   }, [prevHoursMonth, dipendenti, prevY, prevM]);
+
+  const displayRows = useMemo(() => {
+    if (useSavedRows) {
+      return savedRowsForMonth.map((salary) => {
+        const dip = dipendenti.find((d) => d.nome.trim().toLowerCase() === salary.name.trim().toLowerCase());
+        return { key: salary.id, computed: computedFromSavedSalary(salary, dip), salary, saved: true };
+      });
+    }
+    return computedRows.map((computed) => ({ key: computed.name, computed, salary: ensureSalary(computed), saved: false }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useSavedRows, savedRowsForMonth, computedRows, dipendenti, salaries, openMonth]);
 
   // Match each computed row with an existing Salary record for the openMonth (by name).
   const ensureSalary = (c: ComputedSalary): Salary => {
@@ -2859,12 +2889,11 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   // Display rules:
   // Totale = c.totale (auto). Bonifico manual; Contanti = totale - bonifico.
   const bonificoOf = (s: Salary) => s.bonifico;
-  const contantiOf = (c: ComputedSalary, s: Salary) => c.totale - s.bonifico;
+  const contantiOf = (c: ComputedSalary, s: Salary) => c.source === "saved" && s.sc ? s.contanti : c.totale - s.bonifico;
   const cassaBancaOf = (s: Salary) => s.cassaBanca;
   const compBancaOf = (s: Salary) => bonificoOf(s) - cassaBancaOf(s);
   const compContantiOf = (c: ComputedSalary, s: Salary) => contantiOf(c, s) - s.cassaContanti;
 
-  const isProcessed = !!processed[openMonth];
   const toggleProcessed = (v: boolean) => {
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
@@ -2878,8 +2907,9 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     setPayDates(next);
   };
 
-  const monthTotals = computedRows.reduce((acc, c) => {
-    const s = ensureSalary(c);
+  const monthTotals = displayRows.reduce((acc, row) => {
+    const c = row.computed;
+    const s = row.salary;
     return {
       totale: acc.totale + c.totale,
       bonifico: acc.bonifico + bonificoOf(s),
@@ -2907,11 +2937,14 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
         <div className="flex flex-wrap gap-2">
           {MONTHS.map((m, i) => {
             const { year: pY, month: pM } = prevMonthYear(year, i);
+            const savedForMonth = salaries.filter((s) => s.month === i);
             const hm = hoursLog[`${pY}-${pM}`] ?? { rows: [] };
-            const tot = hm.rows.reduce((sum, r) => {
-              const dip = dipendenti.find((d) => d.id === r.dipendenteId);
-              return sum + computeSalaryForRow(r, dip, pY, pM).totale;
-            }, 0);
+            const tot = processed[i] && savedForMonth.length > 0
+              ? savedForMonth.reduce((sum, s) => sum + (Number(s.totale) || 0), 0)
+              : hm.rows.reduce((sum, r) => {
+                const dip = dipendenti.find((d) => d.id === r.dipendenteId);
+                return sum + computeSalaryForRow(r, dip, pY, pM).totale;
+              }, 0);
             return (
               <Button key={m} size="sm" variant={openMonth === i ? "default" : "outline"} onClick={() => setOpenMonth(i)}>
                 {m}{tot > 0 ? <span className="ml-1 font-mono text-[10px] opacity-80">{eur(tot)}</span> : null}
@@ -2930,7 +2963,11 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             <DateInput className="h-8 w-36 rounded-md border border-input bg-background px-2 font-mono text-xs" value={currentPayDate} onCommit={updatePayDate} />
           </label>
           <div className="text-xs text-muted-foreground">
-            Calcolato dalle ore di <strong>{MONTHS[prevM]} {prevY}</strong> · {prevHoursMonth.rows.length} dipendenti
+            {useSavedRows ? (
+              <>Valori storici salvati per <strong>{MONTHS[openMonth]} {year}</strong> · {savedRowsForMonth.length} dipendenti</>
+            ) : (
+              <>Calcolato dalle ore di <strong>{MONTHS[prevM]} {prevY}</strong> · {prevHoursMonth.rows.length} dipendenti</>
+            )}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -2953,15 +2990,16 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
               </tr>
             </thead>
             <tbody>
-              {computedRows.length === 0 ? (
+              {displayRows.length === 0 ? (
                 <tr><td colSpan={8} className="border border-border p-3 text-center text-muted-foreground">Nessuna ora registrata in {MONTHS[prevM]} {prevY}. Compila il Calcolo ore del mese precedente.</td></tr>
-              ) : computedRows.map((c) => {
-                const s = ensureSalary(c);
+              ) : displayRows.map((row) => {
+                const c = row.computed;
+                const s = row.salary;
                 return (
-                  <tr key={c.name} className="border-b border-border hover:bg-dept-soft/20">
+                  <tr key={row.key} className="border-b border-border hover:bg-dept-soft/20">
                     <td className="border border-border p-1">
                       <button type="button" onClick={() => setHistoryFor({ name: c.name, dipendenteId: c.dipendenteId })} className="h-9 w-full rounded-md px-2 text-left text-xs font-medium hover:bg-dept-soft/40 underline-offset-2 hover:underline">
-                        {c.name}
+                        {c.name}{row.saved ? <span className="ml-2 rounded-sm bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground no-underline">salvato</span> : null}
                       </button>
                     </td>
                     <td className="border border-border p-1">
@@ -2987,7 +3025,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
                 );
               })}
             </tbody>
-            {computedRows.length > 0 && (
+            {displayRows.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
                   <td className="border border-border px-2 py-1.5 text-right label-cap">Totali</td>

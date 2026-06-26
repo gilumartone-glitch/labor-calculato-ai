@@ -26,7 +26,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
-type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
+type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "ore" | "grafici" | "anagrafica";
 
 type CashMovement = {
   id: string;

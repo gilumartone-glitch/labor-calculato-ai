@@ -735,7 +735,7 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
         {/* Istruzioni del sub — modificabili */}
         <div className="border-2 border-primary/30 bg-primary/5 rounded-sm p-3">
           <div className="flex items-center justify-between mb-2">
-            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-primary">Istruzioni per te</div>
+            <div className="font-mono text-[14px] sm:text-[12px] sm:text-[10px] uppercase tracking-widest text-primary">Ordine</div>
             {canEditSub && editNote === null && (
               <button
                 onClick={() => setEditNote(sub.note ?? "")}

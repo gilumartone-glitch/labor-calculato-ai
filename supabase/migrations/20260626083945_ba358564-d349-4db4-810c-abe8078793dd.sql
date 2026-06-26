@@ -1,0 +1,1 @@
+ALTER TABLE public.dipendenti ADD COLUMN IF NOT EXISTS contract_hours_per_day numeric NOT NULL DEFAULT 8;

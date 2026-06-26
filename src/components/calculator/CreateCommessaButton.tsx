@@ -833,7 +833,7 @@ export const CreateCommessaButton = ({
         for (const s of insertedSubs) {
           // Montaggi: già notificato sopra a tutti gli operai → evita doppio invio
           if (s.dept === "montaggi") continue;
-          if (s.assignee && s.assignee !== user.id) {
+          if (s.assignee) {
             await notify({
               userIds: [s.assignee],
               type: "ordine_creato",

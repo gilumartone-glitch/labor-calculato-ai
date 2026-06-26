@@ -147,7 +147,7 @@ const buildSalesNote = (items: SalesCartLine[]): string => {
     const price = sell > 0 ? ` · ${sell.toFixed(2)}€` : "";
     return `• ${desc} — ${qty} ${l.unit || ""}${price}`.trim();
   });
-  return `Vendite da preparare:\n${lines.join("\n")}`;
+  return `Ordine:\n${lines.join("\n")}`;
 };
 
 const snapshotForProduction = async (snap: Record<string, unknown>): Promise<Record<string, unknown>> => {
@@ -728,12 +728,14 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         ((productionSnapshot as any)?.designState as any) ?? (productionSnapshot as any),
       );
       const salesNote = buildSalesNote(salesItems);
+      const insertedSubs: { id?: string; dept: ProdDept; assignee: string | null }[] = [];
       for (let i = 0; i < depts.length; i++) {
         const dept = depts[i];
+        const subAssignee = toMacroDept(dept) === toMacroDept(d.work_dept) ? d.assignee_id : null;
         const subNote = dept === "magazzino" && salesNote
-          ? `${titolo}${titolo ? " — " : ""}${salesNote}`
+          ? salesNote
           : (titolo || null);
-        const { error: eSub } = await supabase.from("production_sub_orders").insert({
+        const { data: sub, error: eSub } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
           code: subCode(prodCode, SUB_DEPT_SUFFIX[dept], i + 1),
           dept,
@@ -741,8 +743,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
           note: subNote,
           files: [],
           depends_on: firstAcquistiId,
-        } as any);
+          assignee_id: subAssignee,
+          operator_ids: subAssignee ? [subAssignee] : [],
+        } as any).select("id").single();
         if (eSub) throw eSub;
+        insertedSubs.push({ id: sub?.id, dept, assignee: subAssignee });
       }
 
       await logAction({
@@ -754,7 +759,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       });
 
       const writers = await getProduzioneWriters(depts);
-      const targets = writers.filter((u) => u !== user.id);
+      const assignees = insertedSubs.map((s) => s.assignee).filter((x): x is string => !!x);
+      const targets = Array.from(new Set([...writers, ...assignees])).filter((u) => u !== user.id);
       if (targets.length > 0) {
         await notify({
           userIds: targets,
@@ -764,6 +770,18 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
             : `Nuovo ordine ${prodCode} per ${clienteName} — ${PRIORITY_LABEL[prodPrio]}`,
           order_id: pord.id,
           link: `/produzione/board?order=${pord.id}`,
+          is_urgent: prodPrio !== "normale",
+        });
+      }
+
+      for (const s of insertedSubs) {
+        if (!s.assignee) continue;
+        await notify({
+          userIds: [s.assignee],
+          type: "ordine_creato",
+          message: `Assegnato a te: ${prodCode} · ${DEPT_LABEL[s.dept]} (${clienteName})`,
+          order_id: pord.id,
+          link: s.id ? `/produzione/board?sub=${s.id}` : `/produzione/board?order=${pord.id}`,
           is_urgent: prodPrio !== "normale",
         });
       }

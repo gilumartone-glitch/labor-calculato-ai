@@ -31,10 +31,13 @@ export type TrasferteConfig = {
   vittoPerDay: number;
   alloggioPerDay: number;
   alloggioMinDay: number;
+  /** Bonus trasferta giornaliero netto per addetto (default 20 €, da tassare). */
+  bonusTrasfertaPerDay: number;
   carburanteOverride?: number;
   oreViaggioCostOverride?: number;
   vittoTotalOverride?: number;
   alloggioTotalOverride?: number;
+  bonusTrasfertaTotalOverride?: number;
 };
 
 export const defaultTrasferte = (): TrasferteConfig => ({
@@ -47,6 +50,7 @@ export const defaultTrasferte = (): TrasferteConfig => ({
   vittoPerDay: 60,
   alloggioPerDay: 50,
   alloggioMinDay: 130,
+  bonusTrasfertaPerDay: 20,
 });
 
 export type TrasferteTotals = {
@@ -57,6 +61,7 @@ export type TrasferteTotals = {
   oreViaggio: number;
   vitto: number;
   alloggio: number;
+  bonusTrasferta: number;
   total: number;
 };
 
@@ -77,9 +82,6 @@ export const computeTrasferteTotalsFromConfig = (
   const workers = cfg.workersOverride != null && cfg.workersOverride > 0 ? cfg.workersOverride : workersAuto;
   const hours = cfg.hoursOverride != null && cfg.hoursOverride >= 0 ? cfg.hoursOverride : cfg.kmh > 0 ? km / cfg.kmh : 0;
   const carburante = cfg.carburanteOverride ?? km * cfg.costPerKm;
-  // Se ci viene passato il monte-costo orario reale della squadra (somma dei
-  // costi orari di ciascun addetto assegnato) lo usiamo. Altrimenti fallback
-  // al vecchio comportamento "hourlyRate × workers".
   const hourlyTotalForTravel =
     workersHourlyTotal != null && workersHourlyTotal > 0 ? workersHourlyTotal : cfg.hourlyRate * workers;
   const oreViaggio = cfg.oreViaggioCostOverride ?? hours * hourlyTotalForTravel;
@@ -87,7 +89,9 @@ export const computeTrasferteTotalsFromConfig = (
   const alloggioBase = cfg.alloggioPerDay * workers * cfg.days;
   const alloggioMin = cfg.alloggioMinDay * cfg.days;
   const alloggio = cfg.alloggioTotalOverride ?? Math.max(alloggioBase, alloggioMin);
-  return { km, hours, workers, carburante, oreViaggio, vitto, alloggio, total: carburante + oreViaggio + vitto + alloggio };
+  const bonusPerDay = cfg.bonusTrasfertaPerDay ?? 20;
+  const bonusTrasferta = cfg.bonusTrasfertaTotalOverride ?? bonusPerDay * workers * cfg.days;
+  return { km, hours, workers, carburante, oreViaggio, vitto, alloggio, bonusTrasferta, total: carburante + oreViaggio + vitto + alloggio + bonusTrasferta };
 };
 
 export const computeTrasferteTotals = (
@@ -365,6 +369,9 @@ export const TrasferteCalculator = ({
           <Field label="Alloggio minimo / giorno" hint="totale, indipendente dagli addetti">
             <NumberField value={cfg.alloggioMinDay} onChange={(n) => set({ alloggioMinDay: n ?? 0 })} suffix="€/g" />
           </Field>
+          <Field label="Bonus trasferta / giorno per addetto" hint="extra netto da tassare">
+            <NumberField value={cfg.bonusTrasfertaPerDay ?? 20} onChange={(n) => set({ bonusTrasfertaPerDay: n ?? 0 })} suffix="€/g" />
+          </Field>
         </div>
       </div>
 
@@ -402,6 +409,13 @@ export const TrasferteCalculator = ({
           override={cfg.alloggioTotalOverride}
           onChange={(n) => set({ alloggioTotalOverride: n })}
           hint={`max(${eur(cfg.alloggioPerDay)} × ${workers} × ${cfg.days}, ${eur(cfg.alloggioMinDay)} × ${cfg.days}) — minimo ${eur(cfg.alloggioMinDay * cfg.days)}`}
+        />
+        <VoiceRow
+          label="Bonus trasferta (netto)"
+          auto={(cfg.bonusTrasfertaPerDay ?? 20) * workers * cfg.days}
+          override={cfg.bonusTrasfertaTotalOverride}
+          onChange={(n) => set({ bonusTrasfertaTotalOverride: n })}
+          hint={`${eur(cfg.bonusTrasfertaPerDay ?? 20)} × ${workers} × ${cfg.days} ${cfg.days === 1 ? "giorno" : "giorni"} — da tassare`}
         />
         <div className="flex items-center justify-between border-t border-dept/40 pt-2">
           <span className="font-semibold">Totale trasferta</span>

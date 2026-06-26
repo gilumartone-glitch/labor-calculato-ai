@@ -19,20 +19,8 @@ import {
   type MaterialDependencyRule,
 } from "@/lib/material-dependencies";
 import { DEPT_LABEL, type ProdDept } from "@/lib/produzione/types";
-import type { Dipendente } from "@/lib/dipendenti";
-
-const NET_TO_GROSS_RATIO = 0.82;
-const WORK_HOURS_PER_DAY = 8;
-const WORK_DAYS_PER_MONTH = 22;
-const SALARY_MONTHS = 13;
-const dipRal = (d: { hourly_rate: number }) =>
-  (Math.max(0, d.hourly_rate ?? 0) * WORK_HOURS_PER_DAY * WORK_DAYS_PER_MONTH * SALARY_MONTHS) / NET_TO_GROSS_RATIO;
-const dipCompanyCost = (d: { hourly_rate: number; inps_pct: number; inail_pct: number; tfr_pct: number; extra_costs: number }) => {
-  const ral = dipRal(d);
-  return ral + ral * (d.inps_pct / 100) + ral * (d.inail_pct / 100) + ral * (d.tfr_pct / 100) + (d.extra_costs || 0);
-};
-const dipHourlyCost = (d: { hourly_rate: number; inps_pct: number; inail_pct: number; tfr_pct: number; extra_costs: number; annual_hours: number }) =>
-  dipCompanyCost(d) / Math.max(1, d.annual_hours);
+import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, type Dipendente } from "@/lib/dipendenti";
+import { NetToCostCalculator } from "@/components/dipendenti/NetToCostCalculator";
 
 type Profile = { id: string; display_name: string | null };
 
@@ -49,10 +37,10 @@ const empty = (): Editable => ({
   hourly_rate: 0,
   ral: 0,
   inps_pct: 30,
-  inail_pct: 3,
-  tfr_pct: 8.33,
+  inail_pct: 0.5,
+  tfr_pct: 7.4,
   extra_costs: 0,
-  annual_hours: 1720,
+  annual_hours: EFFECTIVE_ANNUAL_HOURS,
   attivo: true,
   note: "",
 });
@@ -244,6 +232,7 @@ export default function Dipendenti() {
 
         {canWrite && <RepartiManager />}
         {canWrite && <MaterialDepsManager />}
+        {isAdmin && <NetToCostCalculator />}
 
 
 

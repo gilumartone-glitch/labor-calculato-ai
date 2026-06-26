@@ -348,7 +348,7 @@ const MonthTable = ({
         {TYPE_OPTIONS.map((o) => (
           <span key={o.value} className={`px-1.5 py-0.5 rounded border ${o.color}`}>{o.short} = {o.label}</span>
         ))}
-        <span>· Ore lavoro+trasferta &gt; 8 = straordinario · Clicca una cella per inserire più voci (es. 6h L + 2h P)</span>
+        <span>· Ore lavoro+trasferta oltre le ore contrattuali del dipendente = straordinario · Clicca una cella per inserire più voci (es. 6h L + 2h P)</span>
       </div>
     </div>
   );

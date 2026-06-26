@@ -1,6 +1,6 @@
 import { uid } from "@/lib/format";
 
-export const NET_TO_GROSS_RATIO = 0.82;
+export const NET_TO_GROSS_RATIO = 0.72;
 export const WORK_HOURS_PER_DAY = 8;
 export const WORK_DAYS_PER_MONTH = 22;
 export const SALARY_MONTHS = 13;

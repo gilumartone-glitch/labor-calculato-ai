@@ -763,7 +763,58 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
               </div>
             </div>
           ) : sub.note ? (
-            <div className="whitespace-pre-wrap font-sans text-[18px] sm:text-[16px] font-semibold leading-relaxed text-ink">{sub.note}</div>
+            (() => {
+              const raw = sub.note;
+              // Split in sezioni: Ordine / Note / Stato
+              const sections: { title: string | null; body: string }[] = [];
+              const re = /(^|\n)(Ordine:|Note:|Stato:)/g;
+              const indices: { idx: number; label: string }[] = [];
+              let mm: RegExpExecArray | null;
+              while ((mm = re.exec(raw))) {
+                indices.push({ idx: mm.index + (mm[1] ? mm[1].length : 0), label: mm[2] });
+              }
+              if (indices.length === 0) {
+                sections.push({ title: null, body: raw });
+              } else {
+                if (indices[0].idx > 0) sections.push({ title: null, body: raw.slice(0, indices[0].idx).trim() });
+                for (let i = 0; i < indices.length; i++) {
+                  const start = indices[i].idx + indices[i].label.length;
+                  const end = i + 1 < indices.length ? indices[i + 1].idx : raw.length;
+                  sections.push({ title: indices[i].label.replace(":", ""), body: raw.slice(start, end).trim() });
+                }
+              }
+              return (
+                <div className="space-y-3">
+                  {sections.map((s, i) => {
+                    if (!s.body) return null;
+                    const isOrdine = s.title === "Ordine";
+                    if (isOrdine) {
+                      const items = s.body.split("\n").map((l) => l.replace(/^[•\-*]\s*/, "").trim()).filter(Boolean);
+                      return (
+                        <div key={i}>
+                          <div className="text-[14px] sm:text-[12px] uppercase tracking-wider font-bold text-primary mb-2">Ordine</div>
+                          <ul className="list-disc pl-6 space-y-1.5">
+                            {items.map((it, j) => (
+                              <li key={j} className="font-sans text-[18px] sm:text-[16px] font-semibold leading-snug text-ink">{it}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={i}>
+                        {s.title && (
+                          <div className="text-[14px] sm:text-[12px] uppercase tracking-wider font-bold text-muted-foreground mb-1">
+                            {s.title === "Note" ? "Note del progetto" : s.title}
+                          </div>
+                        )}
+                        <div className="whitespace-pre-wrap font-sans text-[16px] sm:text-[14px] leading-relaxed text-ink">{s.body}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
           ) : (
             <div className="text-[15px] sm:text-[13px] sm:text-[11px] text-muted-foreground italic">Nessun dettaglio</div>
           )}

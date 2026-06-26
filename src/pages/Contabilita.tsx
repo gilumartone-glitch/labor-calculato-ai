@@ -2895,9 +2895,11 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
   };
   const rateOf = (name: string) => rates.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
-  // €5/h netto per ogni ora oltre le 8 (da tassare) e €20/giorno netto come bonus trasferta (da tassare).
-  const OVERTIME_NET_BONUS = 5;
-  const TRIP_NET_BONUS = 20;
+  // €5/h netto per ogni ora oltre le 8 e €20/giorno netto come bonus trasferta,
+  // entrambi tassati con moltiplicatore netto → costo azienda × 1,9.
+  const NET_TO_COMPANY = 1.9;
+  const OVERTIME_NET_BONUS = 5 * NET_TO_COMPANY;
+  const TRIP_NET_BONUS = 20 * NET_TO_COMPANY;
   const computeCost = (r: SalaryCalcRow) => {
     const rt = rateOf(r.name);
     if (!rt) return null;

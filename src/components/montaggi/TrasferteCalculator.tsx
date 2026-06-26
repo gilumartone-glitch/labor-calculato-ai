@@ -369,6 +369,9 @@ export const TrasferteCalculator = ({
           <Field label="Alloggio minimo / giorno" hint="totale, indipendente dagli addetti">
             <NumberField value={cfg.alloggioMinDay} onChange={(n) => set({ alloggioMinDay: n ?? 0 })} suffix="€/g" />
           </Field>
+          <Field label="Bonus trasferta / giorno per addetto" hint="extra netto da tassare">
+            <NumberField value={cfg.bonusTrasfertaPerDay ?? 20} onChange={(n) => set({ bonusTrasfertaPerDay: n ?? 0 })} suffix="€/g" />
+          </Field>
         </div>
       </div>
 
@@ -406,6 +409,13 @@ export const TrasferteCalculator = ({
           override={cfg.alloggioTotalOverride}
           onChange={(n) => set({ alloggioTotalOverride: n })}
           hint={`max(${eur(cfg.alloggioPerDay)} × ${workers} × ${cfg.days}, ${eur(cfg.alloggioMinDay)} × ${cfg.days}) — minimo ${eur(cfg.alloggioMinDay * cfg.days)}`}
+        />
+        <VoiceRow
+          label="Bonus trasferta (netto)"
+          auto={(cfg.bonusTrasfertaPerDay ?? 20) * workers * cfg.days}
+          override={cfg.bonusTrasfertaTotalOverride}
+          onChange={(n) => set({ bonusTrasfertaTotalOverride: n })}
+          hint={`${eur(cfg.bonusTrasfertaPerDay ?? 20)} × ${workers} × ${cfg.days} ${cfg.days === 1 ? "giorno" : "giorni"} — da tassare`}
         />
         <div className="flex items-center justify-between border-t border-dept/40 pt-2">
           <span className="font-semibold">Totale trasferta</span>

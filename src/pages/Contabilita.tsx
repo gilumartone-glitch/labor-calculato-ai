@@ -2895,10 +2895,15 @@ const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }
     toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
   };
   const rateOf = (name: string) => rates.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+  // €5/h netto per ogni ora oltre le 8 (da tassare) e €20/giorno netto come bonus trasferta (da tassare).
+  const OVERTIME_NET_BONUS = 5;
+  const TRIP_NET_BONUS = 20;
   const computeCost = (r: SalaryCalcRow) => {
     const rt = rateOf(r.name);
     if (!rt) return null;
-    return (r.daysWorked + r.holidayDays + r.vacationDays + (r.tripDays ?? 0)) * (rt.dailyCost || 0) + r.overtimeHours * (rt.overtimeHourCost || 0);
+    const baseDays = r.daysWorked + r.holidayDays + r.vacationDays + (r.tripDays ?? 0);
+    const overtimeRate = (rt.overtimeHourCost || 0) + OVERTIME_NET_BONUS;
+    return baseDays * (rt.dailyCost || 0) + r.overtimeHours * overtimeRate + (r.tripDays ?? 0) * TRIP_NET_BONUS;
   };
   const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
   const totals = monthRows.reduce((acc, r) => ({

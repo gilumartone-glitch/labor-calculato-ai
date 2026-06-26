@@ -23,7 +23,8 @@ import { AnagraficaView } from "@/components/contabilita/AnagraficaView";
 import { Contact, suggestContacts, normalizeText, movementMatchesContact } from "@/components/contabilita/contacts";
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
-import { HoursLogView, type HoursLog } from "@/components/contabilita/HoursLogView";
+import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayType, getSegments } from "@/components/contabilita/HoursLogView";
+import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -1210,7 +1211,7 @@ export default function Contabilita() {
               {isAdmin && <Button size="sm" variant={stipendiSub === "stipendi" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>}
               {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
             </div>
-            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} salaryCalc={state.salaryCalc ?? []} setSalaryCalc={(salaryCalc) => update({ salaryCalc })} salaryRates={state.salaryRates ?? []} setSalaryRates={(salaryRates) => update({ salaryRates })} isAdmin={isAdmin} />}
+            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} />}
             {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
           </div>
         )}
@@ -2717,48 +2718,157 @@ const ContactAutocompleteInput = ({ value, onChange, contacts, movementType, onA
   );
 };
 
-const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, salaryCalc, setSalaryCalc, salaryRates, setSalaryRates, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; salaryCalc: SalaryCalcRow[]; setSalaryCalc: (rows: SalaryCalcRow[]) => void; salaryRates: SalaryRate[]; setSalaryRates: (rates: SalaryRate[]) => void; isAdmin: boolean }) => {
-  const [openMonth, setOpenMonth] = useState<number>(new Date().getMonth());
-  const monthRows = salaries.filter((s) => s.month === openMonth);
-  const updateRow = (id: string, patch: Partial<Salary>) => setSalaries(salaries.map((s) => s.id === id ? { ...s, ...patch } : s));
-  const addRow = () => setSalaries([...salaries, { id: uid(), name: "Nuovo dipendente", month: openMonth, totale: 0, bonifico: 0, contanti: 0, sc: false, cassaBanca: 0, cassaContanti: 0 }]);
-  const removeRow = (id: string) => setSalaries(salaries.filter((s) => s.id !== id));
-  // SC=true  → Contanti = Cassa Contanti (auto), Bonifico = Totale - Contanti (auto)
-  // SC=false → Bonifico manuale, Contanti = Totale - Bonifico (auto)
-  const contantiOf = (s: Salary) => (s.sc ? s.cassaContanti : s.totale - s.bonifico);
-  const bonificoOf = (s: Salary) => (s.sc ? s.totale - contantiOf(s) : s.bonifico);
-  const cassaBancaOf = (s: Salary) => (s.sc ? bonificoOf(s) : s.cassaBanca);
+// ============== Stipendi per mese ==============
+// Le ore di riferimento per il mese visualizzato provengono dal mese PRECEDENTE
+// del Calcolo ore (es. Stipendi Giugno → Calcolo ore di Maggio).
+
+type DayDetail = {
+  day: number;
+  dow: number;
+  segs: DaySegment[];
+  workH: number;
+  normalH: number;
+  overtimeH: number;
+  paidH: number;
+  hourlyRate: number;
+  baseAmount: number;
+  isHoliday: boolean;
+  amount: number;
+};
+
+type ComputedSalary = {
+  name: string;
+  dipendenteId?: string;
+  hourlyRate: number;
+  contractH: number;
+  totale: number;
+  breakdown: DayDetail[];
+  totals: {
+    normalH: number;
+    overtimeH: number;
+    paidH: number;
+    holidayDays: number;
+    trasfertaDays: number;
+    ferieDays: number;
+    malattiaDays: number;
+    permessoH: number;
+  };
+};
+
+const computeSalaryForRow = (
+  row: HoursRow,
+  dip: Dipendente | undefined,
+  year: number,
+  month: number,
+): ComputedSalary => {
+  const hourlyRate = Number(dip?.hourly_rate) || 0;
+  const contractH = Math.max(0, Number(dip?.contract_hours_per_day) || 8);
+  const OVERTIME_RATE = 5;
+  const breakdown: DayDetail[] = [];
+  let totale = 0;
+  let tNormalH = 0, tOvertimeH = 0, tPaidH = 0;
+  let holidayDays = 0, trasfertaDays = 0, ferieDays = 0, malattiaDays = 0, permessoH = 0;
+  Object.entries(row.days || {}).forEach(([dayStr, cell]) => {
+    const day = Number(dayStr);
+    const segs = getSegments(cell);
+    if (segs.length === 0) return;
+    const date = new Date(year, month, day);
+    const dow = date.getDay();
+    let workH = 0;
+    let paidH = 0;
+    let hasFestivoSeg = false;
+    let hadTrasferta = false;
+    let hadFerie = false;
+    let hadMalattia = false;
+    segs.forEach((s) => {
+      const h = Math.max(0, Number(s.h) || 0);
+      if (s.t === "lavoro") workH += h;
+      else if (s.t === "trasferta") { workH += h; hadTrasferta = true; }
+      else if (s.t === "permesso") { paidH += h; permessoH += h; }
+      else if (s.t === "ferie") { paidH += h; hadFerie = true; }
+      else if (s.t === "malattia") { paidH += h; hadMalattia = true; }
+      else if (s.t === "festivo") hasFestivoSeg = true;
+    });
+    const overtimeH = Math.max(workH - contractH, 0);
+    const normalH = workH - overtimeH;
+    const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
+    const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
+    const amount = isHoliday ? baseAmount * 2 : baseAmount;
+    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
+    totale += amount;
+    tNormalH += normalH;
+    tOvertimeH += overtimeH;
+    tPaidH += paidH;
+    if (isHoliday) holidayDays += 1;
+    if (hadTrasferta) trasfertaDays += 1;
+    if (hadFerie) ferieDays += 1;
+    if (hadMalattia) malattiaDays += 1;
+  });
+  return {
+    name: row.name,
+    dipendenteId: row.dipendenteId,
+    hourlyRate,
+    contractH,
+    totale,
+    breakdown,
+    totals: { normalH: tNormalH, overtimeH: tOvertimeH, paidH: tPaidH, holidayDays, trasfertaDays, ferieDays, malattiaDays, permessoH },
+  };
+};
+
+const prevMonthYear = (year: number, month: number) =>
+  month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
+
+const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean }) => {
+  const now = new Date();
+  const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+  const [breakdownFor, setBreakdownFor] = useState<ComputedSalary | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ name: string; dipendenteId?: string } | null>(null);
+
+  useEffect(() => { fetchDipendenti(true).then(setDipendenti).catch(() => setDipendenti([])); }, []);
+
+  const { year: prevY, month: prevM } = prevMonthYear(year, openMonth);
+  const prevKey = `${prevY}-${prevM}`;
+  const prevHoursMonth = hoursLog[prevKey] ?? { rows: [] };
+
+  const computedRows: ComputedSalary[] = useMemo(() => {
+    return prevHoursMonth.rows.map((r) => {
+      const dip = r.dipendenteId ? dipendenti.find((d) => d.id === r.dipendenteId) : dipendenti.find((d) => d.nome.trim().toLowerCase() === r.name.trim().toLowerCase());
+      return computeSalaryForRow(r, dip, prevY, prevM);
+    });
+  }, [prevHoursMonth, dipendenti, prevY, prevM]);
+
+  // Match each computed row with an existing Salary record for the openMonth (by name).
+  const ensureSalary = (c: ComputedSalary): Salary => {
+    const found = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());
+    if (found) return found;
+    return { id: `__virtual-${c.name}`, name: c.name, month: openMonth, totale: c.totale, bonifico: 0, contanti: c.totale, sc: false, cassaBanca: 0, cassaContanti: 0 };
+  };
+
+  const persistRow = (c: ComputedSalary, patch: Partial<Salary>) => {
+    const existing = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());
+    if (existing) {
+      setSalaries(salaries.map((s) => s.id === existing.id ? { ...s, ...patch } : s));
+    } else {
+      const fresh: Salary = { id: uid(), name: c.name, month: openMonth, totale: c.totale, bonifico: 0, contanti: c.totale, sc: false, cassaBanca: 0, cassaContanti: 0, ...patch };
+      setSalaries([...salaries, fresh]);
+    }
+  };
+
+  // Display rules:
+  // Totale = c.totale (auto). Bonifico manual; Contanti = totale - bonifico.
+  const bonificoOf = (s: Salary) => s.bonifico;
+  const contantiOf = (c: ComputedSalary, s: Salary) => c.totale - s.bonifico;
+  const cassaBancaOf = (s: Salary) => s.cassaBanca;
   const compBancaOf = (s: Salary) => bonificoOf(s) - cassaBancaOf(s);
-  const compContantiOf = (s: Salary) => contantiOf(s) - s.cassaContanti;
+  const compContantiOf = (c: ComputedSalary, s: Salary) => contantiOf(c, s) - s.cassaContanti;
+
   const isProcessed = !!processed[openMonth];
   const toggleProcessed = (v: boolean) => {
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
     setProcessed(next);
-    // Se sto attivando "elaborati" e il mese è vuoto, precompila i nomi del mese
-    // più recente con dipendenti (cercando a ritroso, anche da dicembre dell'anno scorso).
-    if (v && monthRows.length === 0) {
-      const order: number[] = [];
-      for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
-      const srcMonth = order.find((m) => salaries.some((s) => s.month === m));
-      if (srcMonth !== undefined) {
-        const prefilled: Salary[] = salaries
-          .filter((s) => s.month === srcMonth)
-          .map((s) => ({
-            id: uid(),
-            name: s.name,
-            month: openMonth,
-            totale: s.totale,
-            bonifico: s.bonifico,
-            contanti: s.contanti,
-            sc: s.sc,
-            cassaBanca: s.cassaBanca,
-            cassaContanti: s.cassaContanti,
-          }));
-        setSalaries([...salaries, ...prefilled]);
-        toast.success(`Precompilati ${prefilled.length} dipendenti da ${MONTHS[srcMonth]}`);
-      }
-    }
   };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
   const updatePayDate = (v: string) => {
@@ -2767,27 +2877,41 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     next[openMonth] = v;
     setPayDates(next);
   };
-  const monthTotals = monthRows.reduce((acc, s) => ({
-    totale: acc.totale + s.totale,
-    bonifico: acc.bonifico + bonificoOf(s),
-    contanti: acc.contanti + contantiOf(s),
-    cassaBanca: acc.cassaBanca + cassaBancaOf(s),
-    cassaContanti: acc.cassaContanti + s.cassaContanti,
-    compBanca: acc.compBanca + compBancaOf(s),
-    compContanti: acc.compContanti + compContantiOf(s),
-  }), { totale: 0, bonifico: 0, contanti: 0, cassaBanca: 0, cassaContanti: 0, compBanca: 0, compContanti: 0 });
+
+  const monthTotals = computedRows.reduce((acc, c) => {
+    const s = ensureSalary(c);
+    return {
+      totale: acc.totale + c.totale,
+      bonifico: acc.bonifico + bonificoOf(s),
+      contanti: acc.contanti + contantiOf(c, s),
+      cassaBanca: acc.cassaBanca + cassaBancaOf(s),
+      cassaContanti: acc.cassaContanti + s.cassaContanti,
+      compBanca: acc.compBanca + compBancaOf(s),
+      compContanti: acc.compContanti + compContantiOf(c, s),
+    };
+  }, { totale: 0, bonifico: 0, contanti: 0, cassaBanca: 0, cassaContanti: 0, compBanca: 0, compContanti: 0 });
+
   const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
   const cellRO = "flex h-9 w-full items-center justify-end rounded-md border border-input bg-muted px-2 font-mono text-xs";
+
   return (
     <Card className="border-2 border-dept shadow-soft">
       <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Stipendi per mese</CardTitle>
-        <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">Anno</label>
+          <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || now.getFullYear())} className="h-8 w-24" />
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {MONTHS.map((m, i) => {
-            const tot = salaries.filter((s) => s.month === i).reduce((sum, s) => sum + s.totale, 0);
+            const { year: pY, month: pM } = prevMonthYear(year, i);
+            const hm = hoursLog[`${pY}-${pM}`] ?? { rows: [] };
+            const tot = hm.rows.reduce((sum, r) => {
+              const dip = dipendenti.find((d) => d.id === r.dipendenteId);
+              return sum + computeSalaryForRow(r, dip, pY, pM).totale;
+            }, 0);
             return (
               <Button key={m} size="sm" variant={openMonth === i ? "default" : "outline"} onClick={() => setOpenMonth(i)}>
                 {m}{tot > 0 ? <span className="ml-1 font-mono text-[10px] opacity-80">{eur(tot)}</span> : null}
@@ -2800,18 +2924,14 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
           <label className="flex items-center gap-2 rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2 text-sm font-medium cursor-pointer w-fit">
             <input type="checkbox" className="h-4 w-4 cursor-pointer accent-dept" checked={isProcessed} onChange={(e) => toggleProcessed(e.target.checked)} />
             Stipendi elaborati per {MONTHS[openMonth]}
-            <span className="text-xs font-normal text-muted-foreground">
-              {isProcessed ? "(usa cassa/competenza reali)" : "(usa media mesi elaborati nella competenza)"}
-            </span>
           </label>
           <label className="flex items-center gap-2 rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2 text-sm font-medium w-fit">
             <span>Data pagamento {MONTHS[openMonth]}</span>
-            <DateInput
-              className="h-8 w-36 rounded-md border border-input bg-background px-2 font-mono text-xs"
-              value={currentPayDate}
-              onCommit={updatePayDate}
-            />
+            <DateInput className="h-8 w-36 rounded-md border border-input bg-background px-2 font-mono text-xs" value={currentPayDate} onCommit={updatePayDate} />
           </label>
+          <div className="text-xs text-muted-foreground">
+            Calcolato dalle ore di <strong>{MONTHS[prevM]} {prevY}</strong> · {prevHoursMonth.rows.length} dipendenti
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs">
@@ -2819,15 +2939,13 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
               <tr className="border-b-2 border-dept bg-dept-soft/40">
                 <th rowSpan={2} className="border border-border px-2 py-1.5 text-left label-cap">Dipendente</th>
                 <th rowSpan={2} className="border border-border px-2 py-1.5 text-right label-cap">Totale</th>
-                <th colSpan={3} className="border border-border bg-muted/40 px-2 py-1.5 text-center label-cap text-foreground">Divisione pagamento</th>
+                <th colSpan={2} className="border border-border bg-muted/40 px-2 py-1.5 text-center label-cap text-foreground">Divisione pagamento</th>
                 <th colSpan={2} className="border border-border bg-dept-soft/60 px-2 py-1.5 text-center label-cap text-foreground">Cassa</th>
                 <th colSpan={2} className="border border-border bg-muted/50 px-2 py-1.5 text-center label-cap text-foreground">Competenza</th>
-                <th rowSpan={2} className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
               </tr>
               <tr className="border-b border-border bg-muted/30">
                 <th className="border border-border px-2 py-1 text-right label-cap">Bonifico</th>
                 <th className="border border-border px-2 py-1 text-right label-cap">Contanti</th>
-                <th className="border border-border px-1 py-1 text-center label-cap" title="Scollega contanti">SC</th>
                 <th className="border border-border px-2 py-1 text-right label-cap">Banca</th>
                 <th className="border border-border px-2 py-1 text-right label-cap">Contanti</th>
                 <th className="border border-border px-2 py-1 text-right label-cap">Banca</th>
@@ -2835,237 +2953,226 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
               </tr>
             </thead>
             <tbody>
-              {monthRows.length === 0 ? (
-                <tr><td colSpan={9} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
-              ) : monthRows.map((s) => (
-                <tr key={s.id} className="border-b border-border hover:bg-dept-soft/20">
-                  <td className="border border-border p-1"><TextInput className="h-9 text-xs font-medium" value={s.name} onCommit={(name) => updateRow(s.id, { name })} /></td>
-                  <td className="border border-border p-1"><NumberInput className={cell + " font-semibold"} value={s.totale} onChange={(totale) => updateRow(s.id, { totale })} /></td>
-                  <td className="border border-border p-1">
-                    {s.sc
-                      ? <div className={cellRO} title="Calcolato: Totale − Contanti">{eur(bonificoOf(s))}</div>
-                      : <NumberInput className={cell} value={s.bonifico} onChange={(bonifico) => updateRow(s.id, { bonifico })} />}
-                  </td>
-                  <td className="border border-border p-1">
-                    {s.sc
-                      ? <div className={cellRO} title="Calcolato: = Cassa Contanti">{eur(contantiOf(s))}</div>
-                      : <div className={cellRO} title="Calcolato: Totale − Bonifico">{eur(s.totale - s.bonifico)}</div>}
-                  </td>
-                  <td className="border border-border p-1 text-center">
-                    <label className="flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background hover:bg-dept-soft/30" title="Scollega contanti dal calcolo">
-                      <input type="checkbox" className="h-4 w-4 cursor-pointer accent-dept" checked={!!s.sc} onChange={(e) => updateRow(s.id, { sc: e.target.checked })} />
-                    </label>
-                  </td>
-                  <td className="border border-border p-1">
-                    {s.sc
-                      ? <div className={cellRO} title="Calcolato: = Bonifico">{eur(bonificoOf(s))}</div>
-                      : <NumberInput className={cell} value={s.cassaBanca} onChange={(cassaBanca) => updateRow(s.id, { cassaBanca })} />}
-                  </td>
-                  <td className="border border-border p-1"><NumberInput className={cell} value={s.cassaContanti} onChange={(cassaContanti) => updateRow(s.id, { cassaContanti })} /></td>
-                  <td className="border border-border p-1"><div className={cellRO} title="Calcolato: Bonifico − Cassa Banca">{eur(compBancaOf(s))}</div></td>
-                  <td className="border border-border p-1"><div className={cellRO} title="Calcolato: Contanti − Cassa Contanti">{eur(compContantiOf(s))}</div></td>
-                  <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(s.id)}><Trash2 className="h-4 w-4" /></Button></td>
-                </tr>
-              ))}
+              {computedRows.length === 0 ? (
+                <tr><td colSpan={8} className="border border-border p-3 text-center text-muted-foreground">Nessuna ora registrata in {MONTHS[prevM]} {prevY}. Compila il Calcolo ore del mese precedente.</td></tr>
+              ) : computedRows.map((c) => {
+                const s = ensureSalary(c);
+                return (
+                  <tr key={c.name} className="border-b border-border hover:bg-dept-soft/20">
+                    <td className="border border-border p-1">
+                      <button type="button" onClick={() => setHistoryFor({ name: c.name, dipendenteId: c.dipendenteId })} className="h-9 w-full rounded-md px-2 text-left text-xs font-medium hover:bg-dept-soft/40 underline-offset-2 hover:underline">
+                        {c.name}
+                      </button>
+                    </td>
+                    <td className="border border-border p-1">
+                      <button type="button" onClick={() => setBreakdownFor(c)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs font-semibold hover:bg-dept-soft/40 underline-offset-2 hover:underline" title="Vedi calcolo analitico">
+                        {eur(c.totale)}
+                      </button>
+                    </td>
+                    <td className="border border-border p-1">
+                      <NumberInput className={cell} value={s.bonifico} onChange={(bonifico) => persistRow(c, { bonifico })} />
+                    </td>
+                    <td className="border border-border p-1">
+                      <div className={cellRO} title="Calcolato: Totale − Bonifico">{eur(contantiOf(c, s))}</div>
+                    </td>
+                    <td className="border border-border p-1">
+                      <NumberInput className={cell} value={s.cassaBanca} onChange={(cassaBanca) => persistRow(c, { cassaBanca })} />
+                    </td>
+                    <td className="border border-border p-1">
+                      <NumberInput className={cell} value={s.cassaContanti} onChange={(cassaContanti) => persistRow(c, { cassaContanti })} />
+                    </td>
+                    <td className="border border-border p-1"><div className={cellRO}>{eur(compBancaOf(s))}</div></td>
+                    <td className="border border-border p-1"><div className={cellRO}>{eur(compContantiOf(c, s))}</div></td>
+                  </tr>
+                );
+              })}
             </tbody>
-            {monthRows.length > 0 && (
+            {computedRows.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
                   <td className="border border-border px-2 py-1.5 text-right label-cap">Totali</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono text-dept">{eur(monthTotals.totale)}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.bonifico)}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.contanti)}</td>
-                  <td className="border border-border" />
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.cassaBanca)}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.cassaContanti)}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.compBanca)}</td>
                   <td className="border border-border px-2 py-1.5 text-right font-mono">{eur(monthTotals.compContanti)}</td>
-                  <td className="border border-border" />
                 </tr>
               </tfoot>
             )}
           </table>
         </div>
-        <SalaryCalculatorCard openMonth={openMonth} rows={salaryCalc} setRows={setSalaryCalc} rates={salaryRates} monthSalaries={monthRows} />
-        {isAdmin && <SalaryRatesCard rates={salaryRates} setRates={setSalaryRates} calcRows={salaryCalc} />}
       </CardContent>
+
+      <BreakdownDialog
+        data={breakdownFor}
+        year={prevY}
+        month={prevM}
+        onClose={() => setBreakdownFor(null)}
+      />
+      <HistoryDialog
+        target={historyFor}
+        hoursLog={hoursLog}
+        salaries={salaries}
+        dipendenti={dipendenti}
+        onClose={() => setHistoryFor(null)}
+      />
     </Card>
   );
 };
 
-const SalaryCalculatorCard = ({ openMonth, rows, setRows, rates, monthSalaries }: { openMonth: number; rows: SalaryCalcRow[]; setRows: (r: SalaryCalcRow[]) => void; rates: SalaryRate[]; monthSalaries: Salary[] }) => {
-  const monthRows = rows.filter((r) => r.month === openMonth);
-  const update = (id: string, patch: Partial<SalaryCalcRow>) => setRows(rows.map((r) => r.id === id ? { ...r, ...patch } : r));
-  const addRow = () => setRows([...rows, { id: uid(), name: "Nuovo dipendente", month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 }]);
-  const removeRow = (id: string) => setRows(rows.filter((r) => r.id !== id));
-  const importFromSalaries = () => {
-    const existing = new Set(monthRows.map((r) => r.name.trim().toLowerCase()));
-    const toAdd: SalaryCalcRow[] = [];
-    for (const s of monthSalaries) {
-      const key = s.name.trim().toLowerCase();
-      if (key && !existing.has(key) && !toAdd.find((u) => u.name.trim().toLowerCase() === key)) {
-        toAdd.push({ id: uid(), name: s.name, month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 });
-      }
-    }
-    if (toAdd.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
-    setRows([...rows, ...toAdd]);
-    toast.success(`Importati ${toAdd.length} dipendenti da Stipendi ${MONTHS[openMonth]}`);
-  };
-  const copyFromPrev = () => {
-    const order: number[] = [];
-    for (let k = 1; k <= 12; k++) order.push((openMonth - k + 12) % 12);
-    const src = order.find((m) => rows.some((r) => r.month === m));
-    if (src === undefined) { toast.error("Nessun mese precedente da cui copiare"); return; }
-    const prefilled: SalaryCalcRow[] = rows.filter((r) => r.month === src).map((r) => ({ ...r, id: uid(), month: openMonth, daysWorked: 0, overtimeHours: 0, holidayDays: 0, vacationDays: 0, tripDays: 0 }));
-    setRows([...rows, ...prefilled]);
-    toast.success(`Importati ${prefilled.length} dipendenti da ${MONTHS[src]}`);
-  };
-  const rateOf = (name: string) => rates.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
-  // €5/h netto per ogni ora oltre le 8 e €20/giorno netto come bonus trasferta,
-  // entrambi tassati con moltiplicatore netto → costo azienda × 1,9.
-  const NET_TO_COMPANY = 1.9;
-  const OVERTIME_NET_BONUS = 5 * NET_TO_COMPANY;
-  const TRIP_NET_BONUS = 20 * NET_TO_COMPANY;
-  const computeCost = (r: SalaryCalcRow) => {
-    const rt = rateOf(r.name);
-    if (!rt) return null;
-    const baseDays = r.daysWorked + r.holidayDays + r.vacationDays + (r.tripDays ?? 0);
-    const overtimeRate = (rt.overtimeHourCost || 0) + OVERTIME_NET_BONUS;
-    return baseDays * (rt.dailyCost || 0) + r.overtimeHours * overtimeRate + (r.tripDays ?? 0) * TRIP_NET_BONUS;
-  };
-  const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
-  const totals = monthRows.reduce((acc, r) => ({
-    days: acc.days + r.daysWorked,
-    ot: acc.ot + r.overtimeHours,
-    hol: acc.hol + r.holidayDays,
-    vac: acc.vac + r.vacationDays,
-    trip: acc.trip + (r.tripDays ?? 0),
-    cost: acc.cost + (computeCost(r) ?? 0),
-  }), { days: 0, ot: 0, hol: 0, vac: 0, trip: 0, cost: 0 });
+const DAY_NAMES_SHORT = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
+
+const BreakdownDialog = ({ data, year, month, onClose }: { data: ComputedSalary | null; year: number; month: number; onClose: () => void }) => {
+  if (!data) return null;
   return (
-    <Card className="mt-4 border-2 border-dept/60 shadow-soft">
-      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="text-base">Calcolatore presenze · {MONTHS[openMonth]}</CardTitle>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={importFromSalaries}>Importa da Stipendi mese</Button>
-          <Button size="sm" variant="outline" onClick={copyFromPrev}>Copia mese precedente</Button>
-          <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
+    <Dialog open={!!data} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Calcolo stipendio · {data.name}</DialogTitle>
+          <DialogDescription>
+            Periodo {MONTHS[month]} {year} · €/ora <strong>{data.hourlyRate.toFixed(2)}</strong> · contratto {data.contractH}h/giorno · straordinario €5/h · festivo/domenica × 2
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <SummaryBox label="Ore normali" value={`${data.totals.normalH.toFixed(1)}h`} />
+            <SummaryBox label="Straordinario" value={`${data.totals.overtimeH.toFixed(1)}h`} />
+            <SummaryBox label="Ferie/Malattia/Permessi" value={`${data.totals.paidH.toFixed(1)}h`} />
+            <SummaryBox label="Giorni festivi lavorati" value={String(data.totals.holidayDays)} />
+          </div>
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="px-2 py-1 text-left">Giorno</th>
+                  <th className="px-2 py-1 text-left">Dettaglio</th>
+                  <th className="px-2 py-1 text-right">Ore normali</th>
+                  <th className="px-2 py-1 text-right">Straord.</th>
+                  <th className="px-2 py-1 text-right">Ferie/Mal/Perm</th>
+                  <th className="px-2 py-1 text-right">Importo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.breakdown.map((d) => (
+                  <tr key={d.day} className={`border-t ${d.isHoliday ? "bg-amber-50" : ""}`}>
+                    <td className="px-2 py-1 font-medium">
+                      {d.day} <span className="text-muted-foreground">{DAY_NAMES_SHORT[d.dow]}</span>
+                      {d.isHoliday && <span className="ml-1 text-[10px] text-amber-700">×2</span>}
+                    </td>
+                    <td className="px-2 py-1 text-[11px] text-muted-foreground">
+                      {d.segs.map((s, i) => <span key={i} className="mr-2">{s.t} {s.h}h</span>)}
+                    </td>
+                    <td className="px-2 py-1 text-right font-mono">{d.normalH.toFixed(1)}</td>
+                    <td className="px-2 py-1 text-right font-mono">{d.overtimeH.toFixed(1)}</td>
+                    <td className="px-2 py-1 text-right font-mono">{d.paidH.toFixed(1)}</td>
+                    <td className="px-2 py-1 text-right font-mono font-semibold">
+                      {eur(d.amount)}
+                      {d.isHoliday && d.baseAmount !== d.amount && <div className="text-[9px] text-muted-foreground">(base {eur(d.baseAmount)})</div>}
+                    </td>
+                  </tr>
+                ))}
+                {data.breakdown.length === 0 && (
+                  <tr><td colSpan={6} className="px-2 py-4 text-center text-muted-foreground">Nessun giorno registrato</td></tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 bg-dept-soft/30 font-semibold">
+                  <td colSpan={2} className="px-2 py-1.5 text-right">Totale stipendio</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{data.totals.normalH.toFixed(1)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{data.totals.overtimeH.toFixed(1)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{data.totals.paidH.toFixed(1)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono text-dept">{eur(data.totale)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div className="rounded-md border bg-muted/20 p-3 text-[11px] text-muted-foreground space-y-1">
+            <div><strong>Formula:</strong> (ore normali + ferie/mal/permessi) × €/ora + straordinario × €5</div>
+            <div>Le giornate di domenica o segnate come "festivo" raddoppiano l'importo del giorno.</div>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-b-2 border-dept bg-dept-soft/40">
-                <th className="border border-border px-2 py-1.5 text-left label-cap">Dipendente</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni lavorati</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Ore straordinario</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni festa</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni ferie</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Giorni trasferta</th>
-                <th className="border border-border px-2 py-1.5 text-right label-cap">Costo calcolato</th>
-                <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const SummaryBox = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-md border bg-muted/20 px-3 py-2">
+    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+    <div className="text-base font-bold font-mono">{value}</div>
+  </div>
+);
+
+const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, onClose }: { target: { name: string; dipendenteId?: string } | null; hoursLog: HoursLog; salaries: Salary[]; dipendenti: Dipendente[]; onClose: () => void }) => {
+  if (!target) return null;
+  const dip = target.dipendenteId ? dipendenti.find((d) => d.id === target.dipendenteId) : dipendenti.find((d) => d.nome.trim().toLowerCase() === target.name.trim().toLowerCase());
+  // Build historical salaries: scan all hoursLog keys
+  const entries: { key: string; year: number; month: number; totale: number; manualSalary?: Salary }[] = [];
+  Object.entries(hoursLog).forEach(([key, hm]) => {
+    const [yStr, mStr] = key.split("-");
+    const y = Number(yStr); const m = Number(mStr);
+    if (!Number.isFinite(y) || !Number.isFinite(m)) return;
+    const row = hm.rows.find((r) => (target.dipendenteId ? r.dipendenteId === target.dipendenteId : r.name.trim().toLowerCase() === target.name.trim().toLowerCase()));
+    if (!row) return;
+    const c = computeSalaryForRow(row, dip, y, m);
+    // Salary mese successivo (calcolato dalle ore di y-m)
+    const salMonth = m === 11 ? 0 : m + 1;
+    const ms = salaries.find((s) => s.month === salMonth && s.name.trim().toLowerCase() === target.name.trim().toLowerCase());
+    entries.push({ key, year: y, month: m, totale: c.totale, manualSalary: ms });
+  });
+  entries.sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year);
+  const grandTotal = entries.reduce((s, e) => s + e.totale, 0);
+  return (
+    <Dialog open={!!target} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Storico stipendi · {target.name}</DialogTitle>
+          <DialogDescription>
+            €/ora {(Number(dip?.hourly_rate) || 0).toFixed(2)} · contratto {(Number(dip?.contract_hours_per_day) || 8)}h/giorno
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/40">
+              <tr>
+                <th className="px-2 py-1 text-left">Periodo ore</th>
+                <th className="px-2 py-1 text-left">Stipendio pagato in</th>
+                <th className="px-2 py-1 text-right">Calcolato</th>
+                <th className="px-2 py-1 text-right">Bonifico</th>
+                <th className="px-2 py-1 text-right">Contanti</th>
               </tr>
             </thead>
             <tbody>
-              {monthRows.length === 0 ? (
-                <tr><td colSpan={8} className="border border-border p-3 text-center text-muted-foreground">Nessun dipendente per {MONTHS[openMonth]}</td></tr>
-              ) : monthRows.map((r) => {
-                const cost = computeCost(r);
+              {entries.length === 0 ? (
+                <tr><td colSpan={5} className="px-2 py-4 text-center text-muted-foreground">Nessuna ora registrata</td></tr>
+              ) : entries.map((e) => {
+                const salM = e.month === 11 ? 0 : e.month + 1;
+                const salY = e.month === 11 ? e.year + 1 : e.year;
                 return (
-                  <tr key={r.id} className="border-b border-border hover:bg-dept-soft/20">
-                    <td className="border border-border p-1"><TextInput className="h-9 text-xs font-medium" value={r.name} onCommit={(name) => update(r.id, { name })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.daysWorked} onChange={(daysWorked) => update(r.id, { daysWorked })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHours} onChange={(overtimeHours) => update(r.id, { overtimeHours })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.holidayDays} onChange={(holidayDays) => update(r.id, { holidayDays })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.vacationDays} onChange={(vacationDays) => update(r.id, { vacationDays })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.tripDays ?? 0} onChange={(tripDays) => update(r.id, { tripDays })} /></td>
-                    <td className="border border-border px-2 py-1.5 text-right font-mono">{cost === null ? <span className="text-muted-foreground text-[10px]">— costi non impostati</span> : eur(cost)}</td>
-                    <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
+                  <tr key={e.key} className="border-t">
+                    <td className="px-2 py-1 font-medium">{MONTHS[e.month]} {e.year}</td>
+                    <td className="px-2 py-1 text-muted-foreground">{MONTHS[salM]} {salY}</td>
+                    <td className="px-2 py-1 text-right font-mono font-semibold">{eur(e.totale)}</td>
+                    <td className="px-2 py-1 text-right font-mono">{e.manualSalary ? eur(e.manualSalary.bonifico) : "—"}</td>
+                    <td className="px-2 py-1 text-right font-mono">{e.manualSalary ? eur(e.totale - e.manualSalary.bonifico) : "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
-            {monthRows.length > 0 && (
+            {entries.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
-                  <td className="border border-border px-2 py-1.5 text-right label-cap">Totali</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.days}</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.ot}</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.hol}</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.vac}</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono">{totals.trip}</td>
-                  <td className="border border-border px-2 py-1.5 text-right font-mono text-dept">{eur(totals.cost)}</td>
-                  <td className="border border-border" />
+                <tr className="border-t-2 bg-dept-soft/30 font-semibold">
+                  <td colSpan={2} className="px-2 py-1.5 text-right">Totale</td>
+                  <td className="px-2 py-1.5 text-right font-mono text-dept">{eur(grandTotal)}</td>
+                  <td colSpan={2} />
                 </tr>
               </tfoot>
             )}
           </table>
         </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const SalaryRatesCard = ({ rates, setRates, calcRows }: { rates: SalaryRate[]; setRates: (r: SalaryRate[]) => void; calcRows: SalaryCalcRow[] }) => {
-  const [open, setOpen] = useState(false);
-  const update = (id: string, patch: Partial<SalaryRate>) => setRates(rates.map((r) => r.id === id ? { ...r, ...patch } : r));
-  const addRow = () => setRates([...rates, { id: uid(), name: "Nuovo dipendente", dailyCost: 0, overtimeHourCost: 0 }]);
-  const removeRow = (id: string) => setRates(rates.filter((r) => r.id !== id));
-  const importFromCalc = () => {
-    const existing = new Set(rates.map((r) => r.name.trim().toLowerCase()));
-    const unique: SalaryRate[] = [];
-    for (const c of calcRows) {
-      const key = c.name.trim().toLowerCase();
-      if (key && !existing.has(key) && !unique.find((u) => u.name.trim().toLowerCase() === key)) {
-        unique.push({ id: uid(), name: c.name, dailyCost: 0, overtimeHourCost: 0 });
-      }
-    }
-    if (unique.length === 0) { toast.info("Nessun nuovo dipendente da importare"); return; }
-    setRates([...rates, ...unique]);
-    toast.success(`Importati ${unique.length} dipendenti`);
-  };
-  const cell = "h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs";
-  return (
-    <Card className="mt-4 border-2 border-destructive/40 shadow-soft">
-      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between cursor-pointer" onClick={() => setOpen((v) => !v)}>
-        <CardTitle className="text-base flex items-center gap-2">
-          🔒 Costi per dipendente <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider">solo admin</span>
-        </CardTitle>
-        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}>{open ? "Chiudi" : "Apri"}</Button>
-      </CardHeader>
-      {open && (
-        <CardContent className="space-y-3">
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={importFromCalc}>Importa da presenze</Button>
-            <Button size="sm" onClick={addRow}><Plus className="h-4 w-4" />Dipendente</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b-2 border-destructive/40 bg-destructive/5">
-                  <th className="border border-border px-2 py-1.5 text-left label-cap">Dipendente</th>
-                  <th className="border border-border px-2 py-1.5 text-right label-cap">Costo / giorno</th>
-                  <th className="border border-border px-2 py-1.5 text-right label-cap">Costo / ora straordinario</th>
-                  <th className="border border-border px-2 py-1.5 text-center label-cap">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rates.length === 0 ? (
-                  <tr><td colSpan={4} className="border border-border p-3 text-center text-muted-foreground">Nessun costo impostato</td></tr>
-                ) : rates.map((r) => (
-                  <tr key={r.id} className="border-b border-border hover:bg-destructive/5">
-                    <td className="border border-border p-1"><TextInput className="h-9 text-xs font-medium" value={r.name} onCommit={(name) => update(r.id, { name })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.dailyCost} onChange={(dailyCost) => update(r.id, { dailyCost })} /></td>
-                    <td className="border border-border p-1"><NumberInput className={cell} value={r.overtimeHourCost} onChange={(overtimeHourCost) => update(r.id, { overtimeHourCost })} /></td>
-                    <td className="border border-border p-1 text-center"><Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.id)}><Trash2 className="h-4 w-4" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      )}
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };

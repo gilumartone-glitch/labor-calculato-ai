@@ -126,6 +126,7 @@ type AccountingState = {
   salaryPayDays?: number[]; // legacy: giorno del mese (1-28)
   salaryCalc?: SalaryCalcRow[]; // calcolatore presenze per mese
   salaryRates?: SalaryRate[]; // costi giornalieri/straordinario per dipendente
+  hoursLog?: Record<string, { rows: Array<{ id: string; dipendenteId?: string; name: string; days: Record<number, { h: number; t: "lavoro" | "trasferta" | "ferie" | "permesso" | "malattia" | "festivo" }> }> }>;
   goals?: AccountingGoals;
   contacts?: Contact[];
   // Tombstones: ID di righe eliminate. Servono perché il merge realtime

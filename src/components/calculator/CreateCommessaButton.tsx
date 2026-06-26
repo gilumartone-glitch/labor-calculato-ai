@@ -488,7 +488,7 @@ export const CreateCommessaButton = ({
           salesLines.push(`• ${desc} — ${q} ${l.unit || ""}${sell > 0 ? ` · ${sell.toFixed(2)}€` : ""}`.trim());
         }
       }
-      const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
+      const salesNote = salesLines.length ? `Ordine:\n${salesLines.join("\n")}` : "";
 
       const orderNote = isWarehouse
         ? [`Senza lavorazione — da preventivo: ${titolo.trim()}`, note.trim() || null, salesNote || null].filter(Boolean).join(" — ")
@@ -651,7 +651,7 @@ export const CreateCommessaButton = ({
           const assignee = (plan.responsabile || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
-            ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
+            ? salesNote
             : (titolo.trim() || null);
           // Blocca questo sub SOLO se mancano materiali di sua competenza.
           const blockerForDept = acquistiByDept[dept] ?? null;
@@ -680,7 +680,8 @@ export const CreateCommessaButton = ({
         }
 
         const writers = await getProduzioneWriters(depts);
-        const targets = writers.filter((u) => u !== user.id);
+        const assignees = insertedSubs.map((s) => s.assignee).filter((x): x is string => !!x);
+        const targets = Array.from(new Set([...writers, ...assignees])).filter((u) => u !== user.id);
         if (targets.length > 0) {
           await notify({
             userIds: targets,

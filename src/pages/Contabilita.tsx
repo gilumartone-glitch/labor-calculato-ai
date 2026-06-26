@@ -2858,6 +2858,13 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     });
   }, [prevHoursMonth, dipendenti, prevY, prevM]);
 
+  // Match each computed row with an existing Salary record for the openMonth (by name).
+  const ensureSalary = (c: ComputedSalary): Salary => {
+    const found = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());
+    if (found) return found;
+    return { id: `__virtual-${c.name}`, name: c.name, month: openMonth, totale: c.totale, bonifico: 0, contanti: c.totale, sc: false, cassaBanca: 0, cassaContanti: 0 };
+  };
+
   const displayRows = useMemo(() => {
     if (useSavedRows) {
       return savedRowsForMonth.map((salary) => {
@@ -2868,13 +2875,6 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     return computedRows.map((computed) => ({ key: computed.name, computed, salary: ensureSalary(computed), saved: false }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useSavedRows, savedRowsForMonth, computedRows, dipendenti, salaries, openMonth]);
-
-  // Match each computed row with an existing Salary record for the openMonth (by name).
-  const ensureSalary = (c: ComputedSalary): Salary => {
-    const found = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());
-    if (found) return found;
-    return { id: `__virtual-${c.name}`, name: c.name, month: openMonth, totale: c.totale, bonifico: 0, contanti: c.totale, sc: false, cassaBanca: 0, cassaContanti: 0 };
-  };
 
   const persistRow = (c: ComputedSalary, patch: Partial<Salary>) => {
     const existing = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());

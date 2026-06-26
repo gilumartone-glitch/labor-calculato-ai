@@ -2821,6 +2821,16 @@ const computeSalaryForRow = (
 const prevMonthYear = (year: number, month: number) =>
   month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 };
 
+const sameEmployeeName = (a: string, b: string) => normalizeImportText(a) === normalizeImportText(b);
+
+const findDipendente = (dipendenti: Dipendente[], name: string, dipendenteId?: string) => {
+  if (dipendenteId) {
+    const byId = dipendenti.find((d) => d.id === dipendenteId);
+    if (byId) return byId;
+  }
+  return dipendenti.find((d) => sameEmployeeName(d.nome, name));
+};
+
 const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSalary => ({
   name: salary.name,
   dipendenteId: dip?.id,
@@ -2840,7 +2850,28 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const [breakdownFor, setBreakdownFor] = useState<ComputedSalary | null>(null);
   const [historyFor, setHistoryFor] = useState<{ name: string; dipendenteId?: string } | null>(null);
 
-  useEffect(() => { fetchDipendenti(true).then(setDipendenti).catch(() => setDipendenti([])); }, []);
+  useEffect(() => {
+    let mounted = true;
+    const loadDipendenti = () => {
+      fetchDipendenti(false).then((rows) => {
+        if (mounted) setDipendenti(rows);
+      }).catch(() => {
+        if (mounted) setDipendenti([]);
+      });
+    };
+    loadDipendenti();
+    const onFocus = () => loadDipendenti();
+    window.addEventListener("focus", onFocus);
+    const channel = supabase
+      .channel("contabilita-dipendenti-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "dipendenti" }, () => loadDipendenti())
+      .subscribe();
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", onFocus);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const { year: prevY, month: prevM } = prevMonthYear(year, openMonth);
   const prevKey = `${prevY}-${prevM}`;
@@ -2854,7 +2885,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
 
   const computedRows: ComputedSalary[] = useMemo(() => {
     return prevHoursMonth.rows.map((r) => {
-      const dip = r.dipendenteId ? dipendenti.find((d) => d.id === r.dipendenteId) : dipendenti.find((d) => d.nome.trim().toLowerCase() === r.name.trim().toLowerCase());
+      const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
       return computeSalaryForRow(r, dip, prevY, prevM);
     });
   }, [prevHoursMonth, dipendenti, prevY, prevM]);
@@ -2869,7 +2900,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const displayRows = useMemo(() => {
     if (useSavedRows) {
       return savedRowsForMonth.map((salary) => {
-        const dip = dipendenti.find((d) => d.nome.trim().toLowerCase() === salary.name.trim().toLowerCase());
+        const dip = findDipendente(dipendenti, salary.name);
         return { key: salary.id, computed: computedFromSavedSalary(salary, dip), salary, saved: true };
       });
     }
@@ -2943,7 +2974,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             const tot = processed[i] && savedForMonth.length > 0
               ? savedForMonth.reduce((sum, s) => sum + (Number(s.totale) || 0), 0)
               : hm.rows.reduce((sum, r) => {
-                const dip = dipendenti.find((d) => d.id === r.dipendenteId);
+                const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
                 return sum + computeSalaryForRow(r, dip, pY, pM).totale;
               }, 0);
             return (
@@ -3055,6 +3086,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
         hoursLog={hoursLog}
         salaries={salaries}
         dipendenti={dipendenti}
+        salaryYear={year}
         onClose={() => setHistoryFor(null)}
       />
     </Card>
@@ -3144,24 +3176,56 @@ const SummaryBox = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, onClose }: { target: { name: string; dipendenteId?: string } | null; hoursLog: HoursLog; salaries: Salary[]; dipendenti: Dipendente[]; onClose: () => void }) => {
+const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, salaryYear, onClose }: { target: { name: string; dipendenteId?: string } | null; hoursLog: HoursLog; salaries: Salary[]; dipendenti: Dipendente[]; salaryYear: number; onClose: () => void }) => {
   if (!target) return null;
-  const dip = target.dipendenteId ? dipendenti.find((d) => d.id === target.dipendenteId) : dipendenti.find((d) => d.nome.trim().toLowerCase() === target.name.trim().toLowerCase());
-  // Build historical salaries: scan all hoursLog keys
-  const entries: { key: string; year: number; month: number; totale: number; manualSalary?: Salary }[] = [];
+  const dip = findDipendente(dipendenti, target.name, target.dipendenteId);
+  const targetMatches = (name: string) => sameEmployeeName(name, target.name) || (!!dip && sameEmployeeName(name, dip.nome));
+  const entriesBySalaryMonth = new Map<string, { key: string; periodYear: number; periodMonth: number; salaryYear: number; salaryMonth: number; totale: number; bonifico?: number; contanti?: number; source: "salvato" | "calcolato" }>();
+
+  salaries.forEach((salary) => {
+    if (!targetMatches(salary.name)) return;
+    const { year: periodYear, month: periodMonth } = prevMonthYear(salaryYear, salary.month);
+    const key = `${salaryYear}-${salary.month}`;
+    entriesBySalaryMonth.set(key, {
+      key,
+      periodYear,
+      periodMonth,
+      salaryYear,
+      salaryMonth: salary.month,
+      totale: Number(salary.totale) || 0,
+      bonifico: Number(salary.bonifico) || 0,
+      contanti: Number(salary.contanti) || Math.max(0, (Number(salary.totale) || 0) - (Number(salary.bonifico) || 0)),
+      source: "salvato",
+    });
+  });
+
   Object.entries(hoursLog).forEach(([key, hm]) => {
     const [yStr, mStr] = key.split("-");
     const y = Number(yStr); const m = Number(mStr);
     if (!Number.isFinite(y) || !Number.isFinite(m)) return;
-    const row = hm.rows.find((r) => (target.dipendenteId ? r.dipendenteId === target.dipendenteId : r.name.trim().toLowerCase() === target.name.trim().toLowerCase()));
+    const row = hm.rows.find((r) => (target.dipendenteId && r.dipendenteId === target.dipendenteId) || targetMatches(r.name));
     if (!row) return;
     const c = computeSalaryForRow(row, dip, y, m);
-    // Salary mese successivo (calcolato dalle ore di y-m)
-    const salMonth = m === 11 ? 0 : m + 1;
-    const ms = salaries.find((s) => s.month === salMonth && s.name.trim().toLowerCase() === target.name.trim().toLowerCase());
-    entries.push({ key, year: y, month: m, totale: c.totale, manualSalary: ms });
+    const salaryMonth = m === 11 ? 0 : m + 1;
+    const nextSalaryYear = m === 11 ? y + 1 : y;
+    const mapKey = `${nextSalaryYear}-${salaryMonth}`;
+    const manualSalary = salaries.find((s) => s.month === salaryMonth && targetMatches(s.name));
+    const existing = entriesBySalaryMonth.get(mapKey);
+    entriesBySalaryMonth.set(mapKey, {
+      key: mapKey,
+      periodYear: y,
+      periodMonth: m,
+      salaryYear: nextSalaryYear,
+      salaryMonth,
+      totale: existing?.source === "salvato" ? existing.totale : c.totale,
+      bonifico: manualSalary ? Number(manualSalary.bonifico) || 0 : existing?.bonifico,
+      contanti: manualSalary
+        ? (Number(manualSalary.contanti) || Math.max(0, (Number(manualSalary.totale) || c.totale) - (Number(manualSalary.bonifico) || 0)))
+        : existing?.contanti,
+      source: existing?.source === "salvato" ? "salvato" : "calcolato",
+    });
   });
-  entries.sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year);
+  const entries = Array.from(entriesBySalaryMonth.values()).sort((a, b) => a.salaryYear === b.salaryYear ? a.salaryMonth - b.salaryMonth : a.salaryYear - b.salaryYear);
   const grandTotal = entries.reduce((s, e) => s + e.totale, 0);
   return (
     <Dialog open={!!target} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -3185,17 +3249,15 @@ const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, onClose }: { ta
             </thead>
             <tbody>
               {entries.length === 0 ? (
-                <tr><td colSpan={5} className="px-2 py-4 text-center text-muted-foreground">Nessuna ora registrata</td></tr>
+                <tr><td colSpan={5} className="px-2 py-4 text-center text-muted-foreground">Nessuno storico stipendio presente</td></tr>
               ) : entries.map((e) => {
-                const salM = e.month === 11 ? 0 : e.month + 1;
-                const salY = e.month === 11 ? e.year + 1 : e.year;
                 return (
                   <tr key={e.key} className="border-t">
-                    <td className="px-2 py-1 font-medium">{MONTHS[e.month]} {e.year}</td>
-                    <td className="px-2 py-1 text-muted-foreground">{MONTHS[salM]} {salY}</td>
+                    <td className="px-2 py-1 font-medium">{MONTHS[e.periodMonth]} {e.periodYear}</td>
+                    <td className="px-2 py-1 text-muted-foreground">{MONTHS[e.salaryMonth]} {e.salaryYear} <span className="ml-1 text-[10px]">{e.source}</span></td>
                     <td className="px-2 py-1 text-right font-mono font-semibold">{eur(e.totale)}</td>
-                    <td className="px-2 py-1 text-right font-mono">{e.manualSalary ? eur(e.manualSalary.bonifico) : "—"}</td>
-                    <td className="px-2 py-1 text-right font-mono">{e.manualSalary ? eur(e.totale - e.manualSalary.bonifico) : "—"}</td>
+                    <td className="px-2 py-1 text-right font-mono">{typeof e.bonifico === "number" ? eur(e.bonifico) : "—"}</td>
+                    <td className="px-2 py-1 text-right font-mono">{typeof e.contanti === "number" ? eur(e.contanti) : "—"}</td>
                   </tr>
                 );
               })}

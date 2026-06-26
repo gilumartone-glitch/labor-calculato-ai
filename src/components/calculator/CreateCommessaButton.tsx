@@ -488,7 +488,7 @@ export const CreateCommessaButton = ({
           salesLines.push(`• ${desc} — ${q} ${l.unit || ""}${sell > 0 ? ` · ${sell.toFixed(2)}€` : ""}`.trim());
         }
       }
-      const salesNote = salesLines.length ? `Vendite da preparare:\n${salesLines.join("\n")}` : "";
+      const salesNote = salesLines.length ? `Ordine:\n${salesLines.join("\n")}` : "";
 
       const orderNote = isWarehouse
         ? [`Senza lavorazione — da preventivo: ${titolo.trim()}`, note.trim() || null, salesNote || null].filter(Boolean).join(" — ")

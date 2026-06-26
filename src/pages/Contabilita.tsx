@@ -3186,15 +3186,19 @@ const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, salaryYear, onC
     if (!targetMatches(salary.name)) return;
     const { year: periodYear, month: periodMonth } = prevMonthYear(salaryYear, salary.month);
     const key = `${salaryYear}-${salary.month}`;
+    const savedTotale = Number(salary.totale) || 0;
+    const savedBonifico = Number(salary.bonifico) || 0;
+    const rawContanti = Number(salary.contanti);
+    const savedContanti = Number.isFinite(rawContanti) ? rawContanti : Math.max(0, savedTotale - savedBonifico);
     entriesBySalaryMonth.set(key, {
       key,
       periodYear,
       periodMonth,
       salaryYear,
       salaryMonth: salary.month,
-      totale: Number(salary.totale) || 0,
-      bonifico: Number(salary.bonifico) || 0,
-      contanti: Number(salary.contanti) || Math.max(0, (Number(salary.totale) || 0) - (Number(salary.bonifico) || 0)),
+      totale: savedTotale,
+      bonifico: savedBonifico,
+      contanti: savedContanti,
       source: "salvato",
     });
   });
@@ -3210,6 +3214,10 @@ const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, salaryYear, onC
     const nextSalaryYear = m === 11 ? y + 1 : y;
     const mapKey = `${nextSalaryYear}-${salaryMonth}`;
     const manualSalary = salaries.find((s) => s.month === salaryMonth && targetMatches(s.name));
+    const manualTotale = manualSalary ? Number(manualSalary.totale) || c.totale : c.totale;
+    const manualBonifico = manualSalary ? Number(manualSalary.bonifico) || 0 : undefined;
+    const rawManualContanti = manualSalary ? Number(manualSalary.contanti) : NaN;
+    const manualContanti = manualSalary ? (Number.isFinite(rawManualContanti) ? rawManualContanti : Math.max(0, manualTotale - (manualBonifico || 0))) : undefined;
     const existing = entriesBySalaryMonth.get(mapKey);
     entriesBySalaryMonth.set(mapKey, {
       key: mapKey,
@@ -3218,10 +3226,8 @@ const HistoryDialog = ({ target, hoursLog, salaries, dipendenti, salaryYear, onC
       salaryYear: nextSalaryYear,
       salaryMonth,
       totale: existing?.source === "salvato" ? existing.totale : c.totale,
-      bonifico: manualSalary ? Number(manualSalary.bonifico) || 0 : existing?.bonifico,
-      contanti: manualSalary
-        ? (Number(manualSalary.contanti) || Math.max(0, (Number(manualSalary.totale) || c.totale) - (Number(manualSalary.bonifico) || 0)))
-        : existing?.contanti,
+      bonifico: typeof manualBonifico === "number" ? manualBonifico : existing?.bonifico,
+      contanti: typeof manualContanti === "number" ? manualContanti : existing?.contanti,
       source: existing?.source === "salvato" ? "salvato" : "calcolato",
     });
   });

@@ -75,7 +75,7 @@ export default function ProdOggi() {
         .from("production_sub_orders")
         .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
         .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
-        .not("status", "in", "(completato,annullato)")
+        .neq("status", "completato")
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(500);
 
@@ -91,7 +91,7 @@ export default function ProdOggi() {
             .from("production_sub_orders")
             .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
             .in("order_id", coordOrderIds)
-            .not("status", "in", "(completato,annullato)")
+            .neq("status", "completato")
             .limit(500)
         : { data: [] as Sub[] };
 
@@ -139,9 +139,10 @@ export default function ProdOggi() {
     return () => { cancelled = true; };
   }, [user]);
 
-  // Calcola data effettiva per ciascun sub (due_date oppure scadenza commessa)
+  // Calcola data effettiva per ciascun sub: nelle "Mie Attività" conta prima l'inizio lavorazione,
+  // poi la consegna. Così un lavoro assegnato oggi non resta nascosto solo perché consegna la settimana dopo.
   const subDate = (s: Sub): string | null =>
-    s.due_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
+    s.start_date ?? s.due_date ?? s.end_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
 
   // Settimana corrente navigabile (lun → dom)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));

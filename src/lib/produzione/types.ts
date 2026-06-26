@@ -40,7 +40,7 @@ export const ALL_SETTORI: AppSettore[] = [
   "progettazione",
   "laboratorio", "stampa", "taglio", "tappezzeria", "falegnameria", "stampa_3d",
   "montaggi",
-  "amministrazione", "acquisti", "vendite",
+  "amministrazione", "acquisti", "vendite", "magazzino",
 ];
 
 /** Reparti UFFICIO (chi gestisce, ordina, fattura). */

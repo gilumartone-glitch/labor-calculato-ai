@@ -352,6 +352,7 @@ export type Database = {
         Row: {
           annual_hours: number
           attivo: boolean
+          contract_hours_per_day: number
           created_at: string
           created_by: string
           email: string | null
@@ -374,6 +375,7 @@ export type Database = {
         Insert: {
           annual_hours?: number
           attivo?: boolean
+          contract_hours_per_day?: number
           created_at?: string
           created_by: string
           email?: string | null
@@ -396,6 +398,7 @@ export type Database = {
         Update: {
           annual_hours?: number
           attivo?: boolean
+          contract_hours_per_day?: number
           created_at?: string
           created_by?: string
           email?: string | null

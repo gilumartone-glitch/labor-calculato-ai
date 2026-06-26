@@ -41,6 +41,7 @@ const empty = (): Editable => ({
   tfr_pct: 7.4,
   extra_costs: 0,
   annual_hours: EFFECTIVE_ANNUAL_HOURS,
+  contract_hours_per_day: 8,
   attivo: true,
   note: "",
 });
@@ -112,6 +113,7 @@ export default function Dipendenti() {
       tfr_pct: Number(editing.tfr_pct) || 0,
       extra_costs: Number(editing.extra_costs) || 0,
       annual_hours: Number(editing.annual_hours) || 1720,
+      contract_hours_per_day: Number(editing.contract_hours_per_day) || 8,
       attivo: editing.attivo,
       note: editing.note?.trim() || null,
     };
@@ -352,6 +354,15 @@ export default function Dipendenti() {
                   <option value="">— Nessuno (collaboratore senza login) —</option>
                   {profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name ?? p.id.slice(0, 8)}</option>)}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label>Contratto — ore al giorno</Label>
+                  <Input type="number" step="0.5" min={0} value={editing.contract_hours_per_day}
+                    onChange={(e) => setEditing({ ...editing, contract_hours_per_day: Number(e.target.value) || 0 })} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Oltre queste ore al giorno scatta lo straordinario (es. 5 = part-time 5h).</p>
+                </div>
               </div>
 
               {isAdmin ? (

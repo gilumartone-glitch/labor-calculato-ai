@@ -56,12 +56,12 @@ type RowTotals = {
   malattiaGiorni: number;
 };
 
-const computeRowTotals = (row: HoursRow): RowTotals => {
+const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => {
+  const threshold = Math.max(0, Number(contractHoursPerDay) || 8);
   let ore = 0, straordinario = 0, trasfertaGiorni = 0, trasfertaOre = 0, ferieGiorni = 0, permessoOre = 0, malattiaGiorni = 0;
   Object.values(row.days || {}).forEach((cell) => {
     const segs = getSegments(cell);
     if (segs.length === 0) return;
-    // Sum work hours (lavoro+trasferta) per day for overtime calc
     let workH = 0;
     let hadTrasferta = false;
     let hadFerie = false;
@@ -74,13 +74,18 @@ const computeRowTotals = (row: HoursRow): RowTotals => {
       else if (s.t === "ferie") hadFerie = true;
       else if (s.t === "malattia") hadMalattia = true;
     });
-    ore += Math.min(workH, 8);
-    straordinario += Math.max(workH - 8, 0);
+    ore += Math.min(workH, threshold);
+    straordinario += Math.max(workH - threshold, 0);
     if (hadTrasferta) trasfertaGiorni += 1;
     if (hadFerie) ferieGiorni += 1;
     if (hadMalattia) malattiaGiorni += 1;
   });
   return { ore, straordinario, trasfertaGiorni, trasfertaOre, ferieGiorni, permessoOre, malattiaGiorni };
+};
+
+const contractHoursFor = (row: HoursRow, dipendenti: Dipendente[]): number => {
+  const d = row.dipendenteId ? dipendenti.find((x) => x.id === row.dipendenteId) : undefined;
+  return Math.max(0, Number(d?.contract_hours_per_day) || 8);
 };
 
 type Props = {
@@ -153,22 +158,29 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
       </CardHeader>
       <CardContent className="space-y-3">
         <Tabs value={String(activeMonth)} onValueChange={(v) => setActiveMonth(Number(v))}>
-          <TabsList className="flex flex-wrap h-auto justify-start gap-1 bg-muted/40 p-1">
+          <TabsList className="grid grid-cols-6 md:grid-cols-12 h-auto w-full gap-1.5 bg-muted/40 p-1.5">
             {MONTHS.map((label, m) => {
               const key = monthKey(year, m);
               const month = hoursLog[key] ?? { rows: [] };
               const totals = month.rows.reduce(
                 (acc, r) => {
-                  const t = computeRowTotals(r);
+                  const t = computeRowTotals(r, contractHoursFor(r, dipendenti));
                   acc.ore += t.ore + t.straordinario;
                   return acc;
                 },
                 { ore: 0 },
               );
+              const isCurrent = m === now.getMonth() && year === now.getFullYear();
               return (
-                <TabsTrigger key={m} value={String(m)} className="flex flex-col items-center gap-0 px-3 py-1.5 data-[state=active]:bg-dept data-[state=active]:text-dept-foreground">
-                  <span className="text-xs font-semibold">{label.slice(0, 3)}</span>
-                  <span className="text-[10px] opacity-70">{totals.ore > 0 ? `${totals.ore.toFixed(0)}h` : "—"}</span>
+                <TabsTrigger
+                  key={m}
+                  value={String(m)}
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2.5 min-h-[58px] text-sm font-semibold rounded-md border border-transparent data-[state=active]:bg-dept data-[state=active]:text-dept-foreground data-[state=active]:border-dept data-[state=active]:shadow-md hover:bg-muted"
+                >
+                  <span className="text-sm font-bold leading-tight">{label}</span>
+                  <span className="text-[11px] opacity-80 leading-tight">
+                    {totals.ore > 0 ? `${totals.ore.toFixed(0)}h` : (isCurrent ? "oggi" : "—")}
+                  </span>
                 </TabsTrigger>
               );
             })}
@@ -282,7 +294,8 @@ const MonthTable = ({
               <tr><td colSpan={nDays + 8} className="px-4 py-6 text-center text-muted-foreground">Nessun dipendente. Apri il mese per popolare la lista o usa "Importa da Dipendenti".</td></tr>
             )}
             {data.rows.map((row) => {
-              const totals = computeRowTotals(row);
+              const contractH = contractHoursFor(row, dipendenti);
+              const totals = computeRowTotals(row, contractH);
               return (
                 <tr key={row.id} className="border-t hover:bg-muted/30">
                   <td className="sticky left-0 z-10 bg-paper px-2 py-1 font-medium">
@@ -335,7 +348,7 @@ const MonthTable = ({
         {TYPE_OPTIONS.map((o) => (
           <span key={o.value} className={`px-1.5 py-0.5 rounded border ${o.color}`}>{o.short} = {o.label}</span>
         ))}
-        <span>· Ore lavoro+trasferta &gt; 8 = straordinario · Clicca una cella per inserire più voci (es. 6h L + 2h P)</span>
+        <span>· Ore lavoro+trasferta oltre le ore contrattuali del dipendente = straordinario · Clicca una cella per inserire più voci (es. 6h L + 2h P)</span>
       </div>
     </div>
   );

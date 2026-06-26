@@ -17,6 +17,7 @@ export type Dipendente = {
   tfr_pct: number;
   extra_costs: number;
   annual_hours: number;
+  contract_hours_per_day: number;
   attivo: boolean;
   note: string | null;
 };

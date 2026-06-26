@@ -62,10 +62,13 @@ export const GeneralSummary = ({
   const marginFor = (k: string) => (deptMargins[k] ?? margin);
   const setMarginFor = (k: string, v: number) => setDeptMargins((prev) => ({ ...prev, [k]: v }));
   const resetMarginFor = (k: string) => setDeptMargins((prev) => { const next = { ...prev }; delete next[k]; return next; });
+  // Base margine = costo senza trasferte e trasporti (che passano a costo)
+  const marginBaseFor = (d: GeneralSummaryProps["departments"][number]) =>
+    Math.max(0, d.totals.total - (d.totals.transports ?? 0));
   const deptTotalWithMargin = (d: GeneralSummaryProps["departments"][number]) =>
-    d.totals.total * (1 + marginFor(d.key) / 100);
+    d.totals.total + marginBaseFor(d) * (marginFor(d.key) / 100);
 
-  const marginAmount = departments.reduce((s, d) => s + d.totals.total * (marginFor(d.key) / 100), 0);
+  const marginAmount = departments.reduce((s, d) => s + marginBaseFor(d) * (marginFor(d.key) / 100), 0);
   const net = cost + marginAmount;
   const vatAmount = applyVat ? net * (vat / 100) : 0;
   const total = net + vatAmount;

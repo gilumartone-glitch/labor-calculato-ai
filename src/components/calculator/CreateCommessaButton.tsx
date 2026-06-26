@@ -680,7 +680,8 @@ export const CreateCommessaButton = ({
         }
 
         const writers = await getProduzioneWriters(depts);
-        const targets = writers.filter((u) => u !== user.id);
+        const assignees = insertedSubs.map((s) => s.assignee).filter((x): x is string => !!x);
+        const targets = Array.from(new Set([...writers, ...assignees])).filter((u) => u !== user.id);
         if (targets.length > 0) {
           await notify({
             userIds: targets,

@@ -11,16 +11,17 @@ type State = {
   approved: boolean;
   roles: string[];
   perms: Record<string, Level>;
+  settori: string[];
 };
 
 export const usePermissions = () => {
   const { user, loading: authLoading } = useAuth();
-  const [state, setState] = useState<State>({ loading: true, isAdmin: false, approved: false, roles: [], perms: {} });
+  const [state, setState] = useState<State>({ loading: true, isAdmin: false, approved: false, roles: [], perms: {}, settori: [] });
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      setState({ loading: false, isAdmin: false, approved: false, roles: [], perms: {} });
+      setState({ loading: false, isAdmin: false, approved: false, roles: [], perms: {}, settori: [] });
       return;
     }
     let cancelled = false;
@@ -28,14 +29,15 @@ export const usePermissions = () => {
       const [{ data: roles }, { data: perms }, { data: profile }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id),
         supabase.from("user_permissions").select("page_key, level").eq("user_id", user.id),
-        supabase.from("profiles").select("approved").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("approved, settori").eq("id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
       const roleList = (roles ?? []).map((r: any) => r.role as string);
       const isAdmin = roleList.includes("admin");
       const map: Record<string, Level> = {};
       (perms ?? []).forEach((p: any) => { map[p.page_key] = p.level as Level; });
-      setState({ loading: false, isAdmin, approved: !!profile?.approved, roles: roleList, perms: map });
+      const settori = (((profile as any)?.settori ?? []) as string[]) || [];
+      setState({ loading: false, isAdmin, approved: !!profile?.approved, roles: roleList, perms: map, settori });
     })();
     return () => { cancelled = true; };
   }, [user, authLoading]);
@@ -48,5 +50,7 @@ export const usePermissions = () => {
     return true;
   };
 
-  return { ...state, can };
+  const isAmministrazione = state.isAdmin || (state.settori ?? []).includes("amministrazione");
+
+  return { ...state, can, isAmministrazione };
 };

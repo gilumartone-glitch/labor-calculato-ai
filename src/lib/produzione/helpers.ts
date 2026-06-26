@@ -76,7 +76,10 @@ export async function notify(opts: {
     link: opts.link ?? null,
     is_urgent: opts.is_urgent ?? false,
   }));
-  await supabase.from("prod_notifications").insert(rows);
+  const { error } = await supabase.from("prod_notifications").insert(rows);
+  if (error) {
+    console.error("[notify] insert prod_notifications failed:", error.message, { type: opts.type, userIds: opts.userIds, order_id: opts.order_id });
+  }
 }
 
 /** Calcola percentuale completamento di un ordine in base ai sub-ordini. */

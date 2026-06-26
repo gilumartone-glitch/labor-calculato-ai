@@ -1064,6 +1064,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
       <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={mode === "calcolo" ? "default" : "outline"} onClick={() => setMode("calcolo")}>Calcolo & nesting</Button>
         <Button size="sm" variant={mode === "ordine" ? "default" : "outline"} onClick={() => setMode("ordine")}>Ordine manuale</Button>
+        <Button size="sm" variant={mode === "ordine_nastri" ? "default" : "outline"} onClick={() => setMode("ordine_nastri")}>Ordine manuale nastri</Button>
         <Button size="sm" variant={mode === "catalogo" ? "default" : "outline"} onClick={() => setMode("catalogo")}>Listino tappeti</Button>
         <Button size="sm" variant={mode === "nastri" ? "default" : "outline"} onClick={() => setMode("nastri")}>Listino nastri</Button>
       </div>
@@ -1080,6 +1081,18 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
           ]}
           picker={(onPick, onClose) => (
             <DancePickerDialog rolls={rolls} tapes={tapes} onPick={onPick} onClose={onClose} />
+          )}
+        />
+      ) : mode === "ordine_nastri" ? (
+        <ManualMagazzinoOrderForm
+          sourceLabel="Nastri"
+          categoryKey="nastri"
+          suggestions={[
+            { descrizione: "Nastro danza", um: "rt" },
+            { descrizione: "Nastro biadesivo", um: "rt" },
+          ]}
+          picker={(onPick, onClose) => (
+            <TapePickerDialog tapes={tapes} onPick={onPick} onClose={onClose} />
           )}
         />
       ) : mode === "nastri" ? (

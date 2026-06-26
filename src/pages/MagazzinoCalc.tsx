@@ -513,6 +513,67 @@ function DancePickerDialog({ rolls, tapes, onPick, onClose }: {
   );
 }
 
+function TapePickerDialog({ tapes, onPick, onClose }: {
+  tapes: TapeRoll[]; onPick: (i: PickedItem) => void; onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("");
+  const allNames = useMemo(() => Array.from(new Set(tapes.map((t) => t.name).filter(Boolean))), [tapes]);
+  const allColors = useMemo(() => {
+    const src = name ? tapes.filter((t) => includesLoose(t.name || "", name)) : tapes;
+    return Array.from(new Set(src.flatMap((t) => t.colors ?? []).filter(Boolean)));
+  }, [tapes, name]);
+  useEffect(() => { if (color && !allColors.includes(color)) setColor(""); }, [allColors, color]);
+
+  const filtered = useMemo(() => tapes.filter((t) => {
+    const nOk = !name || includesLoose(t.name || "", name);
+    const cOk = !color || (t.colors ?? []).some((c) => includesLoose(c, color));
+    return nOk && cOk;
+  }), [tapes, name, color]);
+
+  const pickTape = (t: TapeRoll, c: string) => {
+    const base = `Nastro ${t.name || t.kind}${t.widthMm ? ` ${t.widthMm}mm` : ""}${c ? ` · ${c}` : ""}`;
+    onPick({ label: `${base} (rotolo ${fmt(t.rollLength)}m)`, um: "rt" });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Scegli dal listino nastri</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Nome"><SelectWithAdd value={name} onChange={setName} options={allNames} placeholder="Tutti" emptyLabel="Tutti" /></Field>
+            <Field label="Colore"><SelectWithAdd value={color} onChange={setColor} options={allColors} placeholder={allColors.length === 0 ? "—" : "Tutti"} emptyLabel="Tutti" /></Field>
+          </div>
+          <div className="border border-ink/15 rounded-sm divide-y max-h-[50vh] overflow-auto">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-[12px] text-muted-foreground">Nessun nastro coi filtri.</div>
+            ) : filtered.map((t) => {
+              const baseColors = (t.colors ?? []).length ? t.colors : [""];
+              const colors = color ? baseColors.filter((c) => includesLoose(c, color)) : baseColors;
+              if (colors.length === 0) return null;
+              return (
+                <div key={t.id} className="p-2.5">
+                  <div className="text-sm font-semibold">{t.name || `Nastro ${t.kind}`}</div>
+                  <div className="text-[11px] text-muted-foreground mb-2">
+                    {t.kind}{t.widthMm ? ` · ${t.widthMm} mm` : ""} · {fmt(t.rollLength)} m/rotolo
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {colors.map((c, i) => (
+                      <Button key={i} size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => pickTape(t, c)}>{c || "Aggiungi"} · rotolo</Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FirePickerDialog({ products, onPick, onClose }: {
   products: FireProduct[]; onPick: (i: PickedItem) => void; onClose: () => void;
 }) {

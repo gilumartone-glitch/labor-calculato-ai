@@ -844,7 +844,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
             const dateList = dates.map((d) => new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
             await notify({
               userIds: targetUserIds,
-              type: "montaggio_assegnato",
+              type: "chat_messaggio",
               message: `📅 Nuovo cantiere ${cantiere} (${prodCode}) — ${dates.length} giornat${dates.length === 1 ? "a" : "e"} (${hoursPerDay}h): ${dateList}`,
               order_id: pord.id,
               link: "/montaggi",

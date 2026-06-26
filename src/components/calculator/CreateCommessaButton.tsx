@@ -651,7 +651,7 @@ export const CreateCommessaButton = ({
           const assignee = (plan.responsabile || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
           const noteForSub = dept === "magazzino" && salesNote
-            ? `${titolo.trim()}${titolo.trim() ? " — " : ""}${salesNote}`
+            ? salesNote
             : (titolo.trim() || null);
           // Blocca questo sub SOLO se mancano materiali di sua competenza.
           const blockerForDept = acquistiByDept[dept] ?? null;

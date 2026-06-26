@@ -27,7 +27,8 @@ import { HoursLogView, type HoursLog } from "@/components/contabilita/HoursLogVi
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
-type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "ore" | "grafici" | "anagrafica";
+type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
+type StipendiSubTab = "stipendi" | "ore";
 
 type CashMovement = {
   id: string;

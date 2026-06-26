@@ -47,7 +47,8 @@ export const stripDipPrefix = (id: string) => id.startsWith("dip:") ? id.slice(4
 export const filterDipendentiByMacro = (list: Dipendente[], macro: MacroReparto) =>
   list.filter((d) => d.macro_reparti.includes(macro));
 
-/** Defaults calibrati per CCNL metalmeccanico (vedi NetToCostCalculator). */
+/** Moltiplicatore netto → costo azienda (tasse, contributi, TFR, oneri). */
+export const NET_TO_COMPANY_MULTIPLIER = 1.9;
 export const NET_TO_GROSS_RATIO = 0.72;
 export const WORK_HOURS_PER_DAY = 8;
 export const WORK_DAYS_PER_MONTH = 22;
@@ -59,22 +60,20 @@ export const OVERTIME_EXTRA_HOURLY = 5;
 export const TRASFERTA_DAILY_EXTRA = 20;
 
 export const dipendenteRal = (d: Pick<Dipendente, "hourly_rate">) =>
-  (Math.max(0, d.hourly_rate ?? 0) * WORK_HOURS_PER_DAY * WORK_DAYS_PER_MONTH * SALARY_MONTHS) / NET_TO_GROSS_RATIO;
-export const dipendenteCompanyCost = (d: Pick<Dipendente, "hourly_rate" | "inps_pct" | "inail_pct" | "tfr_pct" | "extra_costs">) => {
-  const ral = dipendenteRal(d);
-  return ral * (1 + (d.inps_pct || 0) / 100 + (d.inail_pct || 0) / 100 + (d.tfr_pct || 0) / 100) + (d.extra_costs || 0);
-};
+  Math.max(0, d.hourly_rate ?? 0) * WORK_HOURS_PER_DAY * WORK_DAYS_PER_MONTH * SALARY_MONTHS * NET_TO_COMPANY_MULTIPLIER;
+export const dipendenteCompanyCost = (d: Pick<Dipendente, "hourly_rate" | "inps_pct" | "inail_pct" | "tfr_pct" | "extra_costs">) =>
+  dipendenteRal(d) + (d.extra_costs || 0);
 export const dipendenteHourlyCost = (d: Pick<Dipendente, "hourly_rate" | "inps_pct" | "inail_pct" | "tfr_pct" | "extra_costs" | "annual_hours">) =>
-  dipendenteCompanyCost(d) / Math.max(1, d.annual_hours || EFFECTIVE_ANNUAL_HOURS);
+  Math.max(0, d.hourly_rate ?? 0) * NET_TO_COMPANY_MULTIPLIER;
 
-/** Costo azienda per un'ora di straordinario (netto OVERTIME_EXTRA_HOURLY lordizzato). */
+/** Costo azienda per un'ora di straordinario (netto × 1,9). */
 export const dipendenteOvertimeHourlyCost = (
-  d: Pick<Dipendente, "inps_pct" | "inail_pct" | "tfr_pct">,
-) => (OVERTIME_EXTRA_HOURLY / NET_TO_GROSS_RATIO) * (1 + (d.inps_pct || 0) / 100 + (d.inail_pct || 0) / 100 + (d.tfr_pct || 0) / 100);
+  _d: Pick<Dipendente, "inps_pct" | "inail_pct" | "tfr_pct">,
+) => OVERTIME_EXTRA_HOURLY * NET_TO_COMPANY_MULTIPLIER;
 
-/** Costo azienda per il bonus trasferta giornaliero (netto TRASFERTA_DAILY_EXTRA lordizzato). */
+/** Costo azienda per il bonus trasferta giornaliero (netto × 1,9). */
 export const dipendenteTrasfertaDailyCost = (
-  d: Pick<Dipendente, "inps_pct" | "inail_pct" | "tfr_pct">,
-) => (TRASFERTA_DAILY_EXTRA / NET_TO_GROSS_RATIO) * (1 + (d.inps_pct || 0) / 100 + (d.inail_pct || 0) / 100 + (d.tfr_pct || 0) / 100);
+  _d: Pick<Dipendente, "inps_pct" | "inail_pct" | "tfr_pct">,
+) => TRASFERTA_DAILY_EXTRA * NET_TO_COMPANY_MULTIPLIER;
 
 

@@ -726,7 +726,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
           <Field label="Margine da applicare">
             <NumberInput value={project.marginPct ?? 0} onChange={(marginPct) => updateProject({ marginPct })} prefix="%" />
           </Field>
-          <p className="text-xs text-muted-foreground">Il margine viene applicato sul costo di produzione (manodopera + trasferte + materiali) per ottenere il prezzo di vendita.</p>
+          <p className="text-xs text-muted-foreground">Il margine viene applicato solo su manodopera e materiali. Trasferte e trasporti sono ribaltati al cliente al costo, senza ricarico.</p>
         </div>
       </CardContent>
     </Card>

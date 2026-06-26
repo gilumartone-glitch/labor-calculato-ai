@@ -56,12 +56,12 @@ type RowTotals = {
   malattiaGiorni: number;
 };
 
-const computeRowTotals = (row: HoursRow): RowTotals => {
+const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => {
+  const threshold = Math.max(0, Number(contractHoursPerDay) || 8);
   let ore = 0, straordinario = 0, trasfertaGiorni = 0, trasfertaOre = 0, ferieGiorni = 0, permessoOre = 0, malattiaGiorni = 0;
   Object.values(row.days || {}).forEach((cell) => {
     const segs = getSegments(cell);
     if (segs.length === 0) return;
-    // Sum work hours (lavoro+trasferta) per day for overtime calc
     let workH = 0;
     let hadTrasferta = false;
     let hadFerie = false;
@@ -74,13 +74,18 @@ const computeRowTotals = (row: HoursRow): RowTotals => {
       else if (s.t === "ferie") hadFerie = true;
       else if (s.t === "malattia") hadMalattia = true;
     });
-    ore += Math.min(workH, 8);
-    straordinario += Math.max(workH - 8, 0);
+    ore += Math.min(workH, threshold);
+    straordinario += Math.max(workH - threshold, 0);
     if (hadTrasferta) trasfertaGiorni += 1;
     if (hadFerie) ferieGiorni += 1;
     if (hadMalattia) malattiaGiorni += 1;
   });
   return { ore, straordinario, trasfertaGiorni, trasfertaOre, ferieGiorni, permessoOre, malattiaGiorni };
+};
+
+const contractHoursFor = (row: HoursRow, dipendenti: Dipendente[]): number => {
+  const d = row.dipendenteId ? dipendenti.find((x) => x.id === row.dipendenteId) : undefined;
+  return Math.max(0, Number(d?.contract_hours_per_day) || 8);
 };
 
 type Props = {

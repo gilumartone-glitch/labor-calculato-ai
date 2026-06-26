@@ -356,6 +356,15 @@ export default function Dipendenti() {
                 </select>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label>Contratto — ore al giorno</Label>
+                  <Input type="number" step="0.5" min={0} value={editing.contract_hours_per_day}
+                    onChange={(e) => setEditing({ ...editing, contract_hours_per_day: Number(e.target.value) || 0 })} />
+                  <p className="text-[10px] text-muted-foreground mt-1">Oltre queste ore al giorno scatta lo straordinario (es. 5 = part-time 5h).</p>
+                </div>
+              </div>
+
               {isAdmin ? (
                 <div className="border-t pt-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi) — visibile solo agli admin</Label>

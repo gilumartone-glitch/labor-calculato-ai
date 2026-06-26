@@ -36,7 +36,7 @@ const TYPE_OPTIONS: { value: DayType; label: string; short: string; color: strin
 ];
 const typeMeta = (t: DayType) => TYPE_OPTIONS.find((o) => o.value === t) ?? TYPE_OPTIONS[0];
 
-const getSegments = (cell: DayCell | undefined): DaySegment[] => {
+export const getSegments = (cell: DayCell | undefined): DaySegment[] => {
   if (!cell) return [];
   if ("segments" in cell) return cell.segments.filter((s) => s && s.t);
   if (cell.h > 0 || cell.t) return [{ t: cell.t, h: Number(cell.h) || 0 }];

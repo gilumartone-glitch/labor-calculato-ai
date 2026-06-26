@@ -491,7 +491,7 @@ export const CreateCommessaButton = ({
       const salesNote = salesLines.length ? `Ordine:\n${salesLines.join("\n")}` : "";
 
       const orderNote = isWarehouse
-        ? [`Senza lavorazione — da preventivo: ${titolo.trim()}`, note.trim() || null, salesNote || null].filter(Boolean).join(" — ")
+        ? (note.trim() || null)
         : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
 
       const { data: pord, error: e1 } = await supabase
@@ -596,10 +596,9 @@ export const CreateCommessaButton = ({
         const workSuffix = SUB_DEPT_SUFFIX[d.work_dept] ?? "L";
         const blockerForWork = acquistiByDept[d.work_dept] ?? null;
         const subNoteParts = [
-          `Ordine cliente: ${d.customer_order_ref}`,
-          blockerForWork ? "in attesa materiali" : null,
-          note.trim() || null,
-          salesNote || null,
+          salesNote || "Ordine:",
+          note.trim() ? `Note:\n${note.trim()}` : null,
+          blockerForWork ? "Stato: in attesa materiali" : null,
         ].filter(Boolean) as string[];
         const { data: workSub, error: e2 } = await supabase.from("production_sub_orders").insert({
           order_id: pord.id,
@@ -611,6 +610,7 @@ export const CreateCommessaButton = ({
           depends_on: blockerForWork,
           status: blockerForWork ? "bloccato" : "in_attesa",
           assignee_id: d.assignee_id || null,
+          operator_ids: d.assignee_id ? [d.assignee_id] : [],
         } as any).select("id").single();
 
         if (e2) throw e2;
@@ -628,16 +628,18 @@ export const CreateCommessaButton = ({
           } as any);
         }
 
-        await notify({
-          userIds: [d.assignee_id],
-          type: "magazzino_da_preparare",
-          message: missingMaterials.length
-            ? `In attesa materiali — ${code} · ${payload.clienteName} (${missingMaterials.length})`
-            : `Da lavorare: ${code} · ${payload.clienteName} (Ordine ${d.customer_order_ref})`,
-          order_id: pord.id,
-          link: "/produzione/board",
-          is_urgent: prodPrio !== "normale",
-        });
+        if (d.assignee_id) {
+          await notify({
+            userIds: [d.assignee_id],
+            type: "magazzino_da_preparare",
+            message: missingMaterials.length
+              ? `In attesa materiali — ${code} · ${payload.clienteName} (${missingMaterials.length})`
+              : `Da lavorare: ${code} · ${payload.clienteName}`,
+            order_id: pord.id,
+            link: `/produzione/board?sub=${workSub.id}`,
+            is_urgent: prodPrio !== "normale",
+          });
+        }
       } else {
         // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
         const depts = payload.depts ?? [];

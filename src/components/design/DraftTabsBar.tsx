@@ -786,6 +786,81 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         });
       }
 
+      // === Auto-pianificazione Montaggi ===
+      // Se nel progetto sono state definite squadre/giorni di montaggio,
+      // creiamo automaticamente le caselle in calendario (montaggi_planning)
+      // per ciascun addetto e notifichiamo gli interessati.
+      try {
+        const mraw = localStorage.getItem(`officina:montaggi-module:v2:${activeId}`);
+        const mproj = mraw ? JSON.parse(mraw) : null;
+        const labor: Array<{ workerId?: string; hours?: number }> = mproj?.labor ?? [];
+        const startDateStr: string | undefined = mproj?.date;
+        const giorni: number = Math.max(1, Math.min(60, Number(mproj?.trasferte?.days ?? 1) || 1));
+        const dipIds = Array.from(new Set(labor
+          .map((l) => (typeof l.workerId === "string" && l.workerId.startsWith("dip:") ? l.workerId.slice(4) : null))
+          .filter((x): x is string => !!x)));
+        if (dipIds.length > 0 && startDateStr) {
+          const { data: dips } = await supabase
+            .from("dipendenti")
+            .select("id, nome, profile_id")
+            .in("id", dipIds);
+          // Genera la sequenza di giorni (escludendo sabato/domenica)
+          const dates: string[] = [];
+          const cur = new Date(startDateStr);
+          if (!Number.isNaN(cur.getTime())) {
+            while (dates.length < giorni) {
+              const dow = cur.getDay();
+              if (dow !== 0 && dow !== 6) dates.push(cur.toISOString().slice(0, 10));
+              cur.setDate(cur.getDate() + 1);
+              if (dates.length === 0 && cur.getTime() - new Date(startDateStr).getTime() > 1000 * 60 * 60 * 24 * 180) break;
+            }
+          }
+          const cantiere = (mproj?.address?.trim()) || (mproj?.customer?.trim()) || clienteName || prodCode || "Cantiere";
+          const hoursPerDay = Math.min(12, Math.max(1, Math.round((labor.reduce((s, l) => s + (Number(l.hours) || 0), 0) / Math.max(1, labor.length)) || 8)));
+          const rows: any[] = [];
+          for (const d of (dips ?? [])) {
+            for (const date of dates) {
+              rows.push({
+                operator_id: d.profile_id ?? d.id, // profile_id = auth uid per filtraggio MyActivities
+                date,
+                hours: hoursPerDay,
+                commessa_id: null, // sopravvive alla cancellazione del draft
+                cantiere_label: cantiere,
+                notes: `Auto da Flow · ${prodCode}`,
+                reparto: "montaggi",
+                created_by: user.id,
+              });
+            }
+          }
+          if (rows.length > 0) {
+            const { error: pErr } = await supabase.from("montaggi_planning").insert(rows);
+            if (pErr) console.error("[montaggi_planning auto]", pErr);
+          }
+          // Notifica gli addetti con profilo collegato
+          const targetUserIds = Array.from(new Set((dips ?? [])
+            .map((d) => d.profile_id)
+            .filter((x): x is string => !!x && x !== user.id)));
+          if (targetUserIds.length > 0 && dates.length > 0) {
+            const dateList = dates.map((d) => new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })).join(", ");
+            await notify({
+              userIds: targetUserIds,
+              type: "chat_messaggio",
+              message: `📅 Nuovo cantiere ${cantiere} (${prodCode}) — ${dates.length} giornat${dates.length === 1 ? "a" : "e"} (${hoursPerDay}h): ${dateList}`,
+              order_id: pord.id,
+              link: "/montaggi",
+              is_urgent: prodPrio !== "normale",
+            });
+          }
+          if (rows.length > 0) {
+            toast.message(`Calendario montaggi aggiornato: ${rows.length} turn${rows.length === 1 ? "o" : "i"} creat${rows.length === 1 ? "o" : "i"}`);
+          }
+        }
+      } catch (mErr) {
+        console.error("[auto-pianificazione montaggi]", mErr);
+      }
+
+
+
       // Reset UI: chiude la tab corrente. Se era l'ultima, NON ne creiamo una
       // nuova automaticamente: il progetto deve "sparire" dalla Progettazione una
       // volta inviato al Flow. Tornerà a comparire solo se la Produzione lo

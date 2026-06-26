@@ -529,7 +529,8 @@ const Index = () => {
         trasferta = carburante + oreViaggio + vitto + alloggio + extra;
       }
       const production = Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0) + Number(materialsByCategory.accessori ?? 0) + labor + transports + trasferta;
-      const total = production + production * ((Number(project.marginPct) || 0) / 100);
+      // Lasciamo "total" come costo puro: il margine viene poi calcolato nel riepilogo generale escludendo trasferte e trasporti.
+      const total = production;
       return {
         key,
         label,

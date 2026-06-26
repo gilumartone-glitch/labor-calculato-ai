@@ -354,9 +354,11 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
     );
     const rawMaterials = materialsByCategory.legno + materialsByCategory.plastica;
     const production = labor + rawMaterials + materialsByCategory.accessori + transports;
-    const marginEuro = production * (project.marginPct / 100);
+    // Margine applicato solo su manodopera + materiali (trasferte e trasporti passano a costo)
+    const marginBase = labor + rawMaterials + materialsByCategory.accessori;
+    const marginEuro = marginBase * (project.marginPct / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
+    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: marginBase ? (marginEuro / marginBase) * 100 : 0 };
   }, [materialById, project, montaggiDips]);
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;
@@ -668,7 +670,9 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
       return sum + line.quantity * (line.unitCost ?? item?.unitCost ?? 0);
     }, 0);
     const production = labor + transports + materials;
-    const marginEuro = production * ((project.marginPct ?? 0) / 100);
+    // Margine applicato solo su manodopera + materiali (trasferte e trasporti passano a costo)
+    const marginBase = labor + materials;
+    const marginEuro = marginBase * ((project.marginPct ?? 0) / 100);
     const sale = production + marginEuro;
     return { labor, transports, materials, production, marginEuro, sale, workersHourlyTotal };
   }, [project, materialById2, dips]);
@@ -722,7 +726,7 @@ const ProjectSection = ({ project, updateProject, updateMaterialLine, addMateria
           <Field label="Margine da applicare">
             <NumberInput value={project.marginPct ?? 0} onChange={(marginPct) => updateProject({ marginPct })} prefix="%" />
           </Field>
-          <p className="text-xs text-muted-foreground">Il margine viene applicato sul costo di produzione (manodopera + trasferte + materiali) per ottenere il prezzo di vendita.</p>
+          <p className="text-xs text-muted-foreground">Il margine viene applicato solo su manodopera e materiali. Trasferte e trasporti sono ribaltati al cliente al costo, senza ricarico.</p>
         </div>
       </CardContent>
     </Card>

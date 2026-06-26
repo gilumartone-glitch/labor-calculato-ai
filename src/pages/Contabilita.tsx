@@ -1192,6 +1192,7 @@ export default function Contabilita() {
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
         {tab === "fisse" && <FixedTable title="Spese fisse mensili" category="Fissi" expenses={state.fixedExpenses} setExpenses={(fixedExpenses) => update({ fixedExpenses })} addFixed={() => addFixed("Fissi")} />}
         {tab === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} salaryCalc={state.salaryCalc ?? []} setSalaryCalc={(salaryCalc) => update({ salaryCalc })} salaryRates={state.salaryRates ?? []} setSalaryRates={(salaryRates) => update({ salaryRates })} isAdmin={isAdmin} />}
+        {tab === "ore" && canEditHours && <HoursLogView hoursLog={(state.hoursLog ?? {}) as HoursLog} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
         {tab === "grafici" && (
           <ChartsView
             movements={allMovementsForForecast}

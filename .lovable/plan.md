@@ -1,59 +1,72 @@
-## Cosa costruisco
+## Obiettivo
 
-Un sistema in **Impostazioni → Reparti** (sezione *Dipendenti → Gestione reparti*) per dichiarare, per ogni materiale o lavorazione, **chi lo produce internamente** e **come si comportano i reparti che lo consumano**.
+Trasformare la sezione "Stipendi" in Contabilità in due aree distinte:
 
-### Esempio concreto
-- *MOZAIK* viene prodotto da **Stampa**.
-- *Tappezzeria* può essere configurata in due modi:
-  - **Dipendente** → la lavorazione Tappezzeria parte solo quando Stampa ha consegnato il MOZAIK (oggi è il default).
-  - **Autonoma** → Tappezzeria parte subito; nella sua scheda compare il MOZAIK con badge *"in arrivo da Stampa"*, ma non blocca.
+1. **Stipendi** (solo admin) — invariata, resta come oggi.
+2. **Calcolo ore** (admin + amministrazione) — nuova area presenze giornaliere con statistiche per dipendente.
 
-## 1. Nuova tabella `material_dependencies`
+## Struttura UI
 
-```sql
-material_pattern   text       -- es. "MOZAIK", "Panno Oscurante" (match case-insensitive sul nome)
-produced_by_dept   text       -- "stampa", "falegnameria"...
-consumer_dept      text NULL  -- NULL = vale per tutti; altrimenti specifico
-mode               text       -- 'blocking' | 'autonomous' | 'ignore'
-note               text
+Aggiungere una nuova tab "Calcolo ore" accanto a "Stipendi" nel tab bar di Contabilità. La tab "Stipendi" attuale rimane riservata all'admin; la nuova "Calcolo ore" è visibile a admin **e** ad amministrazione (chi ha `contabilita:write`).
+
+```text
+Tabs: Generale | Mensile | Movimenti | Fisse | Stipendi (admin) | Calcolo ore (admin+amm) | Grafici | Anagrafica
 ```
 
-RLS: read per `authenticated`, write per `admin`.
+### Tab "Calcolo ore"
 
-## 2. UI in `Dipendenti.tsx` → nuovo blocco `MaterialDependenciesManager`
+- Sotto-sezioni per ogni mese (accordion espandibile, come già si fa per Stipendi).
+- Anno selezionabile (default anno corrente).
+- Per ogni mese una **tabella presenze**:
+  - Righe = dipendenti (auto-importati da `dipendenti` table, attivi). Pulsanti "Aggiungi dipendente" (libero) e "Rimuovi" per riga.
+  - Colonne fisse: Nome dipendente, [N giorni del mese: 1 lun, 2 mar, …], poi colonne riepilogo: Ore lavorate, Straordinario, Trasferta, Ferie, Permessi, Malattia.
+  - Ogni cella giorno è un input "ore" (0–24). Weekend evidenziati con colore tenue.
+  - Per ogni cella, accanto al numero c'è un selettore tipo: `Lavoro / Trasferta / Ferie / Permesso / Malattia / Festivo`. Implementazione compatta: una pillola sotto la cella o tramite popover.
+  - Calcolo automatico per riga:
+    - `ore_lavoro_giornaliere = min(ore, 8)` se tipo=Lavoro/Trasferta
+    - `straordinario = max(ore - 8, 0)` se tipo=Lavoro/Trasferta
+    - Ferie/Permessi/Malattia conteggiati separatamente (ore o giorni)
+    - Trasferta: numero giorni dove tipo=Trasferta
+  - Totali a fine riga in colonne riepilogo.
+- Pulsante "Vedi statistiche" su ogni nome dipendente → apre dialog con:
+  - Riepilogo annuale (totali ore, straordinari, trasferte, ferie, permessi, malattia, presenza %)
+  - Grafico ore mese per mese
+  - Distribuzione tipi (pie chart)
+  - Top mese, mese peggiore
+  - Trend ultimi 6 mesi
+  - Confronto con media azienda
 
-Sotto al `RepartiManager` esistente, una card "Dipendenze materiali tra reparti" con:
-- elenco regole esistenti
-- form per aggiungere: nome materiale (testo libero o suggerito dai cataloghi), reparto che produce, reparto che consuma (o "tutti"), modalità (`blocca` / `autonomo` / `ignora`).
-- modifica/eliminazione in linea
+### Persistenza
 
-## 3. Applicazione nelle commesse
+Estendere `AccountingState` con un nuovo campo:
 
-**`snapshot-materials.ts`** estrae i materiali come oggi, ma ogni `SnapshotMaterial` ottiene anche:
-- `producedByDept?: ProdDept` — dal match della regola
-- `mode?: 'blocking' | 'autonomous' | 'ignore'`
+```ts
+hoursLog?: Record<string, { // chiave: `${year}-${monthIndex}`
+  rows: Array<{
+    id: string;
+    dipendenteId?: string;       // collegamento opzionale a dipendenti
+    name: string;
+    days: Record<number, {       // chiave: giorno 1-31
+      hours: number;
+      type: 'lavoro' | 'trasferta' | 'ferie' | 'permesso' | 'malattia' | 'festivo';
+    }>;
+  }>;
+}>
+```
 
-**`CreateCommessaButton.tsx`** — al momento di creare gli acquisti e i `depends_on`:
-- regola `blocking` → comportamento attuale (sub consumatore attende acquisti / sub produttore)
-- regola `autonomous` → niente `depends_on`; il sub consumatore parte subito
-- regola `ignore` → il materiale non genera né acquisto né dipendenza
+Salvataggio nel solito `contabilita_state` (jsonb), già sincronizzato.
 
-**`SubOrderDetailDialog.tsx`** — nella lista "Materiali necessari" del sub consumatore, quando il materiale è `autonomous` con `producedByDept ≠ sub.dept`, mostra un badge **"in arrivo da {Reparto}"** invece di nasconderlo (come avviene ora).
+### Permessi
 
-## 4. Default e migrazione
+- Tab "Stipendi" visibile solo se `isAdmin`.
+- Tab "Calcolo ore" visibile se `isAdmin || can('contabilita','write')` (amministrazione = chi ha permesso scrittura contabilità). In sola lettura per i permessi `read`.
 
-- Nessuna regola = comportamento attuale (il materiale è del reparto che lo usa, niente cross-dependency).
-- Le regole si applicano solo alle commesse create *dopo* il salvataggio.
+## File da modificare
 
-## Dettagli tecnici
+- `src/pages/Contabilita.tsx` — aggiungere tipi, tab, vista "Calcolo ore", dialog statistiche dipendente.
+- Nessuna migration: si appoggia al jsonb di `contabilita_state` esistente.
 
-- Nuovo file `src/lib/material-dependencies.ts` con hook `useMaterialDependencies()` + `matchRule(materialName, consumerDept)`.
-- Match: case-insensitive, `material_pattern` confrontato come *contains* sul nome materiale.
-- I tipi `ProdDept` esistono già in `src/lib/produzione/types.ts` — riuso quelli.
-- Migrazione separata con GRANT su `authenticated` + `service_role`.
+## Note
 
-## Fuori scopo
-
-- Override per singola commessa (puoi aggiungerlo dopo).
-- UI di gestione regole nelle commesse già create (le regole valgono solo per nuove commesse).
-- Inferenza automatica da catalogo: tutte le regole sono manuali.
+- Le righe vengono pre-popolate al primo accesso al mese leggendo `dipendenti` (attivi). L'utente può aggiungere/rimuovere righe libere senza toccare l'anagrafica.
+- I dati sono salvati per mese; cambiare anagrafica non sovrascrive mesi già compilati.

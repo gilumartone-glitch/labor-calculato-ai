@@ -23,10 +23,11 @@ import { AnagraficaView } from "@/components/contabilita/AnagraficaView";
 import { Contact, suggestContacts, normalizeText, movementMatchesContact } from "@/components/contabilita/contacts";
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { HoursLogView, type HoursLog } from "@/components/contabilita/HoursLogView";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
-type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
+type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "ore" | "grafici" | "anagrafica";
 
 type CashMovement = {
   id: string;
@@ -126,6 +127,7 @@ type AccountingState = {
   salaryPayDays?: number[]; // legacy: giorno del mese (1-28)
   salaryCalc?: SalaryCalcRow[]; // calcolatore presenze per mese
   salaryRates?: SalaryRate[]; // costi giornalieri/straordinario per dipendente
+  hoursLog?: Record<string, { rows: Array<{ id: string; dipendenteId?: string; name: string; days: Record<number, { h: number; t: "lavoro" | "trasferta" | "ferie" | "permesso" | "malattia" | "festivo" }> }> }>;
   goals?: AccountingGoals;
   contacts?: Contact[];
   // Tombstones: ID di righe eliminate. Servono perché il merge realtime
@@ -428,6 +430,9 @@ const normalizeState = (saved: Partial<AccountingState>): AccountingState => {
       : Array.isArray((saved as AccountingState).salaryPayDays)
         ? Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i, (saved as AccountingState).salaryPayDays?.[i] ?? 28))
         : defaultSalaryPayDates(),
+    salaryCalc: Array.isArray((saved as AccountingState).salaryCalc) ? (saved as AccountingState).salaryCalc : [],
+    salaryRates: Array.isArray((saved as AccountingState).salaryRates) ? (saved as AccountingState).salaryRates : [],
+    hoursLog: (saved as AccountingState).hoursLog && typeof (saved as AccountingState).hoursLog === "object" ? (saved as AccountingState).hoursLog : {},
     goals,
     contacts: Array.isArray(saved.contacts) ? saved.contacts as Contact[] : [],
     deletedIds: {
@@ -512,17 +517,19 @@ const sortForStableJson = (value: unknown): unknown => {
 const serializeAccountingState = (value: AccountingState) => JSON.stringify(sortForStableJson(normalizeState(value)));
 
 export default function Contabilita() {
-  const { isAdmin } = usePermissions();
+  const { isAdmin, can } = usePermissions();
+  const canEditHours = isAdmin || can("contabilita", "write");
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:tab");
-      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "fisse", "stipendi", "grafici", "anagrafica"];
+      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "fisse", "stipendi", "ore", "grafici", "anagrafica"];
       if (saved && (valid as string[]).includes(saved)) return saved as AccountingTab;
     } catch { /* ignore */ }
     return "generale";
   });
   useEffect(() => { if (!isAdmin && tab === "stipendi") setTab("generale"); }, [isAdmin, tab]);
+  useEffect(() => { if (!canEditHours && tab === "ore") setTab("generale"); }, [canEditHours, tab]);
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:month");
@@ -1175,7 +1182,7 @@ export default function Contabilita() {
           <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Gestione contabile</CardTitle>
             <div className="flex flex-wrap gap-2">
-              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...(isAdmin ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
+              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...(isAdmin ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), ...(canEditHours ? [{ key: "ore" as const, label: "Calcolo ore" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
                 <Button key={item.key} size="sm" variant={tab === item.key ? "default" : "outline"} onClick={() => setTab(item.key)}>{item.label}</Button>
               ))}
             </div>
@@ -1188,6 +1195,7 @@ export default function Contabilita() {
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
         {tab === "fisse" && <FixedTable title="Spese fisse mensili" category="Fissi" expenses={state.fixedExpenses} setExpenses={(fixedExpenses) => update({ fixedExpenses })} addFixed={() => addFixed("Fissi")} />}
         {tab === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} salaryCalc={state.salaryCalc ?? []} setSalaryCalc={(salaryCalc) => update({ salaryCalc })} salaryRates={state.salaryRates ?? []} setSalaryRates={(salaryRates) => update({ salaryRates })} isAdmin={isAdmin} />}
+        {tab === "ore" && canEditHours && <HoursLogView hoursLog={(state.hoursLog ?? {}) as HoursLog} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
         {tab === "grafici" && (
           <ChartsView
             movements={allMovementsForForecast}

@@ -519,8 +519,8 @@ const sortForStableJson = (value: unknown): unknown => {
 const serializeAccountingState = (value: AccountingState) => JSON.stringify(sortForStableJson(normalizeState(value)));
 
 export default function Contabilita() {
-  const { isAdmin, can } = usePermissions();
-  const canEditHours = isAdmin || can("contabilita", "write");
+  const { isAdmin, isAmministrazione } = usePermissions();
+  const canEditHours = isAdmin || isAmministrazione;
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {
@@ -541,6 +541,7 @@ export default function Contabilita() {
   useEffect(() => { try { localStorage.setItem("officina:contabilita:stipendiSub", stipendiSub); } catch { /* ignore */ } }, [stipendiSub]);
   useEffect(() => { if (!isAdmin && !canEditHours && tab === "stipendi") setTab("generale"); }, [isAdmin, canEditHours, tab]);
   useEffect(() => { if (stipendiSub === "stipendi" && !isAdmin && canEditHours) setStipendiSub("ore"); }, [isAdmin, canEditHours, stipendiSub]);
+
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:month");

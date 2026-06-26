@@ -23,6 +23,7 @@ import { AnagraficaView } from "@/components/contabilita/AnagraficaView";
 import { Contact, suggestContacts, normalizeText, movementMatchesContact } from "@/components/contabilita/contacts";
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { HoursLogView, type HoursLog } from "@/components/contabilita/HoursLogView";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";

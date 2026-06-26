@@ -40,12 +40,12 @@ export const starterWorkshopMaterials = (): WorkshopMaterial[] => [
 ];
 
 export const workerBaseRal = (w: WorkshopWorker) =>
-  (Math.max(0, w.hourlyRate ?? 0) * WORK_HOURS_PER_DAY * WORK_DAYS_PER_MONTH * SALARY_MONTHS) / NET_TO_GROSS_RATIO;
-export const workerInps = (w: WorkshopWorker) => workerBaseRal(w) * (w.inpsPct / 100);
-export const workerInail = (w: WorkshopWorker) => workerBaseRal(w) * (w.inailPct / 100);
-export const workerTfr = (w: WorkshopWorker) => workerBaseRal(w) * (w.tfrPct / 100);
-export const workerCompanyCost = (w: WorkshopWorker) => workerBaseRal(w) + workerInps(w) + workerInail(w) + workerTfr(w) + w.extraCosts;
-export const workerHourlyCost = (w: WorkshopWorker) => workerCompanyCost(w) / Math.max(1, w.annualHours);
+  Math.max(0, w.hourlyRate ?? 0) * WORK_HOURS_PER_DAY * WORK_DAYS_PER_MONTH * SALARY_MONTHS * NET_TO_COMPANY_MULTIPLIER;
+export const workerInps = (_w: WorkshopWorker) => 0;
+export const workerInail = (_w: WorkshopWorker) => 0;
+export const workerTfr = (_w: WorkshopWorker) => 0;
+export const workerCompanyCost = (w: WorkshopWorker) => workerBaseRal(w) + w.extraCosts;
+export const workerHourlyCost = (w: WorkshopWorker) => Math.max(0, w.hourlyRate ?? 0) * NET_TO_COMPANY_MULTIPLIER;
 
 export const loadSharedWorkshopMaterials = <T extends WorkshopMaterial>(fallback: T[]): T[] => {
   try {

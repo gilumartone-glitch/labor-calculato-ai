@@ -75,7 +75,7 @@ export default function ProdOggi() {
         .from("production_sub_orders")
         .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
         .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
-        .not("status", "in", "(completato,annullato)")
+        .neq("status", "completato")
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(500);
 
@@ -91,7 +91,7 @@ export default function ProdOggi() {
             .from("production_sub_orders")
             .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
             .in("order_id", coordOrderIds)
-            .not("status", "in", "(completato,annullato)")
+            .neq("status", "completato")
             .limit(500)
         : { data: [] as Sub[] };
 

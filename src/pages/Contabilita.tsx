@@ -524,13 +524,22 @@ export default function Contabilita() {
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:tab");
-      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "fisse", "stipendi", "ore", "grafici", "anagrafica"];
+      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "fisse", "stipendi", "grafici", "anagrafica"];
+      if (saved === "ore") return "stipendi";
       if (saved && (valid as string[]).includes(saved)) return saved as AccountingTab;
     } catch { /* ignore */ }
     return "generale";
   });
-  useEffect(() => { if (!isAdmin && tab === "stipendi") setTab("generale"); }, [isAdmin, tab]);
-  useEffect(() => { if (!canEditHours && tab === "ore") setTab("generale"); }, [canEditHours, tab]);
+  const [stipendiSub, setStipendiSub] = useState<StipendiSubTab>(() => {
+    try {
+      const saved = localStorage.getItem("officina:contabilita:stipendiSub");
+      if (saved === "ore" || saved === "stipendi") return saved;
+    } catch { /* ignore */ }
+    return "stipendi";
+  });
+  useEffect(() => { try { localStorage.setItem("officina:contabilita:stipendiSub", stipendiSub); } catch { /* ignore */ } }, [stipendiSub]);
+  useEffect(() => { if (!isAdmin && !canEditHours && tab === "stipendi") setTab("generale"); }, [isAdmin, canEditHours, tab]);
+  useEffect(() => { if (stipendiSub === "stipendi" && !isAdmin && canEditHours) setStipendiSub("ore"); }, [isAdmin, canEditHours, stipendiSub]);
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:month");

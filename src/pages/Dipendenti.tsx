@@ -113,6 +113,7 @@ export default function Dipendenti() {
       tfr_pct: Number(editing.tfr_pct) || 0,
       extra_costs: Number(editing.extra_costs) || 0,
       annual_hours: Number(editing.annual_hours) || 1720,
+      contract_hours_per_day: Number(editing.contract_hours_per_day) || 8,
       attivo: editing.attivo,
       note: editing.note?.trim() || null,
     };

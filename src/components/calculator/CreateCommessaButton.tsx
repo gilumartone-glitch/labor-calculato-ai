@@ -841,7 +841,7 @@ export const CreateCommessaButton = ({
               type: "ordine_creato",
               message: `Assegnato a te: ${code} · ${DEPT_LABEL[s.dept]} (${payload.clienteName})`,
               order_id: pord.id,
-              link: `/produzione/board?order=${pord.id}`,
+              link: `/produzione/board?sub=${s.id}`,
               is_urgent: prodPrio !== "normale",
             });
           }

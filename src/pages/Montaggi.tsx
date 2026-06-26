@@ -354,9 +354,11 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
     );
     const rawMaterials = materialsByCategory.legno + materialsByCategory.plastica;
     const production = labor + rawMaterials + materialsByCategory.accessori + transports;
-    const marginEuro = production * (project.marginPct / 100);
+    // Margine applicato solo su manodopera + materiali (trasferte e trasporti passano a costo)
+    const marginBase = labor + rawMaterials + materialsByCategory.accessori;
+    const marginEuro = marginBase * (project.marginPct / 100);
     const sale = production + marginEuro;
-    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: production ? (marginEuro / production) * 100 : 0 };
+    return { labor, transports, materialsByCategory, rawMaterials, production, marginEuro, sale, markupPct: marginBase ? (marginEuro / marginBase) * 100 : 0 };
   }, [materialById, project, montaggiDips]);
 
   const selectedElement = project.elements.find((el) => el.id === selectedId) ?? null;

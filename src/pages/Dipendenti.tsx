@@ -232,6 +232,7 @@ export default function Dipendenti() {
 
         {canWrite && <RepartiManager />}
         {canWrite && <MaterialDepsManager />}
+        {isAdmin && <NetToCostCalculator />}
 
 
 

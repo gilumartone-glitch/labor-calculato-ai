@@ -805,7 +805,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes }: { rolls: DanceRoll[]
   const { user } = useAuth();
   const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
-  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine" | "nastri">("calcolo");
+  const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine" | "nastri" | "ordine_nastri">("calcolo");
   const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
   const [needThickness, setNeedThickness] = useState<number>(0);
   const [needColor, setNeedColor] = useState<string>("");

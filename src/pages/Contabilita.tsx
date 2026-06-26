@@ -1192,7 +1192,7 @@ export default function Contabilita() {
           <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Gestione contabile</CardTitle>
             <div className="flex flex-wrap gap-2">
-              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...(isAdmin ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), ...(canEditHours ? [{ key: "ore" as const, label: "Calcolo ore" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
+              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...((isAdmin || canEditHours) ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
                 <Button key={item.key} size="sm" variant={tab === item.key ? "default" : "outline"} onClick={() => setTab(item.key)}>{item.label}</Button>
               ))}
             </div>
@@ -1204,8 +1204,16 @@ export default function Contabilita() {
         {tab === "mensile" && <ForecastTable rows={[forecast[selectedMonth]]} movements={state.movements} salaries={salaries} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} salaryPayDates={payDates} setSalaryPayDates={(salaryPayDates) => update({ salaryPayDates })} contacts={state.contacts ?? []} onAddContact={(c) => update({ contacts: [...(state.contacts ?? []), c] })} currentCash={currentCash} />}
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
         {tab === "fisse" && <FixedTable title="Spese fisse mensili" category="Fissi" expenses={state.fixedExpenses} setExpenses={(fixedExpenses) => update({ fixedExpenses })} addFixed={() => addFixed("Fissi")} />}
-        {tab === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} salaryCalc={state.salaryCalc ?? []} setSalaryCalc={(salaryCalc) => update({ salaryCalc })} salaryRates={state.salaryRates ?? []} setSalaryRates={(salaryRates) => update({ salaryRates })} isAdmin={isAdmin} />}
-        {tab === "ore" && canEditHours && <HoursLogView hoursLog={(state.hoursLog ?? {}) as HoursLog} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
+        {tab === "stipendi" && (isAdmin || canEditHours) && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {isAdmin && <Button size="sm" variant={stipendiSub === "stipendi" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>}
+              {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
+            </div>
+            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} salaryCalc={state.salaryCalc ?? []} setSalaryCalc={(salaryCalc) => update({ salaryCalc })} salaryRates={state.salaryRates ?? []} setSalaryRates={(salaryRates) => update({ salaryRates })} isAdmin={isAdmin} />}
+            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
+          </div>
+        )}
         {tab === "grafici" && (
           <ChartsView
             movements={allMovementsForForecast}

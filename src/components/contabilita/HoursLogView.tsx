@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, BarChart3, RefreshCw, X } from "lucide-react";
+import { Plus, Trash2, BarChart3, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -91,7 +92,7 @@ type Props = {
 export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [openMonth, setOpenMonth] = useState<number | null>(now.getMonth());
+  const [activeMonth, setActiveMonth] = useState<number>(now.getMonth());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [statsFor, setStatsFor] = useState<{ name: string; dipendenteId?: string } | null>(null);
 
@@ -116,6 +117,12 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
     }));
     setHoursLog({ ...hoursLog, [key]: { rows } });
   };
+
+  // Auto-seed when switching month
+  useEffect(() => {
+    if (dipendenti.length > 0) ensureMonthSeeded(activeMonth);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMonth, year, dipendenti.length]);
 
   const importFromDipendenti = (m: number) => {
     const key = monthKey(year, m);
@@ -144,56 +151,51 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
           <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || now.getFullYear())} className="w-24 h-8" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {MONTHS.map((label, m) => {
-          const key = monthKey(year, m);
-          const month = hoursLog[key] ?? { rows: [] };
-          const open = openMonth === m;
-          const monthTotals = month.rows.reduce(
-            (acc, r) => {
-              const t = computeRowTotals(r);
-              acc.ore += t.ore;
-              acc.straordinario += t.straordinario;
-              return acc;
-            },
-            { ore: 0, straordinario: 0 },
-          );
-          return (
-            <div key={m} className="rounded-lg border border-dept/40 bg-paper">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between px-3 py-2 text-left"
-                onClick={() => {
-                  const next = open ? null : m;
-                  setOpenMonth(next);
-                  if (next !== null) ensureMonthSeeded(m);
-                }}
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  {label} {year}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {month.rows.length} dipendenti · {monthTotals.ore.toFixed(1)}h ord · {monthTotals.straordinario.toFixed(1)}h str
-                </span>
-              </button>
-              {open && (
-                <div className="border-t border-dept/30 p-3">
-                  <MonthTable
-                    year={year}
-                    month={m}
-                    data={month}
-                    onChange={(next) => updateMonth(m, () => next)}
-                    canEdit={canEdit}
-                    dipendenti={dipendenti}
-                    onImportDipendenti={() => importFromDipendenti(m)}
-                    onOpenStats={(name, dipendenteId) => setStatsFor({ name, dipendenteId })}
-                  />
+      <CardContent className="space-y-3">
+        <Tabs value={String(activeMonth)} onValueChange={(v) => setActiveMonth(Number(v))}>
+          <TabsList className="flex flex-wrap h-auto justify-start gap-1 bg-muted/40 p-1">
+            {MONTHS.map((label, m) => {
+              const key = monthKey(year, m);
+              const month = hoursLog[key] ?? { rows: [] };
+              const totals = month.rows.reduce(
+                (acc, r) => {
+                  const t = computeRowTotals(r);
+                  acc.ore += t.ore + t.straordinario;
+                  return acc;
+                },
+                { ore: 0 },
+              );
+              return (
+                <TabsTrigger key={m} value={String(m)} className="flex flex-col items-center gap-0 px-3 py-1.5 data-[state=active]:bg-dept data-[state=active]:text-dept-foreground">
+                  <span className="text-xs font-semibold">{label.slice(0, 3)}</span>
+                  <span className="text-[10px] opacity-70">{totals.ore > 0 ? `${totals.ore.toFixed(0)}h` : "—"}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          {MONTHS.map((label, m) => {
+            const key = monthKey(year, m);
+            const month = hoursLog[key] ?? { rows: [] };
+            return (
+              <TabsContent key={m} value={String(m)} className="mt-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-dept">{label} {year}</h3>
+                  <span className="text-xs text-muted-foreground">{month.rows.length} dipendenti</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
+                <MonthTable
+                  year={year}
+                  month={m}
+                  data={month}
+                  onChange={(next) => updateMonth(m, () => next)}
+                  canEdit={canEdit}
+                  dipendenti={dipendenti}
+                  onImportDipendenti={() => importFromDipendenti(m)}
+                  onOpenStats={(name, dipendenteId) => setStatsFor({ name, dipendenteId })}
+                />
+              </TabsContent>
+            );
+          })}
+        </Tabs>
       </CardContent>
       <EmployeeStatsDialog
         open={!!statsFor}

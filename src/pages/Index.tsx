@@ -528,8 +528,10 @@ const Index = () => {
         const extra = Number(t.extra) || 0;
         trasferta = carburante + oreViaggio + vitto + alloggio + extra;
       }
-      const production = Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0) + Number(materialsByCategory.accessori ?? 0) + labor + transports + trasferta;
-      const total = production + production * ((Number(project.marginPct) || 0) / 100);
+      const materialsAndLabor = Number(materialsByCategory.legno ?? 0) + Number(materialsByCategory.plastica ?? 0) + Number(materialsByCategory.accessori ?? 0) + labor;
+      const production = materialsAndLabor + transports + trasferta;
+      // Il margine non si applica a trasferte e trasporti (pass-through a costo)
+      const total = production + materialsAndLabor * ((Number(project.marginPct) || 0) / 100);
       return {
         key,
         label,

@@ -583,50 +583,66 @@ const pairShapes = (raw: RawItem[]): PairedUnit[] => {
   return result;
 };
 
-/** Shelf / First-Fit Decreasing su un telo di larghezza rollWidthM (lunghezza illimitata). */
+/** Shelf / First-Fit Decreasing su un telo di larghezza rollWidthM (lunghezza illimitata).
+ *
+ *  Convenzione:
+ *  - L'altezza del pezzo (`h`) è la dimensione ORTOGONALE al senso del telo:
+ *    va sempre allineata alla larghezza del rotolo (l'"altezza tessuto" 975 cm,
+ *    ecc.). Più pezzi si affiancano lungo la larghezza sommando le loro `h`.
+ *  - La larghezza del pezzo (`w`) sviluppa il telo lungo la sua lunghezza.
+ *  - Se il pezzo ha `allowRotation` attivo, si può anche invertire il verso
+ *    (utile per far entrare pezzi più alti della larghezza rullo). Se la
+ *    rotazione è disattivata, il pezzo NON viene ruotato: si rispetta la
+ *    direzione di ordito.
+ */
 const shelfPack = (
   units: PairedUnit[],
   rollWidthM: number,
 ): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
-  // Per ogni unit scelgo prima l'orientamento che sfrutta meglio la larghezza del rotolo.
-  // Così un pezzo 620×300 su rotolo h 320 diventa 300×620 e resta un telo unico,
-  // non due pannelli 320×620 affiancati/spezzati in preview.
-  type OrientedUnit = PairedUnit & { originalW: number; originalH: number };
+  type Cand = { cross: number; along: number; swapped: boolean };
+  type OrientedUnit = PairedUnit & { cross: number; along: number; swapped: boolean };
   const oriented: OrientedUnit[] = units.map((u) => {
     const canRotate = u.w !== u.h && u.parts.every((p) => p.allowRotation);
-    const candidates = [
-      { w: u.w, h: u.h },
-      ...(canRotate ? [{ w: u.h, h: u.w }] : []),
-    ].filter((c) => c.w <= rollWidthM + 1e-6);
-    const best = (candidates.length > 0 ? candidates : [{ w: u.w, h: u.h }]).sort((a, b) => {
-      const aSideWaste = rollWidthM - a.w;
-      const bSideWaste = rollWidthM - b.w;
-      return aSideWaste - bSideWaste || b.h - a.h;
-    })[0];
-    return { ...u, w: best.w, h: best.h, originalW: u.w, originalH: u.h };
+    // "Naturale": h allineato all'altezza rotolo (cross), w sviluppato in lunghezza.
+    const natural: Cand = { cross: u.h, along: u.w, swapped: false };
+    const rotated: Cand = { cross: u.w, along: u.h, swapped: true };
+    const all: Cand[] = [natural, ...(canRotate ? [rotated] : [])];
+    const fitting = all.filter((c) => c.cross <= rollWidthM + 1e-6);
+    // Se nessun candidato entra in larghezza rullo, tengo comunque il "naturale"
+    // (verrà marcato come non piazzabile più sotto).
+    const pool = fitting.length > 0 ? fitting : [natural];
+    // A parità di fit, preferisco l'orientamento che consuma MENO lunghezza
+    // (along più piccolo) e che sfrutta meglio la larghezza.
+    pool.sort((a, b) => a.along - b.along || (rollWidthM - a.cross) - (rollWidthM - b.cross));
+    const best = pool[0];
+    return { ...u, cross: best.cross, along: best.along, swapped: best.swapped };
   });
-  // Ordino per altezza del bbox decrescente; in caso di parità, larghezza decrescente
-  const sorted = [...oriented].sort((a, b) => b.h - a.h || b.w - a.w);
+  // Ordino per lunghezza (along) decrescente; a parità, per larghezza (cross) decrescente
+  const sorted = [...oriented].sort((a, b) => b.along - a.along || b.cross - a.cross);
   type Shelf = { y: number; height: number; usedW: number };
   const shelves: Shelf[] = [];
   const items: NestingPieceItem[] = [];
   const unplaced: PairedUnit[] = [];
-  let totalLengthM = 0; // = somma altezze degli shelf
+  let totalLengthM = 0; // = somma "along" degli shelf
 
-  const placeUnit = (u: PairedUnit, x: number, y: number) => {
-    // Una "unit" può contenere 1 o 2 RawItem; le posizioni della coppia coincidono
+  const placeUnit = (
+    u: PairedUnit,
+    cross: number,
+    along: number,
+    swapped: boolean,
+    x: number,
+    y: number,
+  ) => {
     u.parts.forEach((part, idx) => {
       const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
-      // se ho ruotato l'unit, scambio w/h
-      // (ruoto solo se la rotazione è permessa per ENTRAMBI i pezzi della coppia: per semplicità
-      // gestisco la rotazione a livello di unit qui sotto, ricevendo già w/h corretti)
       items.push({
         pieceId: part.pieceId,
         copy: part.copy,
         label: part.label,
-        w: u.w,
-        h: u.h,
-        rotated: u.w !== part.w || u.h !== part.h,
+        // Rendering: w = dimensione disegnata orizzontalmente (cross), h = verticale (along)
+        w: cross,
+        h: along,
+        rotated: swapped,
         x,
         y,
         shape: part.shape,
@@ -638,35 +654,27 @@ const shelfPack = (
   };
 
   for (const u of sorted) {
-    const candidates: { w: number; h: number; rotated: boolean }[] = [
-      { w: u.w, h: u.h, rotated: u.w !== u.originalW || u.h !== u.originalH },
-    ];
-
-    let placed = false;
-    for (const cand of candidates) {
-      if (cand.w > rollWidthM + 1e-6) continue; // non ci sta in larghezza
-      // FFD: cerco la prima shelf che ha spazio in larghezza E altezza compatibile (h<=shelf.height)
-      let chosen: Shelf | null = null;
-      for (const sh of shelves) {
-        if (cand.h <= sh.height + 1e-6 && sh.usedW + cand.w <= rollWidthM + 1e-6) {
-          chosen = sh;
-          break;
-        }
-      }
-      if (!chosen) {
-        // creo nuova shelf in fondo
-        chosen = { y: totalLengthM, height: cand.h, usedW: 0 };
-        shelves.push(chosen);
-        totalLengthM += cand.h;
-      }
-      const x = chosen.usedW;
-      const y = chosen.y;
-      chosen.usedW += cand.w;
-      placeUnit({ ...u, w: cand.w, h: cand.h }, x, y);
-      placed = true;
-      break;
+    if (u.cross > rollWidthM + 1e-6) {
+      unplaced.push(u);
+      continue;
     }
-    if (!placed) unplaced.push(u);
+    // FFD: cerco la prima shelf che ha spazio in larghezza E lunghezza compatibile
+    let chosen: Shelf | null = null;
+    for (const sh of shelves) {
+      if (u.along <= sh.height + 1e-6 && sh.usedW + u.cross <= rollWidthM + 1e-6) {
+        chosen = sh;
+        break;
+      }
+    }
+    if (!chosen) {
+      chosen = { y: totalLengthM, height: u.along, usedW: 0 };
+      shelves.push(chosen);
+      totalLengthM += u.along;
+    }
+    const x = chosen.usedW;
+    const y = chosen.y;
+    chosen.usedW += u.cross;
+    placeUnit(u, u.cross, u.along, u.swapped, x, y);
   }
 
   return { items, totalLengthM, unplaced };

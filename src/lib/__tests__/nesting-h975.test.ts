@@ -30,8 +30,10 @@ const mkCatalog = (): Catalog => ({
   materials: [mkMaterial()],
   operations: [],
   perimeterOps: [],
+  perimeterPresets: [],
+  importedAt: null,
+  fileName: null,
   printOps: [],
-  pieceCatalog: [],
 });
 
 const mkPiece = (id: string, w: number, h: number, qty = 1): PieceLine => ({

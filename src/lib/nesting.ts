@@ -222,17 +222,12 @@ const candidateVariants = (
   finish?: string,
   variantId?: string | null,
 ): { material: CatalogMaterial; heightM: number }[] => {
-  if (variantId) {
-    const selected = materials.find((m) => m.id === variantId);
-    if (selected) {
-      const v = parseFloat(String(selected.height).replace(",", "."));
-      const u: DimUnit = (["mm", "cm", "m"] as const).includes(selected.heightUnit as DimUnit)
-        ? (selected.heightUnit as DimUnit)
-        : "cm";
-      const heightM = isFinite(v) && v > 0 ? convertLength(v, u, "m") : 0;
-      return heightM > 0 ? [{ material: selected, heightM }] : [];
-    }
-  }
+  // NB: anche quando il pezzo è legato a `variantId` NON restringiamo la ricerca
+  // a quella sola variante: il nesting deve poter esplorare tutte le varianti
+  // della stessa famiglia (stesso prodotto/colore/ignifugo/spessore/finitura)
+  // per scegliere quella che consuma meno o evita di spezzare i pezzi
+  // "indivisibili". La variante selezionata dall'utente resta il riferimento
+  // per pricing/etichette, ma il layout viene ottimizzato liberamente.
   const pn = normMaterialText(productName);
   const cn = normMaterialText(color);
   const fn = normMaterialText(fireproof);

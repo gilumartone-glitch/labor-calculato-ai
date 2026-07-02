@@ -42,6 +42,14 @@ interface Props {
    *  materiale. Viene sommato al totale del pezzo e mostrato come riga separata. */
   extraSurcharge?: number;
   extraSurchargeLabel?: string;
+  /** TAPPEZZERIA — se valorizzato, sostituisce il costo materiale calcolato
+   *  per-pezzo con la quota ridistribuita dal nesting (per singola copia,
+   *  già in €). Quando presente:
+   *   - la riga "Costo materiale" della card mostra questo valore
+   *   - il totale del pezzo usa questo valore al posto di mat.materialCost
+   *  La distribuzione è proporzionale all'area (con margini) del pezzo sul
+   *  totale del gruppo materiale. */
+  materialCostOverrideSingle?: number | null;
   onChange: (line: PieceLine) => void;
   onRemove: () => void;
 }

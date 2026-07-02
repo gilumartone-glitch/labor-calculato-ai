@@ -303,8 +303,17 @@ export const DepartmentView = ({
           overridden: true as const,
         };
       }
+      // Se c'è ridistribuzione dal nesting (Tappezzeria), sostituisco il
+      // materiale calcolato per-pezzo con la quota nesting e azzero lo sfrido
+      // iniziale (già incluso — o assente — nel prezzo del nesting).
+      const dist = distributedMaterialByPieceId[b.piece.id];
+      let material = b.material;
       let initialScrap = 0;
-      if (b.key) {
+      let leftoverScrap = b.leftoverScrap;
+      if (dist != null) {
+        material = dist.total;
+        leftoverScrap = 0; // già dentro al nesting
+      } else if (b.key) {
         const g = groupScrap.get(b.key);
         if (g && g.totalArea > 0) {
           initialScrap = (b.areaTot / g.totalArea) * g.totalScrap;
@@ -314,13 +323,13 @@ export const DepartmentView = ({
         }
       }
       const nestingScrap = nestingScrapByPieceId[b.piece.id] ?? 0;
-      const total = b.material + initialScrap + b.wb.total + nestingScrap;
+      const total = material + initialScrap + b.wb.total + nestingScrap;
       return {
         piece: b.piece,
         qty: b.qty,
-        material: b.material,
+        material,
         initialScrap,
-        leftoverScrap: b.leftoverScrap,
+        leftoverScrap,
         nestingScrap,
         work: b.wb,
         total,

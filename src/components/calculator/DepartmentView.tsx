@@ -703,15 +703,15 @@ export const DepartmentView = ({
               </div>
             )}
             {perPieceTotals.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
-                  <div className="label-cap">Prezzo per lavorazione</div>
-                  <div className="flex items-end gap-2 font-mono text-[11px]">
+              <div className="mt-4 pt-4 border-t border-ink/10">
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                  <div className="font-display text-base font-semibold">Prezzo per lavorazione</div>
+                  <div className="flex items-end gap-2 text-sm">
                     <div className="flex flex-col">
-                      <label className="uppercase tracking-wider text-[10px] text-muted-foreground mb-0.5">
+                      <label className="text-xs text-muted-foreground mb-1 font-medium">
                         Livella €/m² su tutti i pezzi
                       </label>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <input
                           type="number"
                           step="0.01"
@@ -721,14 +721,14 @@ export const DepartmentView = ({
                           value={levelInput}
                           onChange={(e) => setLevelInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter") applyLevelPrice(); }}
-                          className="h-8 w-28 px-2 border border-input rounded-sm bg-paper tabular-nums"
+                          className="h-9 w-32 px-2 border border-input rounded-sm bg-paper tabular-nums text-sm"
                         />
-                        <Button size="sm" variant="default" className="h-8 px-2 text-[11px]" onClick={applyLevelPrice}>
+                        <Button size="sm" variant="default" className="h-9 px-3 text-sm" onClick={applyLevelPrice}>
                           Applica
                         </Button>
                         {hasOverride && (
-                          <Button size="sm" variant="outline" className="h-8 px-2 text-[11px]" onClick={resetLevelPrice}>
-                            <RotateCcw className="w-3 h-3 mr-1" /> Ripristina
+                          <Button size="sm" variant="outline" className="h-9 px-3 text-sm" onClick={resetLevelPrice}>
+                            <RotateCcw className="w-3.5 h-3.5 mr-1" /> Ripristina
                           </Button>
                         )}
                       </div>
@@ -736,11 +736,11 @@ export const DepartmentView = ({
                   </div>
                 </div>
                 {hasOverride && (
-                  <div className="mb-2 px-2 py-1.5 bg-primary/10 border border-primary/30 rounded-sm font-mono text-[10px] uppercase tracking-wider text-primary">
+                  <div className="mb-3 px-3 py-2 bg-primary/10 border border-primary/30 rounded-sm text-sm text-primary">
                     Prezzi livellati: il totale di ogni pezzo è area × €/m² impostato, ignorando materiale/lavorazioni/sfridi.
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {perPieceTotals.map(
                     ({ piece, qty, material, initialScrap, leftoverScrap, nestingScrap, work, total, overridden }, i) => {
                       const name = piece.productName?.trim() || `Pezzo ${i + 1}`;
@@ -757,8 +757,6 @@ export const DepartmentView = ({
                             { label: "Scarto", value: scarto },
                           ].filter((r) => r.label === "Materiale" || Math.abs(r.value) > 0.005);
                       const unitPrice = qty > 0 ? total / qty : total;
-                      // Prezzo per metro quadro: si calcola sul singolo pezzo
-                      // (unitPrice = prezzo di una copia) diviso l'area del pezzo in m².
                       const toM = (v: number) =>
                         piece.dimUnit === "mm"
                           ? v / 1000
@@ -767,14 +765,12 @@ export const DepartmentView = ({
                             : v;
                       const wM = toM(Number(piece.width) || 0);
                       const hM = toM(Number(piece.height) || 0);
-                      // Per il trapezio uso la base media; altrimenti area del rettangolo.
                       const wbM = toM(Number(piece.widthBottom) || 0);
                       const areaM2 =
                         piece.shape === "trapezoid" && wbM > 0
                           ? ((wM + wbM) / 2) * hM
                           : wM * hM;
                       const pricePerSqm = areaM2 > 0 ? unitPrice / areaM2 : 0;
-                      // Etichetta dimensioni del pezzo, es. "240×120 cm" o "2,40×1,20 m"
                       const fmtDim = (v: number) =>
                         Number.isInteger(v)
                           ? String(v)
@@ -788,37 +784,36 @@ export const DepartmentView = ({
                       return (
                         <div
                           key={piece.id}
-                          className="border border-ink/15 rounded-sm bg-paper p-2.5 font-mono text-[11px]"
+                          className="border border-ink/15 rounded-sm bg-paper p-3.5 text-sm"
                         >
-                          <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-ink/10">
-                            <span className="text-muted-foreground">
-                              #{i + 1} · {name}
+                          <div className="flex items-center justify-between mb-2 pb-2 border-b border-ink/10 gap-2">
+                            <span className="text-muted-foreground truncate">
+                              <span className="font-semibold text-ink">#{i + 1}</span> · {name}
                               {qty > 1 ? ` ×${qty}` : ""}
                               {dimLabel && (
                                 <span className="ml-1.5 text-ink/70">· {dimLabel}</span>
                               )}
                               {overridden && (
-                                <span className="ml-1.5 px-1 py-0.5 bg-primary/15 text-primary rounded-sm text-[9px] uppercase tracking-wider">
+                                <span className="ml-1.5 px-1.5 py-0.5 bg-primary/15 text-primary rounded-sm text-xs uppercase tracking-wider">
                                   livellato
                                 </span>
                               )}
                             </span>
-                            <span className="font-semibold tabular-nums text-[12px]">{eur(total)}</span>
-
+                            <span className="font-semibold tabular-nums text-base shrink-0">{eur(total)}</span>
                           </div>
-                          <div className="space-y-0.5">
+                          <div className="space-y-1">
                             {rows.map((r, idx) => (
                               <div key={idx} className="flex items-center justify-between">
                                 <span>{r.label}</span>
-                                <span className="tabular-nums">{eur(r.value)}</span>
+                                <span className="tabular-nums font-medium">{eur(r.value)}</span>
                               </div>
                             ))}
                           </div>
                           {(qty > 1 || pricePerSqm > 0) && (
-                            <div className="mt-1.5 pt-1.5 border-t border-ink/10 space-y-0.5 text-primary">
+                            <div className="mt-2 pt-2 border-t border-ink/10 space-y-1 text-primary">
                               {qty > 1 && (
                                 <div className="flex items-center justify-between">
-                                  <span className="uppercase tracking-wider text-[10px]">
+                                  <span className="font-medium">
                                     Prezzo unitario ({qty} pz)
                                   </span>
                                   <span className="tabular-nums font-semibold">
@@ -828,7 +823,7 @@ export const DepartmentView = ({
                               )}
                               {pricePerSqm > 0 && (
                                 <div className="flex items-center justify-between">
-                                  <span className="uppercase tracking-wider text-[10px]">
+                                  <span className="font-medium">
                                     Prezzo al m² ({areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²)
                                   </span>
                                   <span className="tabular-nums font-semibold">

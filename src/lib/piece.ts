@@ -201,14 +201,9 @@ const candidateVariants = (
   finish?: string,
   variantId?: string | null,
 ): { material: CatalogMaterial; heightM: number }[] => {
-  // Se è stata scelta esplicitamente una variante, restringo a quella sola
-  if (variantId) {
-    const m = materials.find((x) => x.id === variantId);
-    if (m) {
-      const h = rollHeightMeters(m);
-      return h > 0 ? [{ material: m, heightM: h }] : [];
-    }
-  }
+  // Anche con una variante scelta esplicitamente, il calcolo deve poter usare
+  // un formato più grande della stessa famiglia se evita di dividere il pezzo.
+  // La variante scelta resta solo un riferimento UI/prezzo, non un vincolo di fit.
   const base = materials
     .filter((m) => m.name === productName)
     .filter((m) => (color ? m.color === color : true))
@@ -220,10 +215,20 @@ const candidateVariants = (
     ? base.filter((m) => (m.fireproof || "") === fireproof)
     : base;
   const filtered = withFire.length > 0 ? withFire : base;
-  return filtered
+  const family = filtered
     .map((m) => ({ material: m, heightM: rollHeightMeters(m) }))
     .filter((x) => x.heightM > 0)
     .sort((a, b) => a.heightM - b.heightM);
+  if (family.length > 0) return family;
+
+  if (variantId) {
+    const m = materials.find((x) => x.id === variantId);
+    if (m) {
+      const h = rollHeightMeters(m);
+      return h > 0 ? [{ material: m, heightM: h }] : [];
+    }
+  }
+  return [];
 };
 
 /**

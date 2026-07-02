@@ -591,17 +591,17 @@ export const DepartmentView = ({
               <SummaryStat label="N. pezzi" value={totalPiecesQty} unit="pezzi" />
             </div>
 
-            {/* Lastre/Rotoli per materiale + checkbox "Addebita sfrido" */}
+            {/* Tessuti / Lastre per materiale */}
             {lastraGroups.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="label-cap">
-                    {deptKey === "tappezzeria" ? "Materiali (lastre/rotoli)" : "Lastre per materiale"}
+              <div className="mt-4 pt-4 border-t border-ink/10">
+                <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                  <div className="font-display text-base font-semibold">
+                    {isTappezzeria ? "Tessuti" : "Lastre per materiale"}
                   </div>
                   {isTappezzeria && nestingGroups.some((g) => g.format === "rotolo") && (
                     <label
-                      className="inline-flex items-center gap-1.5 cursor-pointer select-none font-mono text-[10px] uppercase tracking-wider"
-                      title="Se attivo, ogni pezzo mostra il costo materiale calcolato per-pezzo (naive) invece della quota ridistribuita dal nesting."
+                      className="inline-flex items-center gap-2 cursor-pointer select-none text-sm"
+                      title="Se attivo, ogni pezzo viene calcolato singolarmente (senza nesting). Se disattivo, il costo del tessuto calcolato dal nesting viene distribuito proporzionalmente sui pezzi."
                     >
                       <input
                         type="checkbox"
@@ -615,13 +615,15 @@ export const DepartmentView = ({
                             },
                           })
                         }
-                        className="w-3.5 h-3.5"
+                        className="w-4 h-4"
                       />
-                      <span>Bypassa ridistribuzione nesting</span>
+                      <span className="font-medium">
+                        Bypassa nesting (calcolo per singolo pezzo)
+                      </span>
                     </label>
                   )}
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {lastraGroups.map((g) => {
                     const isRoll = g.format === "rotolo";
                     const sheets = g.sheetsNeeded ?? 0;
@@ -632,6 +634,10 @@ export const DepartmentView = ({
                         : 0;
                     const extra = leftoverM2 * sellPerSqm;
                     const checked = !!chargeNestingScrap[g.key];
+                    // In Tappezzeria la ridistribuzione nesting è automatica →
+                    // niente checkbox "Addebita sfrido" per gruppo. Resta invece
+                    // per i gruppi lastra degli altri reparti.
+                    const showAddebitaSfrido = !isTappezzeria;
                     const dim = isRoll
                       ? ` · rotolo h ${Math.round((g.rollWidthM ?? 0) * 100)} cm × ${(g.totalLengthM ?? 0).toFixed(2)} m`
                       : g.sheetWidthM && g.sheetHeightM
@@ -642,13 +648,13 @@ export const DepartmentView = ({
                     return (
                       <div
                         key={g.key}
-                        className="flex items-center justify-between gap-3 p-2 border border-ink/15 rounded-sm bg-paper font-mono text-[11px]"
+                        className="flex items-center justify-between gap-4 p-3 border border-ink/15 rounded-sm bg-paper text-sm"
                       >
                         <div className="flex-1 min-w-0 truncate">
                           <span className="font-semibold">{g.label}</span>
                           <span className="text-muted-foreground">{dim}</span>
                         </div>
-                        <div className="flex items-center gap-4 shrink-0">
+                        <div className="flex items-center gap-5 shrink-0">
                           {isRoll ? (
                             <span className="tabular-nums">
                               <strong>{(g.totalLengthM ?? 0).toFixed(2)}</strong>{" "}
@@ -663,32 +669,32 @@ export const DepartmentView = ({
                           <span className="tabular-nums text-muted-foreground">
                             sfrido {leftoverM2.toFixed(2)} m²
                           </span>
-                          <span className="tabular-nums text-muted-foreground">
-                            {eur(extra)}
+                          <span className="tabular-nums font-semibold">
+                            {eur(g.materialCostOptimized)}
                           </span>
-                          <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) =>
-                                setState({
-                                  ...state,
-                                  nestingState: {
-                                    ...(state.nestingState ?? {}),
-                                    chargeNestingScrap: {
-                                      ...(state.nestingState
-                                        ?.chargeNestingScrap ?? {}),
-                                      [g.key]: e.target.checked,
+                          {showAddebitaSfrido && (
+                            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  setState({
+                                    ...state,
+                                    nestingState: {
+                                      ...(state.nestingState ?? {}),
+                                      chargeNestingScrap: {
+                                        ...(state.nestingState
+                                          ?.chargeNestingScrap ?? {}),
+                                        [g.key]: e.target.checked,
+                                      },
                                     },
-                                  },
-                                })
-                              }
-                              className="w-3.5 h-3.5"
-                            />
-                            <span className="uppercase tracking-wider text-[10px]">
-                              Addebita sfrido
-                            </span>
-                          </label>
+                                  })
+                                }
+                                className="w-4 h-4"
+                              />
+                              <span>Addebita sfrido</span>
+                            </label>
+                          )}
                         </div>
                       </div>
                     );

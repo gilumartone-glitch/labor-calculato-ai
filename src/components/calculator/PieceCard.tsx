@@ -66,7 +66,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const isTappezzeria = dept === "tappezzeria";
   // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati

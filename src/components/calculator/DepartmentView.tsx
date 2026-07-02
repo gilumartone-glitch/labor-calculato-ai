@@ -865,6 +865,7 @@ export const DepartmentView = ({
                   scrapDeducted={scrapDeducted}
                   extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
                   extraSurchargeLabel="Sfrido lastre"
+                  materialCostOverrideSingle={getMaterialOverride(p.id)}
                   onChange={(line) =>
                     setState({
                       ...state,

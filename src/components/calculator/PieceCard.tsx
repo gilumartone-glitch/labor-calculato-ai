@@ -285,8 +285,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // viene addebitato qui (apparirà come riga automatica in Laboratorio).
   // Le LAVORAZIONI (perimetrali + cuciture) restano invece a carico del
   // reparto corrente: la cucitura dipende dall'altezza del tessuto Lab.
+  const hasMatOverride =
+    materialCostOverrideSingle != null && materialCostOverrideSingle >= 0;
+  // Valore materiale visualizzato in card ("Costo materiale"): singolo pezzo.
+  const displayedMaterialCost = hasMatOverride
+    ? (materialCostOverrideSingle as number)
+    : mat.materialCost;
   const materialsSubtotal =
-    line.materialFromLab ? 0 : mat.feasible ? mat.materialCost : 0;
+    line.materialFromLab ? 0 : hasMatOverride
+      ? (materialCostOverrideSingle as number)
+      : mat.feasible ? mat.materialCost : 0;
   const workSubtotal =
     perimetersTotal + (mat.feasible ? mat.seamCost : 0) + customWorksTotal + printTotal;
   const qty = Math.max(1, Math.floor(Number(line.quantity) || 1));
@@ -295,14 +303,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // Se `scrapDeducted` è true, un altro pezzo dello stesso gruppo materiale
   // sta già conteggiando lo sfrido → qui non lo includiamo (così la somma
   // delle card combacia con il totale del reparto).
-  const fullScrapSell = mat.feasible ? mat.initialScrapSellCost : 0;
+  // Con override materiale attivo (Tappezzeria) lo sfrido iniziale è già
+  // considerato/ridistribuito dal nesting → non lo addebitiamo qui.
+  const fullScrapSell = hasMatOverride ? 0 : (mat.feasible ? mat.initialScrapSellCost : 0);
   const scrapSell = scrapDeducted ? 0 : fullScrapSell;
   const workingMaterial = materialsSubtotal - fullScrapSell;
   // Sfrido di nesting (leftover) — solo materiale, senza lavorazioni.
   // Si applica per ogni copia del pezzo (è materiale fisico consumato in più).
   const leftoverScrap = useMemo(
-    () => pieceLeftoverScrapSellCost(line, catalog, customerType),
-    [line, catalog, customerType],
+    () => hasMatOverride ? 0 : pieceLeftoverScrapSellCost(line, catalog, customerType),
+    [hasMatOverride, line, catalog, customerType],
   );
   const leftoverM2 = useMemo(() => {
     if (!line.chargeScrap || !mat.feasible) return 0;

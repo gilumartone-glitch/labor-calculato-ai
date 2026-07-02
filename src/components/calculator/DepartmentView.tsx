@@ -127,17 +127,76 @@ export const DepartmentView = ({
     }
   }
 
+  // ---- TAPPEZZERIA: ridistribuzione del costo materiale dal nesting sui pezzi ----
+  // Per ogni gruppo ROTOLO: il costo materiale totale calcolato dal nesting
+  // (materialCostOptimized, che include margini + minimo di fatturazione) viene
+  // distribuito proporzionalmente all'area (con margini) di ogni pezzo del gruppo.
+  // Mappa: pieceId -> { totalDistributed, single } — dove:
+  //   totalDistributed = quota di materiale attribuita al pezzo (per tutte le copie)
+  //   single           = totalDistributed / qty (usata nella card come "per copia")
+  // La cucitura (seamCost) e lo sfrido iniziale (scrapCost) NON sono ridistribuiti:
+  // restano rispettivamente nella lavorazione "Cuciture" della card e — in
+  // Tappezzeria — sono già a zero (withoutInitialScrap).
+  const isTappezzeria = deptKey === "tappezzeria";
+  const bypassRedistribution = !!state.nestingState?.bypassRedistribution;
+  const canRedistribute = isTappezzeria && !bypassRedistribution;
+  const distributedMaterialByPieceId: Record<string, { total: number; single: number }> = {};
+  if (canRedistribute) {
+    for (const g of nestingGroups) {
+      if (g.format !== "rotolo") continue;
+      const fabricPrice =
+        (g.materialCostOptimized ?? 0) - (g.seamCost ?? 0) - (g.scrapCost ?? 0);
+      const totalArea = g.usedAreaM2;
+      if (fabricPrice <= 0 || totalArea <= 0) continue;
+      // Area per pezzo (già con margini, dal nesting) — somma di tutte le copie.
+      const areaByPiece = new Map<string, number>();
+      for (const it of g.items) {
+        areaByPiece.set(
+          it.pieceId,
+          (areaByPiece.get(it.pieceId) ?? 0) + it.w * it.h,
+        );
+      }
+      for (const [pid, a] of areaByPiece) {
+        const total = fabricPrice * (a / totalArea);
+        const piece = pieces.find((p) => p.id === pid);
+        const qty = Math.max(1, Math.floor(Number(piece?.quantity) || 1));
+        distributedMaterialByPieceId[pid] = { total, single: total / qty };
+      }
+    }
+  }
+  const getMaterialOverride = (pieceId: string): number | null =>
+    distributedMaterialByPieceId[pieceId]?.single ?? null;
+
+  // Costo materiale effettivo per il pezzo (totale = tutte le copie), rispettando
+  // l'eventuale override di ridistribuzione nesting. Include ancora l'eventuale
+  // sfrido iniziale (in Tappezzeria è 0 grazie a withoutInitialScrap).
+  const effectivePieceMaterialTotalQty = (p: PieceLine): number => {
+    const dist = distributedMaterialByPieceId[p.id];
+    if (dist != null) return dist.total; // sostituisce il naive
+    return pieceMaterialTotalQty(p, matCat(p), customerType);
+  };
+  // Totale pezzo (materiale + lavorazioni + sfridi + surcharge) con override.
+  const effectivePieceTotal = (p: PieceLine): number => {
+    const dist = distributedMaterialByPieceId[p.id];
+    if (dist == null) return pieceTotal(p, matCat(p), customerType);
+    // Ricalcolo: distribuito + lavorazioni per copia × qty. No sfrido iniziale
+    // (Tappezzeria) e no leftoverScrap per pezzo (già dentro al nesting).
+    const wb = pieceWorkBreakdown(p, matCat(p), customerType); // già × qty
+    // pieceWorkBreakdown include lo sfrido pezzo (scrap): in Tappezzeria è 0.
+    return dist.total + wb.total;
+  };
+
   const piecesBaseTotal =
-    pieces.reduce(
-      (s, p) => s + pieceTotal(p, matCat(p), customerType),
-      0,
-    ) -
+    pieces.reduce((s, p) => s + effectivePieceTotal(p), 0) -
     // Lo sfrido (1,5 m linerai) si conta una sola volta per stesso materiale: tolgo i duplicati.
-    aggregateScrapDeduction(
-      pieces,
-      (p) => matCat(p),
-      () => customerType,
-    ) +
+    // Quando la ridistribuzione è attiva lo sfrido è già gestito dal nesting → no dedup.
+    (canRedistribute
+      ? 0
+      : aggregateScrapDeduction(
+          pieces,
+          (p) => matCat(p),
+          () => customerType,
+        )) +
     // Sfrido nesting addebitato (per gruppo lastra flaggato).
     nestingScrapExtra;
   const isStampa = deptKey === "stampa";

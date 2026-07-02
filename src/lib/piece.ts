@@ -161,13 +161,27 @@ export type PieceMaterialBreakdown = {
 };
 
 /** Converte l'altezza del rullo (string + unit) in metri. */
+const materialDimUnit = (m: CatalogMaterial): DimUnit =>
+  (["mm", "cm", "m"] as const).includes((m.dimUnit || m.heightUnit) as DimUnit)
+    ? ((m.dimUnit || m.heightUnit) as DimUnit)
+    : "cm";
+
 const rollHeightMeters = (m: CatalogMaterial): number => {
   const v = parseFloat(String(m.height).replace(",", "."));
   if (!isFinite(v) || v <= 0) return 0;
   const u: DimUnit = (["mm", "cm", "m"] as const).includes(m.heightUnit as DimUnit)
     ? (m.heightUnit as DimUnit)
-    : "cm";
+    : materialDimUnit(m);
   return convertLength(v, u, "m");
+};
+
+const sheetDimensionsMeters = (m: CatalogMaterial): { w: number; h: number } => {
+  const u = materialDimUnit(m);
+  const rawW = parseFloat(String(m.baseWidth || "0").replace(",", "."));
+  const rawH = parseFloat(String(m.height || "0").replace(",", "."));
+  const h = isFinite(rawH) && rawH > 0 ? convertLength(rawH, u, "m") : rollHeightMeters(m);
+  const w = isFinite(rawW) && rawW > 0 ? convertLength(rawW, u, "m") : h;
+  return { w, h };
 };
 
 const materialPriceUnit = (m: CatalogMaterial): "mq" | "ml" => {
@@ -241,14 +255,68 @@ const planOrientation = (
   variants: { material: CatalogMaterial; heightM: number }[],
   pieceWidthM: number,
   pieceHeightM: number,
+  allowSplit: boolean,
 ): OrientationPlan | null => {
   if (variants.length === 0 || pieceWidthM <= 0 || pieceHeightM <= 0) return null;
+
+  const sheetVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "lastra");
+  if (sheetVariants.length > 0) {
+    const fitting = sheetVariants
+      .map((v) => {
+        const { w, h } = sheetDimensionsMeters(v.material);
+        return { ...v, sheetW: w, sheetH: h, sheetArea: w * h };
+      })
+      .filter((v) => v.sheetW > 0 && v.sheetH > 0)
+      .filter((v) => pieceWidthM <= v.sheetW + 1e-6 && pieceHeightM <= v.sheetH + 1e-6)
+      .sort((a, b) => a.sheetArea - b.sheetArea || a.heightM - b.heightM);
+
+    if (fitting.length > 0) {
+      const best = fitting[0];
+      return {
+        material: best.material,
+        rollWidthM: best.sheetW,
+        panels: 1,
+        panelLengthM: best.sheetH,
+        totalMetersM: best.sheetH,
+        seamLengthM: 0,
+      };
+    }
+
+    if (!allowSplit) return null;
+
+    const split = sheetVariants
+      .map((v) => {
+        const { w, h } = sheetDimensionsMeters(v.material);
+        const panels = w > 0 ? Math.ceil(pieceWidthM / w) : Infinity;
+        return { ...v, sheetW: w, sheetH: h, panels, totalArea: panels * w * h };
+      })
+      .filter((v) =>
+        v.sheetW > 0 &&
+        v.sheetH > 0 &&
+        isFinite(v.panels) &&
+        v.panels > 1 &&
+        pieceHeightM <= v.sheetH + 1e-6,
+      )
+      .sort((a, b) => a.panels - b.panels || a.totalArea - b.totalArea || a.heightM - b.heightM);
+
+    if (split.length === 0) return null;
+    const best = split[0];
+    return {
+      material: best.material,
+      rollWidthM: best.sheetW,
+      panels: best.panels,
+      panelLengthM: best.sheetH,
+      totalMetersM: best.panels * best.sheetH,
+      seamLengthM: Math.max(0, best.panels - 1) * pieceHeightM,
+    };
+  }
 
   const rollVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "rotolo");
   if (rollVariants.length > 0) {
     const sorted = [...rollVariants].sort((a, b) => a.heightM - b.heightM);
     const cheapest = sorted.reduce<OrientationPlan | null>((best, current) => {
       const panels = Math.max(1, Math.ceil(pieceWidthM / current.heightM));
+      if (!allowSplit && panels > 1) return best;
       const plan: OrientationPlan = {
         material: current.material,
         rollWidthM: current.heightM,
@@ -518,11 +586,12 @@ export const computePieceMaterial = (
   };
 
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
-  const natural = planOrientation(variants, pieceWM, pieceHM);
+  const allowSplit = piece.allowSplit === true;
+  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
   const rotationAllowed = !!piece.allowRotation;
-  const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM) : null;
+  const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM, allowSplit) : null;
   const rotated = rotatedRaw;
 
   type FullPlan = {
@@ -575,7 +644,9 @@ export const computePieceMaterial = (
   if (plans.length === 0) {
     return {
       ...empty,
-      reason: "Impossibile calcolare il piano di taglio",
+      reason: piece.allowSplit === true
+        ? "Impossibile calcolare il piano di taglio"
+        : "Pezzo indivisibile: nessuna lastra/rotolo disponibile lo contiene intero",
     };
   }
 

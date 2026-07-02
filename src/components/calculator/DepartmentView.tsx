@@ -229,15 +229,14 @@ export const DepartmentView = ({
   );
   // Materiale "interno ai pezzi" = somma costo materiale × qty (separato dai materiali sciolti)
   const piecesMaterialTotal =
-    pieces.reduce(
-      (s, p) => s + pieceMaterialTotalQty(p, matCat(p), customerType),
-      0,
-    ) -
-    aggregateScrapDeduction(
-      pieces,
-      (p) => matCat(p),
-      () => customerType,
-    );
+    pieces.reduce((s, p) => s + effectivePieceMaterialTotalQty(p), 0) -
+    (canRedistribute
+      ? 0
+      : aggregateScrapDeduction(
+          pieces,
+          (p) => matCat(p),
+          () => customerType,
+        ));
 
   // Totale per singolo pezzo. Lo sfrido iniziale (1,5 m lineari) si paga UNA
   // volta sola per gruppo "scrapKey" (stesso materiale/modalità) ma viene

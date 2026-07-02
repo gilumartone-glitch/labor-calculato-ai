@@ -594,8 +594,32 @@ export const DepartmentView = ({
             {/* Lastre/Rotoli per materiale + checkbox "Addebita sfrido" */}
             {lastraGroups.length > 0 && (
               <div className="mt-3 pt-3 border-t border-ink/10">
-                <div className="label-cap mb-2">
-                  {deptKey === "tappezzeria" ? "Materiali (lastre/rotoli)" : "Lastre per materiale"}
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="label-cap">
+                    {deptKey === "tappezzeria" ? "Materiali (lastre/rotoli)" : "Lastre per materiale"}
+                  </div>
+                  {isTappezzeria && nestingGroups.some((g) => g.format === "rotolo") && (
+                    <label
+                      className="inline-flex items-center gap-1.5 cursor-pointer select-none font-mono text-[10px] uppercase tracking-wider"
+                      title="Se attivo, ogni pezzo mostra il costo materiale calcolato per-pezzo (naive) invece della quota ridistribuita dal nesting."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={bypassRedistribution}
+                        onChange={(e) =>
+                          setState({
+                            ...state,
+                            nestingState: {
+                              ...(state.nestingState ?? {}),
+                              bypassRedistribution: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-3.5 h-3.5"
+                      />
+                      <span>Bypassa ridistribuzione nesting</span>
+                    </label>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   {lastraGroups.map((g) => {

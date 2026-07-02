@@ -199,22 +199,25 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
   if (rollWidthM <= 0 || totalLengthM <= 0) return null;
   const isLastra = group.format === "lastra";
 
-  // ---------- ROTOLI: rendering attuale (un telo verticale) ----------
+  // ---------- ROTOLI: rendering con altezza telo in verticale ----------
   if (!isLastra) {
     const PAD = 22;
     const MAX_W = 560;
     const MAX_H = 320;
-    const scaleW = (MAX_W - PAD * 2) / rollWidthM;
-    const scaleH = (MAX_H - PAD * 2) / totalLengthM;
+    // Dati algoritmo: x/w = dimensione trasversale sull'altezza del rotolo,
+    // y/h = lunghezza consumata. A video mostriamo invece il rotolo come in
+    // laboratorio: lunghezza in orizzontale, altezza tessuto (h 975) in verticale.
+    const scaleW = (MAX_W - PAD * 2) / totalLengthM;
+    const scaleH = (MAX_H - PAD * 2) / rollWidthM;
     const scale = Math.min(scaleW, scaleH);
-    const innerW = rollWidthM * scale;
-    const innerH = totalLengthM * scale;
+    const innerW = totalLengthM * scale;
+    const innerH = rollWidthM * scale;
     const W = innerW + PAD * 2;
     const H = innerH + PAD * 2;
     return (
       <div className="border border-ink/20 rounded-sm bg-paper overflow-hidden">
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-ink/15 bg-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          <span>Telo · {fmtCm(rollWidthM)} × {fmtCm(totalLengthM)} cm</span>
+          <span>Telo · {fmtCm(totalLengthM)} × h {fmtCm(rollWidthM)} cm</span>
           <span>scala 1:{Math.round(100 / scale)}</span>
         </div>
         <svg
@@ -231,16 +234,16 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
           <rect width={W} height={H} fill={`url(#grid-${group.key})`} className="text-ink" />
           <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="hsl(var(--background))" stroke="currentColor" strokeWidth={1.4} className="text-ink" />
           <text x={PAD + innerW / 2} y={PAD - 8} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={10}>
-            larghezza telo {fmtCm(rollWidthM)} cm
-          </text>
-          <text x={PAD - 10} y={PAD + innerH / 2} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={10} transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}>
             lunghezza usata {fmtCm(totalLengthM)} cm
           </text>
+          <text x={PAD - 10} y={PAD + innerH / 2} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={10} transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}>
+            altezza telo {fmtCm(rollWidthM)} cm
+          </text>
           {items.map((it, idx) => {
-            const x = PAD + it.x * scale;
-            const y = PAD + it.y * scale;
-            const w = it.w * scale;
-            const h = it.h * scale;
+            const x = PAD + it.y * scale;
+            const y = PAD + it.x * scale;
+            const w = it.h * scale;
+            const h = it.w * scale;
             const color = colorForPiece(it.pieceId);
             let shape: JSX.Element;
             if (it.shape === "triangle") {

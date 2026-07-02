@@ -264,29 +264,29 @@ const GroupCanvas = ({ group }: { group: NestingGroup }) => {
     );
   }
 
-  // Rotolo
+  // Rotolo: lunghezza in orizzontale, altezza tessuto in verticale.
   const PAD = 18;
   const MAX_W = 480;
   const MAX_H = 260;
-  const scaleW = (MAX_W - PAD * 2) / rollWidthM;
-  const scaleH = (MAX_H - PAD * 2) / totalLengthM;
+  const scaleW = (MAX_W - PAD * 2) / totalLengthM;
+  const scaleH = (MAX_H - PAD * 2) / rollWidthM;
   const scale = Math.min(scaleW, scaleH);
-  const innerW = rollWidthM * scale;
-  const innerH = totalLengthM * scale;
+  const innerW = totalLengthM * scale;
+  const innerH = rollWidthM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
   return (
     <div className="border border-ink/15 rounded-sm bg-paper overflow-hidden">
       <div className="px-3 py-1.5 border-b border-ink/15 bg-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        Telo · {fmtCm(rollWidthM)} × {fmtCm(totalLengthM)} cm
+        Telo · {fmtCm(totalLengthM)} × h {fmtCm(rollWidthM)} cm
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto max-h-[280px] mx-auto" preserveAspectRatio="xMidYMid meet" style={{ aspectRatio: `${W} / ${H}` }}>
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="hsl(var(--background))" stroke="currentColor" strokeWidth={1.2} className="text-ink/40" />
         {items.map((it, idx) => {
-          const x = PAD + it.x * scale;
-          const y = PAD + it.y * scale;
-          const w = it.w * scale;
-          const h = it.h * scale;
+          const x = PAD + it.y * scale;
+          const y = PAD + it.x * scale;
+          const w = it.h * scale;
+          const h = it.w * scale;
           const color = colorForPiece(it.pieceId);
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>

@@ -1331,7 +1331,12 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             </div>
             <div className="col-span-6 md:col-span-2 text-right">
               <div className="label-cap mb-0.5">Costo materiale</div>
-              <div className="font-mono tabular-nums font-semibold">{eur(mat.materialCost)}</div>
+              <div className="font-mono tabular-nums font-semibold">{eur(displayedMaterialCost)}</div>
+              {hasMatOverride && (
+                <div className="font-mono text-[9px] text-primary">
+                  quota nesting (incl. margini)
+                </div>
+              )}
             </div>
             <div className="col-span-12 mt-1 pt-2 border-t border-dashed border-ink/15 grid grid-cols-12 gap-3">
               <div className="col-span-6 md:col-span-4">

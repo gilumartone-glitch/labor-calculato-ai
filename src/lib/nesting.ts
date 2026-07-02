@@ -222,23 +222,18 @@ const candidateVariants = (
   finish?: string,
   variantId?: string | null,
 ): { material: CatalogMaterial; heightM: number }[] => {
-  if (variantId) {
-    const selected = materials.find((m) => m.id === variantId);
-    if (selected) {
-      const v = parseFloat(String(selected.height).replace(",", "."));
-      const u: DimUnit = (["mm", "cm", "m"] as const).includes(selected.heightUnit as DimUnit)
-        ? (selected.heightUnit as DimUnit)
-        : "cm";
-      const heightM = isFinite(v) && v > 0 ? convertLength(v, u, "m") : 0;
-      return heightM > 0 ? [{ material: selected, heightM }] : [];
-    }
-  }
+  // NB: anche quando il pezzo è legato a `variantId` NON restringiamo la ricerca
+  // a quella sola variante: il nesting deve poter esplorare tutte le varianti
+  // della stessa famiglia (stesso prodotto/colore/ignifugo/spessore/finitura)
+  // per scegliere quella che consuma meno o evita di spezzare i pezzi
+  // "indivisibili". La variante selezionata dall'utente resta il riferimento
+  // per pricing/etichette, ma il layout viene ottimizzato liberamente.
   const pn = normMaterialText(productName);
   const cn = normMaterialText(color);
   const fn = normMaterialText(fireproof);
   const tn = normMaterialText(thickness);
   const fin = normMaterialText(finish);
-  return materials
+  const family = materials
     .filter((m) => normMaterialText(m.name) === pn)
     .filter((m) => (cn ? normMaterialText(m.color) === cn : true))
     .filter((m) => normMaterialText(m.fireproof) === fn)
@@ -253,6 +248,20 @@ const candidateVariants = (
     })
     .filter((x) => x.heightM > 0)
     .sort((a, b) => a.heightM - b.heightM);
+  // Fallback: se la ricerca per famiglia non trova nulla ma esiste una variante
+  // esplicitamente selezionata, la usiamo comunque per non perdere il materiale.
+  if (family.length === 0 && variantId) {
+    const selected = materials.find((m) => m.id === variantId);
+    if (selected) {
+      const v = parseFloat(String(selected.height).replace(",", "."));
+      const u: DimUnit = (["mm", "cm", "m"] as const).includes(selected.heightUnit as DimUnit)
+        ? (selected.heightUnit as DimUnit)
+        : "cm";
+      const heightM = isFinite(v) && v > 0 ? convertLength(v, u, "m") : 0;
+      if (heightM > 0) return [{ material: selected, heightM }];
+    }
+  }
+  return family;
 };
 
 /** Sceglie la variante minima che copre il bbox più alto del gruppo (allowRotation considerato per pezzo). */
@@ -440,7 +449,8 @@ const explodePieces = (
       materialFormat === "lastra" &&
       isRect &&
       rollWidthM > 0 &&
-      sheetHeightM > 0
+      sheetHeightM > 0 &&
+      allowSplit
     ) {
       const fitsAsIs = w <= rollWidthM + 1e-6 && h <= sheetHeightM + 1e-6;
       const fitsRotated =

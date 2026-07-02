@@ -292,6 +292,10 @@ export type DepartmentState = {
     /** Per gruppo materiale (key del nesting): se true, addebita lo sfrido di
      *  ogni lastra del gruppo al cliente (area lastre − area pezzi). */
     chargeNestingScrap?: Record<string, boolean>;
+    /** TAPPEZZERIA — se true, disattiva la ridistribuzione del costo materiale
+     *  del nesting (comprensivo di margini) sulle card Lavorazioni. In quel caso
+     *  ogni pezzo mostra il costo materiale naive calcolato per-pezzo. */
+    bypassRedistribution?: boolean;
   };
 };
 

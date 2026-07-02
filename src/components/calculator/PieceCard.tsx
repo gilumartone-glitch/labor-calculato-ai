@@ -42,6 +42,14 @@ interface Props {
    *  materiale. Viene sommato al totale del pezzo e mostrato come riga separata. */
   extraSurcharge?: number;
   extraSurchargeLabel?: string;
+  /** TAPPEZZERIA — se valorizzato, sostituisce il costo materiale calcolato
+   *  per-pezzo con la quota ridistribuita dal nesting (per singola copia,
+   *  già in €). Quando presente:
+   *   - la riga "Costo materiale" della card mostra questo valore
+   *   - il totale del pezzo usa questo valore al posto di mat.materialCost
+   *  La distribuzione è proporzionale all'area (con margini) del pezzo sul
+   *  totale del gruppo materiale. */
+  materialCostOverrideSingle?: number | null;
   onChange: (line: PieceLine) => void;
   onRemove: () => void;
 }
@@ -58,7 +66,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const isTappezzeria = dept === "tappezzeria";
   // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati
@@ -277,8 +285,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // viene addebitato qui (apparirà come riga automatica in Laboratorio).
   // Le LAVORAZIONI (perimetrali + cuciture) restano invece a carico del
   // reparto corrente: la cucitura dipende dall'altezza del tessuto Lab.
+  const hasMatOverride =
+    materialCostOverrideSingle != null && materialCostOverrideSingle >= 0;
+  // Valore materiale visualizzato in card ("Costo materiale"): singolo pezzo.
+  const displayedMaterialCost = hasMatOverride
+    ? (materialCostOverrideSingle as number)
+    : mat.materialCost;
   const materialsSubtotal =
-    line.materialFromLab ? 0 : mat.feasible ? mat.materialCost : 0;
+    line.materialFromLab ? 0 : hasMatOverride
+      ? (materialCostOverrideSingle as number)
+      : mat.feasible ? mat.materialCost : 0;
   const workSubtotal =
     perimetersTotal + (mat.feasible ? mat.seamCost : 0) + customWorksTotal + printTotal;
   const qty = Math.max(1, Math.floor(Number(line.quantity) || 1));
@@ -287,14 +303,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // Se `scrapDeducted` è true, un altro pezzo dello stesso gruppo materiale
   // sta già conteggiando lo sfrido → qui non lo includiamo (così la somma
   // delle card combacia con il totale del reparto).
-  const fullScrapSell = mat.feasible ? mat.initialScrapSellCost : 0;
+  // Con override materiale attivo (Tappezzeria) lo sfrido iniziale è già
+  // considerato/ridistribuito dal nesting → non lo addebitiamo qui.
+  const fullScrapSell = hasMatOverride ? 0 : (mat.feasible ? mat.initialScrapSellCost : 0);
   const scrapSell = scrapDeducted ? 0 : fullScrapSell;
   const workingMaterial = materialsSubtotal - fullScrapSell;
   // Sfrido di nesting (leftover) — solo materiale, senza lavorazioni.
   // Si applica per ogni copia del pezzo (è materiale fisico consumato in più).
   const leftoverScrap = useMemo(
-    () => pieceLeftoverScrapSellCost(line, catalog, customerType),
-    [line, catalog, customerType],
+    () => hasMatOverride ? 0 : pieceLeftoverScrapSellCost(line, catalog, customerType),
+    [hasMatOverride, line, catalog, customerType],
   );
   const leftoverM2 = useMemo(() => {
     if (!line.chargeScrap || !mat.feasible) return 0;
@@ -1145,8 +1163,12 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             </div>
             <div className="col-span-12 md:col-span-3 text-right">
               <div className="label-cap mb-0.5">Costo materiale</div>
-              <div className="font-mono tabular-nums font-semibold">{eur(mat.materialCost)}</div>
-              {mat.material && (
+              <div className="font-mono tabular-nums font-semibold">{eur(displayedMaterialCost)}</div>
+              {hasMatOverride ? (
+                <div className="font-mono text-[9px] text-primary">
+                  quota nesting (incl. margini)
+                </div>
+              ) : mat.material && (
                 <div className="font-mono text-[9px] text-muted-foreground">
                   {fmtM(mat.pieceHeightM)} × {fmtM(mat.pieceWidthM)} m + sfrido iniziale
                 </div>
@@ -1309,7 +1331,12 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             </div>
             <div className="col-span-6 md:col-span-2 text-right">
               <div className="label-cap mb-0.5">Costo materiale</div>
-              <div className="font-mono tabular-nums font-semibold">{eur(mat.materialCost)}</div>
+              <div className="font-mono tabular-nums font-semibold">{eur(displayedMaterialCost)}</div>
+              {hasMatOverride && (
+                <div className="font-mono text-[9px] text-primary">
+                  quota nesting (incl. margini)
+                </div>
+              )}
             </div>
             <div className="col-span-12 mt-1 pt-2 border-t border-dashed border-ink/15 grid grid-cols-12 gap-3">
               <div className="col-span-6 md:col-span-4">

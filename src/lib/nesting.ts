@@ -233,7 +233,7 @@ const candidateVariants = (
   const fn = normMaterialText(fireproof);
   const tn = normMaterialText(thickness);
   const fin = normMaterialText(finish);
-  return materials
+  const family = materials
     .filter((m) => normMaterialText(m.name) === pn)
     .filter((m) => (cn ? normMaterialText(m.color) === cn : true))
     .filter((m) => normMaterialText(m.fireproof) === fn)
@@ -248,6 +248,20 @@ const candidateVariants = (
     })
     .filter((x) => x.heightM > 0)
     .sort((a, b) => a.heightM - b.heightM);
+  // Fallback: se la ricerca per famiglia non trova nulla ma esiste una variante
+  // esplicitamente selezionata, la usiamo comunque per non perdere il materiale.
+  if (family.length === 0 && variantId) {
+    const selected = materials.find((m) => m.id === variantId);
+    if (selected) {
+      const v = parseFloat(String(selected.height).replace(",", "."));
+      const u: DimUnit = (["mm", "cm", "m"] as const).includes(selected.heightUnit as DimUnit)
+        ? (selected.heightUnit as DimUnit)
+        : "cm";
+      const heightM = isFinite(v) && v > 0 ? convertLength(v, u, "m") : 0;
+      if (heightM > 0) return [{ material: selected, heightM }];
+    }
+  }
+  return family;
 };
 
 /** Sceglie la variante minima che copre il bbox più alto del gruppo (allowRotation considerato per pezzo). */

@@ -1485,3 +1485,181 @@ export const mergeCatalogs = (catalogs: Catalog[]): Catalog | null => {
     printOps: dedupe(valid.flatMap((c) => c.printOps ?? []), (o: any) => o.id || `${o.type}|${o.mode}`),
   };
 };
+
+// ============================================================================
+// DIAGNOSTICA: mostra i criteri usati per filtrare/scegliere le lastre.
+// Restituisce, per ogni gruppo, i filtri applicati, le varianti considerate,
+// le metriche di ciascun candidato e la variante vincente (con motivazione).
+// ============================================================================
+
+export type NestingDiagnosticVariant = {
+  materialId: string;
+  materialName: string;
+  format: "lastra" | "rotolo";
+  /** dimensioni foglio/rullo in metri (h è "altezza rullo" per rotolo) */
+  sheetWidthM: number;
+  sheetHeightM: number;
+  /** flags dalla scheda materiale */
+  color?: string;
+  fireproof?: string;
+  thickness?: string;
+  finish?: string;
+  /** metriche calcolate simulando il gruppo con questa variante */
+  feasible: boolean;
+  unplacedCount: number;
+  seamLengthM: number;
+  wastePct: number;
+  materialCostOptimized: number;
+  totalAreaM2: number;
+  sheetsNeeded?: number;
+  /** true se è la variante scelta */
+  chosen: boolean;
+  /** true se è la variante selezionata a mano nella card (variantId/catalogMaterialId) */
+  selectedByUser: boolean;
+};
+
+export type NestingDiagnostic = {
+  groupKey: string;
+  label: string;
+  /** criteri di famiglia usati per filtrare i materiali del catalogo */
+  filters: {
+    productName: string;
+    color: string;
+    fireproof: string;
+    thickness: string;
+    finish: string;
+    variantIdHint: string | null;
+  };
+  /** varianti trovate nel catalogo con quei filtri */
+  variantsConsidered: NestingDiagnosticVariant[];
+  /** id variante scelta (null se nessuna) */
+  chosenVariantId: string | null;
+  /** breve descrizione del criterio di selezione */
+  chosenReason: string;
+  /** varianti scartate perché non trovate/nessun match */
+  notes: string[];
+};
+
+export const diagnoseNesting = (
+  pieces: PieceLine[],
+  catalog: Catalog,
+  customer?: CustomerType,
+): NestingDiagnostic[] => {
+  const valid = pieces.filter(
+    (p) => p.productName && (p.width || 0) > 0 && (p.height || 0) > 0,
+  );
+  if (valid.length === 0) return [];
+  const pieceIndexMap = buildPieceIndexMap(pieces);
+
+  const groups = new Map<string, PieceLine[]>();
+  for (const p of valid) {
+    const k = materialGroupKey(p);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(p);
+  }
+
+  const out: NestingDiagnostic[] = [];
+  for (const [k, ps] of groups) {
+    const first = ps[0];
+    const label = `${first.productName}${first.color ? ` · ${first.color}` : ""}${first.fireproof ? ` · ${first.fireproof}` : ""}`;
+    const variantIdHint = first.variantId ?? first.catalogMaterialId ?? null;
+    const notes: string[] = [];
+
+    const variants = candidateVariants(
+      catalog.materials,
+      first.productName,
+      first.color,
+      first.fireproof,
+      first.thickness,
+      first.finish,
+      variantIdHint,
+    );
+
+    if (variants.length === 0) {
+      notes.push("Nessuna variante nel catalogo corrisponde ai filtri della famiglia.");
+    }
+
+    // simulo un computeGroup per ogni variante per raccogliere le metriche
+    const computed = variants.map((v) => {
+      const g = computeGroup(k, label, ps, catalog, pieceIndexMap, customer, v);
+      const u = (v.material.dimUnit || v.material.heightUnit || "cm") as DimUnit;
+      const sheetWRaw = parseFloat(String(v.material.baseWidth || "0").replace(",", "."));
+      const sheetHRaw = parseFloat(String(v.material.height || "0").replace(",", "."));
+      const isLastra = (v.material.format ?? "rotolo") === "lastra";
+      const sheetW = isLastra
+        ? (sheetWRaw > 0 ? sheetWRaw * factorOf(u) : v.heightM)
+        : v.heightM;
+      const sheetH = isLastra
+        ? (sheetHRaw > 0 ? sheetHRaw * factorOf(u) : v.heightM)
+        : v.heightM;
+      const diag: NestingDiagnosticVariant = {
+        materialId: v.material.id,
+        materialName: v.material.name,
+        format: (v.material.format ?? "rotolo") as "lastra" | "rotolo",
+        sheetWidthM: sheetW,
+        sheetHeightM: sheetH,
+        color: v.material.color,
+        fireproof: (v.material as any).fireproof,
+        thickness: (v.material as any).thickness,
+        finish: (v.material as any).finish,
+        feasible: g.unplaced.length === 0 && g.items.length > 0,
+        unplacedCount: g.unplaced.length,
+        seamLengthM: g.seamLengthM ?? 0,
+        wastePct: g.wastePct,
+        materialCostOptimized: g.materialCostOptimized,
+        totalAreaM2: g.totalAreaM2,
+        sheetsNeeded: g.sheetsNeeded,
+        chosen: false,
+        selectedByUser: v.material.id === variantIdHint,
+      };
+      return diag;
+    });
+
+    // stessa ordinatura di computeNesting
+    let chosenId: string | null = null;
+    let chosenReason = "Nessuna variante disponibile.";
+    if (computed.length > 0) {
+      const feasible = computed.filter((c) => c.feasible);
+      const pool = feasible.length > 0 ? [...feasible] : [...computed];
+      pool.sort((a, b) => {
+        const aSeams = a.seamLengthM > 1e-6 ? 1 : 0;
+        const bSeams = b.seamLengthM > 1e-6 ? 1 : 0;
+        if (aSeams !== bSeams) return aSeams - bSeams;
+        const dCost = a.materialCostOptimized - b.materialCostOptimized;
+        if (Math.abs(dCost) > 1e-3) return dCost;
+        const dWaste = a.wastePct - b.wastePct;
+        if (Math.abs(dWaste) > 1e-4) return dWaste;
+        return a.totalAreaM2 - b.totalAreaM2;
+      });
+      const winner = pool[0];
+      chosenId = winner.materialId;
+      const bits: string[] = [];
+      if (feasible.length === 0) bits.push("nessuna variante piazza tutti i pezzi — scelta la meno peggio");
+      else bits.push(`${feasible.length}/${computed.length} varianti fattibili`);
+      if (winner.seamLengthM <= 1e-6) bits.push("nessuna cucitura da split");
+      else bits.push(`cuciture split ${winner.seamLengthM.toFixed(2)} m`);
+      bits.push(`costo €${winner.materialCostOptimized.toFixed(2)}`);
+      bits.push(`sfrido ${(winner.wastePct * 100).toFixed(1)}%`);
+      chosenReason = bits.join(" · ");
+      for (const c of computed) if (c.materialId === chosenId) c.chosen = true;
+    }
+
+    out.push({
+      groupKey: k,
+      label,
+      filters: {
+        productName: first.productName ?? "",
+        color: first.color ?? "",
+        fireproof: first.fireproof ?? "",
+        thickness: first.thickness ?? "",
+        finish: first.finish ?? "",
+        variantIdHint,
+      },
+      variantsConsidered: computed,
+      chosenVariantId: chosenId,
+      chosenReason,
+      notes,
+    });
+  }
+  return out;
+};

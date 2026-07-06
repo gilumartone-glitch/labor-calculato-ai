@@ -12,6 +12,8 @@ import {
   recomputeGroupWithMixedBins,
   buildPieceIndexMap,
   piecesOfGroup,
+  diagnoseNesting,
+  NestingDiagnostic,
 } from "@/lib/nesting";
 import { convertLength, DimUnit } from "@/lib/perimeter";
 import { eur } from "@/lib/format";
@@ -693,6 +695,7 @@ const GroupSummary = ({
   pickedStockIds,
   pickedStockLabel,
   pickedStockConflict,
+  diagnostic,
 }: {
   group: NestingGroup;
   expanded: boolean;
@@ -705,6 +708,7 @@ const GroupSummary = ({
   pickedStockIds?: string[];
   pickedStockLabel?: string | null;
   pickedStockConflict?: boolean;
+  diagnostic?: NestingDiagnostic;
 }) => {
   const [debug, setDebug] = useState(false);
   const wastePct = group.wastePct * 100;
@@ -898,6 +902,80 @@ const GroupSummary = ({
               )}
             </div>
           )}
+          {debug && diagnostic && (
+            <div className="border border-primary/40 rounded-sm bg-primary/5 overflow-x-auto">
+              <div className="px-3 py-1.5 border-b border-primary/30 bg-primary/10 font-mono text-[11px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Bug className="w-3 h-3" />
+                Criteri selezione materiale
+              </div>
+              <div className="px-3 py-2 font-mono text-[11px] text-ink space-y-1">
+                <div>
+                  <span className="text-muted-foreground">Filtri famiglia:</span>{" "}
+                  <span className="font-semibold">nome=</span>{diagnostic.filters.productName || "—"}
+                  {" · "}<span className="font-semibold">colore=</span>{diagnostic.filters.color || "—"}
+                  {" · "}<span className="font-semibold">ignifugo=</span>{diagnostic.filters.fireproof || "—"}
+                  {" · "}<span className="font-semibold">spessore=</span>{diagnostic.filters.thickness || "—"}
+                  {" · "}<span className="font-semibold">finitura=</span>{diagnostic.filters.finish || "—"}
+                </div>
+                {diagnostic.filters.variantIdHint && (
+                  <div className="text-muted-foreground">
+                    Variante suggerita dalla card: <span className="text-ink">{diagnostic.filters.variantIdHint.slice(0, 8)}</span>
+                    {" — "}usata solo come riferimento pricing, non vincola il layout.
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Motivo scelta:</span> {diagnostic.chosenReason}
+                </div>
+                {diagnostic.notes.map((n, i) => (
+                  <div key={i} className="text-destructive">⚠ {n}</div>
+                ))}
+              </div>
+              {diagnostic.variantsConsidered.length > 0 && (
+                <table className="w-full font-mono text-[10px] border-t border-primary/30">
+                  <thead className="bg-primary/10 text-primary/80">
+                    <tr>
+                      <th className="text-left px-2 py-1">variante</th>
+                      <th className="text-left px-2 py-1">formato</th>
+                      <th className="text-right px-2 py-1">W×H (cm)</th>
+                      <th className="text-center px-2 py-1">fit</th>
+                      <th className="text-right px-2 py-1">unplaced</th>
+                      <th className="text-right px-2 py-1">seam (m)</th>
+                      <th className="text-right px-2 py-1">sfrido %</th>
+                      <th className="text-right px-2 py-1">costo €</th>
+                      <th className="text-right px-2 py-1">fogli</th>
+                      <th className="text-left px-2 py-1"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diagnostic.variantsConsidered.map((v) => (
+                      <tr
+                        key={v.materialId}
+                        className={`border-t border-primary/20 ${v.chosen ? "bg-primary/15 font-semibold text-ink" : ""}`}
+                      >
+                        <td className="px-2 py-0.5">{v.materialName} {v.thickness ? `· sp.${v.thickness}` : ""} {v.finish || ""}</td>
+                        <td className="px-2 py-0.5">{v.format}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">
+                          {fmtCm(v.sheetWidthM)} × {fmtCm(v.sheetHeightM)}
+                        </td>
+                        <td className="px-2 py-0.5 text-center">{v.feasible ? "✓" : "✗"}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">{v.unplacedCount}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">{v.seamLengthM.toFixed(2)}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">{(v.wastePct * 100).toFixed(1)}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">{v.materialCostOptimized.toFixed(2)}</td>
+                        <td className="px-2 py-0.5 text-right tabular-nums">{v.sheetsNeeded ?? "—"}</td>
+                        <td className="px-2 py-0.5">
+                          {v.chosen ? <span className="text-primary">◀ SCELTA</span> : v.selectedByUser ? <span className="text-muted-foreground">(card)</span> : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div className="px-3 py-1.5 border-t border-primary/30 text-[10px] text-muted-foreground">
+                Ordinamento: 1) nessuna cucitura da split, 2) costo minore, 3) sfrido minore, 4) area minore.
+              </div>
+            </div>
+          )}
           {(() => {
             // Riepilogo pezzi spezzati: aggrega per pieceId+copy il numero di pannelli (strisce)
             const splitMap = new Map<string, { label: string; panels: number; seamsPerCopy: number; stripeH: number }>();
@@ -1054,6 +1132,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     () => initialNestingState?.mixedBins ?? {},
   );
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
+  const diagnostics = useMemo(
+    () => diagnoseNesting(pieces, catalog, customerType),
+    [pieces, catalog, customerType],
+  );
+  const diagnosticByKey = useMemo(() => {
+    const m = new Map<string, NestingDiagnostic>();
+    for (const d of diagnostics) m.set(d.groupKey, d);
+    return m;
+  }, [diagnostics]);
 
   // Bubbla i cambi di stato verso il padre (per persistenza nello snapshot).
   const firstSync = useRef(true);
@@ -1227,6 +1314,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                   pickedStockIds={pickedIds}
                   pickedStockLabel={pickedLabels.join(" + ") || null}
                   pickedStockConflict={pickedIds.length > 1}
+                  diagnostic={diagnosticByKey.get(g.key)}
                 />
               );
             })}

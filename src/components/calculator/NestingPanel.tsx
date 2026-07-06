@@ -1163,7 +1163,13 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         const ov = overrides[g.key];
         if (!ov || ov.widthM <= 0 || ov.heightM <= 0) return g;
         const ps = piecesOfGroup(pieces, g.key);
-        return recomputeGroupWithOverride(g, ps, catalog, ov, indexMap, customerType);
+        const overridden = recomputeGroupWithOverride(g, ps, catalog, ov, indexMap, customerType);
+        // Progetti vecchi: un override "da listino" salvato prima del fix può
+        // bloccare il gruppo sulla 305×205 e lasciare pezzi non piazzati, mentre
+        // il ricalcolo automatico corrente trova la 600×205. In quel caso uso il
+        // nuovo automatico; gli override custom e i mix manuali restano rispettati.
+        if (ov.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
+        return overridden;
       }),
     [baseGroups, overrides, mixedBinsByGroup, pieces, catalog, customerType, indexMap],
   );
@@ -1171,14 +1177,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   /** Varianti compatibili con il gruppo (per il selettore "da listino"). */
   const variantsForGroup = (g: NestingGroup) => {
     const norm = (s: string | undefined | null) => (s ?? "").trim().toLowerCase();
+    const loose = (s: string | undefined | null) => norm(s).replace(/\s+/g, "");
     return catalog.materials.filter(
       (m) =>
         g.material &&
         norm(m.name) === norm(g.material.name) &&
         norm(m.color) === norm(g.material.color) &&
-        norm(m.fireproof) === norm(g.material.fireproof) &&
-        norm(m.thickness) === norm(g.material.thickness) &&
-        norm(m.finish) === norm(g.material.finish),
+        (!g.material.fireproof || norm(m.fireproof) === norm(g.material.fireproof) || !m.fireproof) &&
+        (!g.material.thickness || loose(m.thickness) === loose(g.material.thickness) || !m.thickness) &&
+        (!g.material.finish || norm(m.finish) === norm(g.material.finish) || !m.finish),
     );
   };
 

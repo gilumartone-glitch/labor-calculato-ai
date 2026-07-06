@@ -12,7 +12,13 @@ import { useProdStore } from "@/lib/produzione/store";
 import { ProdSubOrder, ProdOrder, InvItem, ScrapPiece, DEPT_LABEL, ProdDept } from "@/lib/produzione/types";
 import { fmtMm, nextScrapCode } from "@/lib/produzione/scrap";
 import { logAction, notify } from "@/lib/produzione/helpers";
-import { collectSnapshotDepartments, collectSnapshotPieces, type ProdSnapshot } from "@/lib/produzione/snapshot";
+import {
+  collectSnapshotDepartments,
+  collectSnapshotPieces,
+  loadCurrentProductionCatalogs,
+  mergeSnapshotDepartmentsWithCurrentCatalogs,
+  type ProdSnapshot,
+} from "@/lib/produzione/snapshot";
 import { NestingPreview } from "@/components/calculator/NestingPreview";
 import { mergeCatalogs } from "@/lib/nesting";
 
@@ -64,6 +70,7 @@ type Props = {
 export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed }: Props) => {
   const { user } = useAuth();
   const { inventory, scraps, refreshInventory, subs, profiles } = useProdStore();
+  const [currentCatalogs, setCurrentCatalogs] = useState({});
 
   // Lavorazione successiva (chi dipende da me)
   const nextSub = useMemo(
@@ -87,7 +94,10 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
 
   const pickedStock = useMemo(() => {
     if (!sub || !order?.snapshot) return [];
-    const depts = collectSnapshotDepartments(order.snapshot as ProdSnapshot);
+    const depts = mergeSnapshotDepartmentsWithCurrentCatalogs(
+      collectSnapshotDepartments(order.snapshot as ProdSnapshot),
+      currentCatalogs,
+    );
     return collectSnapshotPieces(depts)
       // Questo dialog si apre solo per l'ULTIMO sub dell'ordine: l'operatore
       // che chiude la lavorazione è responsabile della movimentazione di tutti
@@ -104,7 +114,7 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
         return { kind: inheritedKind, id: t, label: piece.pickedStockLabel ?? "" };
       }))
       .filter((p, idx, arr) => p.id && arr.findIndex((x) => x.kind === p.kind && x.id === p.id) === idx);
-  }, [sub, order]);
+  }, [sub, order, currentCatalogs]);
 
   const pickedScrapPieces = useMemo(
     () => pickedStock
@@ -117,7 +127,10 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
   /** Pezzi del reparto + catalog (per il nesting di riepilogo). */
   const mergedNesting = useMemo(() => {
     if (!sub || !order?.snapshot) return null as null | { catalog: any; pieces: any[] };
-    const depts = collectSnapshotDepartments(order.snapshot as ProdSnapshot);
+    const depts = mergeSnapshotDepartmentsWithCurrentCatalogs(
+      collectSnapshotDepartments(order.snapshot as ProdSnapshot),
+      currentCatalogs,
+    );
     const allItems = collectSnapshotPieces(depts);
     // Mostra il nesting di TUTTI i reparti: chi chiude vede l'intero progetto.
     const items = allItems.filter((it) => it.catalog);
@@ -133,7 +146,16 @@ export const CompleteSubDialog = ({ open, onOpenChange, sub, order, onConfirmed 
     const catalogs = Array.from(new Set(items.map((it) => it.catalog)));
     const catalog = mergeCatalogs(catalogs as any[]);
     return { catalog, pieces };
-  }, [sub, order]);
+  }, [sub, order, currentCatalogs]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    loadCurrentProductionCatalogs().then((catalogs) => {
+      if (!cancelled) setCurrentCatalogs(catalogs);
+    });
+    return () => { cancelled = true; };
+  }, [open]);
 
   // Materiali (inv) coinvolti: dai pezzi riservati + da quelli citati nelle note
   const involvedInv: InvItem[] = useMemo(() => {

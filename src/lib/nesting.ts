@@ -114,6 +114,7 @@ const factorOf = (u: DimUnit) => (u === "m" ? 1 : u === "cm" ? 0.01 : 0.001);
 const pieceQty = (p: PieceLine) => Math.max(1, Math.floor(Number(p.quantity) || 1));
 
 const normMaterialText = (s: string | undefined | null) => (s ?? "").trim().toLowerCase();
+const normMaterialLoose = (s: string | undefined | null) => normMaterialText(s).replace(/\s+/g, "");
 
 const materialGroupKey = (
   p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish" | "variantId" | "catalogMaterialId">,
@@ -123,9 +124,13 @@ const materialGroupKey = (
   // spessore e finitura. Così un policarbonato 8 mm con varianti 305×205 e
   // 600×205 viene ottimizzato scegliendo la lastra necessaria, non restando
   // bloccato sulla misura selezionata nella card.
-  [p.productName, p.color, p.fireproof, p.thickness, p.finish]
-    .map(normMaterialText)
-    .join("||");
+  [
+    normMaterialText(p.productName),
+    normMaterialText(p.color),
+    normMaterialText(p.fireproof),
+    normMaterialLoose(p.thickness),
+    normMaterialText(p.finish),
+  ].join("||");
 
 const materialPriceUnit = (m: CatalogMaterial): "mq" | "ml" => {
   if (m.priceUnit === "mq" || m.priceUnit === "ml") return m.priceUnit;
@@ -236,19 +241,25 @@ const candidateVariants = (
   const pn = normMaterialText(productName);
   const cn = normMaterialText(color);
   const fn = normMaterialText(fireproof);
-  const tn = normMaterialText(thickness);
+  const tn = normMaterialLoose(thickness);
   const fin = normMaterialText(finish);
   const base = materials
     .filter((m) => normMaterialText(m.name) === pn)
-    .filter((m) => (cn ? normMaterialText(m.color) === cn : true))
-    .filter((m) => (tn ? normMaterialText(m.thickness) === tn : true))
-    .filter((m) => (fin ? normMaterialText(m.finish) === fin : true));
+    .filter((m) => (cn ? normMaterialText(m.color) === cn : true));
+  // Filtro spessore/finitura morbido: nei progetti vecchi o in alcuni listini
+  // una variante della stessa famiglia può avere spessore/finitura vuoti o scritti
+  // diversamente (es. "8mm" vs "8 mm"). Se il filtro esatto produce risultati lo
+  // uso; altrimenti non scarto formati validi come 600×205.
+  const withThickness = tn ? base.filter((m) => normMaterialLoose(m.thickness) === tn) : base;
+  const afterThickness = tn && withThickness.length > 0 ? withThickness : base;
+  const withFinish = fin ? afterThickness.filter((m) => normMaterialText(m.finish) === fin) : afterThickness;
+  const afterFinish = fin && withFinish.length > 0 ? withFinish : afterThickness;
   // Filtro ignifugo morbido: se il pezzo ha un valore ma alcune varianti della
   // stessa famiglia non lo riportano uguale, non voglio perdere formati validi
   // come 600×205. Se il filtro trova risultati, lo applico; altrimenti resto
   // sulla famiglia base.
-  const withFire = fn ? base.filter((m) => normMaterialText(m.fireproof) === fn) : base;
-  const filtered = withFire.length > 0 ? withFire : base;
+  const withFire = fn ? afterFinish.filter((m) => normMaterialText(m.fireproof) === fn) : afterFinish;
+  const filtered = fn && withFire.length > 0 ? withFire : afterFinish;
   const family = filtered
     .map((m) => {
       const v = parseFloat(String(m.height).replace(",", "."));
@@ -1463,7 +1474,7 @@ export const mergeCatalogs = (catalogs: Catalog[]): Catalog | null => {
   const norm = (s: string | undefined | null) => (s ?? "").trim().toLowerCase();
   const matKey = (m: CatalogMaterial) =>
     m.id ||
-    `${norm(m.name)}|${norm(m.color)}|${norm((m as any).fireproof)}|${norm(String((m as any).thickness ?? ""))}|${norm((m as any).finish)}|${norm((m as any).format)}|${(m as any).widthM ?? ""}|${(m as any).heightM ?? ""}`;
+    `${norm(m.name)}|${norm(m.color)}|${norm((m as any).fireproof)}|${norm(String((m as any).thickness ?? ""))}|${norm((m as any).finish)}|${norm((m as any).format)}|${norm((m as any).baseWidth)}|${norm((m as any).height)}|${norm((m as any).rollLength)}|${norm((m as any).dimUnit)}|${norm((m as any).heightUnit)}`;
   const dedupe = <T,>(arr: T[], key: (x: T) => string): T[] => {
     const seen = new Set<string>();
     const out: T[] = [];

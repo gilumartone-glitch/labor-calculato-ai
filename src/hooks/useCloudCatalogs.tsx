@@ -9,7 +9,19 @@ type Catalogs = Record<DepartmentKey, Catalog>;
 const DEPTS: DepartmentKey[] = ["tappezzeria", "stampa", "falegnameria"];
 
 const materialKey = (m: Catalog["materials"][number]) =>
-  [m.name, m.color, m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
+  [
+    m.name,
+    m.color,
+    m.height,
+    m.baseWidth ?? "",
+    m.rollLength ?? "",
+    m.dimUnit ?? "",
+    m.heightUnit ?? "",
+    m.format ?? "",
+    m.thickness ?? "",
+    m.fireproof ?? "",
+    m.finish ?? "",
+  ]
     .map((x) => String(x ?? "").trim().toLowerCase())
     .join("|");
 

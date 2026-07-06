@@ -22,6 +22,8 @@ import {
   collectSnapshotDepartments,
   collectSnapshotPieces,
   aggregateSnapshotMaterials,
+  loadCurrentProductionCatalogs,
+  mergeSnapshotDepartmentsWithCurrentCatalogs,
   type ProdSnapshot,
 } from "@/lib/produzione/snapshot";
 import { PieceDetail } from "@/components/shared/PieceDetail";
@@ -152,13 +154,26 @@ export const SubOrderDetailDialog = ({ open, onOpenChange, sub, order, predecess
   const [editNote, setEditNote] = useState<string | null>(null);
   const [savingNote, setSavingNote] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [currentCatalogs, setCurrentCatalogs] = useState({});
 
   const orderFiles: FileItem[] = (order?.attachments as any[]) ?? [];
   const subFiles: FileItem[] = (sub?.files as any[]) ?? [];
 
   // Snapshot del preventivo (pezzi, materiali, catalog) — usato per "vedere tutto".
   const snapshot = (order?.snapshot as ProdSnapshot | null) ?? null;
-  const snapshotDepts = useMemo(() => collectSnapshotDepartments(snapshot), [snapshot]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    loadCurrentProductionCatalogs().then((catalogs) => {
+      if (!cancelled) setCurrentCatalogs(catalogs);
+    });
+    return () => { cancelled = true; };
+  }, [open]);
+  const rawSnapshotDepts = useMemo(() => collectSnapshotDepartments(snapshot), [snapshot]);
+  const snapshotDepts = useMemo(
+    () => mergeSnapshotDepartmentsWithCurrentCatalogs(rawSnapshotDepts, currentCatalogs),
+    [rawSnapshotDepts, currentCatalogs],
+  );
   const allPieces = useMemo(() => collectSnapshotPieces(snapshotDepts), [snapshotDepts]);
   /** Materiali del SOLO reparto del sub corrente (es. Tappezzeria non vede MOZAIK di Stampa). */
   const subSnapshotDepts = useMemo(() => {

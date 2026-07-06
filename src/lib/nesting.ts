@@ -118,7 +118,12 @@ const normMaterialText = (s: string | undefined | null) => (s ?? "").trim().toLo
 const materialGroupKey = (
   p: Pick<PieceLine, "productName" | "color" | "fireproof" | "thickness" | "finish" | "variantId" | "catalogMaterialId">,
 ) =>
-  [p.productName, p.color, p.fireproof, p.thickness, p.finish, p.variantId ?? p.catalogMaterialId]
+  // La misura/formato scelto a riga (`variantId` / `catalogMaterialId`) NON deve
+  // separare il gruppo: per il nesting contano famiglia, colore, ignifugo,
+  // spessore e finitura. Così un policarbonato 8 mm con varianti 305×205 e
+  // 600×205 viene ottimizzato scegliendo la lastra necessaria, non restando
+  // bloccato sulla misura selezionata nella card.
+  [p.productName, p.color, p.fireproof, p.thickness, p.finish]
     .map(normMaterialText)
     .join("||");
 
@@ -233,12 +238,18 @@ const candidateVariants = (
   const fn = normMaterialText(fireproof);
   const tn = normMaterialText(thickness);
   const fin = normMaterialText(finish);
-  const family = materials
+  const base = materials
     .filter((m) => normMaterialText(m.name) === pn)
     .filter((m) => (cn ? normMaterialText(m.color) === cn : true))
-    .filter((m) => normMaterialText(m.fireproof) === fn)
     .filter((m) => (tn ? normMaterialText(m.thickness) === tn : true))
-    .filter((m) => (fin ? normMaterialText(m.finish) === fin : true))
+    .filter((m) => (fin ? normMaterialText(m.finish) === fin : true));
+  // Filtro ignifugo morbido: se il pezzo ha un valore ma alcune varianti della
+  // stessa famiglia non lo riportano uguale, non voglio perdere formati validi
+  // come 600×205. Se il filtro trova risultati, lo applico; altrimenti resto
+  // sulla famiglia base.
+  const withFire = fn ? base.filter((m) => normMaterialText(m.fireproof) === fn) : base;
+  const filtered = withFire.length > 0 ? withFire : base;
+  const family = filtered
     .map((m) => {
       const v = parseFloat(String(m.height).replace(",", "."));
       const u: DimUnit = (["mm", "cm", "m"] as const).includes(m.heightUnit as DimUnit)

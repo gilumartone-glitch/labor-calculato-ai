@@ -9,6 +9,7 @@ import {
   pieceMaterialTotal,
   pieceInitialScrapSellCost,
 } from "../piece";
+import { computeNesting } from "../nesting";
 import { perimeterCost } from "../perimeter";
 import type {
   Catalog,
@@ -180,6 +181,52 @@ describe("Sfrido di lavorazione (nesting)", () => {
 
     // Nessuno sfrido iniziale per le lastre
     expect(round2(pieceInitialScrapSellCost(piece, catalog))).toBe(0);
+  });
+
+  it("nesting lastra usa il formato più grande della stessa famiglia se la variante scelta non basta", () => {
+    const small: CatalogMaterial = {
+      ...makeRollMaterial(),
+      id: "poly-305",
+      name: "Policarbonato",
+      color: "Trasparente",
+      format: "lastra",
+      thickness: "8",
+      baseWidth: "305",
+      height: "205",
+      heightUnit: "cm",
+      dimUnit: "cm",
+      priceUnit: "mq",
+      pricePiece: 25,
+      priceCut: 25,
+    };
+    const large: CatalogMaterial = {
+      ...small,
+      id: "poly-600",
+      baseWidth: "600",
+      height: "205",
+    };
+    const catalog = makeCatalog([small, large]);
+    const piece: PieceLine = {
+      ...makePiece(),
+      productName: "Policarbonato",
+      color: "Trasparente",
+      thickness: "8",
+      width: 500,
+      height: 120,
+      dimUnit: "cm",
+      noMargins: true,
+      allowSplit: false,
+      allowRotation: true,
+      catalogMaterialId: small.id,
+      variantId: small.id,
+    };
+
+    const group = computeNesting([piece], catalog)[0];
+
+    expect(group.material?.id).toBe("poly-600");
+    expect(group.sheetWidthM).toBeCloseTo(6, 5);
+    expect(group.sheetHeightM).toBeCloseTo(2.05, 5);
+    expect(group.unplaced).toHaveLength(0);
   });
 
   it("pezzo 12,10 × 0,50 m su rotolo h 2 m → sfrido 1,50 × 12,10 = 18,15 m²", () => {

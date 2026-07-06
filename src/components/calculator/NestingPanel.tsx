@@ -1314,6 +1314,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                   pickedStockIds={pickedIds}
                   pickedStockLabel={pickedLabels.join(" + ") || null}
                   pickedStockConflict={pickedIds.length > 1}
+                  diagnostic={diagnosticByKey.get(g.key)}
                 />
               );
             })}

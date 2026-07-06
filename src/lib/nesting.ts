@@ -1401,6 +1401,22 @@ export const computeNesting = (
       const candidates = allVariants.map((v) =>
         computeGroup(k, label, ps, catalog, pieceIndexMap, customer, v),
       );
+      // Candidato "mix": usa insieme più formati di lastra della stessa famiglia
+      const lastraVars = allVariants.filter(
+        (v) => (v.material.format ?? "rotolo") === "lastra",
+      );
+      if (lastraVars.length >= 2) {
+        const mixed = computeMixedLastraGroup(
+          k,
+          label,
+          ps,
+          catalog,
+          pieceIndexMap,
+          customer,
+          lastraVars,
+        );
+        if (mixed) candidates.push(mixed);
+      }
       // Filtro: solo quelle che riescono a piazzare TUTTI i pezzi
       const feasible = candidates.filter((c) => c.unplaced.length === 0 && c.items.length > 0);
       const pool = feasible.length > 0 ? feasible : candidates;

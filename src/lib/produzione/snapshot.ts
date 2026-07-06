@@ -1,5 +1,6 @@
 import type { Catalog, DepartmentState, PieceLine } from "@/components/calculator/types";
-import { computeNesting } from "@/lib/nesting";
+import { loadCatalogCloud } from "@/lib/catalog";
+import { computeNesting, mergeCatalogs } from "@/lib/nesting";
 import type { ProdDept } from "./types";
 
 export type ProdSnapshot = {
@@ -33,6 +34,32 @@ export const collectSnapshotDepartments = (snap: ProdSnapshot | null): SnapshotD
   }
   return [{ label: snap.deptLabel ?? snap.deptKey ?? "Reparto", key: snap.deptKey ?? "x", state: snap.state, catalog: snap.catalog }];
 };
+
+export type CurrentCatalogMap = Partial<Record<"tappezzeria" | "stampa" | "falegnameria", Catalog>>;
+
+export const loadCurrentProductionCatalogs = async (): Promise<CurrentCatalogMap> => {
+  const entries = await Promise.all(
+    (["tappezzeria", "stampa", "falegnameria"] as const).map(async (dept) => [dept, await loadCatalogCloud(dept)] as const),
+  );
+  return Object.fromEntries(entries.filter(([, catalog]) => !!catalog)) as CurrentCatalogMap;
+};
+
+/** Arricchisce i reparti salvati negli ordini vecchi con il listino corrente.
+ *  Così il nesting in lavorazione vede anche formati aggiunti dopo la creazione
+ *  del progetto (es. 600×205 oltre a 305×205). Il catalogo corrente vince a pari id. */
+export const mergeSnapshotDepartmentsWithCurrentCatalogs = (
+  depts: SnapshotDept[],
+  currentCatalogs: CurrentCatalogMap,
+): SnapshotDept[] =>
+  depts.map((dept) => {
+    const key = dept.key as keyof CurrentCatalogMap;
+    const current = currentCatalogs[key];
+    if (!current) return dept;
+    return {
+      ...dept,
+      catalog: dept.catalog ? mergeCatalogs([current, dept.catalog]) ?? dept.catalog : current,
+    };
+  });
 
 export type AggMaterial = {
   name: string;

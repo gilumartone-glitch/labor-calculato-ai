@@ -1132,6 +1132,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     () => initialNestingState?.mixedBins ?? {},
   );
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
+  const diagnostics = useMemo(
+    () => diagnoseNesting(pieces, catalog, customerType),
+    [pieces, catalog, customerType],
+  );
+  const diagnosticByKey = useMemo(() => {
+    const m = new Map<string, NestingDiagnostic>();
+    for (const d of diagnostics) m.set(d.groupKey, d);
+    return m;
+  }, [diagnostics]);
 
   // Bubbla i cambi di stato verso il padre (per persistenza nello snapshot).
   const firstSync = useRef(true);

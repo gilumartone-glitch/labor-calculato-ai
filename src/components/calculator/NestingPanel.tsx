@@ -695,6 +695,7 @@ const GroupSummary = ({
   pickedStockIds,
   pickedStockLabel,
   pickedStockConflict,
+  diagnostic,
 }: {
   group: NestingGroup;
   expanded: boolean;
@@ -707,6 +708,7 @@ const GroupSummary = ({
   pickedStockIds?: string[];
   pickedStockLabel?: string | null;
   pickedStockConflict?: boolean;
+  diagnostic?: NestingDiagnostic;
 }) => {
   const [debug, setDebug] = useState(false);
   const wastePct = group.wastePct * 100;

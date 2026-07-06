@@ -1092,6 +1092,272 @@ const computeGroup = (
   };
 };
 
+/** Calcola un candidato "mix": usa TUTTE le varianti lastra della stessa famiglia
+ *  come pool di bin (illimitato per variante) e sceglie automaticamente il formato
+ *  più piccolo che contiene ogni pezzo/gruppo di pezzi. Serve per non forzare
+ *  tutti i pezzi sulla lastra più grande quando alcuni starebbero comodi su una
+ *  più piccola. Ritorna null se ci sono meno di 2 varianti lastra utili. */
+const computeMixedLastraGroup = (
+  key: string,
+  label: string,
+  pieces: PieceLine[],
+  catalog: Catalog,
+  pieceIndexMap: Map<string, number>,
+  customer: CustomerType | undefined,
+  lastraVars: { material: CatalogMaterial; heightM: number }[],
+): NestingGroup | null => {
+  if (lastraVars.length < 2) return null;
+  const hemMap = buildHemMap(pieces, catalog);
+  const sheetRotated = !!pieces[0]?.rotateSheet;
+  const variantsWH = lastraVars
+    .map(({ material }) => {
+      const u = (material.dimUnit || material.heightUnit || "cm") as DimUnit;
+      const wRaw = parseFloat(String(material.baseWidth || "0").replace(",", "."));
+      const hRaw = parseFloat(String(material.height || "0").replace(",", "."));
+      const bW = wRaw > 0 ? wRaw * factorOf(u) : 0;
+      const bH = hRaw > 0 ? hRaw * factorOf(u) : 0;
+      const W = sheetRotated ? bH : bW;
+      const H = sheetRotated ? bW : bH;
+      return { material, W, H, area: W * H };
+    })
+    .filter((v) => v.W > 0 && v.H > 0)
+    .sort((a, b) => a.area - b.area);
+  if (variantsWH.length < 2) return null;
+  const maxW = Math.max(...variantsWH.map((v) => v.W));
+  const maxH = Math.max(...variantsWH.map((v) => v.H));
+  const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
+    pieces,
+    pieceIndexMap,
+    maxW,
+    "lastra",
+    maxH,
+    hemMap,
+  );
+  if (raw.length === 0) return null;
+  const maxSheets = raw.length + 4;
+  const matByBinId = new Map<string, CatalogMaterial>();
+  const availableBins: NestingMixedBin[] = [];
+  variantsWH.forEach((v) => {
+    for (let i = 0; i < maxSheets; i++) {
+      const id = `${v.material.id}#${i}`;
+      matByBinId.set(id, v.material);
+      availableBins.push({
+        kind: "sheet",
+        id,
+        widthM: v.W,
+        heightM: v.H,
+        label: `${v.material.name}`,
+      });
+    }
+  });
+  availableBins.sort((a, b) => a.widthM * a.heightM - b.widthM * b.heightM);
+
+  const units = pairShapes(raw);
+  type Shelf = { y: number; height: number; usedW: number };
+  type OpenSheet = {
+    bin: NestingMixedBin;
+    w: number;
+    h: number;
+    shelves: Shelf[];
+    usedH: number;
+    material: CatalogMaterial;
+  };
+  const openSheets: OpenSheet[] = [];
+  const allItems: NestingPieceItem[] = [];
+  const unplacedUnits: PairedUnit[] = [];
+
+  const tryPlace = (
+    sheet: OpenSheet,
+    sheetIndex: number,
+    u: PairedUnit,
+    cand: { w: number; h: number },
+  ): boolean => {
+    if (cand.w > sheet.w + 1e-6 || cand.h > sheet.h + 1e-6) return false;
+    let chosen: Shelf | null = null;
+    for (const sh of sheet.shelves) {
+      if (cand.h <= sh.height + 1e-6 && sh.usedW + cand.w <= sheet.w + 1e-6) {
+        chosen = sh;
+        break;
+      }
+    }
+    if (!chosen) {
+      if (sheet.usedH + cand.h > sheet.h + 1e-6) return false;
+      chosen = { y: sheet.usedH, height: cand.h, usedW: 0 };
+      sheet.shelves.push(chosen);
+      sheet.usedH += cand.h;
+    }
+    const x = chosen.usedW;
+    const y = chosen.y;
+    chosen.usedW += cand.w;
+    u.parts.forEach((part, idx) => {
+      const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
+      allItems.push({
+        pieceId: part.pieceId,
+        copy: part.copy,
+        label: part.label,
+        w: cand.w,
+        h: cand.h,
+        rotated: cand.w !== part.w || cand.h !== part.h,
+        x,
+        y,
+        shape: part.shape,
+        widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
+        pairedWith:
+          u.parts.length === 2
+            ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy
+            : undefined,
+        pairRole: u.parts.length === 2 ? role : undefined,
+        sheetIndex,
+      });
+    });
+    return true;
+  };
+
+  const sorted = [...units].sort((a, b) => b.h - a.h || b.w - a.w);
+  for (const u of sorted) {
+    const allRect = u.parts.every((p) => p.shape === "rect");
+    const allowRot = allRect ? true : u.parts.every((p) => p.allowRotation);
+    const candidates: { w: number; h: number }[] = [{ w: u.w, h: u.h }];
+    if (allowRot && u.w !== u.h) candidates.push({ w: u.h, h: u.w });
+    // 1) tenta nei fogli già aperti (più piccolo → meno spreco)
+    let placed = false;
+    const openSorted = openSheets
+      .map((s, i) => ({ s, i }))
+      .sort((a, b) => a.s.w * a.s.h - b.s.w * b.s.h);
+    for (const { s, i } of openSorted) {
+      for (const cand of candidates) {
+        if (tryPlace(s, i, u, cand)) {
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+    if (placed) continue;
+    // 2) apri il bin più PICCOLO che contiene il pezzo
+    let openIdx = -1;
+    for (let i = 0; i < availableBins.length; i++) {
+      const b = availableBins[i];
+      if (candidates.some((c) => c.w <= b.widthM + 1e-6 && c.h <= b.heightM + 1e-6)) {
+        openIdx = i;
+        break;
+      }
+    }
+    if (openIdx < 0) {
+      unplacedUnits.push(u);
+      continue;
+    }
+    const bin = availableBins.splice(openIdx, 1)[0];
+    const material = matByBinId.get(bin.id)!;
+    const newSheet: OpenSheet = {
+      bin,
+      w: bin.widthM,
+      h: bin.heightM,
+      shelves: [],
+      usedH: 0,
+      material,
+    };
+    openSheets.push(newSheet);
+    const newIndex = openSheets.length - 1;
+    let placedNow = false;
+    for (const cand of candidates) {
+      if (tryPlace(newSheet, newIndex, u, cand)) {
+        placedNow = true;
+        break;
+      }
+    }
+    if (!placedNow) unplacedUnits.push(u);
+  }
+
+  if (openSheets.length === 0) return null;
+
+  // Costo per foglio con prezzi della sua variante specifica
+  const cutCount = pieces.filter((p) => p.priceMode === "cut").length;
+  const mode: "piece" | "cut" = cutCount >= pieces.length / 2 ? "cut" : "piece";
+  const seamPricePerM = seamUnitPrice(catalog);
+  const MIN_AREA_M2 = 0.5;
+  let materialCostOptimized = 0;
+  let materialCostInternal = 0;
+  let totalSheetArea = 0;
+  for (const s of openSheets) {
+    const m = s.material;
+    const unitPrice = materialUnitCost(m, mode, customer);
+    const priceUnit = materialPriceUnit(m);
+    const sellPerSqm =
+      priceUnit === "mq" ? unitPrice : s.w > 0 ? unitPrice / s.w : 0;
+    const purchaseUnit = mode === "piece" ? m.pricePiece : m.priceCut;
+    const purchasePerSqm =
+      priceUnit === "mq" ? purchaseUnit : s.w > 0 ? purchaseUnit / s.w : 0;
+    const area = s.w * s.h;
+    totalSheetArea += area;
+    materialCostOptimized += area * sellPerSqm;
+    materialCostInternal += area * purchasePerSqm;
+  }
+  let minBillingExtra = 0;
+  if (totalSheetArea < MIN_AREA_M2) {
+    const m = openSheets[0].material;
+    const unitPrice = materialUnitCost(m, mode, customer);
+    const priceUnit = materialPriceUnit(m);
+    const sellPerSqm =
+      priceUnit === "mq"
+        ? unitPrice
+        : openSheets[0].w > 0
+        ? unitPrice / openSheets[0].w
+        : 0;
+    const extra = (MIN_AREA_M2 - totalSheetArea) * sellPerSqm;
+    minBillingExtra = extra;
+    materialCostOptimized += extra;
+  }
+  const seamLengthM = splitSeamLengthM;
+  const seamCost = seamLengthM * seamPricePerM;
+  materialCostOptimized += seamCost;
+
+  const mixedSheets: NestingMixedSheet[] = openSheets.map((s) => ({
+    bin: s.bin,
+    widthM: s.w,
+    heightM: s.h,
+  }));
+  const usedAreaM2 = raw.reduce((s, r) => s + r.realArea, 0);
+  const totalAreaM2 = totalSheetArea;
+  const wastePct = totalAreaM2 > 0 ? Math.max(0, 1 - usedAreaM2 / totalAreaM2) : 0;
+  const refSheet = openSheets.reduce(
+    (best, s) => (s.w * s.h > best.w * best.h ? s : best),
+    openSheets[0],
+  );
+  return {
+    key,
+    label,
+    material: refSheet.material,
+    rollWidthM: refSheet.w,
+    unitPrice: materialUnitCost(refSheet.material, mode, customer),
+    totalLengthM: openSheets.reduce((s, sh) => s + sh.h, 0),
+    totalAreaM2,
+    usedAreaM2,
+    wastePct,
+    materialCostOptimized,
+    materialCostInternal,
+    materialCostNaive: 0,
+    savings: 0,
+    items: allItems,
+    unplaced: unplacedUnits.flatMap((u) =>
+      u.parts.map((p) => ({
+        pieceId: p.pieceId,
+        label: p.label,
+        reason: "Pezzo non entra in nessuna lastra disponibile",
+      })),
+    ),
+    format: "lastra",
+    scrapCost: 0,
+    minBillingExtra,
+    sheetsNeeded: openSheets.length,
+    sheetHeightM: refSheet.h,
+    sheetWidthM: refSheet.w,
+    seamLengthM,
+    seamCost,
+    mixedSheets,
+  };
+};
+
 /** Raggruppa i pezzi per (productName|color|fireproof) e calcola un nesting per ciascuno. */
 export const computeNesting = (
   pieces: PieceLine[],
@@ -1135,6 +1401,22 @@ export const computeNesting = (
       const candidates = allVariants.map((v) =>
         computeGroup(k, label, ps, catalog, pieceIndexMap, customer, v),
       );
+      // Candidato "mix": usa insieme più formati di lastra della stessa famiglia
+      const lastraVars = allVariants.filter(
+        (v) => (v.material.format ?? "rotolo") === "lastra",
+      );
+      if (lastraVars.length >= 2) {
+        const mixed = computeMixedLastraGroup(
+          k,
+          label,
+          ps,
+          catalog,
+          pieceIndexMap,
+          customer,
+          lastraVars,
+        );
+        if (mixed) candidates.push(mixed);
+      }
       // Filtro: solo quelle che riescono a piazzare TUTTI i pezzi
       const feasible = candidates.filter((c) => c.unplaced.length === 0 && c.items.length > 0);
       const pool = feasible.length > 0 ? feasible : candidates;

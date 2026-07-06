@@ -12,6 +12,8 @@ import {
   recomputeGroupWithMixedBins,
   buildPieceIndexMap,
   piecesOfGroup,
+  diagnoseNesting,
+  NestingDiagnostic,
 } from "@/lib/nesting";
 import { convertLength, DimUnit } from "@/lib/perimeter";
 import { eur } from "@/lib/format";

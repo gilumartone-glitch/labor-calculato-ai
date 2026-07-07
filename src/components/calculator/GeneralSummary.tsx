@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { Wrench } from "lucide-react";
 import { eur, num } from "@/lib/format";
-import { Catalog, DepartmentState, DepartmentTotals } from "./types";
+import { Catalog, DepartmentState, DepartmentTotals, SubProject } from "./types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
 
@@ -31,12 +32,14 @@ interface GeneralSummaryProps {
       transports?: string[];
     };
   }[];
+  /** Sub-progetti del preventivo (per calcolare "Assemblaggio in laboratorio"). */
+  subProjects?: SubProject[];
 }
 
 export const GeneralSummary = ({
   jobName, setJobName, quantity, setQuantity,
   margin, setMargin, vat, setVat, applyVat, setApplyVat,
-  departments,
+  departments, subProjects = [],
 }: GeneralSummaryProps) => {
   const allMaterials = departments.reduce((s, d) => s + d.totals.materials, 0);
   const allWorks = departments.reduce(
@@ -44,7 +47,18 @@ export const GeneralSummary = ({
     0,
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
-  const cost = departments.reduce((s, d) => s + d.totals.total, 0);
+  // Assemblaggio in laboratorio: costo aggregato dai sub-progetti con toggle attivo.
+  const assemblyLabRows = subProjects
+    .filter((s) => s.assemblyLab?.enabled && (Number(s.assemblyLab.hours) || 0) > 0)
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      hours: Number(s.assemblyLab!.hours) || 0,
+      rate: Number(s.assemblyLab!.hourlyCost) || 0,
+      cost: (Number(s.assemblyLab!.hours) || 0) * (Number(s.assemblyLab!.hourlyCost) || 0),
+    }));
+  const assemblyLabTotal = assemblyLabRows.reduce((s, r) => s + r.cost, 0);
+  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + assemblyLabTotal;
 
   // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
   // Persistito in localStorage per non perdere le scelte tra refresh.
@@ -68,7 +82,9 @@ export const GeneralSummary = ({
   const deptTotalWithMargin = (d: GeneralSummaryProps["departments"][number]) =>
     d.totals.total + marginBaseFor(d) * (marginFor(d.key) / 100);
 
-  const marginAmount = departments.reduce((s, d) => s + marginBaseFor(d) * (marginFor(d.key) / 100), 0);
+  const marginAmount =
+    departments.reduce((s, d) => s + marginBaseFor(d) * (marginFor(d.key) / 100), 0)
+    + assemblyLabTotal * (margin / 100);
   const net = cost + marginAmount;
   const vatAmount = applyVat ? net * (vat / 100) : 0;
   const total = net + vatAmount;
@@ -134,6 +150,29 @@ export const GeneralSummary = ({
               )}
             </div>
           ))}
+
+          {assemblyLabRows.length > 0 && (
+            <div className="py-3 border-b border-dashed border-ink/20 last:border-0 bg-amber-50/40 -mx-6 px-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display text-xl font-semibold inline-flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-amber-700" />
+                  Assemblaggio in laboratorio
+                </h3>
+                <span className="font-mono text-lg font-semibold tabular-nums">{eur(assemblyLabTotal)}</span>
+              </div>
+              <div className="space-y-1 text-xs font-mono text-muted-foreground">
+                {assemblyLabRows.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between">
+                    <span>· {r.name} — {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
+                    <span className="tabular-nums">{eur(r.cost)}</span>
+                  </div>
+                ))}
+                <div className="text-[10px] italic mt-1">
+                  Eseguito da Falegnameria · bloccante = tutte le altre lavorazioni del sub-progetto
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 pt-4 border-t-2 border-ink flex items-center justify-between">
             <span className="font-display text-xl font-semibold">Totale costi diretti</span>
@@ -321,6 +360,8 @@ export const GeneralSummary = ({
               vatAmount,
               total,
               departments,
+              subProjects,
+              assemblyLabTotal,
             }}
             variant="primary"
             disabled={total === 0}

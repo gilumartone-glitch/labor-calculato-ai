@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Package, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Layers, Wrench } from "lucide-react";
 import type { SubProject } from "./types";
 import { uid } from "@/lib/format";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface SubProjectBarProps {
   subProjects: SubProject[];
@@ -121,6 +122,19 @@ export const SubProjectBar = ({
                   </span>
                 )}
               </button>
+              <AssemblyLabPill
+                sp={s}
+                active={active}
+                onChange={(patch) =>
+                  setSubProjects(
+                    subProjects.map((x) =>
+                      x.id === s.id
+                        ? { ...x, assemblyLab: { enabled: false, hours: 0, hourlyCost: 35, ...(x.assemblyLab ?? {}), ...patch } }
+                        : x,
+                    ),
+                  )
+                }
+              />
               <button
                 type="button"
                 onClick={() => startEdit(s)}
@@ -152,5 +166,97 @@ export const SubProjectBar = ({
 
       {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
     </div>
+  );
+};
+
+/** Pillola compatta per attivare "Assemblaggio in laboratorio" sul sub-progetto.
+ *  Popover con ore + €/h. Il costo entra nel Riepilogo e genera un task Falegnameria
+ *  bloccato da tutte le altre lavorazioni del sub. */
+const AssemblyLabPill = ({
+  sp, active, onChange,
+}: {
+  sp: SubProject;
+  active: boolean;
+  onChange: (patch: Partial<NonNullable<SubProject["assemblyLab"]>>) => void;
+}) => {
+  const cfg = sp.assemblyLab;
+  const enabled = !!cfg?.enabled;
+  const hours = cfg?.hours ?? 0;
+  const rate = cfg?.hourlyCost ?? 35;
+  const cost = Math.max(0, hours) * Math.max(0, rate);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={enabled ? `Assemblaggio lab · ${hours}h × ${rate}€/h` : "Assemblaggio finale in laboratorio"}
+          className={`p-1 inline-flex items-center gap-1 text-[10px] ${
+            enabled
+              ? (active ? "text-primary-foreground" : "text-amber-700")
+              : (active ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-ink/40 hover:text-ink")
+          }`}
+        >
+          <Wrench className="w-3 h-3" />
+          {enabled && <span className="font-mono tabular-nums">{hours}h</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-semibold uppercase tracking-wider">Assemblaggio in laboratorio</div>
+          <label className="inline-flex items-center gap-1 text-[11px]">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => onChange({ enabled: e.target.checked })}
+              className="accent-primary"
+            />
+            Attivo
+          </label>
+        </div>
+        <p className="text-[10px] text-muted-foreground leading-tight">
+          Task finale in Falegnameria per il sub "{sp.name}". Bloccato da tutte le altre lavorazioni del sub.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Ore
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={hours || ""}
+              disabled={!enabled}
+              onChange={(e) => onChange({ hours: parseFloat(e.target.value) || 0 })}
+              className="mt-1 w-full h-8 px-2 border-2 border-ink/15 rounded-sm font-mono text-sm bg-paper disabled:opacity-40"
+            />
+          </label>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            €/ora
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={rate || ""}
+              disabled={!enabled}
+              onChange={(e) => onChange({ hourlyCost: parseFloat(e.target.value) || 0 })}
+              className="mt-1 w-full h-8 px-2 border-2 border-ink/15 rounded-sm font-mono text-sm bg-paper disabled:opacity-40"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-between text-[11px] font-mono">
+          <span className="text-muted-foreground">Costo</span>
+          <span className="tabular-nums font-semibold">{cost.toFixed(2)} €</span>
+        </div>
+        <label className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+          Note (checklist componenti extra)
+          <textarea
+            rows={2}
+            value={cfg?.notes ?? ""}
+            disabled={!enabled}
+            onChange={(e) => onChange({ notes: e.target.value })}
+            className="mt-1 w-full px-2 py-1 border-2 border-ink/15 rounded-sm font-mono text-[11px] bg-paper disabled:opacity-40"
+          />
+        </label>
+      </PopoverContent>
+    </Popover>
   );
 };

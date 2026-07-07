@@ -290,6 +290,18 @@ export type SubProject = {
   name: string;
   order: number;
   note?: string;
+  /** Se presente e `enabled`, aggiunge un task finale "Assemblaggio in laboratorio"
+   *  (eseguito da Falegnameria) al sub-progetto: bloccato da tutte le altre
+   *  lavorazioni dello stesso sub e valorizzato nel preventivo. */
+  assemblyLab?: {
+    enabled: boolean;
+    /** Ore stimate di manodopera. */
+    hours: number;
+    /** Costo orario €/h (di default preso dal listino Falegnameria). */
+    hourlyCost: number;
+    /** Note libere per il capo-reparto (checklist componenti extra, ecc). */
+    notes?: string;
+  };
 };
 
 export type DepartmentState = {

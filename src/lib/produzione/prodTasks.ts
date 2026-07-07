@@ -1,6 +1,7 @@
 import type { ProdDept } from "./types";
 import type { ProdSnapshot } from "./snapshot";
 import { collectSnapshotDepartments, inferProdDeptsFromSnapshot } from "./snapshot";
+import type { SubProject } from "@/components/calculator/types";
 
 /** Una "lavorazione" concreta all'interno di un reparto (es. Falegnameria → Taglio).
  *  key = univoca; dept = reparto padre; category = etichetta della lavorazione (null se il reparto non è splittato). */
@@ -9,6 +10,10 @@ export type ProdTask = {
   dept: ProdDept;
   category: string | null;
   label: string;
+  /** Se il task è specifico di un sub-progetto (es. assemblaggio_lab). */
+  subProjectId?: string | null;
+  /** Metadati opzionali (ore/€h) per task di assemblaggio in laboratorio. */
+  meta?: { hours?: number; hourlyCost?: number; notes?: string };
 };
 
 /** Ordine "logico" delle lavorazioni: chi produce prima tende a bloccare chi assembla dopo. */
@@ -22,6 +27,7 @@ export const CATEGORY_ORDER: string[] = [
   "finitura",
   "controllo",
   "altro",
+  "assemblaggio_lab",
 ];
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -34,6 +40,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   finitura: "Finitura",
   controllo: "Controllo qualità",
   altro: "Altre lavorazioni",
+  assemblaggio_lab: "Assemblaggio in laboratorio",
 };
 
 const KEYWORDS: Array<[string, RegExp]> = [
@@ -134,13 +141,48 @@ export const inferProdTasksFromSnapshot = (
       });
     }
   }
+
+  // === Assemblaggio in laboratorio: un task per sub-progetto con assemblyLab attivo ===
+  // I sub-progetti vivono nello snapshot (o in designState per gli snapshot produzione).
+  const anySnap: any = snap as any;
+  const subProjects: SubProject[] =
+    (Array.isArray(anySnap?.subProjects) && anySnap.subProjects) ||
+    (Array.isArray(anySnap?.designState?.subProjects) && anySnap.designState.subProjects) ||
+    [];
+  for (const sp of subProjects) {
+    if (!sp?.assemblyLab?.enabled) continue;
+    const hours = Number(sp.assemblyLab.hours) || 0;
+    if (hours <= 0 && !sp.assemblyLab.notes) continue;
+    out.push({
+      key: `assemblaggio_lab:${sp.id}`,
+      dept: "falegnameria",
+      category: "assemblaggio_lab",
+      label: `Assemblaggio lab · ${sp.name}`,
+      subProjectId: sp.id,
+      meta: {
+        hours,
+        hourlyCost: Number(sp.assemblyLab.hourlyCost) || 0,
+        notes: sp.assemblyLab.notes,
+      },
+    });
+  }
   return out;
 };
 
-/** Suggerisce il task bloccante di default (task precedente nell'ordine logico dentro lo stesso reparto). */
+/** Suggerisce il task bloccante di default.
+ *  - Assemblaggio in laboratorio: bloccato dall'ULTIMO task delle altre lavorazioni
+ *    dello stesso sub-progetto (topo-sort creerà catena di dipendenze).
+ *  - Altri task splittati: task precedente nell'ordine logico dentro lo stesso reparto. */
 export const suggestBlockerTask = (task: ProdTask, allTasks: ProdTask[]): string | null => {
+  if (task.category === "assemblaggio_lab") {
+    // Preferisci un task dello stesso sub-progetto (se i pezzi lo indicano);
+    // in mancanza, prendi tutti i task NON assemblaggio_lab.
+    const others = allTasks.filter((t) => t.key !== task.key && t.category !== "assemblaggio_lab");
+    if (others.length === 0) return null;
+    return others[others.length - 1].key;
+  }
   if (!task.category) return null;
-  const sameDept = allTasks.filter((t) => t.dept === task.dept && t.category);
+  const sameDept = allTasks.filter((t) => t.dept === task.dept && t.category && t.category !== "assemblaggio_lab");
   const idxSelf = sameDept.findIndex((t) => t.key === task.key);
   if (idxSelf <= 0) return null;
   return sameDept[idxSelf - 1].key;

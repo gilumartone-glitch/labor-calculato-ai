@@ -765,6 +765,7 @@ const Index = () => {
                             vat,
                             applyVat,
                             departments: summaryData,
+                            subProjects,
                           }}
                           subProjectId={sp.id}
                           subProjectName={sp.name}
@@ -799,7 +800,9 @@ const Index = () => {
                 applyVat={applyVat}
                 setApplyVat={setApplyVat}
                 departments={summaryData}
+                subProjects={subProjects}
               />
+
             ) : activeTab === "falegnameria" ? (
               <Falegnameria
                 embedded

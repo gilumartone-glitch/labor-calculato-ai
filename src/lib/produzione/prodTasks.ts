@@ -1,6 +1,7 @@
 import type { ProdDept } from "./types";
 import type { ProdSnapshot } from "./snapshot";
 import { collectSnapshotDepartments, inferProdDeptsFromSnapshot } from "./snapshot";
+import type { SubProject } from "@/components/calculator/types";
 
 /** Una "lavorazione" concreta all'interno di un reparto (es. Falegnameria → Taglio).
  *  key = univoca; dept = reparto padre; category = etichetta della lavorazione (null se il reparto non è splittato). */
@@ -9,6 +10,10 @@ export type ProdTask = {
   dept: ProdDept;
   category: string | null;
   label: string;
+  /** Se il task è specifico di un sub-progetto (es. assemblaggio_lab). */
+  subProjectId?: string | null;
+  /** Metadati opzionali (ore/€h) per task di assemblaggio in laboratorio. */
+  meta?: { hours?: number; hourlyCost?: number; notes?: string };
 };
 
 /** Ordine "logico" delle lavorazioni: chi produce prima tende a bloccare chi assembla dopo. */

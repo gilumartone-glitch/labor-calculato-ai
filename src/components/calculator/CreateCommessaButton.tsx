@@ -504,7 +504,22 @@ export const CreateCommessaButton = ({
       }
 
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-      const payload: PendingPayload = { mode: "normal", commessaId, clienteName, productionSnapshot, depts };
+      // Tasks effettive da lanciare: se un reparto non ha task dedicati (single-op),
+      // fallback a un task per reparto per retro-compatibilità.
+      let tasks: ProdTask[] = activeTasks.filter((t) => depts.includes(t.dept));
+      const deptsWithTask = new Set(tasks.map((t) => t.dept));
+      for (const d of depts) {
+        if (!deptsWithTask.has(d)) tasks.push({ key: d, dept: d, category: null, label: DEPT_LABEL[d] });
+      }
+      // Blocker effettivi: se non impostati dall'utente, usa il default suggerito.
+      const effectiveBlockers: Record<string, string | null> = {};
+      for (const t of tasks) {
+        const user = taskBlockers[t.key];
+        effectiveBlockers[t.key] = user !== undefined ? user : (t.category ? suggestBlockerTask(t, tasks) : null);
+      }
+      const payload: PendingPayload = {
+        mode: "normal", commessaId, clienteName, productionSnapshot, depts, tasks, blockers: effectiveBlockers,
+      };
       setPendingPayload(payload);
       // Apri il dialog di conferma materiali (con possibilità di marcare i mancanti
       // e affidarli al reparto Acquisti) prima di lanciare i sub-ordini.

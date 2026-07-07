@@ -858,14 +858,14 @@ export const DepartmentView = ({
                               )}
                             </div>
                           )}
-                        </div>
+                        </button>
                       );
                     },
                   )}
                 </div>
               </div>
             )}
-                        </button>
+
 
           <section className="panel p-6">
             <header className="flex items-start justify-between gap-6 mb-5">

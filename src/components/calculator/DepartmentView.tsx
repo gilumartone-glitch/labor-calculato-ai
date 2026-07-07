@@ -8,7 +8,7 @@ import { PieceCard } from "./PieceCard";
 import { NestingPanel } from "./NestingPanel";
 import { InventoryDeptView } from "@/components/produzione/InventoryDeptView";
 import { InvDept } from "@/lib/produzione/types";
-import { Catalog, DepartmentState, MaterialLine, PieceLine, TransportLine } from "./types";
+import { Catalog, DepartmentState, MaterialLine, PieceLine, SubProject, TransportLine } from "./types";
 import { eur } from "@/lib/format";
 import { uid } from "@/lib/format";
 import {
@@ -46,11 +46,16 @@ interface DepartmentViewProps {
    *  pezzi marcati con `materialFromLab`. Default = `catalog`. */
   labCatalog?: Catalog;
   labPieces?: PieceLine[];
+  /** Sub-progetti ("prodotti finiti") del progetto madre. Se assenti/vuoti,
+   *  tutti i pezzi restano in un unico gruppo implicito "Generale". */
+  subProjects?: SubProject[];
+  activeSubProjectId?: string | null;
 }
 
 export const DepartmentView = ({
   deptKey, deptLabel, description, catalog, setCatalog,
   state, setState, templateUrl, templateName, customerType, labCatalog, labPieces = [],
+  subProjects = [], activeSubProjectId = null,
 }: DepartmentViewProps) => {
   // Tappezzeria: lo sfrido iniziale del rotolo NON viene addebitato (prezzi
   // di vendita manuali già includono lo sfrido). Wrappiamo il catalogo per
@@ -436,6 +441,7 @@ export const DepartmentView = ({
       allowRotation: deptKey === "stampa",
       // Per Stampa/Laboratorio le misure sono finali: nessun margine di lavorazione.
       noMargins: deptKey === "stampa",
+      subProjectId: activeSubProjectId ?? null,
     };
     setState({ ...state, pieces: [...pieces, newLine] });
   };
@@ -860,54 +866,142 @@ export const DepartmentView = ({
             </header>
             <div className="rule-line mb-3" />
 
-            <AnimatePresence initial={false}>
-                {(() => {
-                  // Per ogni gruppo "scrapKey" lo sfrido va contato una sola volta:
-                  // lo lasciamo nel PRIMO pezzo del gruppo, gli altri lo escludono
-                  // (così la somma delle card = totale lavorazioni del reparto).
-                  const seenScrap = new Set<string>();
-                  return pieces.map((p, i) => {
-                  const labSource = !isStampa && p.materialFromLab
-                    ? findLabDimensionSource(p, labPieces, i)
-                    : undefined;
-                  const displayedPiece = labSource ? copyLabDimensions(p, labSource) : p;
-                  const key = pieceScrapKey(p, matCat(p), customerType);
-                  let scrapDeducted = false;
-                  if (key) {
-                    if (seenScrap.has(key)) scrapDeducted = true;
-                    else seenScrap.add(key);
-                  }
-                  return (
-                <PieceCard
-                  key={p.id}
-                  index={i}
-                    line={displayedPiece}
-                  catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}
-                  dept={deptKey}
-                  customerType={customerType}
-                  labCatalog={labCatalog}
-                  labPieces={labPieces}
-                  scrapDeducted={scrapDeducted}
-                  extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
-                  extraSurchargeLabel="Sfrido lastre"
-                  materialCostOverrideSingle={getMaterialOverride(p.id)}
-                  onChange={(line) =>
-                    setState({
-                      ...state,
-                      pieces: pieces.map((x) => (x.id === p.id ? line : x)),
-                    })
-                  }
-                  onRemove={() =>
-                    setState({
-                      ...state,
-                      pieces: pieces.filter((x) => x.id !== p.id),
-                    })
-                  }
-                />
-                  );
+            {(() => {
+              // Filtro per sub-progetto attivo: se null mostro tutti.
+              // Se activeSubProjectId punta a un sub-progetto, mostro SOLO quello + un
+              // "Aggiungi" scoped. Se null, mostro tutti raggruppati per sub-progetto.
+              const groupsToRender: { key: string; label: string; subId: string | null; items: PieceLine[] }[] = [];
+              if (activeSubProjectId) {
+                const sp = subProjects.find((s) => s.id === activeSubProjectId);
+                groupsToRender.push({
+                  key: activeSubProjectId,
+                  label: sp?.name ?? "Prodotto",
+                  subId: activeSubProjectId,
+                  items: pieces.filter((p) => (p.subProjectId ?? null) === activeSubProjectId),
+                });
+              } else if (subProjects.length > 0) {
+                const generalItems = pieces.filter((p) => !p.subProjectId);
+                if (generalItems.length > 0) {
+                  groupsToRender.push({ key: "__none__", label: "Generale", subId: null, items: generalItems });
+                }
+                subProjects.slice().sort((a, b) => a.order - b.order).forEach((s) => {
+                  groupsToRender.push({
+                    key: s.id, label: s.name, subId: s.id,
+                    items: pieces.filter((p) => p.subProjectId === s.id),
                   });
-                })()}
-            </AnimatePresence>
+                });
+              } else {
+                groupsToRender.push({ key: "__all__", label: "", subId: null, items: pieces });
+              }
+
+              // seenScrap va calcolato sul TOTALE pezzi (non per gruppo) per coerenza col totale reparto.
+              const seenScrap = new Set<string>();
+              const addPieceForSub = (subId: string | null) => {
+                // clone di addPiece con override subProjectId
+                const autoFill = deptKey !== "stampa";
+                const firstName = autoFill ? (catalog.materials.find((m) => m.name.trim())?.name ?? "") : "";
+                const newLine: PieceLine = {
+                  id: uid(),
+                  productName: firstName,
+                  color: "",
+                  fireproof: "",
+                  matchedHeight: "",
+                  matchedHeightUnit: "cm",
+                  catalogMaterialId: null,
+                  thickness: "",
+                  finish: "",
+                  priceMode: "cut",
+                  materialQty: 0,
+                  width: 0,
+                  height: 0,
+                  dimUnit: "cm",
+                  perimeters: [],
+                  allowRotation: deptKey === "stampa",
+                  noMargins: deptKey === "stampa",
+                  subProjectId: subId,
+                };
+                setState({ ...state, pieces: [...pieces, newLine] });
+              };
+
+              const showGroupHeaders = subProjects.length > 0 && !activeSubProjectId;
+
+              return (
+                <>
+                  {groupsToRender.map((g) => (
+                    <div key={g.key} className={showGroupHeaders || activeSubProjectId ? "mb-6" : ""}>
+                      {(showGroupHeaders || activeSubProjectId) && g.label && (
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-primary/30">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-primary" />
+                            <span className="font-display text-lg font-semibold">{g.label}</span>
+                            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {g.items.length} {g.items.length === 1 ? "lavorazione" : "lavorazioni"}
+                            </span>
+                          </div>
+                          {g.subId !== null || subProjects.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => addPieceForSub(g.subId)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-primary hover:text-ink"
+                            >
+                              <Plus className="w-3 h-3" /> Aggiungi qui
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                      <AnimatePresence initial={false}>
+                        {g.items.map((p) => {
+                          const i = pieces.findIndex((x) => x.id === p.id);
+                          const labSource = !isStampa && p.materialFromLab
+                            ? findLabDimensionSource(p, labPieces, i)
+                            : undefined;
+                          const displayedPiece = labSource ? copyLabDimensions(p, labSource) : p;
+                          const key = pieceScrapKey(p, matCat(p), customerType);
+                          let scrapDeducted = false;
+                          if (key) {
+                            if (seenScrap.has(key)) scrapDeducted = true;
+                            else seenScrap.add(key);
+                          }
+                          return (
+                            <PieceCard
+                              key={p.id}
+                              index={i}
+                              line={displayedPiece}
+                              catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}
+                              dept={deptKey}
+                              customerType={customerType}
+                              labCatalog={labCatalog}
+                              labPieces={labPieces}
+                              scrapDeducted={scrapDeducted}
+                              extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
+                              extraSurchargeLabel="Sfrido lastre"
+                              materialCostOverrideSingle={getMaterialOverride(p.id)}
+                              onChange={(line) =>
+                                setState({
+                                  ...state,
+                                  pieces: pieces.map((x) => (x.id === p.id ? line : x)),
+                                })
+                              }
+                              onRemove={() =>
+                                setState({
+                                  ...state,
+                                  pieces: pieces.filter((x) => x.id !== p.id),
+                                })
+                              }
+                            />
+                          );
+                        })}
+                      </AnimatePresence>
+                      {g.items.length === 0 && (
+                        <div className="py-4 text-center text-xs text-muted-foreground italic">
+                          Nessuna lavorazione in questo prodotto.
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
             {pieces.length === 0 && (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 Nessun pezzo. Aggiungi il primo per iniziare.
@@ -923,7 +1017,7 @@ export const DepartmentView = ({
                 <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <Plus className="w-3 h-3" strokeWidth={3} />
                 </span>
-                Aggiungi pezzo
+                Aggiungi pezzo{activeSubProjectId ? ` a "${subProjects.find((s) => s.id === activeSubProjectId)?.name ?? ""}"` : ""}
               </button>
               {pieces.length > 0 && (
                 <button

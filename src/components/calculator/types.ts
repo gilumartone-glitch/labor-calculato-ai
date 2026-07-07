@@ -276,6 +276,20 @@ export type PieceLine = {
    *  nei pezzi del reparto Tappezzeria. */
   manualMargins?: boolean;
   note?: string;
+  /** Id del sub-progetto ("prodotto finito", es. Tavolino, Pavimento) a cui appartiene
+   *  questa lavorazione. Null/undefined = voce "Generale" (retrocompatibilità: tutti
+   *  i pezzi dei progetti già esistenti restano in questo gruppo implicito). */
+  subProjectId?: string | null;
+};
+
+/** Un sub-progetto ("prodotto finito") raggruppa pezzi di più reparti
+ *  all'interno di uno stesso progetto madre (es. il progetto "Tizio" contiene
+ *  Tavolino, Pavimento, ecc.). Vive nello snapshot del draft, senza tabelle DB. */
+export type SubProject = {
+  id: string;
+  name: string;
+  order: number;
+  note?: string;
 };
 
 export type DepartmentState = {

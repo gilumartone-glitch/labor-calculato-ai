@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { DepartmentView } from "@/components/calculator/DepartmentView";
 import { GeneralSummary } from "@/components/calculator/GeneralSummary";
-import { Catalog, DepartmentKey, DepartmentState, PieceLine } from "@/components/calculator/types";
+import { SubProjectBar } from "@/components/calculator/SubProjectBar";
+import { Catalog, DepartmentKey, DepartmentState, PieceLine, SubProject } from "@/components/calculator/types";
 import { loadCatalog, saveCatalog, emptyCatalog } from "@/lib/catalog";
 import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
 import { buildPerimeterOpsForDept, perimeterCost } from "@/lib/perimeter";
@@ -127,6 +128,8 @@ const Index = () => {
     vat: number;
     applyVat: boolean;
     customerType: CustomerType;
+    subProjects?: SubProject[];
+    activeSubProjectId?: string | null;
   };
   /** Normalizza qualsiasi snapshot (calcolatrice o produzione/revisione) nel formato
    *  StoredSnap. In particolare:
@@ -194,6 +197,12 @@ const Index = () => {
   const [vat, setVat] = useState(typeof initialSnap?.vat === "number" ? initialSnap.vat : 22);
   const [applyVat, setApplyVat] = useState(typeof initialSnap?.applyVat === "boolean" ? initialSnap.applyVat : false);
   const [customerType, setCustomerType] = useState<CustomerType>(initialSnap?.customerType === "dealer" ? "dealer" : "final");
+  const [subProjects, setSubProjects] = useState<SubProject[]>(
+    Array.isArray(initialSnap?.subProjects) ? initialSnap!.subProjects! : [],
+  );
+  const [activeSubProjectId, setActiveSubProjectId] = useState<string | null>(
+    initialSnap?.activeSubProjectId ?? null,
+  );
   const [workshopTick, setWorkshopTick] = useState(0);
   const [draftReloadNonce, setDraftReloadNonce] = useState(0);
   /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare
@@ -252,7 +261,10 @@ const Index = () => {
   // (cloud) tramite debounce + interval. Ogni scheda ha così il proprio stato isolato.
   const lastAppliedRef = useRef<string>("");
   useEffect(() => {
-    const snap: StoredSnap = { version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType };
+    const snap: StoredSnap = {
+      version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType,
+      subProjects, activeSubProjectId,
+    };
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
     lastAppliedRef.current = serialized;
@@ -260,7 +272,7 @@ const Index = () => {
       localStorage.setItem(STATE_KEY, serialized);
       window.dispatchEvent(new Event("officina:draft-state-changed"));
     } catch { /* ignore */ }
-  }, [departments, jobName, quantity, margin, vat, applyVat, customerType]);
+  }, [departments, jobName, quantity, margin, vat, applyVat, customerType, subProjects, activeSubProjectId]);
 
   useEffect(() => {
     const refresh = () => setWorkshopTick((v) => v + 1);
@@ -303,6 +315,13 @@ const Index = () => {
       setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);
       setApplyVat(typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false);
       setCustomerType(nextSnap.customerType === "dealer" ? "dealer" : "final");
+      const nextSubs: SubProject[] = Array.isArray(nextSnap.subProjects) ? nextSnap.subProjects! : [];
+      const nextActiveSub: string | null =
+        nextSnap.activeSubProjectId && nextSubs.some((s) => s.id === nextSnap.activeSubProjectId)
+          ? nextSnap.activeSubProjectId
+          : null;
+      setSubProjects(nextSubs);
+      setActiveSubProjectId(nextActiveSub);
       lastAppliedRef.current = JSON.stringify({
         version: STATE_VERSION,
         departments: nextDepartments,
@@ -312,6 +331,8 @@ const Index = () => {
         vat: typeof nextSnap.vat === "number" ? nextSnap.vat : 22,
         applyVat: typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false,
         customerType: nextSnap.customerType === "dealer" ? "dealer" : "final",
+        subProjects: nextSubs,
+        activeSubProjectId: nextActiveSub,
       });
       setDraftReloadNonce((n) => n + 1);
     };
@@ -705,6 +726,28 @@ const Index = () => {
 
       {/* Body */}
       <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 md:py-8 pb-20">
+        {/* Barra prodotti finiti (sub-progetti): raggruppa le lavorazioni dei reparti
+            per prodotto finito all'interno dello stesso progetto madre. */}
+        {activeTab !== "riepilogo" && activeTab !== "magazzino" && (
+          <div className="mb-4">
+            <SubProjectBar
+              subProjects={subProjects}
+              setSubProjects={setSubProjects}
+              activeId={activeSubProjectId}
+              setActiveId={setActiveSubProjectId}
+              pieceCounts={(() => {
+                const counts: Record<string, number> = {};
+                (["tappezzeria", "stampa", "falegnameria"] as DepartmentKey[]).forEach((k) => {
+                  for (const p of departments[k].pieces ?? []) {
+                    const sid = p.subProjectId ?? "__none__";
+                    counts[sid] = (counts[sid] ?? 0) + 1;
+                  }
+                });
+                return counts;
+              })()}
+            />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={`${activeTab}:${resetNonce}:${draftReloadNonce}`}
@@ -756,6 +799,8 @@ const Index = () => {
                     customerType={customerForDept(key)}
                     labCatalog={catalogs.stampa}
                     labPieces={departments.stampa.pieces}
+                    subProjects={subProjects}
+                    activeSubProjectId={activeSubProjectId}
                   />
                 );
               })()

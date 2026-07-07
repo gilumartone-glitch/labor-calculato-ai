@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { DepartmentView } from "@/components/calculator/DepartmentView";
 import { GeneralSummary } from "@/components/calculator/GeneralSummary";
 import { SubProjectBar } from "@/components/calculator/SubProjectBar";
+import { CreateCommessaButton } from "@/components/calculator/CreateCommessaButton";
 import { Catalog, DepartmentKey, DepartmentState, PieceLine, SubProject } from "@/components/calculator/types";
 import { loadCatalog, saveCatalog, emptyCatalog } from "@/lib/catalog";
 import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
@@ -745,6 +746,35 @@ const Index = () => {
                 });
                 return counts;
               })()}
+              trailing={
+                activeSubProjectId
+                  ? (() => {
+                      const sp = subProjects.find((s) => s.id === activeSubProjectId);
+                      if (!sp) return null;
+                      return (
+                        <CreateCommessaButton
+                          label={`Lancia solo "${sp.name}" nel Flow`}
+                          defaultTitle={`${(typeof window !== "undefined" ? localStorage.getItem("officina:active-draft-name") : "") || jobName || ""}${sp.name ? " · " + sp.name : ""}`}
+                          defaultAmount={summaryData.reduce((s, d) => s + (d.totals?.total ?? 0), 0)}
+                          defaultReparto="generale"
+                          snapshot={{
+                            source: "summary",
+                            jobName,
+                            quantity,
+                            margin,
+                            vat,
+                            applyVat,
+                            departments: summaryData,
+                          }}
+                          subProjectId={sp.id}
+                          subProjectName={sp.name}
+                          variant="subtle"
+                          hideWarehouseShortcut
+                        />
+                      );
+                    })()
+                  : null
+              }
             />
           </div>
         )}

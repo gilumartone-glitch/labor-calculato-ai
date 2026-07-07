@@ -93,14 +93,18 @@ export const inferProdTasksFromSnapshot = (
       (dept === "laboratorio" ? snapDeptByKey.get("laboratorio") : undefined) ??
       snapDeptByKey.get(dept as string);
     const pieces = sd?.state?.pieces ?? [];
+    const opsDept = sd?.state?.operations ?? [];
     const cat = sd?.catalog;
     const cats = new Set<string>();
-    for (const p of pieces) {
-      // Operazioni "unità/ora": guarda il nome della CatalogOperation.
-      for (const o of p.operations ?? []) {
-        const cop = cat?.operations.find((x) => x.id === o.opId);
+    // Operazioni "unità/ora" del reparto (vivono su DepartmentState.operations, non sui pezzi).
+    for (const o of opsDept) {
+      if (o.name) cats.add(normalize(o.name));
+      else if (o.catalogId) {
+        const cop = cat?.operations.find((x) => x.id === o.catalogId);
         if (cop?.name) cats.add(normalize(cop.name));
       }
+    }
+    for (const p of pieces) {
       // Perimetri: rispetta la category se valorizzata, altrimenti classifica dal nome.
       for (const perim of p.perimeters ?? []) {
         const pop = cat?.perimeterOps.find((x) => x.id === perim.opId);

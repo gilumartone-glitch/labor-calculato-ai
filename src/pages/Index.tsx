@@ -197,6 +197,12 @@ const Index = () => {
   const [vat, setVat] = useState(typeof initialSnap?.vat === "number" ? initialSnap.vat : 22);
   const [applyVat, setApplyVat] = useState(typeof initialSnap?.applyVat === "boolean" ? initialSnap.applyVat : false);
   const [customerType, setCustomerType] = useState<CustomerType>(initialSnap?.customerType === "dealer" ? "dealer" : "final");
+  const [subProjects, setSubProjects] = useState<SubProject[]>(
+    Array.isArray(initialSnap?.subProjects) ? initialSnap!.subProjects! : [],
+  );
+  const [activeSubProjectId, setActiveSubProjectId] = useState<string | null>(
+    initialSnap?.activeSubProjectId ?? null,
+  );
   const [workshopTick, setWorkshopTick] = useState(0);
   const [draftReloadNonce, setDraftReloadNonce] = useState(0);
   /** Incrementato ad ogni Reset totale: usato come `key` del contenuto per forzare

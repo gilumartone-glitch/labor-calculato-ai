@@ -1129,16 +1129,24 @@ export const CreateCommessaButton = ({
             </div>
           )}
 
-          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (() => {
-            const plannedActive = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
-            const currentTab = activePlanTab && plannedActive.includes(activePlanTab) ? activePlanTab : plannedActive[0];
-            const d = currentTab;
+          {!warehouseOnly && activeTasks.filter((t) => PLANNED_DEPTS.includes(t.dept)).length > 0 && (() => {
+            const plannedTasks = activeTasks.filter((t) => PLANNED_DEPTS.includes(t.dept));
+            const currentTab = activePlanTab && plannedTasks.some((t) => t.key === activePlanTab)
+              ? activePlanTab
+              : plannedTasks[0].key;
+            const task = plannedTasks.find((t) => t.key === currentTab) ?? plannedTasks[0];
+            const d = task.key;
+            const dept = task.dept;
             const p = planningFor(d);
-            const ops = operatorsForDept(d);
+            const ops = operatorsForDept(dept);
+            // Task che possono bloccare il corrente: solo quelli nello stesso reparto,
+            // con category diversa. (evitiamo cicli tra reparti diversi per semplicità)
+            const blockerCandidates = plannedTasks.filter((t) => t.key !== task.key && t.dept === task.dept);
+            const currentBlocker = taskBlockers[task.key] ?? (task.category ? suggestBlockerTask(task, plannedTasks) : null);
             return (
               <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-3">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
-                  Pianificazione obbligatoria · per ogni reparto
+                  Pianificazione obbligatoria · per ogni lavorazione
                 </div>
 
                 {/* Responsabile generale del progetto */}
@@ -1154,22 +1162,22 @@ export const CreateCommessaButton = ({
                   </Select>
                 </div>
 
-                {/* Tabs dei reparti rilevati */}
+                {/* Tabs delle lavorazioni rilevate */}
                 <div className="border-2 border-ink/20 rounded-sm bg-paper p-1.5">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-1 pb-1">
-                    Reparti da pianificare
+                    Lavorazioni da pianificare
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {plannedActive.map((dept) => {
-                      const active = dept === d;
-                      const pp = planningFor(dept);
+                    {plannedTasks.map((t) => {
+                      const active = t.key === d;
+                      const pp = planningFor(t.key);
                       const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
                         (pp.responsabile || pp.operatorIds.length === 1);
                       return (
                         <button
-                          key={dept}
+                          key={t.key}
                           type="button"
-                          onClick={() => setActivePlanTab(dept)}
+                          onClick={() => setActivePlanTab(t.key)}
                           className={`px-3 py-2 text-[12px] uppercase tracking-wider font-bold rounded-sm border-2 transition-all ${
                             active
                               ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
@@ -1179,7 +1187,7 @@ export const CreateCommessaButton = ({
                           }`}
                         >
                           <span className="inline-flex items-center gap-1.5">
-                            {DEPT_LABEL[dept]}
+                            {t.label}
                             <span className={`text-[10px] ${complete ? "" : "text-destructive"}`}>
                               {complete ? "✓" : "●"}
                             </span>
@@ -1193,7 +1201,7 @@ export const CreateCommessaButton = ({
 
                 <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Date specifiche di {DEPT_LABEL[d]}
+                    Date specifiche di {task.label}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
@@ -1221,7 +1229,7 @@ export const CreateCommessaButton = ({
                       taglio: "taglio", stampa_3d: "stampa_3d", assemblaggio: "assemblaggio",
                       progettazione: "progettazione",
                     };
-                    const rep = DEPT_TO_REP[d];
+                    const rep = DEPT_TO_REP[dept];
                     if (!rep) return null;
                     return (
                       <PlanningCalendarMini
@@ -1255,7 +1263,7 @@ export const CreateCommessaButton = ({
                   </div>
                   <div>
                     <Label className="text-[10px]">
-                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : ""}
+                      Responsabile {task.label} {p.operatorIds.length > 1 ? "*" : ""}
                     </Label>
                     {p.operatorIds.length === 1 ? (
                       <div className="mt-1 flex items-center gap-2 px-3 py-2 border-2 border-emerald-400 bg-emerald-50 rounded-sm">
@@ -1297,6 +1305,31 @@ export const CreateCommessaButton = ({
                       </>
                     )}
                   </div>
+
+                  {/* Bloccata da: dropdown con le altre lavorazioni dello stesso reparto */}
+                  {blockerCandidates.length > 0 && (
+                    <div>
+                      <Label className="text-[10px]">
+                        Bloccata da <span className="text-muted-foreground normal-case tracking-normal">(opzionale — completa prima l'altra lavorazione)</span>
+                      </Label>
+                      <Select
+                        value={currentBlocker ?? "__none__"}
+                        onValueChange={(v) =>
+                          setTaskBlockers((prev) => ({ ...prev, [task.key]: v === "__none__" ? null : v }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessun blocco</SelectItem>
+                          {blockerCandidates.map((b) => (
+                            <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                 </div>
               </div>

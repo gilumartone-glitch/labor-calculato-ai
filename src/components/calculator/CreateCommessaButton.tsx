@@ -251,10 +251,13 @@ export const CreateCommessaButton = ({
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const [montaggiActive, setMontaggiActive] = useState<boolean>(false);
   const inferredDepts: ProdDept[] = useMemo(() => {
-    const base = inferProdDeptsFromSnapshot(inferenceSnapshot as any);
+    const scoped = subProjectId
+      ? filterSnapshotBySubProject(inferenceSnapshot as any, subProjectId, subProjectName)
+      : inferenceSnapshot;
+    const base = inferProdDeptsFromSnapshot(scoped as any);
     if (montaggiActive && !base.includes("montaggi")) base.push("montaggi");
     return base;
-  }, [inferenceSnapshot, montaggiActive]);
+  }, [inferenceSnapshot, montaggiActive, subProjectId, subProjectName]);
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     // Solo reparti realmente rilevati (con lavorazioni/materiali). Niente fallback

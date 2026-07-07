@@ -818,6 +818,15 @@ export const DepartmentView = ({
                               {dimLabel && (
                                 <span className="ml-1.5 text-ink/70">· {dimLabel}</span>
                               )}
+                              {subProjects.length > 0 && (() => {
+                                const sp = subProjects.find((s) => s.id === piece.subProjectId);
+                                const spName = sp?.name ?? "Generale";
+                                return (
+                                  <span className="ml-1.5 px-1.5 py-0.5 bg-accent/40 text-ink rounded-sm text-xs uppercase tracking-wider">
+                                    {spName}
+                                  </span>
+                                );
+                              })()}
                               {overridden && (
                                 <span className="ml-1.5 px-1.5 py-0.5 bg-primary/15 text-primary rounded-sm text-xs uppercase tracking-wider">
                                   livellato

@@ -373,12 +373,16 @@ export const CreateCommessaButton = ({
     try {
       // Snapshot effettivo: se è fornita una factory async (es. da Progettazione)
       // usala, altrimenti usa la prop snapshot statica.
-      const baseSnapshot: Snapshot = getSnapshot ? await getSnapshot() : snapshot;
+      const rawSnapshot: Snapshot = getSnapshot ? await getSnapshot() : snapshot;
+      // Se il lancio è scoped a un sub-progetto, filtra i pezzi.
+      const baseSnapshot: Snapshot = subProjectId
+        ? filterSnapshotBySubProject(rawSnapshot as any, subProjectId, subProjectName)
+        : rawSnapshot;
       const designStateRaw = readDesignState();
       // Se il lancio parte da un singolo reparto, NON includere lo stato
       // degli altri reparti nello snapshot (altrimenti la commessa porta in
       // Flow anche lavorazioni di altri reparti).
-      const designState: Record<string, unknown> =
+      const designStateBase: Record<string, unknown> =
         (baseSnapshot as any)?.source === "department" && (baseSnapshot as any)?.deptKey
           ? (() => {
               const k = (baseSnapshot as any).deptKey as string;
@@ -389,6 +393,21 @@ export const CreateCommessaButton = ({
               return only;
             })()
           : designStateRaw;
+      // Filtra anche i pezzi per sub-progetto in designState (usato lato produzione).
+      const designState: Record<string, unknown> = subProjectId
+        ? (() => {
+            const cloned = JSON.parse(JSON.stringify(designStateBase ?? {}));
+            for (const k of Object.keys(cloned)) {
+              const v = cloned[k];
+              if (v && typeof v === "object" && Array.isArray((v as any).pieces)) {
+                (v as any).pieces = (v as any).pieces.filter(
+                  (p: any) => (p?.subProjectId ?? null) === subProjectId,
+                );
+              }
+            }
+            return cloned;
+          })()
+        : designStateBase;
       // Includi la draft attiva del modulo Montaggi (vive in una chiave separata)
       try {
         const draftId = localStorage.getItem("officina:active-draft");

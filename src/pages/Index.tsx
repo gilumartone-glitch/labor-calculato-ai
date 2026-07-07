@@ -261,7 +261,10 @@ const Index = () => {
   // (cloud) tramite debounce + interval. Ogni scheda ha così il proprio stato isolato.
   const lastAppliedRef = useRef<string>("");
   useEffect(() => {
-    const snap: StoredSnap = { version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType };
+    const snap: StoredSnap = {
+      version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType,
+      subProjects, activeSubProjectId,
+    };
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
     lastAppliedRef.current = serialized;
@@ -269,7 +272,7 @@ const Index = () => {
       localStorage.setItem(STATE_KEY, serialized);
       window.dispatchEvent(new Event("officina:draft-state-changed"));
     } catch { /* ignore */ }
-  }, [departments, jobName, quantity, margin, vat, applyVat, customerType]);
+  }, [departments, jobName, quantity, margin, vat, applyVat, customerType, subProjects, activeSubProjectId]);
 
   useEffect(() => {
     const refresh = () => setWorkshopTick((v) => v + 1);

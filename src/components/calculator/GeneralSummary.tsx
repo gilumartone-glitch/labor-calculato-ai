@@ -360,6 +360,8 @@ export const GeneralSummary = ({
               vatAmount,
               total,
               departments,
+              subProjects,
+              assemblyLabTotal,
             }}
             variant="primary"
             disabled={total === 0}

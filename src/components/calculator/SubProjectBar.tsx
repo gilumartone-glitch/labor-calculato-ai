@@ -122,6 +122,19 @@ export const SubProjectBar = ({
                   </span>
                 )}
               </button>
+              <AssemblyLabPill
+                sp={s}
+                active={active}
+                onChange={(patch) =>
+                  setSubProjects(
+                    subProjects.map((x) =>
+                      x.id === s.id
+                        ? { ...x, assemblyLab: { enabled: false, hours: 0, hourlyCost: 35, ...(x.assemblyLab ?? {}), ...patch } }
+                        : x,
+                    ),
+                  )
+                }
+              />
               <button
                 type="button"
                 onClick={() => startEdit(s)}

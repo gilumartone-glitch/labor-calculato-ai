@@ -765,6 +765,7 @@ const Index = () => {
                             vat,
                             applyVat,
                             departments: summaryData,
+                            subProjects,
                           }}
                           subProjectId={sp.id}
                           subProjectName={sp.name}

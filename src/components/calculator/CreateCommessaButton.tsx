@@ -853,10 +853,10 @@ export const CreateCommessaButton = ({
           return out.length > 0 ? out : [start];
         };
         const allPlanRows: any[] = [];
-        for (const dept of depts) {
-          const reparto = DEPT_TO_REPARTO[dept];
+        for (const task of orderedTasks) {
+          const reparto = DEPT_TO_REPARTO[task.dept];
           if (!reparto) continue;
-          const plan = planningFor(dept);
+          const plan = planningFor(task.key);
           if (!plan.startDate) continue;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(plan.responsabile ? [plan.responsabile] : [])]));
           if (opIds.length === 0) continue;
@@ -869,7 +869,7 @@ export const CreateCommessaButton = ({
                 hours: 8,
                 commessa_id: payload.commessaId,
                 cantiere_label: payload.clienteName,
-                notes: titolo.trim() || null,
+                notes: task.category ? `${titolo.trim() || ""} · ${task.label}`.trim() : (titolo.trim() || null),
                 reparto,
                 created_by: user.id,
               });

@@ -315,6 +315,13 @@ const Index = () => {
       setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);
       setApplyVat(typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false);
       setCustomerType(nextSnap.customerType === "dealer" ? "dealer" : "final");
+      const nextSubs: SubProject[] = Array.isArray(nextSnap.subProjects) ? nextSnap.subProjects! : [];
+      const nextActiveSub: string | null =
+        nextSnap.activeSubProjectId && nextSubs.some((s) => s.id === nextSnap.activeSubProjectId)
+          ? nextSnap.activeSubProjectId
+          : null;
+      setSubProjects(nextSubs);
+      setActiveSubProjectId(nextActiveSub);
       lastAppliedRef.current = JSON.stringify({
         version: STATE_VERSION,
         departments: nextDepartments,
@@ -324,6 +331,8 @@ const Index = () => {
         vat: typeof nextSnap.vat === "number" ? nextSnap.vat : 22,
         applyVat: typeof nextSnap.applyVat === "boolean" ? nextSnap.applyVat : false,
         customerType: nextSnap.customerType === "dealer" ? "dealer" : "final",
+        subProjects: nextSubs,
+        activeSubProjectId: nextActiveSub,
       });
       setDraftReloadNonce((n) => n + 1);
     };

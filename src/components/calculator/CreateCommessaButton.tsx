@@ -711,33 +711,80 @@ export const CreateCommessaButton = ({
           });
         }
       } else {
-        // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
+        // Flusso normale: un sub per ogni LAVORAZIONE (task), con dipendenze fra loro
+        // (es. Falegnameria/Assemblaggio bloccato finché Falegnameria/Taglio non è completato).
         const depts = payload.depts ?? [];
+        const tasks: ProdTask[] = payload.tasks ?? depts.map<ProdTask>((d) => ({
+          key: d, dept: d, category: null, label: DEPT_LABEL[d],
+        }));
+        const blockers = payload.blockers ?? {};
         const baseOrdine = missingMaterials.length;
+
+        // Ordinamento topologico: i task che ne bloccano altri vengono creati prima,
+        // così possiamo referenziarne l'id come depends_on. Fallback: ordine originale.
+        const orderedTasks: ProdTask[] = [];
+        const remaining = [...tasks];
+        const inserted = new Set<string>();
+        let guard = 0;
+        while (remaining.length > 0 && guard++ < 200) {
+          for (let i = 0; i < remaining.length; i++) {
+            const t = remaining[i];
+            const b = blockers[t.key];
+            if (!b || inserted.has(b) || !tasks.some((x) => x.key === b)) {
+              orderedTasks.push(t);
+              inserted.add(t.key);
+              remaining.splice(i, 1);
+              break;
+            }
+            if (i === remaining.length - 1) {
+              // ciclo: rompi prendendo il primo rimanente ignorando il blocker.
+              orderedTasks.push(t);
+              inserted.add(t.key);
+              remaining.splice(i, 1);
+            }
+          }
+        }
+
+        const insertedIdByTaskKey: Record<string, string> = {};
         // Carrello vendite già calcolato sopra (salesNote) per arricchire il sub magazzino.
-        for (let i = 0; i < depts.length; i++) {
-          const dept = depts[i];
+        for (let i = 0; i < orderedTasks.length; i++) {
+          const task = orderedTasks[i];
+          const dept = task.dept;
           // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.
           if (dept === "magazzino" && acquistiByDept["magazzino"]) continue;
-          const plan = planningFor(dept);
-          const assignee = (plan.responsabile || deptAssignees[dept]) || null;
+          const plan = planningFor(task.key);
+          const assignee = (plan.responsabile || deptAssignees[task.key] || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
-          const noteForSub = dept === "magazzino" && salesNote
-            ? salesNote
-            : (titolo.trim() || null);
-          // Blocca questo sub SOLO se mancano materiali di sua competenza.
+          const catNote = task.category ? `Lavorazione: ${task.label}` : null;
+          const blockerTaskKey = blockers[task.key] ?? null;
+          const blockerTaskSubId = blockerTaskKey ? insertedIdByTaskKey[blockerTaskKey] ?? null : null;
           const blockerForDept = acquistiByDept[dept] ?? null;
+          // Priorità: acquisti > task precedente (Postgres depends_on è 1→1).
+          // Il blocco secondario resta tracciato in nota per l'operatore.
+          const depends_on = blockerForDept ?? blockerTaskSubId;
+          const secondaryBlock = blockerForDept && blockerTaskSubId
+            ? `Bloccato anche da: ${tasks.find((x) => x.key === blockerTaskKey)?.label}`
+            : null;
+          const noteForSub = [
+            catNote,
+            dept === "magazzino" && salesNote ? salesNote : (titolo.trim() || null),
+            secondaryBlock,
+          ].filter(Boolean).join("\n") || null;
+          // Codice: se il task ha una categoria, aggiungi un suffisso leggibile.
+          const catSuffix = task.category ? `-${task.category.slice(0, 4).toUpperCase()}` : "";
+          const baseCode = subCode(code, SUB_DEPT_SUFFIX[dept], i + 1);
+          const subCodeFinal = task.category ? `${baseCode}${catSuffix}` : baseCode;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
               order_id: pord.id,
-              code: subCode(code, SUB_DEPT_SUFFIX[dept], i + 1),
+              code: subCodeFinal,
               dept,
               ordine: baseOrdine + i,
               note: noteForSub,
               files: [],
-              depends_on: blockerForDept, // bloccato solo se mancano materiali del SUO reparto
-              status: blockerForDept ? "bloccato" : "in_attesa",
+              depends_on,
+              status: depends_on ? "bloccato" : "in_attesa",
               assignee_id: assignee,
 
               operator_ids: opIds,
@@ -748,6 +795,7 @@ export const CreateCommessaButton = ({
             .select("id")
             .single();
           if (eSub) throw eSub;
+          insertedIdByTaskKey[task.key] = sub.id;
           insertedSubs.push({ id: sub.id, dept, assignee });
         }
 

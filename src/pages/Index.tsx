@@ -128,6 +128,8 @@ const Index = () => {
     vat: number;
     applyVat: boolean;
     customerType: CustomerType;
+    subProjects?: SubProject[];
+    activeSubProjectId?: string | null;
   };
   /** Normalizza qualsiasi snapshot (calcolatrice o produzione/revisione) nel formato
    *  StoredSnap. In particolare:

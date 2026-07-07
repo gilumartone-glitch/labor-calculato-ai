@@ -32,12 +32,14 @@ interface GeneralSummaryProps {
       transports?: string[];
     };
   }[];
+  /** Sub-progetti del preventivo (per calcolare "Assemblaggio in laboratorio"). */
+  subProjects?: SubProject[];
 }
 
 export const GeneralSummary = ({
   jobName, setJobName, quantity, setQuantity,
   margin, setMargin, vat, setVat, applyVat, setApplyVat,
-  departments,
+  departments, subProjects = [],
 }: GeneralSummaryProps) => {
   const allMaterials = departments.reduce((s, d) => s + d.totals.materials, 0);
   const allWorks = departments.reduce(
@@ -45,7 +47,18 @@ export const GeneralSummary = ({
     0,
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
-  const cost = departments.reduce((s, d) => s + d.totals.total, 0);
+  // Assemblaggio in laboratorio: costo aggregato dai sub-progetti con toggle attivo.
+  const assemblyLabRows = subProjects
+    .filter((s) => s.assemblyLab?.enabled && (Number(s.assemblyLab.hours) || 0) > 0)
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      hours: Number(s.assemblyLab!.hours) || 0,
+      rate: Number(s.assemblyLab!.hourlyCost) || 0,
+      cost: (Number(s.assemblyLab!.hours) || 0) * (Number(s.assemblyLab!.hourlyCost) || 0),
+    }));
+  const assemblyLabTotal = assemblyLabRows.reduce((s, r) => s + r.cost, 0);
+  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + assemblyLabTotal;
 
   // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
   // Persistito in localStorage per non perdere le scelte tra refresh.

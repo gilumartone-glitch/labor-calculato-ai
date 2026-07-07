@@ -32,6 +32,7 @@ import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from 
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
+import { filterSnapshotBySubProject } from "@/lib/produzione/subProjectFilter";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 
 
@@ -112,6 +113,12 @@ interface CreateCommessaButtonProps {
   triggerClassName?: string;
   /** Nasconde il pulsante "Solo magazzino" affiancato. */
   hideWarehouseShortcut?: boolean;
+  /** Se valorizzato, il lancio nel Flow è limitato al sub-progetto (prodotto finito)
+   *  indicato: i pezzi con `subProjectId` diverso vengono filtrati fuori dallo
+   *  snapshot prima del salvataggio. Le assegnazioni per reparto restano identiche. */
+  subProjectId?: string | null;
+  /** Nome leggibile del sub-progetto (usato per titolo e note). */
+  subProjectName?: string;
 }
 
 export const CreateCommessaButton = ({
@@ -126,6 +133,8 @@ export const CreateCommessaButton = ({
   onAfterSubmit,
   triggerClassName,
   hideWarehouseShortcut = false,
+  subProjectId = null,
+  subProjectName,
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();

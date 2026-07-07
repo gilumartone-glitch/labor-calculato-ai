@@ -1,53 +1,58 @@
 ## Obiettivo
-Quando si lancia in Flow un progetto o un sub-progetto (es. "Tavoli"), per ogni reparto che contiene più lavorazioni distinte (es. Falegnameria = Taglio + Assemblaggio) creare **un sub-ordine per lavorazione**, ciascuno con proprio responsabile, operatori e date, e con la possibilità di indicare **quale lavorazione blocca l'altra** (es. Assemblaggio bloccato finché Taglio non è completato).
 
-Oggi invece viene creato un solo sub-ordine per reparto e le lavorazioni "figlie" (taglio/assemblaggio dentro falegnameria) vengono unificate — chi assembla non vede il taglio come attività separata.
+Aggiungere, in automatico, un task finale **"Assemblaggio in laboratorio"** per ogni sub-progetto (o per l'ordine intero se non ci sono sub) quando il preventivo lo prevede. Il task:
 
-## Cosa cambia
+- viene eseguito dalla **Falegnameria**
+- ha una **checklist dei componenti** da avere pronti (auto-generata dai pezzi/materiali del sub-progetto)
+- ha **ore stimate + costo orario** che concorrono al preventivo
+- diventa **bloccato da tutti gli altri task** dello stesso sub-progetto (Stampa, Taglio, Tappezzeria, Falegnameria/Taglio, ecc.)
 
-### 1. Rilevamento lavorazioni per reparto
-Estendere `inferProdDeptsFromSnapshot` (o affiancarci una nuova `inferProdTasksFromSnapshot`) per restituire una lista di **task**, non solo di reparti:
+Non è "posa in cantiere": resta separato dal reparto Montaggi (che gestisce i cantieri).
 
-```ts
-type ProdTask = {
-  taskKey: string;          // es. "falegnameria:taglio", "falegnameria:assemblaggio"
-  dept: ProdDept;           // reparto macro (falegnameria)
-  category: string;         // "taglio" | "assemblaggio" | "generale" | ...
-  label: string;            // "Falegnameria — Taglio"
-  pieceIds: string[];       // pezzi coinvolti
-};
-```
+## Flusso utente
 
-Il raggruppamento avviene per **categoria dell'operazione** letta dal catalogo (`perimeterOps.category`, `printOps.category`, categorie in Falegnameria/Laboratorio/Tappezzeria). Se un reparto ha una sola categoria → un solo task come oggi.
+1. In `DepartmentView` (o meglio nel `SubProjectBar` / `GeneralSummary`) compare un toggle per sub-progetto: **"Assemblaggio finale in laboratorio"** con campi `ore` e `€/h` (default dal reparto Falegnameria).
+2. Se attivo, il costo entra nel riepilogo del preventivo come voce Falegnameria.
+3. In `CreateCommessaButton` → Pianificazione, il task compare in coda con:
+   - categoria `assemblaggio_lab`
+   - reparto `falegnameria`
+   - `depends_on` pre-compilato = tutti gli altri task dello stesso sub-progetto
+   - checklist dei componenti pronta
+4. Al lancio, viene creato un `production_sub_order` con `dept='falegnameria'`, suffisso codice `ASM-LAB`, e la checklist popolata in `production_sub_checklist`.
 
-### 2. UI di pianificazione (`CreateCommessaButton`)
-Oggi il tab di pianificazione è per reparto (`activePlanTab: ProdDept`). Diventa **per task**:
-- Un sotto-tab per ogni lavorazione dentro il reparto
-- Per ciascuno: date inizio/fine/consegna, responsabile, operatori (come oggi)
-- Nuovo campo **"Bloccata da"**: dropdown con le altre lavorazioni della stessa commessa (opzionale). Il default suggerisce l'ordine naturale (Taglio → Assemblaggio) ma è modificabile.
+## Modifiche tecniche
 
-### 3. Creazione sub-ordini
-Nel ramo "flusso normale" (`onWarehouseConfirm`), invece di iterare `depts`, iterare `tasks`:
-- Un `production_sub_orders` per task
-- `depends_on` = id del sub-ordine indicato come bloccante (oltre all'eventuale `acquistiByDept`)
-- `code` con suffisso che distingue la lavorazione (es. `ORD-2026-001-F-TAGLIO-1`, `ORD-2026-001-F-ASSEMBLAGGIO-2`)
-- La catena esistente (materiali mancanti → acquisti → reparto) resta invariata: se un task è bloccato sia da acquisti sia da un altro task, prevale il primo bloccante attivo (rimane un solo `depends_on`; l'eventuale secondo blocco viene tracciato in nota e sbloccato manualmente — Postgres non ha catena multipla su questa colonna).
+### 1. Preventivo (stato locale)
+- `src/components/calculator/types.ts` — aggiungere, a livello di sub-progetto: `assemblyLab?: { enabled: boolean; hours: number; hourlyCost: number; notes?: string }`.
+- `SubProjectBar.tsx` — UI (toggle + due input piccoli) accanto al nome del sub-progetto.
+- `GeneralSummary.tsx` — includere `hours * hourlyCost` nella riga Falegnameria del sub.
 
-### 4. Pianificazione calendario (`montaggi_planning` / righe reparto)
-Il seed di pianificazione per reparto passa da "un reparto = una riga" a "un task = una riga", con reparto padre invariato.
+### 2. Task generation
+- `src/lib/produzione/prodTasks.ts` — nuova categoria `assemblaggio_lab`. Dopo aver generato i task esistenti, per ogni sub-progetto con `assemblyLab.enabled`:
+  - creare un task `{ taskKey: "<sub>:assemblaggio_lab", dept: "falegnameria", category: "assemblaggio_lab", label: "Assemblaggio in laboratorio", subProjectId, pieceIds: [tutti i pezzi del sub] }`
+  - `defaultBlockedBy` = tutti gli altri `taskKey` dello stesso `subProjectId`
+  - `estimatedHours` / `hourlyCost` copiati dal preventivo per essere mostrati in UI
 
-### 5. Retro-compatibilità
-- I progetti già in Flow (sub-ordine singolo) continuano a funzionare: la migrazione è solo lato creazione.
-- Il "Solo magazzino" resta un singolo sub (non cambia nulla).
-- Se un reparto ha una sola lavorazione, il comportamento è identico a oggi (nessuna regressione visiva).
+### 3. UI pianificazione
+- `CreateCommessaButton.tsx` — il task compare come tab. Il dropdown "Bloccata da" mostra i task precedenti già selezionati per default (multi-blocco visivo; a DB resta la 1→1, gli altri finiscono nelle note come oggi).
+- Sezione **Checklist componenti** nel tab del task: lista auto-generata (nome pezzo + qty + sub-lavorazione), editabile.
 
-## File coinvolti (frontend + DB)
-- `src/lib/produzione/snapshot.ts` — nuova `inferProdTasksFromSnapshot`
-- `src/components/calculator/CreateCommessaButton.tsx` — form pianificazione per task + creazione multi-sub
-- `src/lib/produzione/types.ts` — tipo `ProdTask`, mappature label/suffix per categoria
-- Nessuna migrazione DB necessaria: usiamo `production_sub_orders.depends_on` esistente. Aggiungiamo però una colonna opzionale `task_category text` per identificare la sotto-lavorazione nel Board (utile per filtri e chip).
+### 4. Snapshot → sub-order
+- `snapshot.ts` — passare `assemblyLab` per sub nello snapshot.
+- Al lancio, se il task è `assemblaggio_lab`:
+  - `code` con suffisso `ASM-LAB-<n>`
+  - `dept='falegnameria'`, `note` con "Assemblaggio in laboratorio"
+  - popolare `production_sub_checklist` con le voci componenti (usa la tabella esistente).
 
-## Punti da confermare prima di procedere
-1. Il **catalogo Falegnameria** oggi ha categorie distinte per "taglio" e "assemblaggio" sulle operazioni? Se sì uso quelle; se no, ti chiedo su quali regole spezzare (nome operazione, tag, campo dedicato).
-2. La catena `depends_on` in Postgres è **1→1**: se un task è bloccato da 2 cose (acquisti + altro task), quale ha priorità? Proposta: **acquisti vince**, e il blocco "task precedente" resta un vincolo software che l'operatore vede ma può scavalcare (o lo aggiungiamo come nuova tabella `sub_dependencies` a molti-a-uno).
-3. Vuoi che l'ordine bloccante venga **proposto automaticamente** in base alle categorie note (Taglio prima di Assemblaggio, Stampa prima di Taglio, ecc.) o **sempre manuale**?
+### 5. Nessuna migration DB
+Riusiamo `production_sub_orders` + `production_sub_checklist` esistenti. La categoria `assemblaggio_lab` vive solo come metadato applicativo nel `note`/prefisso codice.
+
+## Cosa NON facciamo
+
+- Non tocchiamo il reparto Montaggi (resta cantieri).
+- Non creiamo un nuovo reparto in `ProdDept`: il task è un normale sub Falegnameria con marker nel codice/nota.
+- Non forziamo un ordine di blocco: proposto in automatico, sempre modificabile.
+
+## Domanda residua
+
+Confermi che l'ora/costo default per l'assemblaggio in laboratorio li prendiamo dal **listino Falegnameria** già in `public/templates/listino-falegnameria.xml` (voce "manodopera"), oppure vuoi un campo separato nelle impostazioni reparto?

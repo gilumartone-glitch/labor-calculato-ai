@@ -151,6 +151,29 @@ export const GeneralSummary = ({
             </div>
           ))}
 
+          {assemblyLabRows.length > 0 && (
+            <div className="py-3 border-b border-dashed border-ink/20 last:border-0 bg-amber-50/40 -mx-6 px-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display text-xl font-semibold inline-flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-amber-700" />
+                  Assemblaggio in laboratorio
+                </h3>
+                <span className="font-mono text-lg font-semibold tabular-nums">{eur(assemblyLabTotal)}</span>
+              </div>
+              <div className="space-y-1 text-xs font-mono text-muted-foreground">
+                {assemblyLabRows.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between">
+                    <span>· {r.name} — {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
+                    <span className="tabular-nums">{eur(r.cost)}</span>
+                  </div>
+                ))}
+                <div className="text-[10px] italic mt-1">
+                  Eseguito da Falegnameria · bloccante = tutte le altre lavorazioni del sub-progetto
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mt-5 pt-4 border-t-2 border-ink flex items-center justify-between">
             <span className="font-display text-xl font-semibold">Totale costi diretti</span>
             <span className="font-mono text-2xl font-semibold tabular-nums">{eur(cost)}</span>

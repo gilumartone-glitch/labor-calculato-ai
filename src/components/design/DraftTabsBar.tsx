@@ -922,7 +922,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           ) : (
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap max-h-[96px] overflow-y-auto pr-1">
               {drafts.map((d) => {
                 const isActive = d.id === activeId;
                 const isRenaming = renamingId === d.id;

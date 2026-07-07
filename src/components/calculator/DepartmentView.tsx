@@ -865,6 +865,8 @@ export const DepartmentView = ({
                 </div>
               </div>
             )}
+          </div>
+
 
 
           <section className="panel p-6">

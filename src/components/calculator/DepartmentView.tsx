@@ -972,32 +972,63 @@ export const DepartmentView = ({
                             else seenScrap.add(key);
                           }
                           return (
-                            <PieceCard
-                              key={p.id}
-                              index={i}
-                              line={displayedPiece}
-                              catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}
-                              dept={deptKey}
-                              customerType={customerType}
-                              labCatalog={labCatalog}
-                              labPieces={labPieces}
-                              scrapDeducted={scrapDeducted}
-                              extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
-                              extraSurchargeLabel="Sfrido lastre"
-                              materialCostOverrideSingle={getMaterialOverride(p.id)}
-                              onChange={(line) =>
-                                setState({
-                                  ...state,
-                                  pieces: allPieces.map((x) => (x.id === p.id ? line : x)),
-                                })
-                              }
-                              onRemove={() =>
-                                setState({
-                                  ...state,
-                                  pieces: allPieces.filter((x) => x.id !== p.id),
-                                })
-                              }
-                            />
+                            <div key={p.id}>
+                              {subProjects.length > 0 && (
+                                <div className="flex items-center justify-end gap-2 mb-1 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
+                                  <Package className="w-3 h-3" />
+                                  <span>Prodotto</span>
+                                  <select
+                                    value={p.subProjectId ?? ""}
+                                    onChange={(e) => {
+                                      const v = e.target.value || null;
+                                      setState({
+                                        ...state,
+                                        pieces: allPieces.map((x) =>
+                                          x.id === p.id ? { ...x, subProjectId: v } : x,
+                                        ),
+                                      });
+                                    }}
+                                    className="h-6 px-1.5 border-2 border-ink/15 rounded-sm text-[11px] font-semibold bg-paper hover:border-primary focus:border-primary outline-none normal-case tracking-normal"
+                                    title="Sposta questa lavorazione in un prodotto finito"
+                                  >
+                                    <option value="">Generale</option>
+                                    {subProjects
+                                      .slice()
+                                      .sort((a, b) => a.order - b.order)
+                                      .map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                          {s.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                              )}
+                              <PieceCard
+                                index={i}
+                                line={displayedPiece}
+                                catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}
+                                dept={deptKey}
+                                customerType={customerType}
+                                labCatalog={labCatalog}
+                                labPieces={labPieces}
+                                scrapDeducted={scrapDeducted}
+                                extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
+                                extraSurchargeLabel="Sfrido lastre"
+                                materialCostOverrideSingle={getMaterialOverride(p.id)}
+                                onChange={(line) =>
+                                  setState({
+                                    ...state,
+                                    pieces: allPieces.map((x) => (x.id === p.id ? line : x)),
+                                  })
+                                }
+                                onRemove={() =>
+                                  setState({
+                                    ...state,
+                                    pieces: allPieces.filter((x) => x.id !== p.id),
+                                  })
+                                }
+                              />
+                            </div>
                           );
                         })}
                       </AnimatePresence>

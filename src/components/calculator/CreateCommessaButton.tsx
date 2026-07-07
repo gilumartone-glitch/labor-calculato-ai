@@ -241,7 +241,9 @@ export const CreateCommessaButton = ({
     else if (!ids.includes(responsabile)) responsabile = "";
     patchPlanning(d, { operatorIds: ids, responsabile });
   };
-  const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
+  const [activePlanTab, setActivePlanTab] = useState<string | null>(null);
+  // Blocker per task: task.key → altro task.key che deve completarsi prima.
+  const [taskBlockers, setTaskBlockers] = useState<Record<string, string | null>>({});
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = [
     "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
@@ -264,6 +266,25 @@ export const CreateCommessaButton = ({
     // se lo snapshot non ha contenuto per quel reparto.
     return inferredDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
   }, [inferredDepts, materialOnlyDepts, excludedDepts]);
+  // Lavorazioni concrete (task) da lanciare: un reparto può generare più task
+  // (es. Falegnameria → Taglio + Assemblaggio). I task ereditano dept/label.
+  const inferredTasks: ProdTask[] = useMemo(() => {
+    const scoped = subProjectId
+      ? filterSnapshotBySubProject(inferenceSnapshot as any, subProjectId, subProjectName)
+      : inferenceSnapshot;
+    const scopedWithMontaggi: any = montaggiActive
+      ? { ...(scoped as any), __hasMontaggi: true }
+      : scoped;
+    const base = inferProdTasksFromSnapshot(scopedWithMontaggi as any, (d) => DEPT_LABEL[d]);
+    if (montaggiActive && !base.some((t) => t.dept === "montaggi")) {
+      base.push({ key: "montaggi", dept: "montaggi", category: null, label: DEPT_LABEL.montaggi });
+    }
+    return base;
+  }, [inferenceSnapshot, montaggiActive, subProjectId, subProjectName]);
+  const activeTasks: ProdTask[] = useMemo(
+    () => inferredTasks.filter((t) => !materialOnlyDepts.includes(t.dept) && !excludedDepts.includes(t.dept)),
+    [inferredTasks, materialOnlyDepts, excludedDepts],
+  );
   const operatorsForDept = (d: ProdDept) => {
     const filtered = profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
     // Fallback: se nessuno ha il settore (es. "montaggi" non ancora assegnato),

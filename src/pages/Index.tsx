@@ -800,7 +800,9 @@ const Index = () => {
                 applyVat={applyVat}
                 setApplyVat={setApplyVat}
                 departments={summaryData}
+                subProjects={subProjects}
               />
+
             ) : activeTab === "falegnameria" ? (
               <Falegnameria
                 embedded

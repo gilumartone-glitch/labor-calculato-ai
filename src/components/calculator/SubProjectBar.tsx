@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Package, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Layers, Wrench } from "lucide-react";
 import type { SubProject } from "./types";
 import { uid } from "@/lib/format";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface SubProjectBarProps {
   subProjects: SubProject[];

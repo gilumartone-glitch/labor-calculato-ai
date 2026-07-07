@@ -771,7 +771,10 @@ export const CreateCommessaButton = ({
             secondaryBlock,
           ].filter(Boolean).join("\n") || null;
           // Codice: se il task ha una categoria, aggiungi un suffisso leggibile.
-          const catSuffix = task.category ? `-${task.category.slice(0, 4).toUpperCase()}` : "";
+          const catSuffixMap: Record<string, string> = { assemblaggio_lab: "ASMLAB" };
+          const catSuffix = task.category
+            ? `-${catSuffixMap[task.category] ?? task.category.slice(0, 4).toUpperCase()}`
+            : "";
           const baseCode = subCode(code, SUB_DEPT_SUFFIX[dept], i + 1);
           const subCodeFinal = task.category ? `${baseCode}${catSuffix}` : baseCode;
           const { data: sub, error: eSub } = await supabase

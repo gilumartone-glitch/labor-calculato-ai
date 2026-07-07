@@ -33,6 +33,7 @@ import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/pro
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { filterSnapshotBySubProject } from "@/lib/produzione/subProjectFilter";
+import { inferProdTasksFromSnapshot, suggestBlockerTask, type ProdTask } from "@/lib/produzione/prodTasks";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 
 
@@ -200,11 +201,11 @@ export const CreateCommessaButton = ({
       excludedDepts: f.excludedDepts.includes(d) ? f.excludedDepts.filter((x) => x !== d) : [...f.excludedDepts, d],
       materialOnlyDepts: f.materialOnlyDepts.filter((x) => x !== d),
     }));
-  const setDeptAssignee = (d: ProdDept, v: string) =>
+  const setDeptAssignee = (d: string, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
   const emptyPlanning: DeptPlanning = { startDate: "", endDate: "", deliveryDate: "", responsabile: "", operatorIds: [] };
-  const planningFor = (d: ProdDept): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
-  const patchPlanning = (d: ProdDept, p: Partial<DeptPlanning>) =>
+  const planningFor = (d: string): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
+  const patchPlanning = (d: string, p: Partial<DeptPlanning>) =>
     setForm((f) => {
       const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
       const next = { ...cur, ...p };
@@ -227,7 +228,7 @@ export const CreateCommessaButton = ({
         deptAssignees: { ...f.deptAssignees, [d]: next.responsabile },
       };
     });
-  const toggleOperator = (d: ProdDept, uid: string) => {
+  const toggleOperator = (d: string, uid: string) => {
     const cur = planningFor(d);
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
     // Auto-responsabile:
@@ -241,7 +242,9 @@ export const CreateCommessaButton = ({
     else if (!ids.includes(responsabile)) responsabile = "";
     patchPlanning(d, { operatorIds: ids, responsabile });
   };
-  const [activePlanTab, setActivePlanTab] = useState<ProdDept | null>(null);
+  const [activePlanTab, setActivePlanTab] = useState<string | null>(null);
+  // Blocker per task: task.key → altro task.key che deve completarsi prima.
+  const [taskBlockers, setTaskBlockers] = useState<Record<string, string | null>>({});
   // Reparti che richiedono pianificazione obbligatoria (date, responsabile, operatori)
   const PLANNED_DEPTS: ProdDept[] = [
     "progettazione", "stampa", "taglio", "tappezzeria", "stampa_3d",
@@ -264,6 +267,25 @@ export const CreateCommessaButton = ({
     // se lo snapshot non ha contenuto per quel reparto.
     return inferredDepts.filter((d) => !materialOnlyDepts.includes(d) && !excludedDepts.includes(d));
   }, [inferredDepts, materialOnlyDepts, excludedDepts]);
+  // Lavorazioni concrete (task) da lanciare: un reparto può generare più task
+  // (es. Falegnameria → Taglio + Assemblaggio). I task ereditano dept/label.
+  const inferredTasks: ProdTask[] = useMemo(() => {
+    const scoped = subProjectId
+      ? filterSnapshotBySubProject(inferenceSnapshot as any, subProjectId, subProjectName)
+      : inferenceSnapshot;
+    const scopedWithMontaggi: any = montaggiActive
+      ? { ...(scoped as any), __hasMontaggi: true }
+      : scoped;
+    const base = inferProdTasksFromSnapshot(scopedWithMontaggi as any, (d) => DEPT_LABEL[d]);
+    if (montaggiActive && !base.some((t) => t.dept === "montaggi")) {
+      base.push({ key: "montaggi", dept: "montaggi", category: null, label: DEPT_LABEL.montaggi });
+    }
+    return base;
+  }, [inferenceSnapshot, montaggiActive, subProjectId, subProjectName]);
+  const activeTasks: ProdTask[] = useMemo(
+    () => inferredTasks.filter((t) => !materialOnlyDepts.includes(t.dept) && !excludedDepts.includes(t.dept)),
+    [inferredTasks, materialOnlyDepts, excludedDepts],
+  );
   const operatorsForDept = (d: ProdDept) => {
     const filtered = profiles.filter((p) => Array.isArray((p as any).settori) && ((p as any).settori as string[]).includes(d));
     // Fallback: se nessuno ha il settore (es. "montaggi" non ancora assegnato),
@@ -278,6 +300,8 @@ export const CreateCommessaButton = ({
     clienteName: string;
     productionSnapshot: Snapshot;
     depts?: ProdDept[];
+    tasks?: ProdTask[];
+    blockers?: Record<string, string | null>;
   };
   const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 
@@ -344,17 +368,17 @@ export const CreateCommessaButton = ({
         toast.error("Nomina un responsabile generale di progetto");
         return;
       }
-      const toPlan = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
-      for (const d of toPlan) {
-        const p = planningFor(d);
+      const toPlan = activeTasks.filter((t) => PLANNED_DEPTS.includes(t.dept));
+      for (const t of toPlan) {
+        const p = planningFor(t.key);
         if (!p.startDate || !p.endDate || !p.deliveryDate || p.operatorIds.length === 0) {
-          toast.error(`${DEPT_LABEL[d]}: completa la pianificazione`, {
+          toast.error(`${t.label}: completa la pianificazione`, {
             description: "Servono date inizio/fine lavorazione, data di consegna e almeno un operatore.",
           });
           return;
         }
         if (p.endDate < p.startDate) {
-          toast.error(`${DEPT_LABEL[d]}: la data fine è precedente all'inizio`);
+          toast.error(`${t.label}: la data fine è precedente all'inizio`);
           return;
         }
         // Responsabile: se 1 solo operatore, è automaticamente lui;
@@ -362,9 +386,9 @@ export const CreateCommessaButton = ({
         if (!p.responsabile) {
           if (p.operatorIds.length === 1) {
             p.responsabile = p.operatorIds[0];
-            patchPlanning(d, { responsabile: p.operatorIds[0] });
+            patchPlanning(t.key, { responsabile: p.operatorIds[0] });
           } else {
-            toast.error(`${DEPT_LABEL[d]}: nomina un responsabile`, {
+            toast.error(`${t.label}: nomina un responsabile`, {
               description: "Con più operatori serve un responsabile della lavorazione.",
             });
             return;
@@ -480,7 +504,22 @@ export const CreateCommessaButton = ({
       }
 
       const clienteName = (cliente.trim() || titolo.trim()).slice(0, 200);
-      const payload: PendingPayload = { mode: "normal", commessaId, clienteName, productionSnapshot, depts };
+      // Tasks effettive da lanciare: se un reparto non ha task dedicati (single-op),
+      // fallback a un task per reparto per retro-compatibilità.
+      let tasks: ProdTask[] = activeTasks.filter((t) => depts.includes(t.dept));
+      const deptsWithTask = new Set(tasks.map((t) => t.dept));
+      for (const d of depts) {
+        if (!deptsWithTask.has(d)) tasks.push({ key: d, dept: d, category: null, label: DEPT_LABEL[d] });
+      }
+      // Blocker effettivi: se non impostati dall'utente, usa il default suggerito.
+      const effectiveBlockers: Record<string, string | null> = {};
+      for (const t of tasks) {
+        const user = taskBlockers[t.key];
+        effectiveBlockers[t.key] = user !== undefined ? user : (t.category ? suggestBlockerTask(t, tasks) : null);
+      }
+      const payload: PendingPayload = {
+        mode: "normal", commessaId, clienteName, productionSnapshot, depts, tasks, blockers: effectiveBlockers,
+      };
       setPendingPayload(payload);
       // Apri il dialog di conferma materiali (con possibilità di marcare i mancanti
       // e affidarli al reparto Acquisti) prima di lanciare i sub-ordini.
@@ -672,33 +711,80 @@ export const CreateCommessaButton = ({
           });
         }
       } else {
-        // Flusso normale: un sub per ogni reparto, in attesa che gli acquisti arrivino
+        // Flusso normale: un sub per ogni LAVORAZIONE (task), con dipendenze fra loro
+        // (es. Falegnameria/Assemblaggio bloccato finché Falegnameria/Taglio non è completato).
         const depts = payload.depts ?? [];
+        const tasks: ProdTask[] = payload.tasks ?? depts.map<ProdTask>((d) => ({
+          key: d, dept: d, category: null, label: DEPT_LABEL[d],
+        }));
+        const blockers = payload.blockers ?? {};
         const baseOrdine = missingMaterials.length;
+
+        // Ordinamento topologico: i task che ne bloccano altri vengono creati prima,
+        // così possiamo referenziarne l'id come depends_on. Fallback: ordine originale.
+        const orderedTasks: ProdTask[] = [];
+        const remaining = [...tasks];
+        const inserted = new Set<string>();
+        let guard = 0;
+        while (remaining.length > 0 && guard++ < 200) {
+          for (let i = 0; i < remaining.length; i++) {
+            const t = remaining[i];
+            const b = blockers[t.key];
+            if (!b || inserted.has(b) || !tasks.some((x) => x.key === b)) {
+              orderedTasks.push(t);
+              inserted.add(t.key);
+              remaining.splice(i, 1);
+              break;
+            }
+            if (i === remaining.length - 1) {
+              // ciclo: rompi prendendo il primo rimanente ignorando il blocker.
+              orderedTasks.push(t);
+              inserted.add(t.key);
+              remaining.splice(i, 1);
+            }
+          }
+        }
+
+        const insertedIdByTaskKey: Record<string, string> = {};
         // Carrello vendite già calcolato sopra (salesNote) per arricchire il sub magazzino.
-        for (let i = 0; i < depts.length; i++) {
-          const dept = depts[i];
+        for (let i = 0; i < orderedTasks.length; i++) {
+          const task = orderedTasks[i];
+          const dept = task.dept;
           // Se mancano materiali destinati al magazzino, non interpellarlo: se ne occupa Acquisti.
           if (dept === "magazzino" && acquistiByDept["magazzino"]) continue;
-          const plan = planningFor(dept);
-          const assignee = (plan.responsabile || deptAssignees[dept]) || null;
+          const plan = planningFor(task.key);
+          const assignee = (plan.responsabile || deptAssignees[task.key] || deptAssignees[dept]) || null;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(assignee ? [assignee] : [])]));
-          const noteForSub = dept === "magazzino" && salesNote
-            ? salesNote
-            : (titolo.trim() || null);
-          // Blocca questo sub SOLO se mancano materiali di sua competenza.
+          const catNote = task.category ? `Lavorazione: ${task.label}` : null;
+          const blockerTaskKey = blockers[task.key] ?? null;
+          const blockerTaskSubId = blockerTaskKey ? insertedIdByTaskKey[blockerTaskKey] ?? null : null;
           const blockerForDept = acquistiByDept[dept] ?? null;
+          // Priorità: acquisti > task precedente (Postgres depends_on è 1→1).
+          // Il blocco secondario resta tracciato in nota per l'operatore.
+          const depends_on = blockerForDept ?? blockerTaskSubId;
+          const secondaryBlock = blockerForDept && blockerTaskSubId
+            ? `Bloccato anche da: ${tasks.find((x) => x.key === blockerTaskKey)?.label}`
+            : null;
+          const noteForSub = [
+            catNote,
+            dept === "magazzino" && salesNote ? salesNote : (titolo.trim() || null),
+            secondaryBlock,
+          ].filter(Boolean).join("\n") || null;
+          // Codice: se il task ha una categoria, aggiungi un suffisso leggibile.
+          const catSuffix = task.category ? `-${task.category.slice(0, 4).toUpperCase()}` : "";
+          const baseCode = subCode(code, SUB_DEPT_SUFFIX[dept], i + 1);
+          const subCodeFinal = task.category ? `${baseCode}${catSuffix}` : baseCode;
           const { data: sub, error: eSub } = await supabase
             .from("production_sub_orders")
             .insert({
               order_id: pord.id,
-              code: subCode(code, SUB_DEPT_SUFFIX[dept], i + 1),
+              code: subCodeFinal,
               dept,
               ordine: baseOrdine + i,
               note: noteForSub,
               files: [],
-              depends_on: blockerForDept, // bloccato solo se mancano materiali del SUO reparto
-              status: blockerForDept ? "bloccato" : "in_attesa",
+              depends_on,
+              status: depends_on ? "bloccato" : "in_attesa",
               assignee_id: assignee,
 
               operator_ids: opIds,
@@ -709,6 +795,7 @@ export const CreateCommessaButton = ({
             .select("id")
             .single();
           if (eSub) throw eSub;
+          insertedIdByTaskKey[task.key] = sub.id;
           insertedSubs.push({ id: sub.id, dept, assignee });
         }
 
@@ -766,10 +853,10 @@ export const CreateCommessaButton = ({
           return out.length > 0 ? out : [start];
         };
         const allPlanRows: any[] = [];
-        for (const dept of depts) {
-          const reparto = DEPT_TO_REPARTO[dept];
+        for (const task of orderedTasks) {
+          const reparto = DEPT_TO_REPARTO[task.dept];
           if (!reparto) continue;
-          const plan = planningFor(dept);
+          const plan = planningFor(task.key);
           if (!plan.startDate) continue;
           const opIds = Array.from(new Set([...(plan.operatorIds || []), ...(plan.responsabile ? [plan.responsabile] : [])]));
           if (opIds.length === 0) continue;
@@ -782,7 +869,7 @@ export const CreateCommessaButton = ({
                 hours: 8,
                 commessa_id: payload.commessaId,
                 cantiere_label: payload.clienteName,
-                notes: titolo.trim() || null,
+                notes: task.category ? `${titolo.trim() || ""} · ${task.label}`.trim() : (titolo.trim() || null),
                 reparto,
                 created_by: user.id,
               });
@@ -1107,16 +1194,24 @@ export const CreateCommessaButton = ({
             </div>
           )}
 
-          {!warehouseOnly && activeDepts.filter((d) => PLANNED_DEPTS.includes(d)).length > 0 && (() => {
-            const plannedActive = activeDepts.filter((d) => PLANNED_DEPTS.includes(d));
-            const currentTab = activePlanTab && plannedActive.includes(activePlanTab) ? activePlanTab : plannedActive[0];
-            const d = currentTab;
+          {!warehouseOnly && activeTasks.filter((t) => PLANNED_DEPTS.includes(t.dept)).length > 0 && (() => {
+            const plannedTasks = activeTasks.filter((t) => PLANNED_DEPTS.includes(t.dept));
+            const currentTab = activePlanTab && plannedTasks.some((t) => t.key === activePlanTab)
+              ? activePlanTab
+              : plannedTasks[0].key;
+            const task = plannedTasks.find((t) => t.key === currentTab) ?? plannedTasks[0];
+            const d = task.key;
+            const dept = task.dept;
             const p = planningFor(d);
-            const ops = operatorsForDept(d);
+            const ops = operatorsForDept(dept);
+            // Task che possono bloccare il corrente: solo quelli nello stesso reparto,
+            // con category diversa. (evitiamo cicli tra reparti diversi per semplicità)
+            const blockerCandidates = plannedTasks.filter((t) => t.key !== task.key && t.dept === task.dept);
+            const currentBlocker = taskBlockers[task.key] ?? (task.category ? suggestBlockerTask(task, plannedTasks) : null);
             return (
               <div className="border-2 border-destructive/40 bg-destructive/5 rounded-sm p-2.5 space-y-3">
                 <div className="font-mono text-[10px] uppercase tracking-widest text-destructive font-bold">
-                  Pianificazione obbligatoria · per ogni reparto
+                  Pianificazione obbligatoria · per ogni lavorazione
                 </div>
 
                 {/* Responsabile generale del progetto */}
@@ -1132,22 +1227,22 @@ export const CreateCommessaButton = ({
                   </Select>
                 </div>
 
-                {/* Tabs dei reparti rilevati */}
+                {/* Tabs delle lavorazioni rilevate */}
                 <div className="border-2 border-ink/20 rounded-sm bg-paper p-1.5">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground px-1 pb-1">
-                    Reparti da pianificare
+                    Lavorazioni da pianificare
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {plannedActive.map((dept) => {
-                      const active = dept === d;
-                      const pp = planningFor(dept);
+                    {plannedTasks.map((t) => {
+                      const active = t.key === d;
+                      const pp = planningFor(t.key);
                       const complete = pp.startDate && pp.endDate && pp.deliveryDate && pp.operatorIds.length > 0 &&
                         (pp.responsabile || pp.operatorIds.length === 1);
                       return (
                         <button
-                          key={dept}
+                          key={t.key}
                           type="button"
-                          onClick={() => setActivePlanTab(dept)}
+                          onClick={() => setActivePlanTab(t.key)}
                           className={`px-3 py-2 text-[12px] uppercase tracking-wider font-bold rounded-sm border-2 transition-all ${
                             active
                               ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
@@ -1157,7 +1252,7 @@ export const CreateCommessaButton = ({
                           }`}
                         >
                           <span className="inline-flex items-center gap-1.5">
-                            {DEPT_LABEL[dept]}
+                            {t.label}
                             <span className={`text-[10px] ${complete ? "" : "text-destructive"}`}>
                               {complete ? "✓" : "●"}
                             </span>
@@ -1171,7 +1266,7 @@ export const CreateCommessaButton = ({
 
                 <div className="border border-ink/20 rounded-sm p-2 space-y-2 bg-background">
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Date specifiche di {DEPT_LABEL[d]}
+                    Date specifiche di {task.label}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
@@ -1199,7 +1294,7 @@ export const CreateCommessaButton = ({
                       taglio: "taglio", stampa_3d: "stampa_3d", assemblaggio: "assemblaggio",
                       progettazione: "progettazione",
                     };
-                    const rep = DEPT_TO_REP[d];
+                    const rep = DEPT_TO_REP[dept];
                     if (!rep) return null;
                     return (
                       <PlanningCalendarMini
@@ -1233,7 +1328,7 @@ export const CreateCommessaButton = ({
                   </div>
                   <div>
                     <Label className="text-[10px]">
-                      Responsabile {DEPT_LABEL[d]} {p.operatorIds.length > 1 ? "*" : ""}
+                      Responsabile {task.label} {p.operatorIds.length > 1 ? "*" : ""}
                     </Label>
                     {p.operatorIds.length === 1 ? (
                       <div className="mt-1 flex items-center gap-2 px-3 py-2 border-2 border-emerald-400 bg-emerald-50 rounded-sm">
@@ -1275,6 +1370,31 @@ export const CreateCommessaButton = ({
                       </>
                     )}
                   </div>
+
+                  {/* Bloccata da: dropdown con le altre lavorazioni dello stesso reparto */}
+                  {blockerCandidates.length > 0 && (
+                    <div>
+                      <Label className="text-[10px]">
+                        Bloccata da <span className="text-muted-foreground normal-case tracking-normal">(opzionale — completa prima l'altra lavorazione)</span>
+                      </Label>
+                      <Select
+                        value={currentBlocker ?? "__none__"}
+                        onValueChange={(v) =>
+                          setTaskBlockers((prev) => ({ ...prev, [task.key]: v === "__none__" ? null : v }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessun blocco</SelectItem>
+                          {blockerCandidates.map((b) => (
+                            <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                 </div>
               </div>

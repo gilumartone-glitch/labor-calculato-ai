@@ -1,0 +1,147 @@
+import type { ProdDept } from "./types";
+import type { ProdSnapshot } from "./snapshot";
+import { collectSnapshotDepartments, inferProdDeptsFromSnapshot } from "./snapshot";
+
+/** Una "lavorazione" concreta all'interno di un reparto (es. Falegnameria → Taglio).
+ *  key = univoca; dept = reparto padre; category = etichetta della lavorazione (null se il reparto non è splittato). */
+export type ProdTask = {
+  key: string;
+  dept: ProdDept;
+  category: string | null;
+  label: string;
+};
+
+/** Ordine "logico" delle lavorazioni: chi produce prima tende a bloccare chi assembla dopo. */
+export const CATEGORY_ORDER: string[] = [
+  "taglio",
+  "cnc",
+  "levigatura",
+  "incollaggio",
+  "assemblaggio",
+  "verniciatura",
+  "finitura",
+  "controllo",
+  "altro",
+];
+
+const CATEGORY_LABEL: Record<string, string> = {
+  taglio: "Taglio",
+  cnc: "CNC",
+  levigatura: "Levigatura",
+  incollaggio: "Incollaggio",
+  assemblaggio: "Assemblaggio",
+  verniciatura: "Verniciatura",
+  finitura: "Finitura",
+  controllo: "Controllo qualità",
+  altro: "Altre lavorazioni",
+};
+
+const KEYWORDS: Array<[string, RegExp]> = [
+  ["taglio", /\b(tagli|sezionatur|sega|troncatri|troncat)/i],
+  ["cnc", /\b(cnc|pantografo|fresatur|frese)/i],
+  ["levigatura", /\b(leviga|carteggi|smerigl|calibratur|piall)/i],
+  ["incollaggio", /\b(incoll|bordatura|pressa)/i],
+  ["assemblaggio", /\b(assembl|montaggi(?!o$)|giunt|avvit|imbottitur)/i],
+  ["verniciatura", /\b(vernic|lacc|smaltatur|pittur|tint|impregnant)/i],
+  ["finitura", /\b(finitur|lucidatur|cerat|oliat)/i],
+  ["controllo", /\b(controllo|collaud|qualit)/i],
+];
+
+export const categoryLabel = (cat: string): string =>
+  CATEGORY_LABEL[cat] ?? cat.charAt(0).toUpperCase() + cat.slice(1);
+
+const normalize = (name: string | undefined | null): string => {
+  const s = String(name ?? "").trim();
+  if (!s) return "altro";
+  for (const [cat, re] of KEYWORDS) if (re.test(s)) return cat;
+  return "altro";
+};
+
+/** Reparti in cui ha senso spezzare le lavorazioni: quelli con operazioni "unità/ora"
+ *  di natura diversa (falegnameria, laboratorio, tappezzeria). Stampa/taglio sono già
+ *  reparti distinti nel modello, quindi non vanno spezzati ulteriormente. */
+const SPLITTABLE: ReadonlySet<ProdDept> = new Set<ProdDept>([
+  "falegnameria",
+  "laboratorio",
+  "tappezzeria",
+]);
+
+/** Restituisce le lavorazioni concrete da lanciare in Flow.
+ *  Per ogni reparto rilevato:
+ *  - se il reparto è "splittabile" e i pezzi contengono lavorazioni di ≥2 categorie distinte,
+ *    emette un task per ciascuna categoria (in ordine logico);
+ *  - altrimenti emette un unico task per il reparto (category = null → comportamento identico a oggi). */
+export const inferProdTasksFromSnapshot = (
+  snap: ProdSnapshot | null,
+  deptLabel: (d: ProdDept) => string,
+): ProdTask[] => {
+  const depts = inferProdDeptsFromSnapshot(snap);
+  const snapDepts = collectSnapshotDepartments(snap);
+  const out: ProdTask[] = [];
+
+  const snapDeptByKey = new Map<string, (typeof snapDepts)[number]>();
+  for (const sd of snapDepts) snapDeptByKey.set(sd.key.toLowerCase(), sd);
+
+  for (const dept of depts) {
+    if (!SPLITTABLE.has(dept)) {
+      out.push({ key: dept, dept, category: null, label: deptLabel(dept) });
+      continue;
+    }
+    // Trova il reparto snapshot corrispondente (stessa chiave testuale del reparto ProdDept).
+    const sd =
+      snapDeptByKey.get(dept as string) ??
+      (dept === "laboratorio" ? snapDeptByKey.get("laboratorio") : undefined) ??
+      snapDeptByKey.get(dept as string);
+    const pieces = sd?.state?.pieces ?? [];
+    const opsDept = sd?.state?.operations ?? [];
+    const cat = sd?.catalog;
+    const cats = new Set<string>();
+    // Operazioni "unità/ora" del reparto (vivono su DepartmentState.operations, non sui pezzi).
+    for (const o of opsDept) {
+      if (o.name) cats.add(normalize(o.name));
+      else if (o.catalogId) {
+        const cop = cat?.operations.find((x) => x.id === o.catalogId);
+        if (cop?.name) cats.add(normalize(cop.name));
+      }
+    }
+    for (const p of pieces) {
+      // Perimetri: rispetta la category se valorizzata, altrimenti classifica dal nome.
+      for (const perim of p.perimeters ?? []) {
+        const pop = cat?.perimeterOps.find((x) => x.id === perim.opId);
+        if (!pop) continue;
+        if (pop.category && pop.category !== "perimetrale") {
+          cats.add(normalize(pop.category === "stampa" ? "stampa" : pop.category));
+        } else {
+          cats.add(normalize(pop.name));
+        }
+      }
+      // Lavorazioni libere del pezzo (customWorks).
+      for (const cw of p.customWorks ?? []) cats.add(normalize(cw.name));
+    }
+    if (cats.size <= 1) {
+      out.push({ key: dept, dept, category: null, label: deptLabel(dept) });
+      continue;
+    }
+    const ordered = Array.from(cats).sort(
+      (a, b) => (CATEGORY_ORDER.indexOf(a) + 999) - (CATEGORY_ORDER.indexOf(b) + 999),
+    );
+    for (const c of ordered) {
+      out.push({
+        key: `${dept}:${c}`,
+        dept,
+        category: c,
+        label: `${deptLabel(dept)} — ${categoryLabel(c)}`,
+      });
+    }
+  }
+  return out;
+};
+
+/** Suggerisce il task bloccante di default (task precedente nell'ordine logico dentro lo stesso reparto). */
+export const suggestBlockerTask = (task: ProdTask, allTasks: ProdTask[]): string | null => {
+  if (!task.category) return null;
+  const sameDept = allTasks.filter((t) => t.dept === task.dept && t.category);
+  const idxSelf = sameDept.findIndex((t) => t.key === task.key);
+  if (idxSelf <= 0) return null;
+  return sameDept[idxSelf - 1].key;
+};

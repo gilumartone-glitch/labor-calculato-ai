@@ -46,11 +46,16 @@ interface DepartmentViewProps {
    *  pezzi marcati con `materialFromLab`. Default = `catalog`. */
   labCatalog?: Catalog;
   labPieces?: PieceLine[];
+  /** Sub-progetti ("prodotti finiti") del progetto madre. Se assenti/vuoti,
+   *  tutti i pezzi restano in un unico gruppo implicito "Generale". */
+  subProjects?: SubProject[];
+  activeSubProjectId?: string | null;
 }
 
 export const DepartmentView = ({
   deptKey, deptLabel, description, catalog, setCatalog,
   state, setState, templateUrl, templateName, customerType, labCatalog, labPieces = [],
+  subProjects = [], activeSubProjectId = null,
 }: DepartmentViewProps) => {
   // Tappezzeria: lo sfrido iniziale del rotolo NON viene addebitato (prezzi
   // di vendita manuali già includono lo sfrido). Wrappiamo il catalogo per

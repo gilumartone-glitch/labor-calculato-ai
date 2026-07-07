@@ -40,6 +40,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   finitura: "Finitura",
   controllo: "Controllo qualità",
   altro: "Altre lavorazioni",
+  assemblaggio_lab: "Assemblaggio in laboratorio",
 };
 
 const KEYWORDS: Array<[string, RegExp]> = [

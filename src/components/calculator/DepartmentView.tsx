@@ -8,7 +8,7 @@ import { PieceCard } from "./PieceCard";
 import { NestingPanel } from "./NestingPanel";
 import { InventoryDeptView } from "@/components/produzione/InventoryDeptView";
 import { InvDept } from "@/lib/produzione/types";
-import { Catalog, DepartmentState, MaterialLine, PieceLine, TransportLine } from "./types";
+import { Catalog, DepartmentState, MaterialLine, PieceLine, SubProject, TransportLine } from "./types";
 import { eur } from "@/lib/format";
 import { uid } from "@/lib/format";
 import {

@@ -1,72 +1,71 @@
+
+# Sub-progetti (prodotti finiti) dentro un progetto madre
+
 ## Obiettivo
+Permettere di suddividere un progetto in più **prodotti finiti** (es. *Tavolino*, *Pavimento*), ognuno con il suo set di lavorazioni distribuite su tutti i reparti (Laboratorio, Falegnameria, Tappezzeria, Vendite, ecc.). Il preventivo mostra un blocco con subtotale per ogni prodotto finito. In produzione ogni prodotto genera i suoi sub-ordini dedicati per reparto.
 
-Trasformare la sezione "Stipendi" in Contabilità in due aree distinte:
+## Modello dati (frontend, in `officina:state` + snapshot)
 
-1. **Stipendi** (solo admin) — invariata, resta come oggi.
-2. **Calcolo ore** (admin + amministrazione) — nuova area presenze giornaliere con statistiche per dipendente.
-
-## Struttura UI
-
-Aggiungere una nuova tab "Calcolo ore" accanto a "Stipendi" nel tab bar di Contabilità. La tab "Stipendi" attuale rimane riservata all'admin; la nuova "Calcolo ore" è visibile a admin **e** ad amministrazione (chi ha `contabilita:write`).
+Oggi ogni reparto ha una lista piatta `pieces[]`. Introduciamo un nuovo livello:
 
 ```text
-Tabs: Generale | Mensile | Movimenti | Fisse | Stipendi (admin) | Calcolo ore (admin+amm) | Grafici | Anagrafica
+Draft (Progetto madre "Tizio")
+ ├── subProjects: [
+ │     { id, name: "Tavolino", order: 0, note, ... },
+ │     { id, name: "Pavimento", order: 1, ... }
+ │   ]
+ └── departments:
+       laboratorio: { pieces: [ { …, subProjectId } ] }
+       falegnameria: { pieces: [ { …, subProjectId } ] }
+       tappezzeria:  { pieces: [ { …, subProjectId } ] }
+       vendite:      { pieces: [ { …, subProjectId } ] }
 ```
 
-### Tab "Calcolo ore"
+- Ogni `piece` acquisisce `subProjectId?: string | null` (null = "Generale", per retrocompatibilità dei progetti esistenti).
+- Nessuna migrazione DB necessaria: sta tutto nello snapshot JSON del draft. I progetti già creati continuano a funzionare (tutti i pezzi restano in "Generale").
 
-- Sotto-sezioni per ogni mese (accordion espandibile, come già si fa per Stipendi).
-- Anno selezionabile (default anno corrente).
-- Per ogni mese una **tabella presenze**:
-  - Righe = dipendenti (auto-importati da `dipendenti` table, attivi). Pulsanti "Aggiungi dipendente" (libero) e "Rimuovi" per riga.
-  - Colonne fisse: Nome dipendente, [N giorni del mese: 1 lun, 2 mar, …], poi colonne riepilogo: Ore lavorate, Straordinario, Trasferta, Ferie, Permessi, Malattia.
-  - Ogni cella giorno è un input "ore" (0–24). Weekend evidenziati con colore tenue.
-  - Per ogni cella, accanto al numero c'è un selettore tipo: `Lavoro / Trasferta / Ferie / Permesso / Malattia / Festivo`. Implementazione compatta: una pillola sotto la cella o tramite popover.
-  - Calcolo automatico per riga:
-    - `ore_lavoro_giornaliere = min(ore, 8)` se tipo=Lavoro/Trasferta
-    - `straordinario = max(ore - 8, 0)` se tipo=Lavoro/Trasferta
-    - Ferie/Permessi/Malattia conteggiati separatamente (ore o giorni)
-    - Trasferta: numero giorni dove tipo=Trasferta
-  - Totali a fine riga in colonne riepilogo.
-- Pulsante "Vedi statistiche" su ogni nome dipendente → apre dialog con:
-  - Riepilogo annuale (totali ore, straordinari, trasferte, ferie, permessi, malattia, presenza %)
-  - Grafico ore mese per mese
-  - Distribuzione tipi (pie chart)
-  - Top mese, mese peggiore
-  - Trend ultimi 6 mesi
-  - Confronto con media azienda
+## UI Progettazione
 
-### Persistenza
+1. **Barra sub-progetti** in cima al calcolatore: chip per ciascun prodotto finito + pulsante "+ Nuovo prodotto finito". Filtro attivo (o "Tutti").
+2. In **`DepartmentView`** (ogni reparto), i pezzi vengono raggruppati per sub-progetto con un header collassabile: `Tavolino (3 pezzi) — subtotale €X`. Pulsante "+ Aggiungi lavorazione a Tavolino" dentro ogni gruppo.
+3. Quando si crea un pezzo, il selettore reparto è affiancato da un selettore sub-progetto (default: quello attivo sulla barra).
+4. Drag&drop di un pezzo tra sub-progetti (cambia solo `subProjectId`).
 
-Estendere `AccountingState` con un nuovo campo:
+## Preventivo / Riepilogo generale
 
-```ts
-hoursLog?: Record<string, { // chiave: `${year}-${monthIndex}`
-  rows: Array<{
-    id: string;
-    dipendenteId?: string;       // collegamento opzionale a dipendenti
-    name: string;
-    days: Record<number, {       // chiave: giorno 1-31
-      hours: number;
-      type: 'lavoro' | 'trasferta' | 'ferie' | 'permesso' | 'malattia' | 'festivo';
-    }>;
-  }>;
-}>
-```
+- **`GeneralSummary`**: sezione per ogni sub-progetto con
+  - tabella pezzi/materiali/operazioni (già esistente) filtrata per `subProjectId`
+  - riga **Subtotale prodotto finito**
+- In fondo: **Totale generale** = somma dei subtotali + eventuali voci "Generale".
+- PDF/stampa: stessa struttura a blocchi.
 
-Salvataggio nel solito `contabilita_state` (jsonb), già sincronizzato.
+## Produzione (lancio ordine)
 
-### Permessi
+Modifica in `LaunchOrderDialog` + `snapshot.ts`:
+- Per ogni **(subProject × reparto con pezzi)** viene creato un `ProdSubOrder` distinto.
+- `code` sub-ordine include l'indice del prodotto: es. `ORD-2026-005-L1` (Tavolino/Laboratorio), `ORD-2026-005-F1` (Tavolino/Falegnameria), `ORD-2026-005-L2` (Pavimento/Laboratorio).
+- Nel `note`/titolo del sub-ordine viene mostrato "**Tavolino** — Falegnameria".
+- Lo `snapshot` salvato sull'ordine include `subProjects[]` così la vista `SubOrderDetailDialog` mostra solo i pezzi del suo prodotto finito.
+- I sub-progetti sono visibili anche in ProdBoard (raggruppamento visivo per prodotto finito dentro lo stesso ordine).
 
-- Tab "Stipendi" visibile solo se `isAdmin`.
-- Tab "Calcolo ore" visibile se `isAdmin || can('contabilita','write')` (amministrazione = chi ha permesso scrittura contabilità). In sola lettura per i permessi `read`.
+## Dettagli tecnici
 
-## File da modificare
+- **Nuovo tipo** in `src/components/calculator/types.ts`:
+  ```ts
+  export type SubProject = { id: string; name: string; order: number; note?: string };
+  ```
+- **`Piece`**: aggiunto `subProjectId?: string | null`.
+- **DraftState**: aggiunto `subProjects: SubProject[]`.
+- Helper `getPiecesBySubProject(dept, subId)` per il rendering.
+- `LaunchOrderDialog`: ciclo doppio `subProjects × workDepts` invece del solo `workDepts`.
+- `snapshot.ts` (`buildProdSnapshot`): serializza `subProjects` e mantiene `subProjectId` sui pezzi; `readPiecesForSub` filtra anche per `subProjectId`.
+- `SubOrderDetailDialog` / `CompleteSubDialog`: mostrano il nome del prodotto finito nell'intestazione e filtrano i pezzi.
+- **Retrocompatibilità**: se `subProjects` è vuoto o assente, tutto funziona come oggi (un unico gruppo implicito "Generale").
 
-- `src/pages/Contabilita.tsx` — aggiungere tipi, tab, vista "Calcolo ore", dialog statistiche dipendente.
-- Nessuna migration: si appoggia al jsonb di `contabilita_state` esistente.
+## Fuori scope di questa iterazione
+- Nessuna modifica a Montaggi (già usa il modello lavorazioni per draft).
+- Nessuna modifica a Nesting (opera già su pezzi del reparto stampa/laboratorio; funziona uguale).
+- Nessun cambio DB.
 
-## Note
-
-- Le righe vengono pre-popolate al primo accesso al mese leggendo `dipendenti` (attivi). L'utente può aggiungere/rimuovere righe libere senza toccare l'anagrafica.
-- I dati sono salvati per mese; cambiare anagrafica non sovrascrive mesi già compilati.
+## Come procedo
+Implemento in quest'ordine: tipi → stato draft + barra sub-progetti → raggruppamento in DepartmentView → GeneralSummary con subtotali → snapshot + LaunchOrderDialog (moltiplica sub-ordini) → dialoghi produzione (filtro per prodotto).

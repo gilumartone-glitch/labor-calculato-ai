@@ -797,9 +797,19 @@ export const DepartmentView = ({
                             ? `${fmtDim(piece.width)}×${fmtDim(piece.height)} ${piece.dimUnit}`
                             : "";
                       return (
-                        <div
+                        <button
                           key={piece.id}
-                          className="border border-ink/15 rounded-sm bg-paper p-3.5 text-sm"
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById(`piece-${piece.id}`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "start" });
+                              el.classList.add("ring-2", "ring-primary");
+                              setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 1600);
+                            }
+                          }}
+                          className="w-full text-left border border-ink/15 rounded-sm bg-paper p-3.5 text-sm hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                          title="Vai alla lavorazione"
                         >
                           <div className="flex items-center justify-between mb-2 pb-2 border-b border-ink/10 gap-2">
                             <span className="text-muted-foreground truncate">
@@ -848,7 +858,7 @@ export const DepartmentView = ({
                               )}
                             </div>
                           )}
-                        </div>
+                        </button>
                       );
                     },
                   )}
@@ -856,6 +866,8 @@ export const DepartmentView = ({
               </div>
             )}
           </div>
+
+
 
           <section className="panel p-6">
             <header className="flex items-start justify-between gap-6 mb-5">
@@ -972,7 +984,7 @@ export const DepartmentView = ({
                             else seenScrap.add(key);
                           }
                           return (
-                            <div key={p.id}>
+                            <div key={p.id} id={`piece-${p.id}`} className="scroll-mt-24">
                               {subProjects.length > 0 && (
                                 <div className="flex items-center justify-end gap-2 mb-1 text-[10px] uppercase tracking-widest font-mono text-muted-foreground">
                                   <Package className="w-3 h-3" />

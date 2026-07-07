@@ -300,6 +300,8 @@ export const CreateCommessaButton = ({
     clienteName: string;
     productionSnapshot: Snapshot;
     depts?: ProdDept[];
+    tasks?: ProdTask[];
+    blockers?: Record<string, string | null>;
   };
   const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 

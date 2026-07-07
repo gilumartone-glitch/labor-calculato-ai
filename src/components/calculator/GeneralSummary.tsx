@@ -82,7 +82,9 @@ export const GeneralSummary = ({
   const deptTotalWithMargin = (d: GeneralSummaryProps["departments"][number]) =>
     d.totals.total + marginBaseFor(d) * (marginFor(d.key) / 100);
 
-  const marginAmount = departments.reduce((s, d) => s + marginBaseFor(d) * (marginFor(d.key) / 100), 0);
+  const marginAmount =
+    departments.reduce((s, d) => s + marginBaseFor(d) * (marginFor(d.key) / 100), 0)
+    + assemblyLabTotal * (margin / 100);
   const net = cost + marginAmount;
   const vatAmount = applyVat ? net * (vat / 100) : 0;
   const total = net + vatAmount;

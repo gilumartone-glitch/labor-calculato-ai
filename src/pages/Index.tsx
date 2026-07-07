@@ -799,6 +799,8 @@ const Index = () => {
                     customerType={customerForDept(key)}
                     labCatalog={catalogs.stampa}
                     labPieces={departments.stampa.pieces}
+                    subProjects={subProjects}
+                    activeSubProjectId={activeSubProjectId}
                   />
                 );
               })()

@@ -668,6 +668,23 @@ export const DepartmentView = ({
                         <div className="flex-1 min-w-0 truncate">
                           <span className="font-semibold">{g.label}</span>
                           <span className="text-muted-foreground">{dim}</span>
+                          {subProjects.length > 0 && (() => {
+                            const gp = piecesOfGroup(pieces, g.key);
+                            const ids = Array.from(new Set(gp.map((p) => p.subProjectId ?? "")));
+                            const names = ids
+                              .map((id) => id ? (subProjects.find((s) => s.id === id)?.name ?? "?") : "Generale")
+                              .sort((a, b) => a.localeCompare(b, "it"));
+                            if (names.length === 0) return null;
+                            return (
+                              <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
+                                {names.map((n) => (
+                                  <span key={n} className="px-1.5 py-0.5 bg-accent/40 text-ink rounded-sm text-[10px] uppercase tracking-wider">
+                                    {n}
+                                  </span>
+                                ))}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center gap-5 shrink-0">
                           {isRoll ? (

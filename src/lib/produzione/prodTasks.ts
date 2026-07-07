@@ -27,6 +27,7 @@ export const CATEGORY_ORDER: string[] = [
   "finitura",
   "controllo",
   "altro",
+  "assemblaggio_lab",
 ];
 
 const CATEGORY_LABEL: Record<string, string> = {

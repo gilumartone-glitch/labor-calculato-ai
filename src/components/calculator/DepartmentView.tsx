@@ -67,7 +67,16 @@ export const DepartmentView = ({
   const materialsTotal = state.materials.reduce(
     (s, m) => s + m.quantity * m.unitCost, 0
   );
-  const pieces = state.pieces ?? [];
+  const allPieces = state.pieces ?? [];
+  // Se un sub-progetto è attivo, TUTTI i calcoli e la vista del reparto sono
+  // limitati alle lavorazioni di quel prodotto finito. Su "Tutti" (activeSubProjectId=null)
+  // si vedono tutte, raggruppate. Le mutazioni di stato usano `allPieces` per non
+  // perdere i pezzi degli altri sub-progetti.
+  const pieces = activeSubProjectId
+    ? allPieces.filter((p) => (p.subProjectId ?? null) === activeSubProjectId)
+    : allPieces;
+  const inScope = (p: PieceLine) =>
+    !activeSubProjectId || (p.subProjectId ?? null) === activeSubProjectId;
 
   // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
   // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
@@ -364,7 +373,7 @@ export const DepartmentView = ({
     }
     setState({
       ...state,
-      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: v })),
+      pieces: allPieces.map((p) => (inScope(p) ? { ...p, priceOverridePerSqm: v } : p)),
     });
     toast.success(`Prezzi livellati a ${v.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²`);
   };
@@ -372,7 +381,7 @@ export const DepartmentView = ({
   const resetLevelPrice = () => {
     setState({
       ...state,
-      pieces: pieces.map((p) => ({ ...p, priceOverridePerSqm: null })),
+      pieces: allPieces.map((p) => (inScope(p) ? { ...p, priceOverridePerSqm: null } : p)),
     });
     setLevelInput("");
     toast.success("Prezzi ripristinati al calcolo automatico");
@@ -443,7 +452,7 @@ export const DepartmentView = ({
       noMargins: deptKey === "stampa",
       subProjectId: activeSubProjectId ?? null,
     };
-    setState({ ...state, pieces: [...pieces, newLine] });
+    setState({ ...state, pieces: [...allPieces, newLine] });
   };
 
   const copyLastPiece = () => {
@@ -463,7 +472,7 @@ export const DepartmentView = ({
       perimeters: (last.perimeters ?? []).map((pp) => ({ ...pp, id: uid() })),
       customWorks: (last.customWorks ?? []).map((cw) => ({ ...cw, id: uid() })),
     };
-    setState({ ...state, pieces: [...pieces, copy] });
+    setState({ ...state, pieces: [...allPieces, copy] });
   };
 
   return (
@@ -920,7 +929,7 @@ export const DepartmentView = ({
                   noMargins: deptKey === "stampa",
                   subProjectId: subId,
                 };
-                setState({ ...state, pieces: [...pieces, newLine] });
+                setState({ ...state, pieces: [...allPieces, newLine] });
               };
 
               const showGroupHeaders = subProjects.length > 0 && !activeSubProjectId;
@@ -951,7 +960,7 @@ export const DepartmentView = ({
                       )}
                       <AnimatePresence initial={false}>
                         {g.items.map((p) => {
-                          const i = pieces.findIndex((x) => x.id === p.id);
+                          const i = allPieces.findIndex((x) => x.id === p.id);
                           const labSource = !isStampa && p.materialFromLab
                             ? findLabDimensionSource(p, labPieces, i)
                             : undefined;
@@ -979,13 +988,13 @@ export const DepartmentView = ({
                               onChange={(line) =>
                                 setState({
                                   ...state,
-                                  pieces: pieces.map((x) => (x.id === p.id ? line : x)),
+                                  pieces: allPieces.map((x) => (x.id === p.id ? line : x)),
                                 })
                               }
                               onRemove={() =>
                                 setState({
                                   ...state,
-                                  pieces: pieces.filter((x) => x.id !== p.id),
+                                  pieces: allPieces.filter((x) => x.id !== p.id),
                                 })
                               }
                             />

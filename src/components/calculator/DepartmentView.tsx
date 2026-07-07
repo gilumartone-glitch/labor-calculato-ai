@@ -441,6 +441,7 @@ export const DepartmentView = ({
       allowRotation: deptKey === "stampa",
       // Per Stampa/Laboratorio le misure sono finali: nessun margine di lavorazione.
       noMargins: deptKey === "stampa",
+      subProjectId: activeSubProjectId ?? null,
     };
     setState({ ...state, pieces: [...pieces, newLine] });
   };

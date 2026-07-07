@@ -201,11 +201,11 @@ export const CreateCommessaButton = ({
       excludedDepts: f.excludedDepts.includes(d) ? f.excludedDepts.filter((x) => x !== d) : [...f.excludedDepts, d],
       materialOnlyDepts: f.materialOnlyDepts.filter((x) => x !== d),
     }));
-  const setDeptAssignee = (d: ProdDept, v: string) =>
+  const setDeptAssignee = (d: string, v: string) =>
     setForm((f) => ({ ...f, deptAssignees: { ...f.deptAssignees, [d]: v } }));
   const emptyPlanning: DeptPlanning = { startDate: "", endDate: "", deliveryDate: "", responsabile: "", operatorIds: [] };
-  const planningFor = (d: ProdDept): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
-  const patchPlanning = (d: ProdDept, p: Partial<DeptPlanning>) =>
+  const planningFor = (d: string): DeptPlanning => deptPlanning[d] ?? emptyPlanning;
+  const patchPlanning = (d: string, p: Partial<DeptPlanning>) =>
     setForm((f) => {
       const cur = (f.deptPlanning[d] ?? emptyPlanning) as DeptPlanning;
       const next = { ...cur, ...p };
@@ -228,7 +228,7 @@ export const CreateCommessaButton = ({
         deptAssignees: { ...f.deptAssignees, [d]: next.responsabile },
       };
     });
-  const toggleOperator = (d: ProdDept, uid: string) => {
+  const toggleOperator = (d: string, uid: string) => {
     const cur = planningFor(d);
     const ids = cur.operatorIds.includes(uid) ? cur.operatorIds.filter((x) => x !== uid) : [...cur.operatorIds, uid];
     // Auto-responsabile:

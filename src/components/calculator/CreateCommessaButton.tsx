@@ -33,6 +33,7 @@ import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/pro
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { filterSnapshotBySubProject } from "@/lib/produzione/subProjectFilter";
+import { inferProdTasksFromSnapshot, suggestBlockerTask, type ProdTask } from "@/lib/produzione/prodTasks";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 
 

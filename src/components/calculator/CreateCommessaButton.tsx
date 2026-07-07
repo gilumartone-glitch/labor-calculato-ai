@@ -765,8 +765,12 @@ export const CreateCommessaButton = ({
           const secondaryBlock = blockerForDept && blockerTaskSubId
             ? `Bloccato anche da: ${tasks.find((x) => x.key === blockerTaskKey)?.label}`
             : null;
+          const asmMeta = task.category === "assemblaggio_lab" && task.meta
+            ? `Assemblaggio in laboratorio — ${task.meta.hours ?? 0}h × ${task.meta.hourlyCost ?? 0}€/h${task.meta.notes ? `\nNote: ${task.meta.notes}` : ""}`
+            : null;
           const noteForSub = [
             catNote,
+            asmMeta,
             dept === "magazzino" && salesNote ? salesNote : (titolo.trim() || null),
             secondaryBlock,
           ].filter(Boolean).join("\n") || null;

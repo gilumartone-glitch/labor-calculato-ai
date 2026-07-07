@@ -726,6 +726,28 @@ const Index = () => {
 
       {/* Body */}
       <main className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 md:py-8 pb-20">
+        {/* Barra prodotti finiti (sub-progetti): raggruppa le lavorazioni dei reparti
+            per prodotto finito all'interno dello stesso progetto madre. */}
+        {activeTab !== "riepilogo" && activeTab !== "magazzino" && (
+          <div className="mb-4">
+            <SubProjectBar
+              subProjects={subProjects}
+              setSubProjects={setSubProjects}
+              activeId={activeSubProjectId}
+              setActiveId={setActiveSubProjectId}
+              pieceCounts={(() => {
+                const counts: Record<string, number> = {};
+                (["tappezzeria", "stampa", "falegnameria"] as DepartmentKey[]).forEach((k) => {
+                  for (const p of departments[k].pieces ?? []) {
+                    const sid = p.subProjectId ?? "__none__";
+                    counts[sid] = (counts[sid] ?? 0) + 1;
+                  }
+                });
+                return counts;
+              })()}
+            />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={`${activeTab}:${resetNonce}:${draftReloadNonce}`}

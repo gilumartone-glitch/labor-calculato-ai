@@ -10,12 +10,14 @@ interface SubProjectBarProps {
   setActiveId: (id: string | null) => void;
   /** Pieces per contare le lavorazioni per sub-progetto (opzionale). */
   pieceCounts?: Record<string, number>;
+  /** Slot opzionale renderizzato in coda alla barra (es. bottone "Lancia nel Flow"). */
+  trailing?: React.ReactNode;
 }
 
 /** Barra dei "prodotti finiti" (sub-progetti) del progetto madre.
  *  Chip cliccabili + "Tutti" + azione "Nuovo prodotto". Rinomina/elimina inline. */
 export const SubProjectBar = ({
-  subProjects, setSubProjects, activeId, setActiveId, pieceCounts,
+  subProjects, setSubProjects, activeId, setActiveId, pieceCounts, trailing,
 }: SubProjectBarProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -147,6 +149,8 @@ export const SubProjectBar = ({
         <Plus className="w-3 h-3" />
         Nuovo prodotto
       </button>
+
+      {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
     </div>
   );
 };

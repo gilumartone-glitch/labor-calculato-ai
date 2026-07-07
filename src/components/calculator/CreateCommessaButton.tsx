@@ -32,6 +32,7 @@ import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from 
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
+import { filterSnapshotBySubProject } from "@/lib/produzione/subProjectFilter";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 
 
@@ -112,6 +113,12 @@ interface CreateCommessaButtonProps {
   triggerClassName?: string;
   /** Nasconde il pulsante "Solo magazzino" affiancato. */
   hideWarehouseShortcut?: boolean;
+  /** Se valorizzato, il lancio nel Flow è limitato al sub-progetto (prodotto finito)
+   *  indicato: i pezzi con `subProjectId` diverso vengono filtrati fuori dallo
+   *  snapshot prima del salvataggio. Le assegnazioni per reparto restano identiche. */
+  subProjectId?: string | null;
+  /** Nome leggibile del sub-progetto (usato per titolo e note). */
+  subProjectName?: string;
 }
 
 export const CreateCommessaButton = ({
@@ -126,6 +133,8 @@ export const CreateCommessaButton = ({
   onAfterSubmit,
   triggerClassName,
   hideWarehouseShortcut = false,
+  subProjectId = null,
+  subProjectName,
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -242,10 +251,13 @@ export const CreateCommessaButton = ({
   const [inferenceSnapshot, setInferenceSnapshot] = useState<Snapshot>(snapshot);
   const [montaggiActive, setMontaggiActive] = useState<boolean>(false);
   const inferredDepts: ProdDept[] = useMemo(() => {
-    const base = inferProdDeptsFromSnapshot(inferenceSnapshot as any);
+    const scoped = subProjectId
+      ? filterSnapshotBySubProject(inferenceSnapshot as any, subProjectId, subProjectName)
+      : inferenceSnapshot;
+    const base = inferProdDeptsFromSnapshot(scoped as any);
     if (montaggiActive && !base.includes("montaggi")) base.push("montaggi");
     return base;
-  }, [inferenceSnapshot, montaggiActive]);
+  }, [inferenceSnapshot, montaggiActive, subProjectId, subProjectName]);
   const fallbackDept: ProdDept = REPARTO_TO_PROD[reparto];
   const activeDepts: ProdDept[] = useMemo(() => {
     // Solo reparti realmente rilevati (con lavorazioni/materiali). Niente fallback
@@ -364,12 +376,16 @@ export const CreateCommessaButton = ({
     try {
       // Snapshot effettivo: se è fornita una factory async (es. da Progettazione)
       // usala, altrimenti usa la prop snapshot statica.
-      const baseSnapshot: Snapshot = getSnapshot ? await getSnapshot() : snapshot;
+      const rawSnapshot: Snapshot = getSnapshot ? await getSnapshot() : snapshot;
+      // Se il lancio è scoped a un sub-progetto, filtra i pezzi.
+      const baseSnapshot: Snapshot = subProjectId
+        ? filterSnapshotBySubProject(rawSnapshot as any, subProjectId, subProjectName)
+        : rawSnapshot;
       const designStateRaw = readDesignState();
       // Se il lancio parte da un singolo reparto, NON includere lo stato
       // degli altri reparti nello snapshot (altrimenti la commessa porta in
       // Flow anche lavorazioni di altri reparti).
-      const designState: Record<string, unknown> =
+      const designStateBase: Record<string, unknown> =
         (baseSnapshot as any)?.source === "department" && (baseSnapshot as any)?.deptKey
           ? (() => {
               const k = (baseSnapshot as any).deptKey as string;
@@ -380,6 +396,21 @@ export const CreateCommessaButton = ({
               return only;
             })()
           : designStateRaw;
+      // Filtra anche i pezzi per sub-progetto in designState (usato lato produzione).
+      const designState: Record<string, unknown> = subProjectId
+        ? (() => {
+            const cloned = JSON.parse(JSON.stringify(designStateBase ?? {}));
+            for (const k of Object.keys(cloned)) {
+              const v = cloned[k];
+              if (v && typeof v === "object" && Array.isArray((v as any).pieces)) {
+                (v as any).pieces = (v as any).pieces.filter(
+                  (p: any) => (p?.subProjectId ?? null) === subProjectId,
+                );
+              }
+            }
+            return cloned;
+          })()
+        : designStateBase;
       // Includi la draft attiva del modulo Montaggi (vive in una chiave separata)
       try {
         const draftId = localStorage.getItem("officina:active-draft");

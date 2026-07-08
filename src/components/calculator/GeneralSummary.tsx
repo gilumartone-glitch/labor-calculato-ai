@@ -48,18 +48,25 @@ export const GeneralSummary = ({
     0,
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
-  // Assemblaggio in laboratorio: costo aggregato dai sub-progetti con toggle attivo.
-  const assemblyLabRows = subProjects
-    .filter((s) => s.assemblyLab?.enabled && (Number(s.assemblyLab.hours) || 0) > 0)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      hours: Number(s.assemblyLab!.hours) || 0,
-      rate: Number(s.assemblyLab!.hourlyCost) || 0,
-      cost: (Number(s.assemblyLab!.hours) || 0) * (Number(s.assemblyLab!.hourlyCost) || 0),
-    }));
-  const assemblyLabTotal = assemblyLabRows.reduce((s, r) => s + r.cost, 0);
-  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + assemblyLabTotal;
+  // Lavorazioni prodotto (decorazione, assemblaggio, ignifugazione, ...): righe aggregate.
+  const productWorkRows = subProjects.flatMap((s) =>
+    getProductWorks(s)
+      .filter((w) => (Number(w.hours) || 0) > 0)
+      .map((w) => ({
+        id: `${s.id}:${w.id}`,
+        subName: s.name,
+        name: w.name || "Lavorazione",
+        dept: w.dept,
+        hours: Number(w.hours) || 0,
+        rate: Number(w.hourlyCost) || 0,
+        cost: (Number(w.hours) || 0) * (Number(w.hourlyCost) || 0),
+      })),
+  );
+  const productWorksTotal = productWorkRows.reduce((s, r) => s + r.cost, 0);
+  // alias per retrocompatibilità con nome vecchio usato in snapshot
+  const assemblyLabRows = productWorkRows;
+  const assemblyLabTotal = productWorksTotal;
+  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + productWorksTotal;
 
   // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
   // Persistito in localStorage per non perdere le scelte tra refresh.

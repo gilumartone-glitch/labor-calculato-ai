@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, Wrench, Package, FileSpreadsheet, RotateCcw, Layers3 } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CatalogPanel } from "./CatalogPanel";
 import { MaterialRow } from "./MaterialRow";
 import { PieceCard } from "./PieceCard";

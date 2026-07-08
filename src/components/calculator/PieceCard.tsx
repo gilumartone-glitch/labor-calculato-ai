@@ -530,6 +530,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
           <div className="inline-flex items-baseline gap-1 ml-2 px-2 py-0.5 border border-ink/30 rounded-sm">
             <span className="label-cap">Qt</span>
             <input
+              ref={qtyInputRef}
               type="number"
               min={1}
               step={1}

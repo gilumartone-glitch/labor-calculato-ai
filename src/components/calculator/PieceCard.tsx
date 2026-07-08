@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X, Layers, RotateCw, Plus, AlertTriangle, Scissors, Printer, Square, Triangle as TriangleIcon, RotateCcw, ChevronDown, ChevronUp, Package, Link2 } from "lucide-react";
 import { Catalog, PieceLine, PerimeterSide, CatalogPerimeterPreset, PieceShape, PrintType, PrintMode } from "./types";
 import { PickStockDialog } from "./PickStockDialog";
@@ -50,6 +50,9 @@ interface Props {
    *  La distribuzione è proporzionale all'area (con margini) del pezzo sul
    *  totale del gruppo materiale. */
   materialCostOverrideSingle?: number | null;
+  /** Se true, il campo Quantità (Qt) prende il focus al mount. Usato per il
+   *  pezzo appena creato: l'utente scrive subito il numero di pezzi. */
+  autoFocusQty?: boolean;
   onChange: (line: PieceLine) => void;
   onRemove: () => void;
 }
@@ -66,7 +69,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, autoFocusQty = false, onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const isTappezzeria = dept === "tappezzeria";
   // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati
@@ -133,6 +136,15 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
    *  l'ingombro quando ha tante lavorazioni nel reparto. */
   const [collapsed, setCollapsed] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const qtyInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!autoFocusQty) return;
+    const el = qtyInputRef.current;
+    if (!el) return;
+    el.focus();
+    try { el.select(); } catch { /* no-op */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusQty]);
 
   /** Reparto magazzino di riferimento per il selettore "aggancia pezzo".
    *  Il calcolatore usa "stampa" anche come Laboratorio. */
@@ -518,6 +530,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
           <div className="inline-flex items-baseline gap-1 ml-2 px-2 py-0.5 border border-ink/30 rounded-sm">
             <span className="label-cap">Qt</span>
             <input
+              ref={qtyInputRef}
               type="number"
               min={1}
               step={1}

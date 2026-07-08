@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Package, Layers, Wrench } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Layers, Wrench, Check, X } from "lucide-react";
 import type { SubProject } from "./types";
 import { uid } from "@/lib/format";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,17 +22,30 @@ export const SubProjectBar = ({
 }: SubProjectBarProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState("");
 
-  const add = () => {
-    const name = window.prompt("Nome del prodotto finito (es. Tavolino):", "");
-    if (!name || !name.trim()) return;
+  const startAdd = () => {
+    setIsAdding(true);
+    setNewName("");
+  };
+
+  const cancelAdd = () => {
+    setIsAdding(false);
+    setNewName("");
+  };
+
+  const commitAdd = () => {
+    const name = newName.trim();
+    if (!name) return;
     const next: SubProject = {
       id: uid(),
-      name: name.trim(),
+      name,
       order: subProjects.reduce((m, s) => Math.max(m, s.order), -1) + 1,
     };
     setSubProjects([...subProjects, next]);
     setActiveId(next.id);
+    cancelAdd();
   };
 
   const startEdit = (s: SubProject) => {
@@ -155,14 +168,48 @@ export const SubProjectBar = ({
           );
         })}
 
-      <button
-        type="button"
-        onClick={add}
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] uppercase tracking-wider font-semibold border-2 border-dashed border-primary/60 text-primary hover:bg-primary/10 transition-colors"
-      >
-        <Plus className="w-3 h-3" />
-        Nuovo prodotto
-      </button>
+      {isAdding ? (
+        <form
+          onSubmit={(e) => { e.preventDefault(); commitAdd(); }}
+          className="inline-flex items-center gap-1 rounded-sm border-2 border-primary bg-paper px-1 py-0.5"
+        >
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") cancelAdd();
+            }}
+            placeholder="Nome prodotto"
+            className="h-7 w-40 bg-paper px-2 text-[11px] font-semibold uppercase tracking-wider outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            title="Crea prodotto"
+            disabled={!newName.trim()}
+            className="p-1 text-primary transition-colors hover:text-primary/80 disabled:opacity-40"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={cancelAdd}
+            title="Annulla"
+            className="p-1 text-muted-foreground transition-colors hover:text-destructive"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={startAdd}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] uppercase tracking-wider font-semibold border-2 border-dashed border-primary/60 text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          Nuovo prodotto
+        </button>
+      )}
 
       {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
     </div>

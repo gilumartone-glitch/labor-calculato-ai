@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Package, Layers, Wrench, Check, X, Lock } from "lucide-react";
-import type { SubProject } from "./types";
+import { useEffect, useState } from "react";
+import { Plus, Pencil, Trash2, Package, Layers, Wrench, Check, X, Lock, Trash, Calendar } from "lucide-react";
+import type { SubProject, ProductWork } from "./types";
+import { getProductWorks } from "./types";
 import { uid } from "@/lib/format";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
+import { DEPT_LABEL, WORK_DEPTS } from "@/lib/produzione/types";
 
 interface SubProjectBarProps {
   subProjects: SubProject[];

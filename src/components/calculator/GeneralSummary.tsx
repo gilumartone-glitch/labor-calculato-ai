@@ -159,24 +159,24 @@ export const GeneralSummary = ({
             </div>
           ))}
 
-          {assemblyLabRows.length > 0 && (
+          {productWorkRows.length > 0 && (
             <div className="py-3 border-b border-dashed border-ink/20 last:border-0 bg-amber-50/40 -mx-6 px-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-display text-xl font-semibold inline-flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-amber-700" />
-                  Assemblaggio in laboratorio
+                  Lavorazioni prodotto
                 </h3>
-                <span className="font-mono text-lg font-semibold tabular-nums">{eur(assemblyLabTotal)}</span>
+                <span className="font-mono text-lg font-semibold tabular-nums">{eur(productWorksTotal)}</span>
               </div>
               <div className="space-y-1 text-xs font-mono text-muted-foreground">
-                {assemblyLabRows.map((r) => (
+                {productWorkRows.map((r) => (
                   <div key={r.id} className="flex items-center justify-between">
-                    <span>· {r.name} — {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
+                    <span>· {r.subName} — {r.name} <span className="opacity-60">({DEPT_LABEL[r.dept as keyof typeof DEPT_LABEL] ?? r.dept})</span> · {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
                     <span className="tabular-nums">{eur(r.cost)}</span>
                   </div>
                 ))}
                 <div className="text-[10px] italic mt-1">
-                  Eseguito da Falegnameria · bloccante = tutte le altre lavorazioni del sub-progetto
+                  Un task per riga viene lanciato nel reparto scelto, bloccato dalle lavorazioni base del sub.
                 </div>
               </div>
             </div>

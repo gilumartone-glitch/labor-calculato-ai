@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Wrench } from "lucide-react";
 import { eur, num } from "@/lib/format";
-import { Catalog, DepartmentState, DepartmentTotals, SubProject } from "./types";
+import { Catalog, DepartmentState, DepartmentTotals, SubProject, getProductWorks } from "./types";
+import { DEPT_LABEL } from "@/lib/produzione/types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
 

@@ -480,6 +480,7 @@ export const DepartmentView = ({
       subProjectId: activeSubProjectId ?? null,
     };
     setState({ ...state, pieces: [...allPieces, newLine] });
+    setLastAddedPieceId(newLine.id);
   };
 
   const copyLastPiece = () => {

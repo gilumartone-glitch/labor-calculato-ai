@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X, Layers, RotateCw, Plus, AlertTriangle, Scissors, Printer, Square, Triangle as TriangleIcon, RotateCcw, ChevronDown, ChevronUp, Package, Link2 } from "lucide-react";
 import { Catalog, PieceLine, PerimeterSide, CatalogPerimeterPreset, PieceShape, PrintType, PrintMode } from "./types";
 import { PickStockDialog } from "./PickStockDialog";

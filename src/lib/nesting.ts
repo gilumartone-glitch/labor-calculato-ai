@@ -827,110 +827,84 @@ const shelfPack = (
   return { items, totalLengthM, unplaced };
 };
 
-/** Multi-sheet shelf packer: distribuisce le units su più fogli identici W×H.
+/** Multi-sheet MaxRects (BSSF) packer: distribuisce le units su più fogli identici W×H.
  *  Ogni unit DEVE entrare in un singolo foglio (no spanning). I non-piazzabili
  *  finiscono in `unplaced`. Restituisce items con `sheetIndex` valorizzato.
+ *
+ *  Rispetto al vecchio shelf/FFD:
+ *  - considera esplicitamente lo spazio libero rimasto (non solo l'ultima riga)
+ *  - sceglie l'orientamento per-pezzo che minimizza lo scarto lato-corto
+ *  - può mischiare pezzi ruotati e non ruotati sullo stesso foglio
  */
 const multiSheetPack = (
   units: PairedUnit[],
   sheetWidthM: number,
   sheetHeightM: number,
 ): { items: NestingPieceItem[]; sheetsUsed: number; unplaced: PairedUnit[] } => {
-  // Ordino per altezza decrescente, poi larghezza decrescente
-  const sorted = [...units].sort((a, b) => b.h - a.h || b.w - a.w);
-  type Shelf = { y: number; height: number; usedW: number };
-  // Per ciascun foglio: lista di shelf + lunghezza usata
-  type Sheet = { shelves: Shelf[]; usedH: number };
-  const sheets: Sheet[] = [];
+  // Ordino per max lato desc, poi area desc (euristica standard per MaxRects)
+  const sorted = [...units].sort(
+    (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h,
+  );
+  const bins: MRBin[] = [];
   const allItems: NestingPieceItem[] = [];
   const unplaced: PairedUnit[] = [];
 
-  const placeOnSheet = (
-    sheetIndex: number,
-    u: PairedUnit,
-    cand: { w: number; h: number },
-  ): boolean => {
-    const sheet = sheets[sheetIndex];
-    // FFD nel foglio
-    let chosen: Shelf | null = null;
-    for (const sh of sheet.shelves) {
-      if (cand.h <= sh.height + 1e-6 && sh.usedW + cand.w <= sheetWidthM + 1e-6) {
-        chosen = sh;
-        break;
-      }
-    }
-    if (!chosen) {
-      // Apro nuova shelf solo se c'è ancora altezza disponibile
-      if (sheet.usedH + cand.h > sheetHeightM + 1e-6) return false;
-      chosen = { y: sheet.usedH, height: cand.h, usedW: 0 };
-      sheet.shelves.push(chosen);
-      sheet.usedH += cand.h;
-    }
-    const x = chosen.usedW;
-    const y = chosen.y;
-    chosen.usedW += cand.w;
-    // Posiziono le parti dell'unit
-    u.parts.forEach((part, idx) => {
-      const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
-      allItems.push({
-        pieceId: part.pieceId,
-        copy: part.copy,
-        label: part.label,
-        w: cand.w,
-        h: cand.h,
-        rotated: cand.w !== part.w || cand.h !== part.h,
-        x,
-        y,
-        shape: part.shape,
-        widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
-        pairedWith:
-          u.parts.length === 2 ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy : undefined,
-        pairRole: u.parts.length === 2 ? role : undefined,
-        sheetIndex,
-      });
-    });
-    return true;
-  };
-
   for (const u of sorted) {
-    const candidates: { w: number; h: number }[] = [{ w: u.w, h: u.h }];
-    const allRect = u.parts.every((p) => p.shape === "rect");
-    const allowRot = allRect ? true : u.parts.every((p) => p.allowRotation);
-    if (allowRot && u.w !== u.h) candidates.push({ w: u.h, h: u.w });
-    // Filtro candidati che non entrano in un singolo foglio
-    const fitting = candidates.filter(
-      (c) => c.w <= sheetWidthM + 1e-6 && c.h <= sheetHeightM + 1e-6,
+    const ors = mrUnitOrientations(u).filter(
+      (o) => o.w <= sheetWidthM + 1e-6 && o.h <= sheetHeightM + 1e-6,
     );
-    if (fitting.length === 0) {
+    if (ors.length === 0) {
       unplaced.push(u);
       continue;
     }
-
-    let placed = false;
-    // Provo a piazzare nei fogli esistenti
-    for (let s = 0; s < sheets.length && !placed; s++) {
-      for (const cand of fitting) {
-        if (placeOnSheet(s, u, cand)) {
-          placed = true;
-          break;
+    // Cerco il MIGLIORE placement globalmente tra tutti i bin aperti e tutti gli orientamenti.
+    let best: { binIdx: number; placement: MRPlacement } | null = null;
+    for (let bi = 0; bi < bins.length; bi++) {
+      for (const o of ors) {
+        const f = mrFindBSSF(bins[bi].free, o.w, o.h);
+        if (!f) continue;
+        const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+        if (
+          !best ||
+          cand.score1 < best.placement.score1 - 1e-9 ||
+          (Math.abs(cand.score1 - best.placement.score1) < 1e-9 && cand.score2 < best.placement.score2)
+        ) {
+          best = { binIdx: bi, placement: cand };
         }
       }
     }
-    if (!placed) {
+    if (!best) {
       // Apro un nuovo foglio
-      sheets.push({ shelves: [], usedH: 0 });
-      const s = sheets.length - 1;
-      for (const cand of fitting) {
-        if (placeOnSheet(s, u, cand)) {
-          placed = true;
-          break;
+      const bin = mrNewBin(sheetWidthM, sheetHeightM);
+      bins.push(bin);
+      const bi = bins.length - 1;
+      // Nel bin appena aperto scelgo l'orientamento che spreca meno
+      let openBest: MRPlacement | null = null;
+      for (const o of ors) {
+        const f = mrFindBSSF(bin.free, o.w, o.h);
+        if (!f) continue;
+        const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+        if (
+          !openBest ||
+          cand.score1 < openBest.score1 - 1e-9 ||
+          (Math.abs(cand.score1 - openBest.score1) < 1e-9 && cand.score2 < openBest.score2)
+        ) {
+          openBest = cand;
         }
       }
-      if (!placed) unplaced.push(u);
+      if (!openBest) {
+        unplaced.push(u);
+        continue;
+      }
+      mrPlace(bin.free, openBest.rect);
+      mrEmitItems(u, openBest.rect, openBest.rotated, bi, allItems);
+    } else {
+      mrPlace(bins[best.binIdx].free, best.placement.rect);
+      mrEmitItems(u, best.placement.rect, best.placement.rotated, best.binIdx, allItems);
     }
   }
 
-  return { items: allItems, sheetsUsed: sheets.length, unplaced };
+  return { items: allItems, sheetsUsed: bins.length, unplaced };
 };
 
 /** Calcola un gruppo di nesting (un materiale + un set di pezzi). */

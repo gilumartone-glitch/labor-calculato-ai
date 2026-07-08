@@ -1242,92 +1242,51 @@ const computeMixedLastraGroup = (
   availableBins.sort((a, b) => a.widthM * a.heightM - b.widthM * b.heightM);
 
   const units = pairShapes(raw);
-  type Shelf = { y: number; height: number; usedW: number };
   type OpenSheet = {
     bin: NestingMixedBin;
     w: number;
     h: number;
-    shelves: Shelf[];
-    usedH: number;
+    free: MRRect[];
     material: CatalogMaterial;
   };
   const openSheets: OpenSheet[] = [];
   const allItems: NestingPieceItem[] = [];
   const unplacedUnits: PairedUnit[] = [];
 
-  const tryPlace = (
-    sheet: OpenSheet,
-    sheetIndex: number,
-    u: PairedUnit,
-    cand: { w: number; h: number },
-  ): boolean => {
-    if (cand.w > sheet.w + 1e-6 || cand.h > sheet.h + 1e-6) return false;
-    let chosen: Shelf | null = null;
-    for (const sh of sheet.shelves) {
-      if (cand.h <= sh.height + 1e-6 && sh.usedW + cand.w <= sheet.w + 1e-6) {
-        chosen = sh;
-        break;
-      }
-    }
-    if (!chosen) {
-      if (sheet.usedH + cand.h > sheet.h + 1e-6) return false;
-      chosen = { y: sheet.usedH, height: cand.h, usedW: 0 };
-      sheet.shelves.push(chosen);
-      sheet.usedH += cand.h;
-    }
-    const x = chosen.usedW;
-    const y = chosen.y;
-    chosen.usedW += cand.w;
-    u.parts.forEach((part, idx) => {
-      const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
-      allItems.push({
-        pieceId: part.pieceId,
-        copy: part.copy,
-        label: part.label,
-        w: cand.w,
-        h: cand.h,
-        rotated: cand.w !== part.w || cand.h !== part.h,
-        x,
-        y,
-        shape: part.shape,
-        widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
-        pairedWith:
-          u.parts.length === 2
-            ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy
-            : undefined,
-        pairRole: u.parts.length === 2 ? role : undefined,
-        sheetIndex,
-      });
-    });
-    return true;
-  };
-
-  const sorted = [...units].sort((a, b) => b.h - a.h || b.w - a.w);
+  const sorted = [...units].sort(
+    (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h,
+  );
   for (const u of sorted) {
-    const allRect = u.parts.every((p) => p.shape === "rect");
-    const allowRot = allRect ? true : u.parts.every((p) => p.allowRotation);
-    const candidates: { w: number; h: number }[] = [{ w: u.w, h: u.h }];
-    if (allowRot && u.w !== u.h) candidates.push({ w: u.h, h: u.w });
-    // 1) tenta nei fogli già aperti (più piccolo → meno spreco)
-    let placed = false;
-    const openSorted = openSheets
-      .map((s, i) => ({ s, i }))
-      .sort((a, b) => a.s.w * a.s.h - b.s.w * b.s.h);
-    for (const { s, i } of openSorted) {
-      for (const cand of candidates) {
-        if (tryPlace(s, i, u, cand)) {
-          placed = true;
-          break;
+    const ors = mrUnitOrientations(u);
+    // 1) MaxRects BSSF su TUTTI i fogli aperti: scelgo il placement globale migliore
+    let best: { sheetIdx: number; placement: MRPlacement } | null = null;
+    for (let si = 0; si < openSheets.length; si++) {
+      const s = openSheets[si];
+      for (const o of ors) {
+        if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
+        const f = mrFindBSSF(s.free, o.w, o.h);
+        if (!f) continue;
+        const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+        if (
+          !best ||
+          cand.score1 < best.placement.score1 - 1e-9 ||
+          (Math.abs(cand.score1 - best.placement.score1) < 1e-9 && cand.score2 < best.placement.score2)
+        ) {
+          best = { sheetIdx: si, placement: cand };
         }
       }
-      if (placed) break;
     }
-    if (placed) continue;
-    // 2) apri il bin più PICCOLO che contiene il pezzo
+    if (best) {
+      const s = openSheets[best.sheetIdx];
+      mrPlace(s.free, best.placement.rect);
+      mrEmitItems(u, best.placement.rect, best.placement.rotated, best.sheetIdx, allItems);
+      continue;
+    }
+    // 2) apri il bin più PICCOLO che contiene almeno un orientamento
     let openIdx = -1;
     for (let i = 0; i < availableBins.length; i++) {
       const b = availableBins[i];
-      if (candidates.some((c) => c.w <= b.widthM + 1e-6 && c.h <= b.heightM + 1e-6)) {
+      if (ors.some((o) => o.w <= b.widthM + 1e-6 && o.h <= b.heightM + 1e-6)) {
         openIdx = i;
         break;
       }
@@ -1339,23 +1298,32 @@ const computeMixedLastraGroup = (
     const bin = availableBins.splice(openIdx, 1)[0];
     const material = matByBinId.get(bin.id)!;
     const newSheet: OpenSheet = {
-      bin,
-      w: bin.widthM,
-      h: bin.heightM,
-      shelves: [],
-      usedH: 0,
+      bin, w: bin.widthM, h: bin.heightM,
+      free: [{ x: 0, y: 0, w: bin.widthM, h: bin.heightM }],
       material,
     };
     openSheets.push(newSheet);
     const newIndex = openSheets.length - 1;
-    let placedNow = false;
-    for (const cand of candidates) {
-      if (tryPlace(newSheet, newIndex, u, cand)) {
-        placedNow = true;
-        break;
+    let openBest: MRPlacement | null = null;
+    for (const o of ors) {
+      if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
+      const f = mrFindBSSF(newSheet.free, o.w, o.h);
+      if (!f) continue;
+      const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+      if (
+        !openBest ||
+        cand.score1 < openBest.score1 - 1e-9 ||
+        (Math.abs(cand.score1 - openBest.score1) < 1e-9 && cand.score2 < openBest.score2)
+      ) {
+        openBest = cand;
       }
     }
-    if (!placedNow) unplacedUnits.push(u);
+    if (!openBest) {
+      unplacedUnits.push(u);
+      continue;
+    }
+    mrPlace(newSheet.free, openBest.rect);
+    mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
   }
 
   if (openSheets.length === 0) return null;

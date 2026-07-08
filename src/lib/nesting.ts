@@ -615,6 +615,121 @@ const pairShapes = (raw: RawItem[]): PairedUnit[] => {
   return result;
 };
 
+// ============================================================================
+// MaxRects Best-Short-Side-Fit (BSSF) con rotazione per-pezzo.
+// Rispetto allo shelf/FFD produce packing molto più compatti sulle lastre,
+// perché mantiene esplicitamente la lista dei rettangoli liberi e sceglie
+// ogni volta il rettangolo che minimizza il lato corto residuo.
+// Riferimento: J. Jylänki, "A Thousand Ways to Pack the Bin".
+// ============================================================================
+
+type MRRect = { x: number; y: number; w: number; h: number };
+type MRPlacement = { rect: MRRect; score1: number; score2: number; rotated: boolean };
+
+const mrContains = (a: MRRect, b: MRRect): boolean =>
+  a.x <= b.x + 1e-9 &&
+  a.y <= b.y + 1e-9 &&
+  a.x + a.w + 1e-9 >= b.x + b.w &&
+  a.y + a.h + 1e-9 >= b.y + b.h;
+
+/** Best-Short-Side-Fit su una lista di rettangoli liberi. Ritorna null se non ci sta. */
+const mrFindBSSF = (free: MRRect[], w: number, h: number): { rect: MRRect; score1: number; score2: number } | null => {
+  let best: { rect: MRRect; score1: number; score2: number } | null = null;
+  for (const fr of free) {
+    if (fr.w + 1e-9 < w || fr.h + 1e-9 < h) continue;
+    const leftoverH = fr.w - w;
+    const leftoverV = fr.h - h;
+    const short = Math.min(leftoverH, leftoverV);
+    const long = Math.max(leftoverH, leftoverV);
+    if (
+      !best ||
+      short < best.score1 - 1e-9 ||
+      (Math.abs(short - best.score1) < 1e-9 && long < best.score2)
+    ) {
+      best = { rect: { x: fr.x, y: fr.y, w, h }, score1: short, score2: long };
+    }
+  }
+  return best;
+};
+
+/** Piazza il rettangolo r nella lista free[]: taglia i free intersecati in
+ *  fino a 4 sotto-rettangoli e rimuove quelli contenuti. Muta free[]. */
+const mrPlace = (free: MRRect[], r: MRRect): void => {
+  const next: MRRect[] = [];
+  for (const fr of free) {
+    const noOverlap =
+      r.x >= fr.x + fr.w - 1e-9 ||
+      r.x + r.w <= fr.x + 1e-9 ||
+      r.y >= fr.y + fr.h - 1e-9 ||
+      r.y + r.h <= fr.y + 1e-9;
+    if (noOverlap) {
+      next.push(fr);
+      continue;
+    }
+    if (r.x > fr.x + 1e-9) next.push({ x: fr.x, y: fr.y, w: r.x - fr.x, h: fr.h });
+    if (r.x + r.w < fr.x + fr.w - 1e-9)
+      next.push({ x: r.x + r.w, y: fr.y, w: fr.x + fr.w - (r.x + r.w), h: fr.h });
+    if (r.y > fr.y + 1e-9) next.push({ x: fr.x, y: fr.y, w: fr.w, h: r.y - fr.y });
+    if (r.y + r.h < fr.y + fr.h - 1e-9)
+      next.push({ x: fr.x, y: r.y + r.h, w: fr.w, h: fr.y + fr.h - (r.y + r.h) });
+  }
+  // Rimuovi rettangoli liberi contenuti in altri
+  const pruned: MRRect[] = [];
+  for (let i = 0; i < next.length; i++) {
+    let contained = false;
+    for (let j = 0; j < next.length; j++) {
+      if (i !== j && mrContains(next[j], next[i])) {
+        contained = true;
+        break;
+      }
+    }
+    if (!contained) pruned.push(next[i]);
+  }
+  free.length = 0;
+  for (const r2 of pruned) free.push(r2);
+};
+
+type MRBin = { w: number; h: number; free: MRRect[] };
+const mrNewBin = (w: number, h: number): MRBin => ({ w, h, free: [{ x: 0, y: 0, w, h }] });
+
+/** Costruisce la lista di orientamenti (naturale + eventualmente ruotato) per una unit. */
+const mrUnitOrientations = (u: PairedUnit): { w: number; h: number; rotated: boolean }[] => {
+  const allRect = u.parts.every((p) => p.shape === "rect");
+  const allowRot = allRect ? u.parts.every((p) => p.allowRotation) : u.parts.every((p) => p.allowRotation);
+  const ors: { w: number; h: number; rotated: boolean }[] = [{ w: u.w, h: u.h, rotated: false }];
+  if (allowRot && Math.abs(u.w - u.h) > 1e-9) ors.push({ w: u.h, h: u.w, rotated: true });
+  return ors;
+};
+
+/** Emette gli item finali (una entry per parte della PairedUnit). */
+const mrEmitItems = (
+  u: PairedUnit,
+  placed: MRRect,
+  rotated: boolean,
+  sheetIndex: number | undefined,
+  out: NestingPieceItem[],
+): void => {
+  u.parts.forEach((part, idx) => {
+    const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
+    out.push({
+      pieceId: part.pieceId,
+      copy: part.copy,
+      label: part.label,
+      w: placed.w,
+      h: placed.h,
+      rotated,
+      x: placed.x,
+      y: placed.y,
+      shape: part.shape,
+      widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
+      pairedWith:
+        u.parts.length === 2 ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy : undefined,
+      pairRole: u.parts.length === 2 ? role : undefined,
+      sheetIndex,
+    });
+  });
+};
+
 /** Shelf / First-Fit Decreasing su un telo di larghezza rollWidthM (lunghezza illimitata).
  *
  *  Convenzione:

@@ -152,16 +152,12 @@ export const SubProjectBar = ({
                 </span>
               ) : (
                 <>
-                  <AssemblyLabPill
+                  <ProductWorksPill
                     sp={s}
                     active={active}
-                    onChange={(patch) =>
+                    onChange={(next) =>
                       setSubProjects(
-                        subProjects.map((x) =>
-                          x.id === s.id
-                            ? { ...x, assemblyLab: { enabled: false, hours: 0, hourlyCost: 35, ...(x.assemblyLab ?? {}), ...patch } }
-                            : x,
-                        ),
+                        subProjects.map((x) => (x.id === s.id ? { ...x, productWorks: next } : x)),
                       )
                     }
                   />

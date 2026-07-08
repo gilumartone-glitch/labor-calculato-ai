@@ -924,7 +924,7 @@ export const DepartmentView = ({
 
 
 
-          <section className="panel p-6">
+          <section ref={lavorazioniRef} onKeyDown={onLavorazioniKeyDown} className="panel p-6">
             <header className="flex items-start justify-between gap-6 mb-5">
               <div className="flex items-baseline gap-4">
                 <span className="font-mono text-xs text-primary font-bold tracking-widest">§02</span>

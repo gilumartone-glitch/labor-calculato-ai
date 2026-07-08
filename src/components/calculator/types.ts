@@ -282,6 +282,26 @@ export type PieceLine = {
   subProjectId?: string | null;
 };
 
+/** Lavorazione a livello di prodotto finito (sub-progetto): decorazione,
+ *  assemblaggio, ignifugazione o qualsiasi altra fase custom scelta dall'utente.
+ *  Reparto scelto liberamente. Ore/€h entrano nel preventivo. Responsabile,
+ *  assegnatari e date sono opzionali in preventivo (si possono compilare al
+ *  lancio nel Flow). */
+export type ProductWork = {
+  id: string;
+  name: string;
+  /** Chiave ProdDept (es. "falegnameria", "stampa", "tappezzeria", ...). */
+  dept: string;
+  hours: number;
+  hourlyCost: number;
+  responsibleId?: string | null;
+  assigneeIds?: string[];
+  startAt?: string | null;
+  endAt?: string | null;
+  deliveryAt?: string | null;
+  notes?: string;
+};
+
 /** Un sub-progetto ("prodotto finito") raggruppa pezzi di più reparti
  *  all'interno di uno stesso progetto madre (es. il progetto "Tizio" contiene
  *  Tavolino, Pavimento, ecc.). Vive nello snapshot del draft, senza tabelle DB. */
@@ -290,23 +310,41 @@ export type SubProject = {
   name: string;
   order: number;
   note?: string;
-  /** Se presente e `enabled`, aggiunge un task finale "Assemblaggio in laboratorio"
-   *  (eseguito da Falegnameria) al sub-progetto: bloccato da tutte le altre
-   *  lavorazioni dello stesso sub e valorizzato nel preventivo. */
+  /** Lavorazioni prodotto (decorazione, assemblaggio, ignifugazione, altro).
+   *  Ognuna ha reparto proprio e costo che entra nel preventivo. */
+  productWorks?: ProductWork[];
+  /** LEGACY — vecchio singolo assemblaggio in laboratorio. Se presente e
+   *  `productWorks` è vuoto viene promosso a prima riga della nuova lista. */
   assemblyLab?: {
     enabled: boolean;
-    /** Ore stimate di manodopera. */
     hours: number;
-    /** Costo orario €/h (di default preso dal listino Falegnameria). */
     hourlyCost: number;
-    /** Note libere per il capo-reparto (checklist componenti extra, ecc). */
     notes?: string;
   };
   /** Se valorizzato, il sub-progetto è stato inviato al Flow (commessa creata).
-   *  In questo stato la voce è bloccata (rinomina/elimina/assemblaggio disabilitati);
+   *  In questo stato la voce è bloccata (rinomina/elimina/lavorazioni disabilitati);
    *  per modificare bisogna far tornare indietro l'ordine dal Flow. */
   launchedCommessaId?: string | null;
   launchedAt?: string | null;
+};
+
+/** Restituisce le lavorazioni prodotto effettive del sub, promuovendo il
+ *  vecchio `assemblyLab` a prima riga se `productWorks` è ancora vuoto. */
+export const getProductWorks = (sp: SubProject | null | undefined): ProductWork[] => {
+  if (!sp) return [];
+  if (Array.isArray(sp.productWorks) && sp.productWorks.length > 0) return sp.productWorks;
+  const legacy = sp.assemblyLab;
+  if (legacy?.enabled) {
+    return [{
+      id: "legacy-assembly-lab",
+      name: "Assemblaggio in laboratorio",
+      dept: "falegnameria",
+      hours: Number(legacy.hours) || 0,
+      hourlyCost: Number(legacy.hourlyCost) || 0,
+      notes: legacy.notes,
+    }];
+  }
+  return [];
 };
 
 export type DepartmentState = {

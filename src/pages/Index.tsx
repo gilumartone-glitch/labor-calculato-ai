@@ -751,6 +751,16 @@ const Index = () => {
                   ? (() => {
                       const sp = subProjects.find((s) => s.id === activeSubProjectId);
                       if (!sp) return null;
+                      if (sp.launchedCommessaId) {
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] uppercase tracking-widest font-bold font-mono bg-amber-700 text-white"
+                            title="Per modificare questo prodotto, aprilo dal Flow e riportalo in revisione"
+                          >
+                            Inviato al Flow
+                          </span>
+                        );
+                      }
                       return (
                         <CreateCommessaButton
                           label={`Lancia solo "${sp.name}" nel Flow`}
@@ -771,6 +781,15 @@ const Index = () => {
                           subProjectName={sp.name}
                           variant="subtle"
                           hideWarehouseShortcut
+                          onAfterSubmit={() => {
+                            setSubProjects(
+                              subProjects.map((x) =>
+                                x.id === sp.id
+                                  ? { ...x, launchedCommessaId: "sent", launchedAt: new Date().toISOString() }
+                                  : x,
+                              ),
+                            );
+                          }}
                         />
                       );
                     })()

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Package, Layers, Wrench, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Layers, Wrench, Check, X, Lock } from "lucide-react";
 import type { SubProject } from "./types";
 import { uid } from "@/lib/format";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -99,7 +99,8 @@ export const SubProjectBar = ({
         .map((s) => {
           const active = s.id === activeId;
           const n = pieceCounts?.[s.id] ?? 0;
-          if (editingId === s.id) {
+          const locked = !!s.launchedCommessaId;
+          if (editingId === s.id && !locked) {
             return (
               <input
                 key={s.id}
@@ -119,15 +120,22 @@ export const SubProjectBar = ({
             <div
               key={s.id}
               className={`inline-flex items-center gap-1 rounded-sm border-2 transition-colors ${
-                active ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 text-ink/70 hover:text-ink"
+                locked
+                  ? (active
+                      ? "bg-amber-600 text-white border-amber-600"
+                      : "bg-amber-50 border-amber-500/60 text-amber-800")
+                  : (active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-ink/20 text-ink/70 hover:text-ink")
               }`}
+              title={locked ? "Inviato al Flow — per modificare, fallo tornare indietro dal Flow" : undefined}
             >
               <button
                 type="button"
                 onClick={() => setActiveId(s.id)}
                 className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 text-[11px] uppercase tracking-wider font-semibold"
               >
-                <Package className="w-3 h-3" />
+                {locked ? <Lock className="w-3 h-3" /> : <Package className="w-3 h-3" />}
                 {s.name}
                 {n > 0 && (
                   <span className={`font-mono text-[9px] ${active ? "opacity-80" : "opacity-60"}`}>
@@ -135,35 +143,43 @@ export const SubProjectBar = ({
                   </span>
                 )}
               </button>
-              <AssemblyLabPill
-                sp={s}
-                active={active}
-                onChange={(patch) =>
-                  setSubProjects(
-                    subProjects.map((x) =>
-                      x.id === s.id
-                        ? { ...x, assemblyLab: { enabled: false, hours: 0, hourlyCost: 35, ...(x.assemblyLab ?? {}), ...patch } }
-                        : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                onClick={() => startEdit(s)}
-                title="Rinomina"
-                className={`p-1 ${active ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-ink/40 hover:text-ink"}`}
-              >
-                <Pencil className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(s)}
-                title="Elimina"
-                className={`p-1 pr-1.5 ${active ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-ink/40 hover:text-destructive"}`}
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
+              {locked ? (
+                <span className="px-1.5 py-0.5 mr-1 text-[9px] uppercase tracking-widest font-bold font-mono rounded-sm bg-amber-700 text-white">
+                  Inviato al Flow
+                </span>
+              ) : (
+                <>
+                  <AssemblyLabPill
+                    sp={s}
+                    active={active}
+                    onChange={(patch) =>
+                      setSubProjects(
+                        subProjects.map((x) =>
+                          x.id === s.id
+                            ? { ...x, assemblyLab: { enabled: false, hours: 0, hourlyCost: 35, ...(x.assemblyLab ?? {}), ...patch } }
+                            : x,
+                        ),
+                      )
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => startEdit(s)}
+                    title="Rinomina"
+                    className={`p-1 ${active ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-ink/40 hover:text-ink"}`}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(s)}
+                    title="Elimina"
+                    className={`p-1 pr-1.5 ${active ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-ink/40 hover:text-destructive"}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </>
+              )}
             </div>
           );
         })}

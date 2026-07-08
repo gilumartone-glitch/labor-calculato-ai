@@ -144,29 +144,33 @@ export const inferProdTasksFromSnapshot = (
     }
   }
 
-  // === Assemblaggio in laboratorio: un task per sub-progetto con assemblyLab attivo ===
-  // I sub-progetti vivono nello snapshot (o in designState per gli snapshot produzione).
+  // === Lavorazioni prodotto (decorazione, assemblaggio, ignifugazione, ...) ===
+  // Un task per riga; reparto scelto dall'utente; category = assemblaggio_lab
+  // per riusare la logica "bloccato dalle altre lavorazioni del sub".
   const anySnap: any = snap as any;
   const subProjects: SubProject[] =
     (Array.isArray(anySnap?.subProjects) && anySnap.subProjects) ||
     (Array.isArray(anySnap?.designState?.subProjects) && anySnap.designState.subProjects) ||
     [];
   for (const sp of subProjects) {
-    if (!sp?.assemblyLab?.enabled) continue;
-    const hours = Number(sp.assemblyLab.hours) || 0;
-    if (hours <= 0 && !sp.assemblyLab.notes) continue;
-    out.push({
-      key: `assemblaggio_lab:${sp.id}`,
-      dept: "falegnameria",
-      category: "assemblaggio_lab",
-      label: `Assemblaggio lab · ${sp.name}`,
-      subProjectId: sp.id,
-      meta: {
-        hours,
-        hourlyCost: Number(sp.assemblyLab.hourlyCost) || 0,
-        notes: sp.assemblyLab.notes,
-      },
-    });
+    const works = getProductWorks(sp);
+    for (const w of works) {
+      const hours = Number(w.hours) || 0;
+      if (hours <= 0 && !w.notes) continue;
+      const dept = (w.dept || "falegnameria") as ProdDept;
+      out.push({
+        key: `assemblaggio_lab:${sp.id}:${w.id}`,
+        dept,
+        category: "assemblaggio_lab",
+        label: `${w.name || "Lavorazione"} · ${sp.name} — ${DEPT_LABEL[dept] ?? dept}`,
+        subProjectId: sp.id,
+        meta: {
+          hours,
+          hourlyCost: Number(w.hourlyCost) || 0,
+          notes: w.notes,
+        },
+      });
+    }
   }
   return out;
 };

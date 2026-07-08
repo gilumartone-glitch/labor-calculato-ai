@@ -1072,6 +1072,7 @@ export const DepartmentView = ({
                                 </div>
                               )}
                               <PieceCard
+                                autoFocusQty={p.id === lastAddedPieceId}
                                 index={i}
                                 line={displayedPiece}
                                 catalog={deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog}

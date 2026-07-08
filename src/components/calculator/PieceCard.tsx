@@ -136,6 +136,15 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
    *  l'ingombro quando ha tante lavorazioni nel reparto. */
   const [collapsed, setCollapsed] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const qtyInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!autoFocusQty) return;
+    const el = qtyInputRef.current;
+    if (!el) return;
+    el.focus();
+    try { el.select(); } catch { /* no-op */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusQty]);
 
   /** Reparto magazzino di riferimento per il selettore "aggancia pezzo".
    *  Il calcolatore usa "stampa" anche come Laboratorio. */

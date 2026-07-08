@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Wrench } from "lucide-react";
 import { eur, num } from "@/lib/format";
-import { Catalog, DepartmentState, DepartmentTotals, SubProject } from "./types";
+import { Catalog, DepartmentState, DepartmentTotals, SubProject, getProductWorks } from "./types";
+import { DEPT_LABEL } from "@/lib/produzione/types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
 
@@ -47,18 +48,25 @@ export const GeneralSummary = ({
     0,
   );
   const allTransports = departments.reduce((s, d) => s + (d.totals.transports ?? 0), 0);
-  // Assemblaggio in laboratorio: costo aggregato dai sub-progetti con toggle attivo.
-  const assemblyLabRows = subProjects
-    .filter((s) => s.assemblyLab?.enabled && (Number(s.assemblyLab.hours) || 0) > 0)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      hours: Number(s.assemblyLab!.hours) || 0,
-      rate: Number(s.assemblyLab!.hourlyCost) || 0,
-      cost: (Number(s.assemblyLab!.hours) || 0) * (Number(s.assemblyLab!.hourlyCost) || 0),
-    }));
-  const assemblyLabTotal = assemblyLabRows.reduce((s, r) => s + r.cost, 0);
-  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + assemblyLabTotal;
+  // Lavorazioni prodotto (decorazione, assemblaggio, ignifugazione, ...): righe aggregate.
+  const productWorkRows = subProjects.flatMap((s) =>
+    getProductWorks(s)
+      .filter((w) => (Number(w.hours) || 0) > 0)
+      .map((w) => ({
+        id: `${s.id}:${w.id}`,
+        subName: s.name,
+        name: w.name || "Lavorazione",
+        dept: w.dept,
+        hours: Number(w.hours) || 0,
+        rate: Number(w.hourlyCost) || 0,
+        cost: (Number(w.hours) || 0) * (Number(w.hourlyCost) || 0),
+      })),
+  );
+  const productWorksTotal = productWorkRows.reduce((s, r) => s + r.cost, 0);
+  // alias per retrocompatibilità con nome vecchio usato in snapshot
+  const assemblyLabRows = productWorkRows;
+  const assemblyLabTotal = productWorksTotal;
+  const cost = departments.reduce((s, d) => s + d.totals.total, 0) + productWorksTotal;
 
   // Margine per reparto: ogni reparto può avere la sua % oppure usa il margine globale.
   // Persistito in localStorage per non perdere le scelte tra refresh.
@@ -151,24 +159,24 @@ export const GeneralSummary = ({
             </div>
           ))}
 
-          {assemblyLabRows.length > 0 && (
+          {productWorkRows.length > 0 && (
             <div className="py-3 border-b border-dashed border-ink/20 last:border-0 bg-amber-50/40 -mx-6 px-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-display text-xl font-semibold inline-flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-amber-700" />
-                  Assemblaggio in laboratorio
+                  Lavorazioni prodotto
                 </h3>
-                <span className="font-mono text-lg font-semibold tabular-nums">{eur(assemblyLabTotal)}</span>
+                <span className="font-mono text-lg font-semibold tabular-nums">{eur(productWorksTotal)}</span>
               </div>
               <div className="space-y-1 text-xs font-mono text-muted-foreground">
-                {assemblyLabRows.map((r) => (
+                {productWorkRows.map((r) => (
                   <div key={r.id} className="flex items-center justify-between">
-                    <span>· {r.name} — {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
+                    <span>· {r.subName} — {r.name} <span className="opacity-60">({DEPT_LABEL[r.dept as keyof typeof DEPT_LABEL] ?? r.dept})</span> · {num(r.hours, 1)}h × {eur(r.rate)}/h</span>
                     <span className="tabular-nums">{eur(r.cost)}</span>
                   </div>
                 ))}
                 <div className="text-[10px] italic mt-1">
-                  Eseguito da Falegnameria · bloccante = tutte le altre lavorazioni del sub-progetto
+                  Un task per riga viene lanciato nel reparto scelto, bloccato dalle lavorazioni base del sub.
                 </div>
               </div>
             </div>

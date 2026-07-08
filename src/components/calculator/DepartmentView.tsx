@@ -501,6 +501,7 @@ export const DepartmentView = ({
       customWorks: (last.customWorks ?? []).map((cw) => ({ ...cw, id: uid() })),
     };
     setState({ ...state, pieces: [...allPieces, copy] });
+    setLastAddedPieceId(copy.id);
   };
 
   return (

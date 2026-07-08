@@ -364,6 +364,33 @@ export const DepartmentView = ({
   const currentOverride = pieces.find((p) => Number(p.priceOverridePerSqm ?? 0) > 0)?.priceOverridePerSqm ?? null;
   const [levelInput, setLevelInput] = useState<string>(currentOverride ? String(currentOverride) : "");
   const hasOverride = pieces.some((p) => Number(p.priceOverridePerSqm ?? 0) > 0);
+  // Ultimo pezzo aggiunto: la PieceCard corrispondente porta il focus sul campo Qt.
+  const [lastAddedPieceId, setLastAddedPieceId] = useState<string | null>(null);
+  // Ref sulla sezione Lavorazioni per intercettare Frecce Su/Giù come Tab/Shift+Tab.
+  const lavorazioniRef = useRef<HTMLElement | null>(null);
+  const onLavorazioniKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    const target = e.target as HTMLElement;
+    const tag = target.tagName;
+    if (tag !== "INPUT" && tag !== "SELECT" && tag !== "TEXTAREA") return;
+    if (tag === "TEXTAREA") return; // dentro textarea le frecce navigano il testo
+    const root = lavorazioniRef.current;
+    if (!root) return;
+    const focusables = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled])',
+      ),
+    ).filter((el) => el.tabIndex !== -1 && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+    const idx = focusables.indexOf(target);
+    if (idx === -1) return;
+    e.preventDefault();
+    const next = e.key === "ArrowDown" ? focusables[idx + 1] : focusables[idx - 1];
+    if (!next) return;
+    next.focus();
+    if (next instanceof HTMLInputElement && (next.type === "text" || next.type === "number" || next.type === "search")) {
+      try { next.select(); } catch { /* no-op */ }
+    }
+  };
 
   const applyLevelPrice = () => {
     const v = parseFloat(levelInput.replace(",", "."));

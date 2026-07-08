@@ -1,7 +1,9 @@
 import type { ProdDept } from "./types";
+import { DEPT_LABEL } from "./types";
 import type { ProdSnapshot } from "./snapshot";
 import { collectSnapshotDepartments, inferProdDeptsFromSnapshot } from "./snapshot";
 import type { SubProject } from "@/components/calculator/types";
+import { getProductWorks } from "@/components/calculator/types";
 
 /** Una "lavorazione" concreta all'interno di un reparto (es. Falegnameria → Taglio).
  *  key = univoca; dept = reparto padre; category = etichetta della lavorazione (null se il reparto non è splittato). */

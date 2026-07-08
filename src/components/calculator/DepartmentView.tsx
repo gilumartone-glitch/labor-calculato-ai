@@ -997,6 +997,7 @@ export const DepartmentView = ({
                   subProjectId: subId,
                 };
                 setState({ ...state, pieces: [...allPieces, newLine] });
+                setLastAddedPieceId(newLine.id);
               };
 
               const showGroupHeaders = subProjects.length > 0 && !activeSubProjectId;

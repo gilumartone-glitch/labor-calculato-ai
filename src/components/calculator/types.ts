@@ -302,6 +302,11 @@ export type SubProject = {
     /** Note libere per il capo-reparto (checklist componenti extra, ecc). */
     notes?: string;
   };
+  /** Se valorizzato, il sub-progetto è stato inviato al Flow (commessa creata).
+   *  In questo stato la voce è bloccata (rinomina/elimina/assemblaggio disabilitati);
+   *  per modificare bisogna far tornare indietro l'ordine dal Flow. */
+  launchedCommessaId?: string | null;
+  launchedAt?: string | null;
 };
 
 export type DepartmentState = {

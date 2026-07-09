@@ -54,6 +54,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
     if (!open) return;
     reloadDeps();
     setDepTargetId("");
+    setPendingDeps([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task?.id]);
 

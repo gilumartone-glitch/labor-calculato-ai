@@ -102,6 +102,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
           .map((q) => ({ from, to: { kind: q.kind, id: q.targetId } as { kind: "task" | "sub"; id: string } }));
         const cyc = await checkDependencyCycle(from, to, others);
         if (cyc.ok === false) {
+          flashCycle(cyc.path);
           const pathStr = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
           toast({
             title: "Dipendenza ciclica",

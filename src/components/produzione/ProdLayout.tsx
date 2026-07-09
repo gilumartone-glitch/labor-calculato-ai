@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Workflow, Package, MessagesSquare, Truck, FileText, ShoppingCart, CalendarRange,
-  ScrollText, ArrowLeft, LogOut, Bell, Wand2, PackageCheck, Menu, CalendarClock,
+  ScrollText, ArrowLeft, LogOut, Bell, Wand2, PackageCheck, Menu, CalendarClock, ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";

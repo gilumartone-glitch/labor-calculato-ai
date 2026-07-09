@@ -89,5 +89,28 @@ export const useAdminTasks = () => {
     return { error };
   }, []);
 
-  return { tasks, loading, load, create, update, remove };
+  const listDependencies = useCallback(async (taskId: string) => {
+    const { data, error } = await supabase
+      .from("admin_task_dependencies" as any)
+      .select("*")
+      .eq("task_id", taskId);
+    return { data: (data ?? []) as any[], error };
+  }, []);
+
+  const addDependency = useCallback(async (taskId: string, opts: { dependsOnTaskId?: string; dependsOnSubOrderId?: string }) => {
+    const row: any = {
+      task_id: taskId,
+      depends_on_task_id: opts.dependsOnTaskId ?? null,
+      depends_on_sub_order_id: opts.dependsOnSubOrderId ?? null,
+    };
+    const { data, error } = await supabase.from("admin_task_dependencies" as any).insert(row).select().single();
+    return { data, error };
+  }, []);
+
+  const removeDependency = useCallback(async (depId: string) => {
+    const { error } = await supabase.from("admin_task_dependencies" as any).delete().eq("id", depId);
+    return { error };
+  }, []);
+
+  return { tasks, loading, load, create, update, remove, listDependencies, addDependency, removeDependency };
 };

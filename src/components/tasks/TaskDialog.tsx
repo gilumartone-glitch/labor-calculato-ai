@@ -80,8 +80,24 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
 
   const submit = async () => {
     if (!title.trim()) { toast({ title: "Titolo obbligatorio", variant: "destructive" }); return; }
-    setSaving(true);
     const hasPending = !task && pendingDeps.length > 0;
+    // Rivalida i cicli al salvataggio (il grafo potrebbe essere cambiato)
+    if (hasPending) {
+      const from = { kind: "task" as const, id: "__new__" };
+      for (let i = 0; i < pendingDeps.length; i++) {
+        const p = pendingDeps[i];
+        const to = { kind: p.kind, id: p.targetId } as { kind: "task" | "sub"; id: string };
+        const others = pendingDeps
+          .filter((_, idx) => idx !== i)
+          .map((q) => ({ from, to: { kind: q.kind, id: q.targetId } as { kind: "task" | "sub"; id: string } }));
+        const cyc = await checkDependencyCycle(from, to, others);
+        if (cyc.ok === false) {
+          toast({ title: "Dipendenza ciclica", description: "Una delle dipendenze in coda crea un ciclo. Rimuovila per continuare.", variant: "destructive" });
+          return;
+        }
+      }
+    }
+    setSaving(true);
     const payload = {
       category, title: title.trim(),
       description: description.trim() || null,

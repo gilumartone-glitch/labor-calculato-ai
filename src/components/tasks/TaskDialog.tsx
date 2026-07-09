@@ -375,6 +375,19 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                     type="button"
                     disabled={!depTargetId}
                     onClick={async () => {
+                      const from = { kind: "task" as const, id: task.id };
+                      const to = depKind === "task"
+                        ? { kind: "task" as const, id: depTargetId }
+                        : { kind: "sub" as const, id: depTargetId };
+                      const cyc = await checkDependencyCycle(from, to);
+                      if (!cyc.ok) {
+                        toast({
+                          title: "Dipendenza ciclica",
+                          description: "Questa dipendenza creerebbe un ciclo (" + cyc.path.map((n) => `${n.kind}:${n.id.slice(0, 6)}`).join(" → ") + "). Operazione annullata.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       const res = await addDependency(task.id, depKind === "task" ? { dependsOnTaskId: depTargetId } : { dependsOnSubOrderId: depTargetId });
                       if ((res as any).error) {
                         toast({ title: "Errore", description: String((res as any).error?.message ?? (res as any).error), variant: "destructive" });
@@ -384,6 +397,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       }
                     }}
                   >Aggiungi</Button>
+
                 </div>
               </>
             )}

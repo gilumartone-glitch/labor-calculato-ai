@@ -80,10 +80,13 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
   const submit = async () => {
     if (!title.trim()) { toast({ title: "Titolo obbligatorio", variant: "destructive" }); return; }
     setSaving(true);
+    const hasPending = !task && pendingDeps.length > 0;
     const payload = {
       category, title: title.trim(),
       description: description.trim() || null,
-      status, priority,
+      // Se creo un nuovo task con dipendenze in coda, parte già bloccato
+      status: hasPending && status === "da_fare" ? "bloccato" : status,
+      priority,
       responsible_id: responsibleId || null,
       assignee_ids: assigneeIds,
       start_at: startAt ? new Date(startAt).toISOString() : null,
@@ -96,6 +99,15 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
     if ((res as any).error) {
       toast({ title: "Errore salvataggio", description: String((res as any).error?.message ?? (res as any).error), variant: "destructive" });
       return;
+    }
+    // Persisti eventuali dipendenze accodate al task appena creato
+    if (hasPending) {
+      const newId = (res as any).data?.id as string | undefined;
+      if (newId) {
+        for (const p of pendingDeps) {
+          await addDependency(newId, p.kind === "task" ? { dependsOnTaskId: p.targetId } : { dependsOnSubOrderId: p.targetId });
+        }
+      }
     }
     toast({ title: task ? "Task aggiornato" : "Task creato" });
     onOpenChange(false);

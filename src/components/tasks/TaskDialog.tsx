@@ -387,8 +387,11 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       const o = s ? (orders as any[]).find((x) => x.id === s.order_id) : null;
                       label = `🏭 Sub-ordine: ${s?.code ?? d.depends_on_sub_order_id.slice(0, 8)}${o ? ` — ${o.cliente ?? o.code}` : ""}`;
                     }
+                    const flagged = (d.depends_on_task_id && isFlagged("task", d.depends_on_task_id))
+                      || (d.depends_on_sub_order_id && isFlagged("sub", d.depends_on_sub_order_id))
+                      || (task && isFlagged("task", task.id));
                     return (
-                      <div key={d.id} className="flex items-center justify-between bg-background border border-ink/10 rounded px-2 py-1 text-sm">
+                      <div key={d.id} className={`flex items-center justify-between rounded px-2 py-1 text-sm border ${flagged ? "bg-red-50 border-red-400 ring-2 ring-red-300 animate-pulse" : "bg-background border-ink/10"}`}>
                         <span>{label}</span>
                         <button
                           onClick={async () => { await removeDependency(d.id); reloadDeps(); }}

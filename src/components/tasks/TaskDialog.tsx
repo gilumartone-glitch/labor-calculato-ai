@@ -308,11 +308,30 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                   <Button
                     type="button"
                     disabled={!depTargetId}
-                    onClick={() => {
+                    onClick={async () => {
+                      const from = { kind: "task" as const, id: "__new__" };
+                      const to = depKind === "task"
+                        ? { kind: "task" as const, id: depTargetId }
+                        : { kind: "sub" as const, id: depTargetId };
+                      const pendingEdges = pendingDeps.map((p) => ({
+                        from,
+                        to: { kind: p.kind, id: p.targetId } as { kind: "task" | "sub"; id: string },
+                      }));
+                      const cyc = await checkDependencyCycle(from, to, pendingEdges);
+                      if (cyc.ok === false) {
+                        const p = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
+                        toast({
+                          title: "Dipendenza ciclica",
+                          description: "Questa dipendenza creerebbe un ciclo (" + p + "). Operazione annullata.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       setPendingDeps((arr) => [...arr, { kind: depKind, targetId: depTargetId }]);
                       setDepTargetId("");
                     }}
                   >Aggiungi</Button>
+
                 </div>
               </>
             ) : (

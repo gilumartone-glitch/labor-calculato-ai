@@ -54,6 +54,8 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
     setDepTargetId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task?.id]);
+
+  useEffect(() => {
     if (!open) return;
     if (task) {
       setCategory(task.category);

@@ -12,6 +12,7 @@ import { AdminTask, useAdminTasks } from "@/hooks/useAdminTasks";
 import { useProdStore } from "@/lib/produzione/store";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, X } from "lucide-react";
+import { checkDependencyCycle } from "@/lib/tasks/cycleCheck";
 
 type Props = {
   open: boolean;

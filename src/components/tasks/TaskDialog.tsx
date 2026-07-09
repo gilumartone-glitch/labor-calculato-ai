@@ -224,7 +224,89 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
               {(task?.linked_sub_project || linkedSubProject) && <div>Sub-progetto: {(task?.linked_sub_project || linkedSubProject)?.name || "—"}</div>}
             </div>
           )}
+
+          <div className="border-2 border-ink/20 rounded-sm p-3 bg-muted/30">
+            <Label className="text-base font-semibold">Bloccato da…</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-2">
+              Il task resta in stato <b>bloccato</b> finché tutte le dipendenze non sono completate. Si sblocca automaticamente.
+            </p>
+            {!task ? (
+              <div className="text-xs text-muted-foreground italic">Salva prima il task per aggiungere dipendenze.</div>
+            ) : (
+              <>
+                <div className="space-y-1 mb-2">
+                  {deps.length === 0 && <div className="text-xs text-muted-foreground italic">Nessuna dipendenza.</div>}
+                  {deps.map((d) => {
+                    let label = "—";
+                    if (d.depends_on_task_id) {
+                      const t = allTasks.find((x) => x.id === d.depends_on_task_id);
+                      label = `📋 Task: ${t?.title ?? d.depends_on_task_id.slice(0, 8)}${t ? ` (${TASK_STATUS_LABEL[t.status]})` : ""}`;
+                    } else if (d.depends_on_sub_order_id) {
+                      const s = (subs as any[]).find((x) => x.id === d.depends_on_sub_order_id);
+                      const o = s ? (orders as any[]).find((x) => x.id === s.order_id) : null;
+                      label = `🏭 Sub-ordine: ${s?.code ?? d.depends_on_sub_order_id.slice(0, 8)}${o ? ` — ${o.cliente ?? o.code}` : ""}`;
+                    }
+                    return (
+                      <div key={d.id} className="flex items-center justify-between bg-background border border-ink/10 rounded px-2 py-1 text-sm">
+                        <span>{label}</span>
+                        <button
+                          onClick={async () => { await removeDependency(d.id); reloadDeps(); }}
+                          className="text-red-600 hover:text-red-800"
+                          title="Rimuovi"
+                        ><X className="w-4 h-4" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="w-32">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={depKind} onValueChange={(v) => { setDepKind(v as any); setDepTargetId(""); }}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="task">Task</SelectItem>
+                        <SelectItem value="sub">Sub-ordine</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-xs">Seleziona</Label>
+                    <Select value={depTargetId || "none"} onValueChange={(v) => setDepTargetId(v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        <SelectItem value="none">—</SelectItem>
+                        {depKind === "task"
+                          ? allTasks
+                              .filter((t) => t.id !== task.id && !deps.some((d) => d.depends_on_task_id === t.id))
+                              .map((t) => <SelectItem key={t.id} value={t.id}>{t.title} · {TASK_STATUS_LABEL[t.status]}</SelectItem>)
+                          : (subs as any[])
+                              .filter((s) => !deps.some((d) => d.depends_on_sub_order_id === s.id))
+                              .map((s) => {
+                                const o = (orders as any[]).find((x) => x.id === s.order_id);
+                                return <SelectItem key={s.id} value={s.id}>{s.code} · {o?.cliente ?? o?.code ?? "—"} · {s.status}</SelectItem>;
+                              })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!depTargetId}
+                    onClick={async () => {
+                      const res = await addDependency(task.id, depKind === "task" ? { dependsOnTaskId: depTargetId } : { dependsOnSubOrderId: depTargetId });
+                      if ((res as any).error) {
+                        toast({ title: "Errore", description: String((res as any).error?.message ?? (res as any).error), variant: "destructive" });
+                      } else {
+                        setDepTargetId("");
+                        reloadDeps();
+                      }
+                    }}
+                  >Aggiungi</Button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
 
         <DialogFooter className="gap-2 sm:justify-between">
           <div>

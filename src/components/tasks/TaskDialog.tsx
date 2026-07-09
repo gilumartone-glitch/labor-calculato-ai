@@ -12,6 +12,7 @@ import { AdminTask, useAdminTasks } from "@/hooks/useAdminTasks";
 import { useProdStore } from "@/lib/produzione/store";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, X } from "lucide-react";
+import { checkDependencyCycle } from "@/lib/tasks/cycleCheck";
 
 type Props = {
   open: boolean;
@@ -374,6 +375,20 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                     type="button"
                     disabled={!depTargetId}
                     onClick={async () => {
+                      const from = { kind: "task" as const, id: task.id };
+                      const to = depKind === "task"
+                        ? { kind: "task" as const, id: depTargetId }
+                        : { kind: "sub" as const, id: depTargetId };
+                      const cyc = await checkDependencyCycle(from, to);
+                      if (cyc.ok === false) {
+                        const p = cyc.path.map((n) => `${n.kind}:${n.id.slice(0, 6)}`).join(" → ");
+                        toast({
+                          title: "Dipendenza ciclica",
+                          description: "Questa dipendenza creerebbe un ciclo (" + p + "). Operazione annullata.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       const res = await addDependency(task.id, depKind === "task" ? { dependsOnTaskId: depTargetId } : { dependsOnSubOrderId: depTargetId });
                       if ((res as any).error) {
                         toast({ title: "Errore", description: String((res as any).error?.message ?? (res as any).error), variant: "destructive" });
@@ -383,6 +398,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       }
                     }}
                   >Aggiungi</Button>
+
                 </div>
               </>
             )}

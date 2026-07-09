@@ -38,6 +38,7 @@ const ProdAmministrazione = lazy(() => import("./pages/produzione/ProdAmministra
 const ProdPreparazione = lazy(() => import("./pages/produzione/ProdPreparazione.tsx"));
 const ProdAcquisti = lazy(() => import("./pages/produzione/ProdAcquisti.tsx"));
 const ProdLog = lazy(() => import("./pages/produzione/ProdLog.tsx"));
+const ProdTasks = lazy(() => import("./pages/produzione/ProdTasks.tsx"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe.tsx"));
 
 const queryClient = new QueryClient();

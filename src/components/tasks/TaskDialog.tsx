@@ -381,9 +381,10 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                         : { kind: "sub" as const, id: depTargetId };
                       const cyc = await checkDependencyCycle(from, to);
                       if (!cyc.ok) {
+                        const p = cyc.path.map((n) => `${n.kind}:${n.id.slice(0, 6)}`).join(" → ");
                         toast({
                           title: "Dipendenza ciclica",
-                          description: "Questa dipendenza creerebbe un ciclo (" + cyc.path.map((n) => `${n.kind}:${n.id.slice(0, 6)}`).join(" → ") + "). Operazione annullata.",
+                          description: "Questa dipendenza creerebbe un ciclo (" + p + "). Operazione annullata.",
                           variant: "destructive",
                         });
                         return;

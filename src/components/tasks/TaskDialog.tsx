@@ -41,6 +41,8 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
   const [deps, setDeps] = useState<any[]>([]);
   const [depKind, setDepKind] = useState<"task" | "sub">("task");
   const [depTargetId, setDepTargetId] = useState<string>("");
+  // Pending deps queued while creating a new task (no id yet)
+  const [pendingDeps, setPendingDeps] = useState<Array<{ kind: "task" | "sub"; targetId: string }>>([]);
 
   const reloadDeps = async () => {
     if (!task) { setDeps([]); return; }

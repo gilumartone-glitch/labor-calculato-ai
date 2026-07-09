@@ -246,7 +246,74 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
               Il task resta in stato <b>bloccato</b> finché tutte le dipendenze non sono completate. Si sblocca automaticamente.
             </p>
             {!task ? (
-              <div className="text-xs text-muted-foreground italic">Salva prima il task per aggiungere dipendenze.</div>
+              <>
+                <p className="text-[11px] text-muted-foreground italic mb-2">
+                  Le dipendenze verranno create insieme al task. Se ne aggiungi almeno una, il task partirà in stato <b>Bloccato</b>.
+                </p>
+                <div className="space-y-1 mb-2">
+                  {pendingDeps.length === 0 && <div className="text-xs text-muted-foreground italic">Nessuna dipendenza.</div>}
+                  {pendingDeps.map((p, idx) => {
+                    let label = "—";
+                    if (p.kind === "task") {
+                      const t = allTasks.find((x) => x.id === p.targetId);
+                      label = `📋 Task: ${t?.title ?? p.targetId.slice(0, 8)}${t ? ` (${TASK_STATUS_LABEL[t.status]})` : ""}`;
+                    } else {
+                      const s = (subs as any[]).find((x) => x.id === p.targetId);
+                      const o = s ? (orders as any[]).find((x) => x.id === s.order_id) : null;
+                      label = `🏭 Sub-ordine: ${s?.code ?? p.targetId.slice(0, 8)}${o ? ` — ${o.cliente ?? o.code}` : ""}`;
+                    }
+                    return (
+                      <div key={idx} className="flex items-center justify-between bg-background border border-ink/10 rounded px-2 py-1 text-sm">
+                        <span>{label}</span>
+                        <button
+                          onClick={() => setPendingDeps((arr) => arr.filter((_, i) => i !== idx))}
+                          className="text-red-600 hover:text-red-800"
+                          title="Rimuovi"
+                        ><X className="w-4 h-4" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="w-32">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={depKind} onValueChange={(v) => { setDepKind(v as any); setDepTargetId(""); }}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="task">Task</SelectItem>
+                        <SelectItem value="sub">Sub-ordine</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <Label className="text-xs">Seleziona</Label>
+                    <Select value={depTargetId || "none"} onValueChange={(v) => setDepTargetId(v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        <SelectItem value="none">—</SelectItem>
+                        {depKind === "task"
+                          ? allTasks
+                              .filter((t) => !pendingDeps.some((p) => p.kind === "task" && p.targetId === t.id))
+                              .map((t) => <SelectItem key={t.id} value={t.id}>{t.title} · {TASK_STATUS_LABEL[t.status]}</SelectItem>)
+                          : (subs as any[])
+                              .filter((s) => !pendingDeps.some((p) => p.kind === "sub" && p.targetId === s.id))
+                              .map((s) => {
+                                const o = (orders as any[]).find((x) => x.id === s.order_id);
+                                return <SelectItem key={s.id} value={s.id}>{s.code} · {o?.cliente ?? o?.code ?? "—"} · {s.status}</SelectItem>;
+                              })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!depTargetId}
+                    onClick={() => {
+                      setPendingDeps((arr) => [...arr, { kind: depKind, targetId: depTargetId }]);
+                      setDepTargetId("");
+                    }}
+                  >Aggiungi</Button>
+                </div>
+              </>
             ) : (
               <>
                 <div className="space-y-1 mb-2">

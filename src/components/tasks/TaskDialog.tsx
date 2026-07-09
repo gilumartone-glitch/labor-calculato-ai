@@ -38,8 +38,22 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
   const [startAt, setStartAt] = useState<string>("");
   const [dueAt, setDueAt] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [deps, setDeps] = useState<any[]>([]);
+  const [depKind, setDepKind] = useState<"task" | "sub">("task");
+  const [depTargetId, setDepTargetId] = useState<string>("");
+
+  const reloadDeps = async () => {
+    if (!task) { setDeps([]); return; }
+    const { data } = await listDependencies(task.id);
+    setDeps(data);
+  };
 
   useEffect(() => {
+    if (!open) return;
+    reloadDeps();
+    setDepTargetId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, task?.id]);
     if (!open) return;
     if (task) {
       setCategory(task.category);

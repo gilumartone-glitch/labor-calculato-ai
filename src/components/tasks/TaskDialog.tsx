@@ -44,6 +44,16 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
   const [depTargetId, setDepTargetId] = useState<string>("");
   // Pending deps queued while creating a new task (no id yet)
   const [pendingDeps, setPendingDeps] = useState<Array<{ kind: "task" | "sub"; targetId: string }>>([]);
+  const [cycleIds, setCycleIds] = useState<Set<string>>(new Set());
+  const [cyclePathLabel, setCyclePathLabel] = useState<string>("");
+
+  const flashCycle = (path: { kind: "task" | "sub"; id: string }[]) => {
+    const ids = new Set(path.filter((n) => n.id !== "__new__").map((n) => `${n.kind}:${n.id}`));
+    setCycleIds(ids);
+    setCyclePathLabel(path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → "));
+    window.setTimeout(() => { setCycleIds(new Set()); setCyclePathLabel(""); }, 6000);
+  };
+  const isFlagged = (kind: "task" | "sub", id: string) => cycleIds.has(`${kind}:${id}`);
 
   const reloadDeps = async () => {
     if (!task) { setDeps([]); return; }
@@ -92,6 +102,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
           .map((q) => ({ from, to: { kind: q.kind, id: q.targetId } as { kind: "task" | "sub"; id: string } }));
         const cyc = await checkDependencyCycle(from, to, others);
         if (cyc.ok === false) {
+          flashCycle(cyc.path);
           const pathStr = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
           toast({
             title: "Dipendenza ciclica",
@@ -267,6 +278,11 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
             <p className="text-xs text-muted-foreground mt-1 mb-2">
               Il task resta in stato <b>bloccato</b> finché tutte le dipendenze non sono completate. Si sblocca automaticamente.
             </p>
+            {cyclePathLabel && (
+              <div className="mb-2 text-xs bg-red-50 border border-red-300 text-red-800 rounded px-2 py-1">
+                ⛔ Ciclo rilevato: <b>{cyclePathLabel}</b>
+              </div>
+            )}
             {!task ? (
               <>
                 <p className="text-[11px] text-muted-foreground italic mb-2">
@@ -284,8 +300,9 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       const o = s ? (orders as any[]).find((x) => x.id === s.order_id) : null;
                       label = `🏭 Sub-ordine: ${s?.code ?? p.targetId.slice(0, 8)}${o ? ` — ${o.cliente ?? o.code}` : ""}`;
                     }
+                    const flagged = isFlagged(p.kind, p.targetId);
                     return (
-                      <div key={idx} className="flex items-center justify-between bg-background border border-ink/10 rounded px-2 py-1 text-sm">
+                      <div key={idx} className={`flex items-center justify-between rounded px-2 py-1 text-sm border ${flagged ? "bg-red-50 border-red-400 ring-2 ring-red-300 animate-pulse" : "bg-background border-ink/10"}`}>
                         <span>{label}</span>
                         <button
                           onClick={() => setPendingDeps((arr) => arr.filter((_, i) => i !== idx))}
@@ -340,6 +357,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       }));
                       const cyc = await checkDependencyCycle(from, to, pendingEdges);
                       if (cyc.ok === false) {
+                        flashCycle(cyc.path);
                         const p = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
                         toast({
                           title: "Dipendenza ciclica",
@@ -369,8 +387,11 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       const o = s ? (orders as any[]).find((x) => x.id === s.order_id) : null;
                       label = `🏭 Sub-ordine: ${s?.code ?? d.depends_on_sub_order_id.slice(0, 8)}${o ? ` — ${o.cliente ?? o.code}` : ""}`;
                     }
+                    const flagged = (d.depends_on_task_id && isFlagged("task", d.depends_on_task_id))
+                      || (d.depends_on_sub_order_id && isFlagged("sub", d.depends_on_sub_order_id))
+                      || (task && isFlagged("task", task.id));
                     return (
-                      <div key={d.id} className="flex items-center justify-between bg-background border border-ink/10 rounded px-2 py-1 text-sm">
+                      <div key={d.id} className={`flex items-center justify-between rounded px-2 py-1 text-sm border ${flagged ? "bg-red-50 border-red-400 ring-2 ring-red-300 animate-pulse" : "bg-background border-ink/10"}`}>
                         <span>{label}</span>
                         <button
                           onClick={async () => { await removeDependency(d.id); reloadDeps(); }}
@@ -421,6 +442,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                         : { kind: "sub" as const, id: depTargetId };
                       const cyc = await checkDependencyCycle(from, to);
                       if (cyc.ok === false) {
+                        flashCycle(cyc.path);
                         const p = cyc.path.map((n) => `${n.kind}:${n.id.slice(0, 6)}`).join(" → ");
                         toast({
                           title: "Dipendenza ciclica",

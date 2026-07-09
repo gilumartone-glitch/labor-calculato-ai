@@ -278,6 +278,11 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
             <p className="text-xs text-muted-foreground mt-1 mb-2">
               Il task resta in stato <b>bloccato</b> finché tutte le dipendenze non sono completate. Si sblocca automaticamente.
             </p>
+            {cyclePathLabel && (
+              <div className="mb-2 text-xs bg-red-50 border border-red-300 text-red-800 rounded px-2 py-1">
+                ⛔ Ciclo rilevato: <b>{cyclePathLabel}</b>
+              </div>
+            )}
             {!task ? (
               <>
                 <p className="text-[11px] text-muted-foreground italic mb-2">

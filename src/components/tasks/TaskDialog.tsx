@@ -351,6 +351,7 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                       }));
                       const cyc = await checkDependencyCycle(from, to, pendingEdges);
                       if (cyc.ok === false) {
+                        flashCycle(cyc.path);
                         const p = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
                         toast({
                           title: "Dipendenza ciclica",

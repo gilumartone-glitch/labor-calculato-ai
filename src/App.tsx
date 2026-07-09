@@ -87,6 +87,7 @@ const App = () => (
             <Route path="/produzione/acquisti" element={<RouteGuard page="produzione"><ProdAcquisti /></RouteGuard>} />
             <Route path="/produzione/amministrazione" element={<RouteGuard page="produzione"><ProdAmministrazione /></RouteGuard>} />
             <Route path="/produzione/log" element={<RouteGuard page="produzione"><ProdLog /></RouteGuard>} />
+            <Route path="/produzione/tasks" element={<RouteGuard page="produzione"><ProdTasks /></RouteGuard>} />
             <Route path="/admin/utenti" element={<AdminUsers />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

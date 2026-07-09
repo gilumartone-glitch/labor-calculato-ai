@@ -44,6 +44,16 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
   const [depTargetId, setDepTargetId] = useState<string>("");
   // Pending deps queued while creating a new task (no id yet)
   const [pendingDeps, setPendingDeps] = useState<Array<{ kind: "task" | "sub"; targetId: string }>>([]);
+  const [cycleIds, setCycleIds] = useState<Set<string>>(new Set());
+  const [cyclePathLabel, setCyclePathLabel] = useState<string>("");
+
+  const flashCycle = (path: { kind: "task" | "sub"; id: string }[]) => {
+    const ids = new Set(path.filter((n) => n.id !== "__new__").map((n) => `${n.kind}:${n.id}`));
+    setCycleIds(ids);
+    setCyclePathLabel(path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → "));
+    window.setTimeout(() => { setCycleIds(new Set()); setCyclePathLabel(""); }, 6000);
+  };
+  const isFlagged = (kind: "task" | "sub", id: string) => cycleIds.has(`${kind}:${id}`);
 
   const reloadDeps = async () => {
     if (!task) { setDeps([]); return; }

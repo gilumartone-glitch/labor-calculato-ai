@@ -14,6 +14,139 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_task_dependencies: {
+        Row: {
+          created_at: string
+          depends_on_sub_order_id: string | null
+          depends_on_task_id: string | null
+          id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          depends_on_sub_order_id?: string | null
+          depends_on_task_id?: string | null
+          id?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          depends_on_sub_order_id?: string | null
+          depends_on_task_id?: string | null
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_task_dependencies_depends_on_sub_order_id_fkey"
+            columns: ["depends_on_sub_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_sub_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_task_dependencies_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_tasks: {
+        Row: {
+          assignee_ids: string[]
+          attachments: Json
+          category: Database["public"]["Enums"]["admin_task_category"]
+          checklist: Json
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_at: string | null
+          id: string
+          linked_commessa_id: string | null
+          linked_contact_id: string | null
+          linked_sub_project: Json | null
+          priority: Database["public"]["Enums"]["admin_task_priority"]
+          reminder_at: string | null
+          responsible_id: string | null
+          start_at: string | null
+          status: Database["public"]["Enums"]["admin_task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_ids?: string[]
+          attachments?: Json
+          category: Database["public"]["Enums"]["admin_task_category"]
+          checklist?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          linked_commessa_id?: string | null
+          linked_contact_id?: string | null
+          linked_sub_project?: Json | null
+          priority?: Database["public"]["Enums"]["admin_task_priority"]
+          reminder_at?: string | null
+          responsible_id?: string | null
+          start_at?: string | null
+          status?: Database["public"]["Enums"]["admin_task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_ids?: string[]
+          attachments?: Json
+          category?: Database["public"]["Enums"]["admin_task_category"]
+          checklist?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          linked_commessa_id?: string | null
+          linked_contact_id?: string | null
+          linked_sub_project?: Json | null
+          priority?: Database["public"]["Enums"]["admin_task_priority"]
+          reminder_at?: string | null
+          responsible_id?: string | null
+          start_at?: string | null
+          status?: Database["public"]["Enums"]["admin_task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_tasks_linked_commessa_id_fkey"
+            columns: ["linked_commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_linked_contact_id_fkey"
+            columns: ["linked_contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_pages: {
         Row: {
           description: string | null
@@ -1543,6 +1676,7 @@ export type Database = {
           coordinator_id: string | null
           created_at: string
           depends_on: string | null
+          depends_on_task_id: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
           due_date: string | null
           end_date: string | null
@@ -1575,6 +1709,7 @@ export type Database = {
           coordinator_id?: string | null
           created_at?: string
           depends_on?: string | null
+          depends_on_task_id?: string | null
           dept: Database["public"]["Enums"]["prod_dept"]
           due_date?: string | null
           end_date?: string | null
@@ -1607,6 +1742,7 @@ export type Database = {
           coordinator_id?: string | null
           created_at?: string
           depends_on?: string | null
+          depends_on_task_id?: string | null
           dept?: Database["public"]["Enums"]["prod_dept"]
           due_date?: string | null
           end_date?: string | null
@@ -1645,6 +1781,13 @@ export type Database = {
             columns: ["depends_on"]
             isOneToOne: false
             referencedRelation: "production_sub_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_sub_orders_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tasks"
             referencedColumns: ["id"]
           },
           {
@@ -1887,6 +2030,14 @@ export type Database = {
         Args: { _roles: string[]; _user_id: string }
         Returns: undefined
       }
+      admin_task_permission_key: {
+        Args: { _cat: Database["public"]["Enums"]["admin_task_category"] }
+        Returns: string
+      }
+      can_view_admin_task: {
+        Args: { _task_id: string; _user: string }
+        Returns: boolean
+      }
       can_view_order: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
@@ -1964,6 +2115,21 @@ export type Database = {
       }
     }
     Enums: {
+      admin_task_category:
+        | "amministrazione"
+        | "acquisti"
+        | "vendite"
+        | "marketing"
+        | "hr"
+        | "generico"
+      admin_task_priority: "bassa" | "media" | "alta" | "urgente"
+      admin_task_status:
+        | "da_fare"
+        | "in_corso"
+        | "in_attesa"
+        | "bloccato"
+        | "completato"
+        | "annullato"
       app_role:
         | "admin"
         | "member"
@@ -2184,6 +2350,23 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_task_category: [
+        "amministrazione",
+        "acquisti",
+        "vendite",
+        "marketing",
+        "hr",
+        "generico",
+      ],
+      admin_task_priority: ["bassa", "media", "alta", "urgente"],
+      admin_task_status: [
+        "da_fare",
+        "in_corso",
+        "in_attesa",
+        "bloccato",
+        "completato",
+        "annullato",
+      ],
       app_role: [
         "admin",
         "member",

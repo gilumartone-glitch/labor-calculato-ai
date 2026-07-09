@@ -1,58 +1,68 @@
-## Obiettivo
+# Task nel Flow (non produttivi)
 
-Aggiungere, in automatico, un task finale **"Assemblaggio in laboratorio"** per ogni sub-progetto (o per l'ordine intero se non ci sono sub) quando il preventivo lo prevede. Il task:
+Aggiungiamo un secondo tipo di elemento gestibile dentro `/produzione`, a fianco delle commesse: i **Task**. Stessa infrastruttura di assegnazioni, notifiche, chat, allegati e audit, ma senza reparti/pezzi/nesting/materiali.
 
-- viene eseguito dalla **Falegnameria**
-- ha una **checklist dei componenti** da avere pronti (auto-generata dai pezzi/materiali del sub-progetto)
-- ha **ore stimate + costo orario** che concorrono al preventivo
-- diventa **bloccato da tutti gli altri task** dello stesso sub-progetto (Stampa, Taglio, Tappezzeria, Falegnameria/Taglio, ecc.)
+## Categorie (6, fisse in v1, colore + icona dedicati)
+- Amministrazione
+- Acquisti
+- Vendite
+- Marketing
+- HR
+- Generico
 
-Non è "posa in cantiere": resta separato dal reparto Montaggi (che gestisce i cantieri).
+Ogni categoria è un permesso a sé (`tasks_amministrazione`, `tasks_acquisti`, `tasks_vendite`, `tasks_marketing`, `tasks_hr`, `tasks_generico`) gestibile dalla pagina Utenti come tutti gli altri. Gli admin vedono tutto.
 
-## Flusso utente
+## Cosa fa un Task
+Titolo, descrizione ricca, categoria, priorità (bassa/media/alta/urgente), stato (`da_fare`, `in_corso`, `in_attesa`, `bloccato`, `completato`, `annullato`), responsabile, assegnatari multipli, data inizio, scadenza, promemoria, checklist, allegati, commenti, collegamento opzionale a: commessa, cliente/fornitore (marketing_contacts), sub-progetto di progettazione.
 
-1. In `DepartmentView` (o meglio nel `SubProjectBar` / `GeneralSummary`) compare un toggle per sub-progetto: **"Assemblaggio finale in laboratorio"** con campi `ore` e `€/h` (default dal reparto Falegnameria).
-2. Se attivo, il costo entra nel riepilogo del preventivo come voce Falegnameria.
-3. In `CreateCommessaButton` → Pianificazione, il task compare in coda con:
-   - categoria `assemblaggio_lab`
-   - reparto `falegnameria`
-   - `depends_on` pre-compilato = tutti gli altri task dello stesso sub-progetto
-   - checklist dei componenti pronta
-4. Al lancio, viene creato un `production_sub_order` con `dept='falegnameria'`, suffisso codice `ASM-LAB`, e la checklist popolata in `production_sub_checklist`.
+## Dipendenze bidirezionali
+Un task può essere **bloccato da** uno o più task **o** sub-ordini di produzione, e viceversa un sub-ordine di produzione può essere bloccato da un task. Quando il predecessore passa a "completato" il trigger sblocca il successore (estensione di `unlock_dependent_subs`) e manda notifica al responsabile.
 
-## Modifiche tecniche
+Esempi che il sistema abiliterà:
+- "Assemblaggio tavolino" bloccato da "Acquisti: ordinare viti"
+- "Fatturare commessa X" sbloccato quando tutti i sub-ordini della commessa X sono completati
+- "Vendite: firma preventivo" prerequisito del lancio in produzione (blocca la creazione automatica della commessa fino a completamento)
 
-### 1. Preventivo (stato locale)
-- `src/components/calculator/types.ts` — aggiungere, a livello di sub-progetto: `assemblyLab?: { enabled: boolean; hours: number; hourlyCost: number; notes?: string }`.
-- `SubProjectBar.tsx` — UI (toggle + due input piccoli) accanto al nome del sub-progetto.
-- `GeneralSummary.tsx` — includere `hours * hourlyCost` nella riga Falegnameria del sub.
+## UX
 
-### 2. Task generation
-- `src/lib/produzione/prodTasks.ts` — nuova categoria `assemblaggio_lab`. Dopo aver generato i task esistenti, per ogni sub-progetto con `assemblyLab.enabled`:
-  - creare un task `{ taskKey: "<sub>:assemblaggio_lab", dept: "falegnameria", category: "assemblaggio_lab", label: "Assemblaggio in laboratorio", subProjectId, pieceIds: [tutti i pezzi del sub] }`
-  - `defaultBlockedBy` = tutti gli altri `taskKey` dello stesso `subProjectId`
-  - `estimatedHours` / `hourlyCost` copiati dal preventivo per essere mostrati in UI
+### Ingresso principale — pagina `/produzione`
+- Nuova **tab "Task"** accanto ai reparti, con filtro per categoria (chip colorati) e vista Kanban + lista.
+- Bottone globale **+ Nuovo task** in header.
 
-### 3. UI pianificazione
-- `CreateCommessaButton.tsx` — il task compare come tab. Il dropdown "Bloccata da" mostra i task precedenti già selezionati per default (multi-blocco visivo; a DB resta la 1→1, gli altri finiscono nelle note come oggi).
-- Sezione **Checklist componenti** nel tab del task: lista auto-generata (nome pezzo + qty + sub-lavorazione), editabile.
+### Dal progetto in Progettazione
+Nel `SubProjectBar`, accanto a "Lancia nel Flow", nuovo menu **"+ Task collegato"** con le 6 categorie. Il task nasce già linkato al sub-progetto (visibile nel timeline del progetto e nella board Task).
 
-### 4. Snapshot → sub-order
-- `snapshot.ts` — passare `assemblyLab` per sub nello snapshot.
-- Al lancio, se il task è `assemblaggio_lab`:
-  - `code` con suffisso `ASM-LAB-<n>`
-  - `dept='falegnameria'`, `note` con "Assemblaggio in laboratorio"
-  - popolare `production_sub_checklist` con le voci componenti (usa la tabella esistente).
+### Dettaglio task
+Dialog full-screen tipo `SubOrderDetailDialog`, con tab: Dettagli · Checklist · Allegati · Commenti · Dipendenze · Cronologia.
 
-### 5. Nessuna migration DB
-Riusiamo `production_sub_orders` + `production_sub_checklist` esistenti. La categoria `assemblaggio_lab` vive solo come metadato applicativo nel `note`/prefisso codice.
+## Cosa NON avranno i Task (di proposito)
+Niente pezzi, niente catalogo materiali, niente nesting, niente scarichi magazzino, niente reparti produttivi. Restano puliti e veloci.
 
-## Cosa NON facciamo
+## Dettagli tecnici
 
-- Non tocchiamo il reparto Montaggi (resta cantieri).
-- Non creiamo un nuovo reparto in `ProdDept`: il task è un normale sub Falegnameria con marker nel codice/nota.
-- Non forziamo un ordine di blocco: proposto in automatico, sempre modificabile.
+### Nuova tabella `admin_tasks`
+Campi principali: `category` (enum), `title`, `description`, `status` (enum), `priority` (enum), `responsible_id`, `assignee_ids uuid[]`, `start_at`, `due_at`, `reminder_at`, `checklist jsonb`, `attachments jsonb`, `linked_commessa_id`, `linked_contact_id`, `linked_sub_project` (jsonb: draft_id + subProjectId), `created_by`, `completed_at`, `completed_by`.
 
-## Domanda residua
+### Tabella `admin_task_dependencies`
+`task_id` + (`depends_on_task_id` XOR `depends_on_sub_order_id`), così una dipendenza può puntare o a un altro task o a un sub-ordine di produzione. Analogamente estendiamo `production_sub_orders` con `depends_on_task_id` (nullable) per il verso opposto.
 
-Confermi che l'ora/costo default per l'assemblaggio in laboratorio li prendiamo dal **listino Falegnameria** già in `public/templates/listino-falegnameria.xml` (voce "manodopera"), oppure vuoi un campo separato nelle impostazioni reparto?
+### RLS
+- SELECT: admin, `created_by`, `responsible_id`, chi è in `assignee_ids`, chi ha `has_permission('tasks_<category>', 'read')`.
+- INSERT: chi ha `has_permission('tasks_<category>', 'write')` o admin.
+- UPDATE/DELETE: admin, `created_by`, `responsible_id`, o `has_permission('tasks_<category>', 'write')`.
+- Grants espliciti per `authenticated` e `service_role`.
+
+### Trigger di sblocco
+Estendiamo `unlock_dependent_subs` (o creiamo `unlock_dependent_tasks_and_subs`) per gestire i due lati: quando un task o un sub-ordine diventa `completato`, sblocca sia i task dipendenti sia i sub-ordini dipendenti.
+
+### Notifiche
+Riusiamo `prod_notifications` con nuovi tipi: `task_assegnato`, `task_sbloccato`, `task_scaduto`, `task_completato`, `task_mention`. Le email transazionali usano il template `notification` già esistente.
+
+### Nuove pagine registrate in `app_pages`
+Sei nuove voci `tasks_<categoria>` così compaiono nella matrice permessi dell'admin.
+
+## Roadmap in due step
+1. **Migration DB** (tabella, enums, trigger, RLS, grants, app_pages, aggiornamento `has_permission`/`unlock_dependent_subs`).
+2. **Frontend**: hook `useAdminTasks`, nuova tab in `/produzione`, dialog nuovo task, dialog dettaglio, integrazione in `SubProjectBar`, badge nelle notifiche.
+
+Confermi e procedo con la migration?

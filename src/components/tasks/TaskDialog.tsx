@@ -80,8 +80,24 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
 
   const submit = async () => {
     if (!title.trim()) { toast({ title: "Titolo obbligatorio", variant: "destructive" }); return; }
-    setSaving(true);
     const hasPending = !task && pendingDeps.length > 0;
+    // Rivalida i cicli al salvataggio (il grafo potrebbe essere cambiato)
+    if (hasPending) {
+      const from = { kind: "task" as const, id: "__new__" };
+      for (let i = 0; i < pendingDeps.length; i++) {
+        const p = pendingDeps[i];
+        const to = { kind: p.kind, id: p.targetId } as { kind: "task" | "sub"; id: string };
+        const others = pendingDeps
+          .filter((_, idx) => idx !== i)
+          .map((q) => ({ from, to: { kind: q.kind, id: q.targetId } as { kind: "task" | "sub"; id: string } }));
+        const cyc = await checkDependencyCycle(from, to, others);
+        if (cyc.ok === false) {
+          toast({ title: "Dipendenza ciclica", description: "Una delle dipendenze in coda crea un ciclo. Rimuovila per continuare.", variant: "destructive" });
+          return;
+        }
+      }
+    }
+    setSaving(true);
     const payload = {
       category, title: title.trim(),
       description: description.trim() || null,
@@ -308,11 +324,30 @@ export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCo
                   <Button
                     type="button"
                     disabled={!depTargetId}
-                    onClick={() => {
+                    onClick={async () => {
+                      const from = { kind: "task" as const, id: "__new__" };
+                      const to = depKind === "task"
+                        ? { kind: "task" as const, id: depTargetId }
+                        : { kind: "sub" as const, id: depTargetId };
+                      const pendingEdges = pendingDeps.map((p) => ({
+                        from,
+                        to: { kind: p.kind, id: p.targetId } as { kind: "task" | "sub"; id: string },
+                      }));
+                      const cyc = await checkDependencyCycle(from, to, pendingEdges);
+                      if (cyc.ok === false) {
+                        const p = cyc.path.map((n) => `${n.kind}:${n.id === "__new__" ? "nuovo" : n.id.slice(0, 6)}`).join(" → ");
+                        toast({
+                          title: "Dipendenza ciclica",
+                          description: "Questa dipendenza creerebbe un ciclo (" + p + "). Operazione annullata.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       setPendingDeps((arr) => [...arr, { kind: depKind, targetId: depTargetId }]);
                       setDepTargetId("");
                     }}
                   >Aggiungi</Button>
+
                 </div>
               </>
             ) : (

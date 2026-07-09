@@ -23,8 +23,10 @@ type Props = {
 };
 
 export const TaskDialog = ({ open, onOpenChange, task, defaultCategory, linkedCommessaId, linkedSubProject }: Props) => {
-  const { create, update, remove } = useAdminTasks();
+  const { create, update, remove, listDependencies, addDependency, removeDependency, tasks: allTasks } = useAdminTasks();
   const profiles = useProdStore((s) => s.profiles);
+  const subs = useProdStore((s) => s.subs);
+  const orders = useProdStore((s) => s.orders);
 
   const [category, setCategory] = useState<TaskCategory>(defaultCategory ?? "generico");
   const [title, setTitle] = useState("");

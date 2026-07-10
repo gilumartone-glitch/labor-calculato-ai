@@ -165,23 +165,29 @@ const SheetSvg = ({
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
               {shape}
-              {w > 28 && h > 14 && (() => {
-                const fs = Math.min(10, Math.max(7, h / 5));
-                const showDim = h > 26;
+              {w > 20 && h > 12 && (() => {
+                const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));
+                const showDim = h > fs * 2.4;
+                const cx = x + w / 2;
+                const cy = y + h / 2;
                 return (
                   <text
-                    x={x + w / 2}
-                    y={y + h / 2 + (showDim ? -1 : 3)}
+                    x={cx}
+                    y={showDim ? cy - fs * 0.15 : cy + fs * 0.35}
                     textAnchor="middle"
                     fontFamily="ui-monospace, monospace"
                     fontSize={fs}
-                    fontWeight={700}
+                    fontWeight={800}
                     className="fill-ink"
                     pointerEvents="none"
+                    stroke="hsl(var(--background))"
+                    strokeWidth={fs * 0.35}
+                    paintOrder="stroke"
+                    strokeLinejoin="round"
                   >
-                    <tspan x={x + w / 2}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
+                    <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                     {showDim && (
-                      <tspan x={x + w / 2} dy={fs + 1} fontWeight={500} fontSize={fs - 1}>
+                      <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
                         {fmtCm(it.w)}×{fmtCm(it.h)} cm
                       </tspan>
                     )}

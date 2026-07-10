@@ -109,11 +109,14 @@ const SheetSvg = ({
           {fmtCm(sheetHeightM)} cm
         </text>
         {sheetItems.map((it, idx) => {
-          const x = PAD + it.x * scale;
-          const y = PAD + it.y * scale;
-          const w = it.w * scale;
-          const h = it.h * scale;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.x + halfKerf) * scale;
+          const y = PAD + (it.y + halfKerf) * scale;
+          const w = realWm * scale;
+          const h = realHm * scale;
           const color = colorForPiece(it.pieceId);
+
           // Forma reale (senza il bordo di sicurezza): rettangolo interno di
           // safetyPx px su tutti i lati. Per triangle/trapezoid disegniamo la
           // forma piena come prima (la geometria già conteggia margini), ma

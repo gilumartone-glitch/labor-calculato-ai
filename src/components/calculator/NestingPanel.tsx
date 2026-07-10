@@ -849,6 +849,7 @@ const GroupSummary = ({
   pickedStockLabel,
   pickedStockConflict,
   diagnostic,
+  kerfMm = 0,
 }: {
   group: NestingGroup;
   groupPieces: PieceLine[];
@@ -863,7 +864,9 @@ const GroupSummary = ({
   pickedStockLabel?: string | null;
   pickedStockConflict?: boolean;
   diagnostic?: NestingDiagnostic;
+  kerfMm?: number;
 }) => {
+
   const [debug, setDebug] = useState(false);
   const wastePct = group.wastePct * 100;
   const wasteColor =

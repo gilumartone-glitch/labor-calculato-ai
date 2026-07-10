@@ -1292,7 +1292,69 @@ const exportNestingDxf = (
   const kerfMm = Math.max(0, cfg.kerfMm);
   const halfKerf = kerfMm / 2;
   const entities = () => {
-...
+    const polyClosed = (pts: [number, number][], layer: string) => {
+      push(0, "LWPOLYLINE"); push(8, layer); push(70, 1); push(90, pts.length);
+      for (const [x, y] of pts) { push(10, x.toFixed(3)); push(20, y.toFixed(3)); }
+    };
+    const text = (x: number, y: number, h: number, str: string, layer: string) => {
+      push(0, "TEXT"); push(8, layer);
+      push(10, x.toFixed(3)); push(20, y.toFixed(3));
+      push(40, h.toFixed(3)); push(1, str.replace(/[\r\n]+/g, " "));
+    };
+    let cursorX = 0;
+    for (const g of groups) {
+      const bySheet = new Map<number, NestingPieceItem[]>();
+      for (const it of g.items) {
+        const si = it.sheetIndex ?? 0;
+        if (!bySheet.has(si)) bySheet.set(si, []);
+        bySheet.get(si)!.push(it);
+      }
+      const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+      for (const si of sheetIndices) {
+        const ms = g.mixedSheets?.[si];
+        const sw = (ms ? ms.widthM : g.sheetWidthM ?? g.rollWidthM) * M2MM;
+        const sh = (ms ? ms.heightM : g.sheetHeightM ?? g.totalLengthM) * M2MM;
+        const ox = cursorX, oy = 0;
+        polyClosed([[ox, oy],[ox+sw, oy],[ox+sw, oy+sh],[ox, oy+sh]], "LASTRA");
+        if (!cfg.skipPerimeter && cfg.perimeterMm > 0) {
+          const pm = cfg.perimeterMm;
+          if (sw - 2*pm > 0 && sh - 2*pm > 0) {
+            polyClosed([[ox+pm, oy+pm],[ox+sw-pm, oy+pm],[ox+sw-pm, oy+sh-pm],[ox+pm, oy+sh-pm]], "MARGINE");
+          }
+        }
+        text(ox+5, oy+sh+20, 30, `${g.material?.name ?? ""} · Lastra ${sheetLetter(si)} · ${(sw/10).toFixed(1)}×${(sh/10).toFixed(1)} cm`, "LABEL");
+        for (const it of bySheet.get(si)!) {
+          const bx = ox + it.x * M2MM + halfKerf;
+          const byTop = oy + sh - it.y * M2MM - halfKerf;
+          const w = Math.max(0.1, it.w * M2MM - kerfMm);
+          const h = Math.max(0.1, it.h * M2MM - kerfMm);
+          let pts: [number, number][];
+          if (it.shape === "triangle") {
+            pts = it.pairRole === "secondary"
+              ? [[bx, byTop],[bx+w, byTop],[bx+w/2, byTop-h]]
+              : [[bx+w/2, byTop],[bx+w, byTop-h],[bx, byTop-h]];
+          } else if (it.shape === "trapezoid") {
+            const wbM = it.widthBottomM ?? it.w;
+            const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
+            const wb = w * ratio;
+            const off = (w - wb) / 2;
+            pts = it.pairRole === "secondary"
+              ? [[bx+off, byTop],[bx+w-off, byTop],[bx+w, byTop-h],[bx, byTop-h]]
+              : [[bx, byTop],[bx+w, byTop],[bx+w-off, byTop-h],[bx+off, byTop-h]];
+          } else {
+            pts = [[bx, byTop-h],[bx+w, byTop-h],[bx+w, byTop],[bx, byTop]];
+          }
+          polyClosed(pts, "PEZZI");
+          const fs = Math.max(20, Math.min(w, h) / 6);
+          const realWcm = (it.w * M2MM - kerfMm) / 10;
+          const realHcm = (it.h * M2MM - kerfMm) / 10;
+          text(bx + Math.min(20, w*0.1), byTop - Math.min(fs+5, h*0.3), fs,
+            `${it.label} ${realWcm.toFixed(1)}x${realHcm.toFixed(1)}${it.rotated ? " R" : ""}`, "LABEL");
+        }
+        cursorX += sw + GAP_MM;
+      }
+    }
+  };
   push(0, "SECTION");
   push(2, "HEADER");
   push(9, "$ACADVER");

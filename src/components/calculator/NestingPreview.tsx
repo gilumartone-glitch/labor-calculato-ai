@@ -653,7 +653,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
             </div>
           </header>
           <div className="p-3 space-y-2">
-            {!textOnly && <GroupCanvas group={g} />}
+            {!textOnly && <GroupCanvas group={g} kerfM={(nestSettings.kerfMm || 0) / 1000} />}
             {!graphicOnly && <GroupTextSummary group={g} />}
           </div>
         </section>

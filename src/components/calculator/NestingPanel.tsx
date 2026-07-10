@@ -1899,30 +1899,27 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
   const fmt = (v: number) => v.toLocaleString("it-IT", { maximumFractionDigits: 1 });
   const pieceMap = buildPieceLookup(pieces);
 
-  type Label = { ref: string; material: string; dims: string; rotated: boolean; sheet: string; label: string };
+  type Label = { materiale: string; spessore: string; colore: string; dims: string };
   const labels: Label[] = [];
   for (const g of groups) {
-    const bySheet = new Map<number, NestingPieceItem[]>();
     for (const it of g.items) {
-      const si = it.sheetIndex ?? 0;
-      if (!bySheet.has(si)) bySheet.set(si, []);
-      bySheet.get(si)!.push(it);
-    }
-    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
-    for (const si of sheetIndices) {
-      const items = bySheet.get(si)!;
-      const sheetMat = g.material;
-      items.forEach((it, i) => {
-        const piece = pieceMap.get(it.pieceId);
-        const { w, h } = realPieceCm(piece, it);
-        labels.push({
-          ref: `${sheetLetter(si)}-${i + 1}`,
-          material: materialDescription(sheetMat, piece, g.label),
-          dims: `${fmt(w)} × ${fmt(h)} cm`,
-          rotated: !!it.rotated,
-          sheet: `Lastra ${sheetLetter(si)}`,
-          label: it.label,
-        });
+      const piece = pieceMap.get(it.pieceId);
+      const mat = g.material;
+      const { w, h } = realPieceCm(piece, it);
+      const materiale = mat?.name || piece?.productName || g.label;
+      const rawThick =
+        (mat?.thickness && String(mat.thickness).trim()) ||
+        (mat?.height && String(mat.height).trim()) ||
+        (piece?.thickness && String(piece.thickness).trim()) ||
+        (piece?.height && String(piece.height).trim()) ||
+        "";
+      const spessore = rawThick ? (/mm|cm/i.test(rawThick) ? rawThick : `${rawThick} mm`) : "";
+      const colore = mat?.color || piece?.color || "";
+      labels.push({
+        materiale,
+        spessore,
+        colore,
+        dims: `${fmt(w)} × ${fmt(h)} cm`,
       });
     }
   }
@@ -1931,9 +1928,9 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
   // Formato DYMO DieCutLabel v8 (twips = 1/1440 inch). Estensione .label
   // Stock 30336 (Small Multi-Purpose, 1"×2-1/8" = 25×54mm) — il più vicino ai 55×25mm.
   const buildLabelXml = (l: Label) => {
-    const line1 = `${l.ref}  ${l.dims}${l.rotated ? " ↻" : ""}`;
-    const line2 = l.label || "";
-    const line3 = `${l.material} · ${l.sheet}`;
+    const line1 = l.materiale;
+    const line2 = [l.spessore, l.colore].filter(Boolean).join(" · ");
+    const line3 = l.dims;
     const mkElement = (str: string, size: number, bold: "True" | "False") => `
         <Element>
           <String>${esc(str + "\n")}</String>
@@ -1964,7 +1961,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
       <Verticalized>False</Verticalized>
-      <StyledText>${mkElement(line1, 14, "True")}${mkElement(line2, 12, "True")}${mkElement(line3, 9, "False")}
+      <StyledText>${mkElement(line1, 13, "True")}${mkElement(line2, 11, "False")}${mkElement(line3, 14, "True")}
       </StyledText>
     </TextObject>
     <Bounds X="150" Y="100" Width="2900" Height="1250"/>
@@ -1973,6 +1970,9 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
   };
 
   const safeName = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60);
+  const labelFileName = (l: Label, i: number) =>
+    safeName([l.materiale, l.spessore, l.dims, String(i + 1)].filter(Boolean).join("_"));
+
 
   const stamp = new Date().toISOString().slice(0, 10);
   const triggerDownload = (blob: Blob, filename: string) => {

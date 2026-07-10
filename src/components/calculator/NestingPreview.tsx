@@ -446,6 +446,15 @@ type Props = {
  */
 export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly, nestingState, customerType }: Props) => {
   const { inventory, scraps } = useProdStore();
+  const [nestSettings] = useLocalStorageState("nesting.settings.v1", {
+    kerfMm: 0,
+    perimeterMm: 10,
+    skipPerimeter: false,
+  });
+  const exportCfg = {
+    kerfMm: nestSettings.kerfMm,
+    perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm,
+  };
   const groups = useMemo(() => {
     if (!catalog || !pieces.length) return [] as NestingGroup[];
     try {

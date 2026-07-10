@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Loader2, PackagePlus, Search, Scissors, Ruler } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Loader2, PackagePlus, Search, Scissors, Ruler, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -20,31 +20,31 @@ type Props = {
   catalog: Catalog | null;
 };
 
+// chiave UNIVOCA per variante (include TUTTE le dimensioni)
 const matKey = (m: CatalogMaterial) =>
-  [m.name, m.color, m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
+  [m.name, m.color, m.baseWidth ?? "", m.height ?? "", m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
     .map((x) => String(x ?? "").trim().toLowerCase()).join("|");
 
-const dimLabel = (m: CatalogMaterial): string | null => {
+const norm = (v: any) => String(v ?? "").trim();
+const sizeLabel = (m: CatalogMaterial): string => {
   const u = m.heightUnit ?? m.dimUnit ?? "";
-  if (m.format === "lastra") {
+  if (m.format === "lastra" || m.baseWidth) {
     if (m.baseWidth && m.height) return `${m.baseWidth}×${m.height}${u}`;
-    if (m.height) return `${m.height}${u}`;
-    return null;
+    if (m.height) return `H ${m.height}${u}`;
+    return "—";
   }
-  return m.height ? `${m.height}${u}` : null;
-};
-const matLabel = (m: CatalogMaterial) => {
-  const bits = [m.color, dimLabel(m), m.thickness && `sp.${m.thickness}`, m.finish, m.fireproof].filter(Boolean);
-  return bits.length ? `${m.name} · ${bits.join(" · ")}` : m.name;
+  return m.height ? `H ${m.height}${u}` : "—";
 };
 
 export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props) => {
   const { user } = useAuth();
   const { inventory, refreshInventory } = useProdStore();
-  const [q, setQ] = useState("");
-  const [selKey, setSelKey] = useState<string | null>(null);
+  const [qName, setQName] = useState("");
+  const [selName, setSelName] = useState<string | null>(null);
+  const [selThickness, setSelThickness] = useState<string | null>(null);
+  const [selColor, setSelColor] = useState<string | null>(null);
+  const [selVariantKey, setSelVariantKey] = useState<string | null>(null);
   const [customSize, setCustomSize] = useState(false);
-  // true = crea nuova variante di listino nel magazzino, false = pezzo di sfrido
   const [asVariant, setAsVariant] = useState(false);
   const [qty, setQty] = useState("1");
   const [wMm, setWMm] = useState("");
@@ -53,17 +53,61 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
   const [saving, setSaving] = useState(false);
 
   const materials = catalog?.materials ?? [];
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    const list = materials.map((m) => ({ m, key: matKey(m), label: matLabel(m) }));
-    if (!t) return list.slice(0, 60);
-    return list.filter((r) => r.label.toLowerCase().includes(t)).slice(0, 60);
-  }, [materials, q]);
 
-  const selected = useMemo(() => filtered.find((r) => r.key === selKey) ?? materials.map((m) => ({ m, key: matKey(m), label: matLabel(m) })).find((r) => r.key === selKey) ?? null, [filtered, materials, selKey]);
+  // Step 1: nomi prodotto (filtrati)
+  const names = useMemo(() => {
+    const t = qName.trim().toLowerCase();
+    const set = new Set<string>();
+    for (const m of materials) {
+      const n = norm(m.name);
+      if (!n) continue;
+      if (t && !n.toLowerCase().includes(t)) continue;
+      set.add(n);
+    }
+    return Array.from(set).sort();
+  }, [materials, qName]);
+
+  // Step 2: spessori disponibili per prodotto selezionato
+  const thicknesses = useMemo(() => {
+    if (!selName) return [];
+    const set = new Set<string>();
+    for (const m of materials) if (norm(m.name) === selName) set.add(norm(m.thickness));
+    return Array.from(set).sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0));
+  }, [materials, selName]);
+
+  // Step 3: colori disponibili per prodotto + spessore
+  const colors = useMemo(() => {
+    if (!selName) return [];
+    const set = new Set<string>();
+    for (const m of materials) {
+      if (norm(m.name) !== selName) continue;
+      if (selThickness !== null && norm(m.thickness) !== selThickness) continue;
+      set.add(norm(m.color));
+    }
+    return Array.from(set).sort();
+  }, [materials, selName, selThickness]);
+
+  // Step 4: misure (varianti finali)
+  const variants = useMemo(() => {
+    if (!selName) return [];
+    return materials
+      .filter((m) => norm(m.name) === selName
+        && (selThickness === null || norm(m.thickness) === selThickness)
+        && (selColor === null || norm(m.color) === selColor))
+      .map((m) => ({ m, key: matKey(m), size: sizeLabel(m) }))
+      .sort((a, b) => a.size.localeCompare(b.size));
+  }, [materials, selName, selThickness, selColor]);
+
+  const selected = useMemo(() => variants.find((v) => v.key === selVariantKey) ?? null, [variants, selVariantKey]);
+
+  // reset a cascata quando cambia livello superiore
+  useEffect(() => { setSelThickness(null); setSelColor(null); setSelVariantKey(null); }, [selName]);
+  useEffect(() => { setSelColor(null); setSelVariantKey(null); }, [selThickness]);
+  useEffect(() => { setSelVariantKey(null); }, [selColor]);
 
   const reset = () => {
-    setQ(""); setSelKey(null); setCustomSize(false); setAsVariant(false);
+    setQName(""); setSelName(null); setSelThickness(null); setSelColor(null); setSelVariantKey(null);
+    setCustomSize(false); setAsVariant(false);
     setQty("1"); setWMm(""); setHMm(""); setPosizione("");
   };
 
@@ -73,13 +117,18 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
   };
   const deptPrefix = dept === "tappezzeria" ? "TAP-" : dept === "stampa" ? "LAB-" : dept === "falegnameria" ? "FAL-" : "GEN-";
 
+  const variantDesc = (m: CatalogMaterial) => {
+    const bits = [m.color, sizeLabel(m), m.thickness && `sp.${m.thickness}mm`, m.finish, m.fireproof].filter(Boolean);
+    return bits.length ? `${m.name} · ${bits.join(" · ")}` : m.name;
+  };
+
   const ensureBaseInventory = async (m: CatalogMaterial, key: string) => {
     const um = (m.format ?? "") === "lastra" ? "ls" : (m.unit || "pz");
     const existing = inventory.find((i) => i.reparto === dept && i.material_key === key);
     if (existing) return existing;
     const code = codeFor(deptPrefix);
     const { data, error } = await supabase.from("inventory_items").insert({
-      code, kind: "nuovo", nome: m.name, descrizione: matLabel(m),
+      code, kind: "nuovo", nome: m.name, descrizione: variantDesc(m),
       qty_intera: 0, qty_sfrido: 0, um,
       posizione: null, soglia_minima: 5, note: null, reparto: dept,
       material_key: key, material_name: m.name,
@@ -95,11 +144,11 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
   };
 
   const submit = async () => {
-    if (!selected) { toast.error("Seleziona un materiale dal listino"); return; }
-    const { m, key, label } = selected;
+    if (!selected) { toast.error("Seleziona una variante specifica"); return; }
+    const { m, key } = selected;
+    const label = variantDesc(m);
     setSaving(true);
     try {
-      // === CASO 1: lastra intera ===
       if (!customSize) {
         const n = parseFloat(qty.replace(",", "."));
         if (!n || n <= 0) { toast.error("Quantità non valida"); return; }
@@ -115,9 +164,7 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
           prev_state: { qty_intera: inv.qty_intera }, new_state: { qty_intera: newQty },
         });
         toast.success(`+${n} → totale ${newQty} ${inv.um}`);
-      }
-      // === CASO 2a: misura custom come SFRIDO del materiale base ===
-      else if (!asVariant) {
+      } else if (!asVariant) {
         const ww = parseFloat(wMm.replace(",", "."));
         const hh = parseFloat(hMm.replace(",", "."));
         const n = Math.max(1, parseInt(qty || "1", 10));
@@ -125,7 +172,6 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
         const inv = await ensureBaseInventory(m, key);
         const thickRaw = (inv.material_attrs as any)?.thickness;
         const thick = thickRaw ? parseFloat(String(thickRaw).replace(",", ".")) || null : null;
-        // scraps correnti per numerare il codice
         const { data: existingScraps } = await supabase.from("inventory_scrap_pieces")
           .select("code").eq("inventory_id", inv.id);
         const scrapArr: any[] = existingScraps ?? [];
@@ -144,9 +190,7 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
           detail: `${n}× ${ww}×${hh}mm · ${inv.code} · ${label}`,
         });
         toast.success(`${n} pezzo/i sfrido aggiunti`);
-      }
-      // === CASO 2b: misura custom come NUOVA VARIANTE ===
-      else {
+      } else {
         const ww = parseFloat(wMm.replace(",", "."));
         const hh = parseFloat(hMm.replace(",", "."));
         const n = parseFloat(qty.replace(",", "."));
@@ -194,87 +238,161 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
     } finally { setSaving(false); }
   };
 
+  const Chip = ({ active, onClick, children }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-2 rounded-sm border text-sm transition ${
+        active
+          ? "bg-primary text-primary-foreground border-primary font-bold"
+          : "bg-background hover:bg-muted border-border"
+      }`}
+    >
+      {active && <Check className="w-3.5 h-3.5 inline mr-1" />}
+      {children}
+    </button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <PackagePlus className="w-5 h-5" /> Aggiungi a magazzino
           </DialogTitle>
           <DialogDescription>
-            Scegli un materiale dal listino, poi inserisci quante lastre intere aggiungere oppure attiva la misura personalizzata.
+            Scegli in ordine: prodotto → spessore → colore → misura. Ogni variante è tracciata separatamente.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* STEP 1: PRODOTTO */}
           <div>
-            <Label className="text-sm font-semibold">1. Materiale dal listino</Label>
+            <Label className="text-sm font-bold text-primary">1 · PRODOTTO</Label>
             <div className="relative mt-1">
               <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-ink/40" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca (es. Forex bianco 3mm)…" className="pl-8" />
+              <Input value={qName} onChange={(e) => setQName(e.target.value)} placeholder="Cerca prodotto (es. Forex, Policarbonato)…" className="pl-8" />
             </div>
-            <div className="mt-2 max-h-56 overflow-y-auto border rounded-sm bg-background">
-              {filtered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">Nessun materiale trovato</div>
+            <div className="mt-2 max-h-40 overflow-y-auto border rounded-sm bg-background">
+              {names.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">Nessun prodotto</div>
               ) : (
-                filtered.map((r) => (
-                  <button key={r.key} type="button" onClick={() => setSelKey(r.key)}
-                    className={`w-full text-left px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50 ${selKey === r.key ? "bg-primary/15 font-semibold" : ""}`}>
-                    {r.label}
+                names.map((n) => (
+                  <button key={n} type="button" onClick={() => setSelName(n)}
+                    className={`w-full text-left px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50 ${selName === n ? "bg-primary/15 font-bold" : ""}`}>
+                    {selName === n && <Check className="w-3.5 h-3.5 inline mr-1 text-primary" />}
+                    {n}
                   </button>
                 ))
               )}
             </div>
-            {selected && (
-              <div className="mt-2 text-xs text-primary font-mono">✓ {selected.label}</div>
-            )}
           </div>
 
-          <div className="border rounded-sm p-3 bg-muted/20 space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={customSize} onChange={(e) => setCustomSize(e.target.checked)} className="w-5 h-5 accent-primary" />
-              <Ruler className="w-4 h-4" />
-              <span className="text-sm font-semibold">Misura personalizzata</span>
-              <span className="text-xs text-muted-foreground">(default: lastra intera)</span>
-            </label>
+          {/* STEP 2: SPESSORE */}
+          {selName && (
+            <div>
+              <Label className="text-sm font-bold text-primary">2 · SPESSORE</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {thicknesses.length === 0 || (thicknesses.length === 1 && !thicknesses[0]) ? (
+                  <span className="text-xs text-muted-foreground italic">Nessuno spessore per questo prodotto</span>
+                ) : (
+                  thicknesses.map((t) => (
+                    <Chip key={t || "none"} active={selThickness === t} onClick={() => setSelThickness(t)}>
+                      {t ? `${t} mm` : "—"}
+                    </Chip>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
-            {customSize && (
-              <label className="flex items-center gap-2 cursor-pointer pl-7">
-                <input type="checkbox" checked={asVariant} onChange={(e) => setAsVariant(e.target.checked)} className="w-4 h-4 accent-primary" />
-                {asVariant
-                  ? <PackagePlus className="w-4 h-4 text-primary" />
-                  : <Scissors className="w-4 h-4 text-amber-700" />}
-                <span className="text-sm">
-                  {asVariant
-                    ? "Crea come NUOVA VARIANTE di magazzino"
-                    : "Aggiungi come PEZZO DI SFRIDO del materiale base"}
-                </span>
-              </label>
-            )}
-          </div>
+          {/* STEP 3: COLORE */}
+          {selName && (selThickness !== null || thicknesses.length <= 1) && (
+            <div>
+              <Label className="text-sm font-bold text-primary">3 · COLORE / FINITURA</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {colors.map((c) => (
+                  <Chip key={c || "none"} active={selColor === c} onClick={() => setSelColor(c)}>
+                    {c || "—"}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            {customSize && (
-              <>
+          {/* STEP 4: MISURA */}
+          {selName && selColor !== null && (
+            <div>
+              <Label className="text-sm font-bold text-primary">4 · MISURA</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {variants.length === 0 ? (
+                  <span className="text-xs text-muted-foreground italic">Nessuna misura disponibile</span>
+                ) : (
+                  variants.map((v) => (
+                    <Chip key={v.key} active={selVariantKey === v.key} onClick={() => setSelVariantKey(v.key)}>
+                      {v.size}
+                    </Chip>
+                  ))
+                )}
+              </div>
+              {selected && (
+                <div className="mt-2 text-xs text-primary font-mono border-l-2 border-primary pl-2">
+                  ✓ {variantDesc(selected.m)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODALITÀ + QUANTITÀ */}
+          {selected && (
+            <>
+              <div className="border rounded-sm p-3 bg-muted/20 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={customSize} onChange={(e) => setCustomSize(e.target.checked)} className="w-5 h-5 accent-primary" />
+                  <Ruler className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Misura personalizzata</span>
+                  <span className="text-xs text-muted-foreground">(default: lastra intera)</span>
+                </label>
+
+                {customSize && (
+                  <label className="flex items-center gap-2 cursor-pointer pl-7">
+                    <input type="checkbox" checked={asVariant} onChange={(e) => setAsVariant(e.target.checked)} className="w-4 h-4 accent-primary" />
+                    {asVariant
+                      ? <PackagePlus className="w-4 h-4 text-primary" />
+                      : <Scissors className="w-4 h-4 text-amber-700" />}
+                    <span className="text-sm">
+                      {asVariant
+                        ? "Crea come NUOVA VARIANTE di magazzino"
+                        : "Aggiungi come PEZZO DI SFRIDO del materiale base"}
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {customSize && (
+                  <>
+                    <div>
+                      <Label className="text-sm">Larghezza (mm)</Label>
+                      <Input type="number" value={wMm} onChange={(e) => setWMm(e.target.value)} placeholder="es. 1200" />
+                    </div>
+                    <div>
+                      <Label className="text-sm">Altezza (mm)</Label>
+                      <Input type="number" value={hMm} onChange={(e) => setHMm(e.target.value)} placeholder="es. 800" />
+                    </div>
+                  </>
+                )}
                 <div>
-                  <Label className="text-sm">Larghezza (mm)</Label>
-                  <Input type="number" value={wMm} onChange={(e) => setWMm(e.target.value)} placeholder="es. 1200" />
+                  <Label className="text-sm">Quantità</Label>
+                  <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} />
                 </div>
                 <div>
-                  <Label className="text-sm">Altezza (mm)</Label>
-                  <Input type="number" value={hMm} onChange={(e) => setHMm(e.target.value)} placeholder="es. 800" />
+                  <Label className="text-sm">Posizione (opz.)</Label>
+                  <Input value={posizione} onChange={(e) => setPosizione(e.target.value)} placeholder="es. A3" />
                 </div>
-              </>
-            )}
-            <div>
-              <Label className="text-sm">Quantità</Label>
-              <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-sm">Posizione (opz.)</Label>
-              <Input value={posizione} onChange={(e) => setPosizione(e.target.value)} placeholder="es. A3" />
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

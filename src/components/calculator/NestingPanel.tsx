@@ -299,20 +299,21 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
             const y = PAD + it.x * scale;
             const w = it.h * scale;
             const h = it.w * scale;
-            const color = colorForPiece(it.pieceId);
+            const bg = pieceBackground(it.pieceId);
+            const edge = colorForPiece(it.pieceId);
             let shape: JSX.Element;
             if (it.shape === "triangle") {
               const points = it.pairRole === "secondary" ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}` : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-              shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+              shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else if (it.shape === "trapezoid") {
               const wbM = it.widthBottomM ?? it.w;
               const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
               const wb = w * ratio;
               const off = (w - wb) / 2;
               const points = it.pairRole === "secondary" ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}` : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-              shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+              shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else {
-              shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+              shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
             }
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>

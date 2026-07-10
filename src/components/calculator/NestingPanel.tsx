@@ -165,21 +165,30 @@ const SheetSvg = ({
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
               {shape}
-              {w > 28 && h > 14 && (
-                <text
-                  x={x + w / 2}
-                  y={y + h / 2 + 3}
-                  textAnchor="middle"
-                  fontFamily="ui-monospace, monospace"
-                  fontSize={Math.min(10, Math.max(7, h / 4))}
-                  fontWeight={700}
-                  className="fill-ink"
-                  pointerEvents="none"
-                >
-                  {it.label}
-                  {it.rotated ? "↻" : ""}
-                </text>
-              )}
+              {w > 28 && h > 14 && (() => {
+                const fs = Math.min(10, Math.max(7, h / 5));
+                const showDim = h > 26;
+                return (
+                  <text
+                    x={x + w / 2}
+                    y={y + h / 2 + (showDim ? -1 : 3)}
+                    textAnchor="middle"
+                    fontFamily="ui-monospace, monospace"
+                    fontSize={fs}
+                    fontWeight={700}
+                    className="fill-ink"
+                    pointerEvents="none"
+                  >
+                    <tspan x={x + w / 2}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
+                    {showDim && (
+                      <tspan x={x + w / 2} dy={fs + 1} fontWeight={500} fontSize={fs - 1}>
+                        {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                      </tspan>
+                    )}
+                  </text>
+                );
+              })()}
+
               {debug && (
                 <g pointerEvents="none">
                   <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(0 80% 50%)" strokeWidth={0.8} strokeDasharray="2 2" />

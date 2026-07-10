@@ -45,14 +45,16 @@ type Bin = {
 };
 
 type FR = { x: number; y: number; w: number; h: number };
-const bssf = (free: FR[], w: number, h: number) => {
+const bssf = (free: FR[], w: number, h: number, used: FR[] = []) => {
   let best: { rect: FR; s1: number; s2: number } | null = null;
   for (const f of free) {
     if (f.w + 1e-6 < w || f.h + 1e-6 < h) continue;
+    const rect = { x: f.x, y: f.y, w, h };
+    if (used.some((u) => intersects(u, rect))) continue;
     const s1 = Math.min(f.w - w, f.h - h);
     const s2 = Math.max(f.w - w, f.h - h);
     if (!best || s1 < best.s1 - 1e-9 || (Math.abs(s1 - best.s1) < 1e-9 && s2 < best.s2)) {
-      best = { rect: { x: f.x, y: f.y, w, h }, s1, s2 };
+      best = { rect, s1, s2 };
     }
   }
   return best;
@@ -74,10 +76,10 @@ const intersects = (a: FR, b: FR) =>
   !(a.x >= b.x + b.w - 1e-6 || a.x + a.w <= b.x + 1e-6 || a.y >= b.y + b.h - 1e-6 || a.y + a.h <= b.y + 1e-6);
 type OpenBin = Bin & { key: string; free: FR[]; used: FR[] };
 const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
-  const a = bssf(bin.free, w, h);
-  const b = w !== h ? bssf(bin.free, h, w) : null;
+  const a = bssf(bin.free, w, h, bin.used);
+  const b = w !== h ? bssf(bin.free, h, w, bin.used) : null;
   const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
-  if (!pick || bin.used.some((u) => intersects(u, pick.rect))) return false;
+  if (!pick) return false;
   bin.free = placeInto(bin.free, pick.rect);
   bin.used.push(pick.rect);
   return true;

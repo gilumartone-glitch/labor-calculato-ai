@@ -38,14 +38,16 @@ const fits = (r: { w: number; h: number }, b: { w: number; h: number }) =>
 // --- MaxRects Best-Short-Side-Fit con rotazione (in mm) per stimare correttamente
 // quanti pezzi entrano in una lastra/sfrido: così lo shortage non conta 1 lastra per pezzo.
 type FR = { x: number; y: number; w: number; h: number };
-const bssf = (free: FR[], w: number, h: number) => {
+const bssf = (free: FR[], w: number, h: number, used: FR[] = []) => {
   let best: { rect: FR; s1: number; s2: number } | null = null;
   for (const f of free) {
     if (f.w + 1e-6 < w || f.h + 1e-6 < h) continue;
+    const rect = { x: f.x, y: f.y, w, h };
+    if (used.some((u) => intersects(u, rect))) continue;
     const leftover = [f.w - w, f.h - h];
     const s1 = Math.min(...leftover), s2 = Math.max(...leftover);
     if (!best || s1 < best.s1 - 1e-9 || (Math.abs(s1 - best.s1) < 1e-9 && s2 < best.s2)) {
-      best = { rect: { x: f.x, y: f.y, w, h }, s1, s2 };
+      best = { rect, s1, s2 };
     }
   }
   return best;
@@ -80,11 +82,10 @@ const intersects = (a: FR, b: FR) =>
   !(a.x >= b.x + b.w - 1e-6 || a.x + a.w <= b.x + 1e-6 || a.y >= b.y + b.h - 1e-6 || a.y + a.h <= b.y + 1e-6);
 type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[]; used: FR[] };
 const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
-  const a = bssf(bin.free, w, h);
-  const b = w !== h ? bssf(bin.free, h, w) : null;
+  const a = bssf(bin.free, w, h, bin.used);
+  const b = w !== h ? bssf(bin.free, h, w, bin.used) : null;
   const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
   if (!pick) return false;
-  if (bin.used.some((u) => intersects(u, pick.rect))) return false;
   bin.free = placeInto(bin.free, pick.rect);
   bin.used.push(pick.rect);
   return true;
@@ -272,21 +273,21 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
           const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
-          tryPlace(nb, r.w, r.h); uScrap++; continue;
+          if (tryPlace(nb, r.w, r.h)) { uScrap++; continue; }
         }
         // 2) apri la più piccola LASTRA di magazzino che lo contenga
         const shIdx = sheets.findIndex((b) => b.left > 0 && fitsUsable(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
           const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
-          tryPlace(nb, r.w, r.h); uSheet++; continue;
+          if (tryPlace(nb, r.w, r.h)) { uSheet++; continue; }
         }
         // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
         if (bypass && pool.fallbacks.length > 0) {
           const fb = pool.fallbacks.find((b) => fitsUsable(r, b));
           if (fb) {
             const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
-            tryPlace(nb, r.w, r.h); uFallback++; continue;
+            if (tryPlace(nb, r.w, r.h)) { uFallback++; continue; }
           }
         }
         // 4) mancante

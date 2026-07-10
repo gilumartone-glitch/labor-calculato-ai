@@ -1704,7 +1704,7 @@ export const exportNestingPdf = (
   toast.success("PDF esportato in scala reale");
 };
 
-const openPrintCuttingSheet = (
+export const openPrintCuttingSheet = (
 
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number },

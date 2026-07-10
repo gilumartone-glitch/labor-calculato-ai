@@ -38,6 +38,7 @@
 
     --ink: 195 50% 14%;
     --paper: 0 0% 100%;
+    --nesting-gap: 0 0% 100%;
     --rule: 195 50% 14%;
     --dept: 184 85% 32%;
     --dept-foreground: 0 0% 100%;
@@ -81,6 +82,7 @@
     --ring: 184 75% 48%;
     --ink: 184 25% 90%;
     --paper: 200 25% 12%;
+    --nesting-gap: 0 0% 100%;
     --rule: 184 25% 60%;
     --dept: 184 75% 48%;
     --dept-foreground: 200 30% 8%;

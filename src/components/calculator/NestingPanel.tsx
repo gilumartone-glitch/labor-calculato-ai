@@ -1993,7 +1993,7 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[]) => {
       const items = bySheet.get(si)!;
       const ms = g.mixedSheets?.[si];
       const sheetLetterStr = sheetLetter(si);
-      const sheetFormat = ms ? `${cm(ms.bin.wM)}×${cm(ms.bin.hM)} cm` : "";
+      const sheetFormat = ms ? `${cm(ms.bin.widthM)}×${cm(ms.bin.heightM)} cm` : "";
       items.forEach((it, i) => {
         rows.push([
           `${sheetLetterStr}-${i + 1}`,

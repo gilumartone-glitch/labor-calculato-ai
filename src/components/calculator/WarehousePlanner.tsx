@@ -35,7 +35,19 @@ type GroupPlan = {
 const fits = (r: { w: number; h: number }, b: { w: number; h: number }) =>
   (r.w <= b.w && r.h <= b.h) || (r.h <= b.w && r.w <= b.h);
 
-const cm = (mm: number) => `${Math.round(mm / 10)}`;
+const cm = (mm: number) => {
+  const v = mm / 10;
+  // Mantieni 1 decimale quando non intero (es. 122.5 cm), altrimenti intero.
+  return Math.abs(v - Math.round(v)) < 0.05 ? `${Math.round(v)}` : v.toFixed(1);
+};
+// Estrae il valore numerico da una stringa spessore (es. "8 mm" → 8, "8mm" → 8).
+const normThickness = (s: unknown) => {
+  const raw = String(s ?? "").trim().toLowerCase();
+  if (!raw) return "";
+  const m = raw.match(/[\d.,]+/);
+  if (!m) return raw;
+  return String(parseFloat(m[0].replace(",", ".")));
+};
 
 interface Props {
   groups: NestingGroup[];

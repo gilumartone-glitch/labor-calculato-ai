@@ -893,6 +893,7 @@ const multiSheetPack = (
       for (const o of ors) {
         const f = mrFindBSSF(bins[bi].free, o.w, o.h);
         if (!f) continue;
+        if (mrOverlapsUsed(bins[bi].used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -911,8 +912,9 @@ const multiSheetPack = (
       // Nel bin appena aperto scelgo l'orientamento che spreca meno
       let openBest: MRPlacement | null = null;
       for (const o of ors) {
-        const f = mrFindBSSF(bin.free, o.w, o.h);
+          const f = mrFindBSSF(bin.free, o.w, o.h);
         if (!f) continue;
+          if (mrOverlapsUsed(bin.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !openBest ||
@@ -927,9 +929,11 @@ const multiSheetPack = (
         continue;
       }
       mrPlace(bin.free, openBest.rect);
+      bin.used.push(openBest.rect);
       mrEmitItems(u, openBest.rect, openBest.rotated, bi, allItems);
     } else {
       mrPlace(bins[best.binIdx].free, best.placement.rect);
+      bins[best.binIdx].used.push(best.placement.rect);
       mrEmitItems(u, best.placement.rect, best.placement.rotated, best.binIdx, allItems);
     }
   }

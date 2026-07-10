@@ -48,9 +48,8 @@ interface Props {
 const fmt = (n: number, d = 2) =>
   n.toLocaleString("it-IT", { maximumFractionDigits: d, minimumFractionDigits: d });
 
-/** Mostra una lunghezza espressa in metri come cm intero (es. 2.05 m → "205 cm"). */
-const fmtCm = (m: number) =>
-  (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+/** Mostra una lunghezza espressa in metri come cm con precisione al millimetro. */
+const fmtCm = (m: number) => mToCm(m);
 
 const materialMetaLabel = (material?: CatalogMaterial | null) =>
   [

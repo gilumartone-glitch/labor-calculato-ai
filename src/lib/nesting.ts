@@ -1407,10 +1407,13 @@ const computeMixedLastraGroup = (
   const seamCost = seamLengthM * seamPricePerM;
   materialCostOptimized += seamCost;
 
+  // NOTE: riportiamo le dimensioni FISICHE della lastra (bin.widthM/heightM),
+  // NON quelle utili post-margine. Il margine serve solo a decidere se un pezzo
+  // ci entra: la lastra fisica che viene tagliata è la piena (es. 305×205).
   const mixedSheets: NestingMixedSheet[] = openSheets.map((s) => ({
     bin: s.bin,
-    widthM: s.w,
-    heightM: s.h,
+    widthM: s.bin.widthM,
+    heightM: s.bin.heightM,
   }));
   const usedAreaM2 = raw.reduce((s, r) => s + r.realArea, 0);
   const totalAreaM2 = totalSheetArea;
@@ -1423,9 +1426,9 @@ const computeMixedLastraGroup = (
     key,
     label,
     material: refSheet.material,
-    rollWidthM: refSheet.w,
+    rollWidthM: refSheet.bin.widthM,
     unitPrice: materialUnitCost(refSheet.material, mode, customer),
-    totalLengthM: openSheets.reduce((s, sh) => s + sh.h, 0),
+    totalLengthM: openSheets.reduce((s, sh) => s + sh.bin.heightM, 0),
     totalAreaM2,
     usedAreaM2,
     wastePct,
@@ -1445,8 +1448,8 @@ const computeMixedLastraGroup = (
     scrapCost: 0,
     minBillingExtra,
     sheetsNeeded: openSheets.length,
-    sheetHeightM: refSheet.h,
-    sheetWidthM: refSheet.w,
+    sheetHeightM: refSheet.bin.heightM,
+    sheetWidthM: refSheet.bin.widthM,
     seamLengthM,
     seamCost,
     mixedSheets,

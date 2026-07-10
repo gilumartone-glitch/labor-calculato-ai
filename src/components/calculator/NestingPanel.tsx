@@ -97,7 +97,7 @@ const SheetSvg = ({
    *  Serve a tenere proporzioni coerenti tra fogli di dimensioni diverse. */
   fixedScale?: number;
 }) => {
-  const PAD = 14;
+  const PAD = 28;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);

@@ -242,73 +242,78 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
     const fitsUsable = (r: { w: number; h: number }, b: { w: number; h: number }) => fits(r, usable(b));
     for (const g of groups) {
       const pool = pools[g.key] ?? { scraps: [], sheets: [], fallbacks: [] };
-      // Pool ordinato PICCOLO → GRANDE (area crescente): sfridi + lastre di magazzino.
-      const scraps = [...pool.scraps].map((b) => ({ ...b, left: 1 }))
-        .sort((a, b) => a.w * a.h - b.w * b.h);
-      const sheets = [...pool.sheets].map((b) => ({ ...b, left: b.qty }))
-        .sort((a, b) => a.w * a.h - b.w * b.h);
-      // Pezzi: assegno prima i grandi (Best-Fit-Decreasing) al più piccolo bin che li contiene
-      const reqs = g.items.map((it, i) => ({
+      const baseReqs = g.items.map((it, i) => ({
         idx: i, w: Math.round(it.w * 1000), h: Math.round(it.h * 1000), label: it.label,
-      })).sort((a, b) => b.w * b.h - a.w * a.h);
-
-      const openBins: OpenBin[] = [];
-      const missing: { label: string; w: number; h: number }[] = [];
-      let uScrap = 0, uSheet = 0, uFallback = 0;
-
-      const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
-        const u = usable({ w, h });
-        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w: u.w, h: u.h }], used: [] };
-        openBins.push(b); return b;
-      };
-
-      for (const r of reqs) {
-        // 0) prova a farlo entrare in un bin GIÀ APERTO (multi-pezzo per lastra):
-        //    prima sfridi aperti, poi lastre aperte, entrambi dal più piccolo.
-        const openCandidates = [...openBins].sort((a, b) => {
-          if (a.kind !== b.kind) return a.kind === "scrap" ? -1 : 1;
-          return a.w * a.h - b.w * b.h;
-        });
-        let placed = false;
-        for (const bin of openCandidates) {
-          if (tryPlace(bin, r.w, r.h)) { placed = true; break; }
-        }
-        if (placed) continue;
-
-        // 1) apri il più piccolo SFRIDO che lo contenga
-        const sIdx = scraps.findIndex((b) => b.left > 0 && fitsUsable(r, b));
-        if (sIdx >= 0) {
-          const b = scraps[sIdx]; b.left -= 1;
-          const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
-          if (tryPlace(nb, r.w, r.h)) { uScrap++; continue; }
-        }
-        // 2) apri la più piccola LASTRA di magazzino che lo contenga
-        const shIdx = sheets.findIndex((b) => b.left > 0 && fitsUsable(r, b));
-        if (shIdx >= 0) {
-          const b = sheets[shIdx]; b.left -= 1;
-          const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
-          if (tryPlace(nb, r.w, r.h)) { uSheet++; continue; }
-        }
-        // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
-        if (bypass && pool.fallbacks.length > 0) {
-          const fb = pool.fallbacks.find((b) => fitsUsable(r, b));
-          if (fb) {
-            const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
-            if (tryPlace(nb, r.w, r.h)) { uFallback++; continue; }
-          }
-        }
-        // 4) mancante
-        missing.push({ label: r.label, w: r.w, h: r.h });
-      }
-
-      const bins: NestingMixedBin[] = openBins.filter((b) => b.used.length > 0).map((b) => ({
-        kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
       }));
 
+      const buildPlan = (reqs: typeof baseReqs) => {
+        const scraps = [...pool.scraps].map((b) => ({ ...b, left: 1 }))
+          .sort((a, b) => a.w * a.h - b.w * b.h);
+        const sheets = [...pool.sheets].map((b) => ({ ...b, left: b.qty }))
+          .sort((a, b) => a.w * a.h - b.w * b.h);
+        const openBins: OpenBin[] = [];
+        const missing: { label: string; w: number; h: number }[] = [];
+        let uScrap = 0, uSheet = 0, uFallback = 0;
+
+        const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
+          const u = usable({ w, h });
+          const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w: u.w, h: u.h }], used: [] };
+          openBins.push(b); return b;
+        };
+
+        for (const r of reqs) {
+          const openCandidates = [...openBins].sort((a, b) => a.w * a.h - b.w * b.h);
+          let placed = false;
+          for (const bin of openCandidates) {
+            if (tryPlace(bin, r.w, r.h)) { placed = true; break; }
+          }
+          if (placed) continue;
+
+          const allInventory = [
+            ...scraps.filter((b) => b.left > 0 && fitsUsable(r, b)).map((b) => ({ ...b, kind: "scrap" as const })),
+            ...sheets.filter((b) => b.left > 0 && fitsUsable(r, b)).map((b) => ({ ...b, kind: "sheet" as const })),
+          ].sort((a, b) => a.w * a.h - b.w * b.h);
+          const inv = allInventory[0];
+          if (inv) {
+            if (inv.kind === "scrap") {
+              const src = scraps.find((b) => b.id === inv.id); if (src) src.left -= 1;
+              const nb = openNewBin("scrap", inv.id, inv.w, inv.h, inv.label);
+              if (tryPlace(nb, r.w, r.h)) { uScrap++; continue; }
+            } else {
+              const src = sheets.find((b) => b.id === inv.id); if (src) src.left -= 1;
+              const nb = openNewBin("sheet", inv.id, inv.w, inv.h, inv.label);
+              if (tryPlace(nb, r.w, r.h)) { uSheet++; continue; }
+            }
+          }
+          if (bypass && pool.fallbacks.length > 0) {
+            const fb = pool.fallbacks.find((b) => fitsUsable(r, b));
+            if (fb) {
+              const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
+              if (tryPlace(nb, r.w, r.h)) { uFallback++; continue; }
+            }
+          }
+          missing.push({ label: r.label, w: r.w, h: r.h });
+        }
+
+        const bins: NestingMixedBin[] = openBins.filter((b) => b.used.length > 0).map((b) => ({
+          kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
+        }));
+        const area = bins.reduce((s, b) => s + b.widthM * b.heightM, 0);
+        return { bins, missing, uScrap, uSheet, uFallback, area };
+      };
+
+      const best = reqSortVariants(baseReqs)
+        .map(buildPlan)
+        .sort((a, b) =>
+          a.missing.length - b.missing.length ||
+          a.uFallback - b.uFallback ||
+          a.area - b.area ||
+          a.bins.length - b.bins.length
+        )[0] ?? buildPlan(baseReqs);
 
       out[g.key] = {
-        bins, covered: reqs.length - missing.length, total: reqs.length, missing,
-        usedScrapCount: uScrap, usedSheetCount: uSheet, usedFallbackCount: uFallback,
+        bins: best.bins, covered: baseReqs.length - best.missing.length, total: baseReqs.length, missing: best.missing,
+        usedScrapCount: best.uScrap, usedSheetCount: best.uSheet, usedFallbackCount: best.uFallback,
         materialLabel: [g.material?.name, g.material?.color, g.material?.thickness]
           .filter(Boolean).join(" · ") || "Materiale",
       };

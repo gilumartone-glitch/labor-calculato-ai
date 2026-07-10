@@ -258,10 +258,10 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
           </defs>
           <rect width={W} height={H} fill={`url(#grid-${group.key})`} className="text-ink" />
           <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="hsl(var(--background))" stroke="currentColor" strokeWidth={1.4} className="text-ink" />
-          <text x={PAD + innerW / 2} y={PAD - 8} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={10}>
+          <text x={PAD + innerW / 2} y={PAD - 8} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700}>
             lunghezza usata {fmtCm(totalLengthM)} cm
           </text>
-          <text x={PAD - 10} y={PAD + innerH / 2} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={10} transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}>
+          <text x={PAD - 10} y={PAD + innerH / 2} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700} transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}>
             altezza telo {fmtCm(rollWidthM)} cm
           </text>
           {items.map((it, idx) => {
@@ -287,14 +287,16 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>
                 {shape}
-                {w > 32 && h > 18 && (() => {
-                  const fs = Math.min(11, Math.max(8, h / 5));
-                  const showDim = h > 30;
+                {w > 24 && h > 14 && (() => {
+                  const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));
+                  const showDim = h > fs * 2.4;
+                  const cx = x + w / 2;
+                  const cy = y + h / 2;
                   return (
-                    <text x={x + w / 2} y={y + h / 2 + (showDim ? -1 : 3)} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={fs} fontWeight={700} className="fill-ink" pointerEvents="none">
-                      <tspan x={x + w / 2}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
+                    <text x={cx} y={showDim ? cy - fs * 0.15 : cy + fs * 0.35} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={fs} fontWeight={800} className="fill-ink" pointerEvents="none" stroke="hsl(var(--background))" strokeWidth={fs * 0.35} paintOrder="stroke" strokeLinejoin="round">
+                      <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                       {showDim && (
-                        <tspan x={x + w / 2} dy={fs + 1} fontWeight={500} fontSize={fs - 1}>
+                        <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
                           {fmtCm(it.w)}×{fmtCm(it.h)} cm
                         </tspan>
                       )}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { NestingGroup, NestingMixedBin } from "@/lib/nesting";
 import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
+import type { Catalog } from "./types";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /** Pianificatore MAGAZZINO GLOBALE per il nesting.
@@ -15,8 +16,9 @@ import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 type BinPool = {
   scraps: { id: string; w: number; h: number; label: string }[]; // qty 1 ciascuno
   sheets: { id: string; w: number; h: number; label: string; qty: number }[];
-  // catalog fallback (dimensioni della lastra "standard" del gruppo, quantità illimitata)
-  fallback: { w: number; h: number; label: string } | null;
+  // catalog fallback: TUTTE le misure standard del materiale (stesso colore + spessore),
+  // ordinate dalla più piccola alla più grande. Quantità illimitata ciascuna.
+  fallbacks: { w: number; h: number; label: string }[];
 };
 
 type GroupPlan = {
@@ -37,6 +39,8 @@ const cm = (mm: number) => `${Math.round(mm / 10)}`;
 
 interface Props {
   groups: NestingGroup[];
+  /** Catalogo del reparto: usato per generare i fallback standard multi-misura. */
+  catalog?: Catalog;
   /** Applica i mixed-bins su tutti i gruppi contemporaneamente (o azzera). */
   onApplyAllMixedBins: (byGroup: Record<string, NestingMixedBin[] | null>) => void;
 }

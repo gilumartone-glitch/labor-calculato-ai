@@ -547,7 +547,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           }
         }
         if (bins.length === 0) return g;
-        return recomputeGroupWithMixedBins(g, groupPieces, bins, indexMap);
+        return recomputeGroupWithMixedBins(g, groupPieces, bins, indexMap, effCatalog);
       });
     } catch {
       return [];

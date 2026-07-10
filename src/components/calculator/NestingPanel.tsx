@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Layers3, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Sparkles, Settings2, Bug, Printer, Download } from "lucide-react";
+import { Layers3, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Sparkles, Settings2, Bug, Printer, Download, FileText } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { toast } from "sonner";
 import { Catalog, PieceLine, CatalogMaterial } from "./types";
 import {
@@ -1550,7 +1551,129 @@ const exportNestingDxf = (
  *  Per ogni gruppo elenca i fogli/rotoli e, foglio per foglio, i pezzi con
  *  dimensioni (cm) e posizione (x,y in cm) — così l'operatore sa DOVE
  *  tagliare ciascun pezzo su quale pannello. */
+/** Esporta un PDF (A4 landscape) con il layout di taglio di ogni lastra, disegnato
+ *  in scala reale (unità mm di jsPDF). Ogni lastra su una pagina, con bordo lastra,
+ *  margine perimetro tratteggiato, pezzi con riferimento e misure in cm. */
+const exportNestingPdf = (
+  groups: NestingGroup[],
+  cfg: { kerfMm: number; perimeterMm: number },
+) => {
+  if (groups.length === 0) return;
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  const PAGE_W = 297, PAGE_H = 210;
+  const MARGIN = 12;
+  const HEADER_H = 22;
+  const FOOTER_H = 8;
+  const now = new Date().toLocaleString("it-IT");
+  let firstPage = true;
+
+  const cm = (m: number) => (m * 100).toFixed(1);
+
+  for (const g of groups) {
+    // raggruppa per foglio
+    const bySheet = new Map<number, NestingPieceItem[]>();
+    for (const it of g.items) {
+      const si = it.sheetIndex ?? 0;
+      if (!bySheet.has(si)) bySheet.set(si, []);
+      bySheet.get(si)!.push(it);
+    }
+    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+    const defaultSheetW = g.sheetWidthM ?? g.rollWidthM;
+    const defaultSheetH = g.sheetHeightM ?? g.totalLengthM;
+
+    for (const si of sheetIndices) {
+      const ms = g.mixedSheets?.[si];
+      const sheetWmm = (ms ? ms.widthM : defaultSheetW) * 1000;
+      const sheetHmm = (ms ? ms.heightM : defaultSheetH) * 1000;
+      const items = bySheet.get(si)!;
+      const label = ms ? `Lastra ${sheetLetter(si)} · ${ms.bin.label}` : `Lastra ${sheetLetter(si)}`;
+
+      if (!firstPage) doc.addPage("a4", "landscape");
+      firstPage = false;
+
+      // header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text(g.label, MARGIN, MARGIN);
+      doc.setFontSize(11);
+      doc.text(`${label} · ${cm(sheetWmm / 1000)} × ${cm(sheetHmm / 1000)} cm`, MARGIN, MARGIN + 6);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text(`Generato ${now} · Fresa ${cfg.kerfMm} mm · Margine perimetro ${cfg.perimeterMm.toFixed(1)} mm`, MARGIN, MARGIN + 11);
+
+      // area disegno
+      const drawX = MARGIN;
+      const drawY = MARGIN + HEADER_H;
+      const drawW = PAGE_W - 2 * MARGIN;
+      const drawH = PAGE_H - MARGIN - drawY - FOOTER_H;
+      const scale = Math.min(drawW / sheetWmm, drawH / sheetHmm);
+      const sw = sheetWmm * scale;
+      const sh = sheetHmm * scale;
+      const ox = drawX + (drawW - sw) / 2;
+      const oy = drawY + (drawH - sh) / 2;
+
+      // bordo lastra
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.6);
+      doc.setFillColor(250, 250, 250);
+      doc.rect(ox, oy, sw, sh, "FD");
+
+      // margine perimetro tratteggiato
+      if (cfg.perimeterMm > 0) {
+        const m = cfg.perimeterMm * scale;
+        doc.setDrawColor(245, 158, 11);
+        doc.setLineWidth(0.4);
+        doc.setLineDashPattern([1.5, 1], 0);
+        doc.rect(ox + m, oy + m, sw - 2 * m, sh - 2 * m);
+        doc.setLineDashPattern([], 0);
+      }
+
+      // pezzi
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.35);
+      items.forEach((it, i) => {
+        const x = ox + it.x * 1000 * scale;
+        const y = oy + it.y * 1000 * scale;
+        const w = it.w * 1000 * scale;
+        const h = it.h * 1000 * scale;
+        doc.setFillColor(229, 231, 235);
+        doc.rect(x, y, w, h, "FD");
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const ref = `${sheetLetter(si)}-${i + 1}`;
+        const dims = `${(it.w * 100).toFixed(1)}×${(it.h * 100).toFixed(1)}`;
+        const refSize = Math.max(7, Math.min(18, Math.min(w, h) / 3));
+        const dimSize = Math.max(5, refSize * 0.55);
+        doc.setTextColor(0);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(refSize);
+        doc.text(ref, cx, cy - refSize * 0.15, { align: "center", baseline: "middle" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(dimSize);
+        doc.text(dims, cx, cy + refSize * 0.55, { align: "center", baseline: "middle" });
+      });
+
+      // legenda pezzi (max 6 per pagina, sotto)
+      const legendY = PAGE_H - MARGIN - FOOTER_H + 2;
+      doc.setFontSize(8);
+      doc.setTextColor(60);
+      const legend = items
+        .slice(0, 8)
+        .map((it, i) => `${sheetLetter(si)}-${i + 1} ${it.label} ${cm(it.w)}×${cm(it.h)}${it.rotated ? " ↻" : ""}`)
+        .join("   ");
+      doc.text(legend + (items.length > 8 ? `   +${items.length - 8} altri` : ""), MARGIN, legendY);
+    }
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  doc.save(`nesting-${stamp}.pdf`);
+  toast.success("PDF esportato in scala reale");
+};
+
 const openPrintCuttingSheet = (
+
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number },
 ) => {
@@ -1975,6 +2098,16 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
+              onClick={() => exportNestingPdf(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              disabled={groups.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
+              title="Scarica un PDF (A4 orizzontale) con il layout di taglio in scala reale"
+            >
+              <FileText className="w-4 h-4" />
+              Esporta PDF
+            </button>
+            <button
+              type="button"
               onClick={() => exportNestingDxf(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm, skipPerimeter: nestSettings.skipPerimeter })}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
@@ -1982,6 +2115,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
             >
               <Download className="w-4 h-4" />
               Esporta CAD (.dxf)
+
             </button>
             <button
               type="button"

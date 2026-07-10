@@ -66,84 +66,24 @@ const normalize = (name: string | undefined | null): string => {
   return "altro";
 };
 
-/** Reparti in cui ha senso spezzare le lavorazioni: quelli con operazioni "unità/ora"
- *  di natura diversa (falegnameria, laboratorio, tappezzeria). Stampa/taglio sono già
- *  reparti distinti nel modello, quindi non vanno spezzati ulteriormente. */
-// La tappezzeria NON viene splittata: le sue operazioni (tintura, imbottitura,
-// verniciatura tessuto…) fanno tipicamente parte di un unico flusso di lavoro.
-const SPLITTABLE: ReadonlySet<ProdDept> = new Set<ProdDept>([
-  "falegnameria",
-  "laboratorio",
-]);
+/** Nessun reparto viene splittato automaticamente in sotto-lavorazioni:
+ *  le sub-lavorazioni compaiono SOLO se l'utente le ha indicate esplicitamente
+ *  tramite "Lavorazioni prodotto" nel sub-progetto. */
 
 /** Restituisce le lavorazioni concrete da lanciare in Flow.
- *  Per ogni reparto rilevato:
- *  - se il reparto è "splittabile" e i pezzi contengono lavorazioni di ≥2 categorie distinte,
- *    emette un task per ciascuna categoria (in ordine logico);
- *  - altrimenti emette un unico task per il reparto (category = null → comportamento identico a oggi). */
+ *  - Un task per ogni reparto rilevato (nessuno split automatico).
+ *  - In aggiunta, un task per ogni "Lavorazione prodotto" indicata dall'utente. */
 export const inferProdTasksFromSnapshot = (
   snap: ProdSnapshot | null,
   deptLabel: (d: ProdDept) => string,
 ): ProdTask[] => {
   const depts = inferProdDeptsFromSnapshot(snap);
-  const snapDepts = collectSnapshotDepartments(snap);
   const out: ProdTask[] = [];
 
-  const snapDeptByKey = new Map<string, (typeof snapDepts)[number]>();
-  for (const sd of snapDepts) snapDeptByKey.set(sd.key.toLowerCase(), sd);
-
   for (const dept of depts) {
-    if (!SPLITTABLE.has(dept)) {
-      out.push({ key: dept, dept, category: null, label: deptLabel(dept) });
-      continue;
-    }
-    // Trova il reparto snapshot corrispondente (stessa chiave testuale del reparto ProdDept).
-    const sd =
-      snapDeptByKey.get(dept as string) ??
-      (dept === "laboratorio" ? snapDeptByKey.get("laboratorio") : undefined) ??
-      snapDeptByKey.get(dept as string);
-    const pieces = sd?.state?.pieces ?? [];
-    const opsDept = sd?.state?.operations ?? [];
-    const cat = sd?.catalog;
-    const cats = new Set<string>();
-    // Operazioni "unità/ora" del reparto (vivono su DepartmentState.operations, non sui pezzi).
-    for (const o of opsDept) {
-      if (o.name) cats.add(normalize(o.name));
-      else if (o.catalogId) {
-        const cop = cat?.operations.find((x) => x.id === o.catalogId);
-        if (cop?.name) cats.add(normalize(cop.name));
-      }
-    }
-    for (const p of pieces) {
-      // Perimetri: rispetta la category se valorizzata, altrimenti classifica dal nome.
-      for (const perim of p.perimeters ?? []) {
-        const pop = cat?.perimeterOps.find((x) => x.id === perim.opId);
-        if (!pop) continue;
-        if (pop.category && pop.category !== "perimetrale") {
-          cats.add(normalize(pop.category === "stampa" ? "stampa" : pop.category));
-        } else {
-          cats.add(normalize(pop.name));
-        }
-      }
-      // Lavorazioni libere del pezzo (customWorks).
-      for (const cw of p.customWorks ?? []) cats.add(normalize(cw.name));
-    }
-    if (cats.size <= 1) {
-      out.push({ key: dept, dept, category: null, label: deptLabel(dept) });
-      continue;
-    }
-    const ordered = Array.from(cats).sort(
-      (a, b) => (CATEGORY_ORDER.indexOf(a) + 999) - (CATEGORY_ORDER.indexOf(b) + 999),
-    );
-    for (const c of ordered) {
-      out.push({
-        key: `${dept}:${c}`,
-        dept,
-        category: c,
-        label: `${deptLabel(dept)} — ${categoryLabel(c)}`,
-      });
-    }
+    out.push({ key: dept, dept, category: null, label: deptLabel(dept) });
   }
+
 
   // === Lavorazioni prodotto (decorazione, assemblaggio, ignifugazione, ...) ===
   // Un task per riga; reparto scelto dall'utente; category = assemblaggio_lab

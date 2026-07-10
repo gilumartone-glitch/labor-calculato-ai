@@ -897,7 +897,7 @@ const GroupSummary = ({
                 <Sparkles className="w-4 h-4" />
                 Copertura pezzi · combinazione applicata
               </div>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {(() => {
                   const seen = new Set<string>();
                   const rows: { label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
@@ -918,18 +918,14 @@ const GroupSummary = ({
                     });
                   }
                   return rows.map((r, i) => (
-                    <li key={i} className="border border-ink/20 bg-paper rounded-sm px-3 py-2 flex items-center justify-between gap-3 shadow-sm">
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-mono text-base font-bold text-ink truncate">{r.label}</span>
-                        <span className="font-mono text-sm font-semibold text-muted-foreground tabular-nums">
-                          {fmtCm(r.w)}×{fmtCm(r.h)} cm
-                        </span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{r.kind}</div>
-                        <div className="font-mono text-base font-bold text-primary tabular-nums">#{r.sheetIdx + 1}</div>
-                        <div className="font-mono text-[11px] text-ink/70 truncate max-w-[180px]">{r.binLabel}</div>
-                      </div>
+                    <li key={i} className="border border-ink/20 bg-paper rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm">
+                      <span className="font-mono text-base font-bold text-ink">{r.label}</span>
+                      <span className="font-mono text-sm font-bold text-primary tabular-nums bg-primary/10 px-2 py-0.5 rounded">
+                        {fmtCm(r.w)}×{fmtCm(r.h)} cm
+                      </span>
+                      <span className="font-mono text-xs text-ink/70 ml-auto tabular-nums">
+                        → {r.kind} #{r.sheetIdx + 1} · {r.binLabel}
+                      </span>
                     </li>
                   ));
                 })()}

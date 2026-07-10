@@ -207,13 +207,32 @@ const bboxM = (p: PieceLine, hem: { addW: number; addH: number } = { addW: 0, ad
   return { w, h, widthBottomM: wb };
 };
 
-/** Costruisce una mappa pieceId → allowance di orli (m). */
+/** Configurazione runtime del nesting: fresa (kerf) e margine perimetrale.
+ *  Letti da flag `__kerfMm`, `__perimeterMarginMm`, `__skipPerimeterMargin` del Catalog. */
+export const getNestingConfig = (catalog: Catalog): { kerfM: number; perimeterM: number } => {
+  const c = catalog as unknown as { __kerfMm?: number; __perimeterMarginMm?: number; __skipPerimeterMargin?: boolean };
+  const kerfMm = Math.max(0, Number(c.__kerfMm) || 0);
+  const skip = !!c.__skipPerimeterMargin;
+  const basePerimMm = skip ? 0 : Math.max(0, Number(c.__perimeterMarginMm ?? 10));
+  // Il margine effettivo somma sempre la larghezza fresa (istruzione utente:
+  // "sul perimetro devi lasciare 10 mm + il margine della fresa").
+  const perimMm = skip ? 0 : basePerimMm + kerfMm;
+  return { kerfM: kerfMm / 1000, perimeterM: perimMm / 1000 };
+};
+
+/** Costruisce una mappa pieceId → allowance di orli (m).
+ *  Se il catalog ha una larghezza fresa (`__kerfMm`), viene sommata al bbox
+ *  di ogni pezzo per garantire spaziatura tra i tagli. */
 const buildHemMap = (
   pieces: PieceLine[],
   catalog: Catalog,
 ): Map<string, { addW: number; addH: number }> => {
+  const { kerfM } = getNestingConfig(catalog);
   const m = new Map<string, { addW: number; addH: number }>();
-  for (const p of pieces) m.set(p.id, pieceHemAllowanceM(p, catalog));
+  for (const p of pieces) {
+    const base = pieceHemAllowanceM(p, catalog);
+    m.set(p.id, { addW: base.addW + kerfM, addH: base.addH + kerfM });
+  }
   return m;
 };
 

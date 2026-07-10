@@ -99,6 +99,13 @@ export type Catalog = {
   /** Flag runtime (NON persistito): se true, NON addebitare lo sfrido iniziale
    *  del rotolo (es. Tappezzeria, dove il prezzo manuale lo include già). */
   __skipInitialScrap?: boolean;
+  /** Larghezza fresa/taglio in mm: spazio da lasciare tra i pezzi (aggiunto al bbox). */
+  __kerfMm?: number;
+  /** Margine perimetrale in mm da lasciare sul bordo del foglio (default 10).
+   *  Al margine effettivo viene sempre sommata la larghezza fresa (__kerfMm). */
+  __perimeterMarginMm?: number;
+  /** Se true, bypassa il margine perimetrale (resta solo la fresa tra i pezzi). */
+  __skipPerimeterMargin?: boolean;
 };
 
 /* Stampa: catalogo voci per il reparto Stampa */

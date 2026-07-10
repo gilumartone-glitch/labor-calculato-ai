@@ -1002,13 +1002,17 @@ const computeGroup = (
     preSheetH = sheetRotated ? baseW : baseH;
   }
   const rollWidthM = preRollWidthM;
+  // Margine perimetrale + fresa: riduce l'area utilizzabile e trasla gli items.
+  const { perimeterM } = getNestingConfig(catalog);
+  const explodeW = Math.max(0.001, rollWidthM - 2 * perimeterM);
+  const explodeH = fmt0 === "lastra" ? Math.max(0.001, preSheetH - 2 * perimeterM) : preSheetH;
   // Esplodo per quantity
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,
     pieceIndexMap,
-    rollWidthM,
+    explodeW,
     fmt0,
-    preSheetH,
+    explodeH,
     hemMap,
   );
   if (raw.length === 0) return { ...empty, material: picked.material, rollWidthM, unplaced: [] };
@@ -1027,27 +1031,29 @@ const computeGroup = (
   let unplaced: PairedUnit[];
   let sheetsUsedAuto: number | undefined;
   let sheetHeightAuto: number | undefined;
+  const shiftItems = (its: NestingPieceItem[]): NestingPieceItem[] =>
+    perimeterM > 0 ? its.map((it) => ({ ...it, x: it.x + perimeterM, y: it.y + perimeterM })) : its;
   if (format === "lastra") {
     const u = (picked.material.dimUnit || picked.material.heightUnit || "cm") as DimUnit;
     const sheetHRaw = parseFloat(String(picked.material.height || "0").replace(",", "."));
     const sheetWRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
-    // rollWidthM (=picked.heightM) è ricavato dal campo "height" della variante. Per le
-    // lastre interpretiamo: larghezza foglio = baseWidth, altezza foglio = height.
-    // Se sheetRotated, base e altezza vengono scambiate.
     const baseW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : rollWidthM;
     const baseH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
     const sheetW = sheetRotated ? baseH : baseW;
     const sheetH = sheetRotated ? baseW : baseH;
     sheetHeightAuto = sheetH;
-    const packed = multiSheetPack(units, sheetW, sheetH);
-    items = packed.items;
+    const usableW = Math.max(0.001, sheetW - 2 * perimeterM);
+    const usableH = Math.max(0.001, sheetH - 2 * perimeterM);
+    const packed = multiSheetPack(units, usableW, usableH);
+    items = shiftItems(packed.items);
     unplaced = packed.unplaced;
     sheetsUsedAuto = packed.sheetsUsed;
     totalLengthM = packed.sheetsUsed * sheetH;
   } else {
-    const packed = shelfPack(units, rollWidthM);
-    items = packed.items;
-    totalLengthM = packed.totalLengthM;
+    const usableRoll = Math.max(0.001, rollWidthM - 2 * perimeterM);
+    const packed = shelfPack(units, usableRoll);
+    items = shiftItems(packed.items);
+    totalLengthM = packed.totalLengthM + 2 * perimeterM;
     unplaced = packed.unplaced;
   }
 

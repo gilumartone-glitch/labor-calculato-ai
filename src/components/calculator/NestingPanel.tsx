@@ -1733,7 +1733,17 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
             <span className="text-sm font-semibold">Bypassa margine perimetro</span>
           </label>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => exportNestingDxf(groups)}
+              disabled={groups.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
+              title="Scarica un file .dxf apribile in AutoCAD/LibreCAD/qualsiasi CAM per taglio automatico"
+            >
+              <Download className="w-4 h-4" />
+              Esporta CAD (.dxf)
+            </button>
             <button
               type="button"
               onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}

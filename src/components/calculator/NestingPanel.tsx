@@ -936,14 +936,18 @@ const GroupSummary = ({
                     return (
                       <li
                         key={i}
-                        className="rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm"
-                        style={{ backgroundColor: bg, border: `1px solid ${color}` }}
+                        className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
+                        style={{
+                          backgroundColor: bg,
+                          border: `1px solid ${color}`,
+                          gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
+                        }}
                       >
                         <span className="font-mono text-sm font-bold text-ink">{r.label}</span>
-                        <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded">
+                        <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded justify-self-start">
                           {fmtCm(r.w)}×{fmtCm(r.h)} cm
                         </span>
-                        <span className="font-mono text-xs text-ink ml-auto tabular-nums">
+                        <span className="font-mono text-xs text-ink tabular-nums justify-self-end">
                           → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
                         </span>
                       </li>

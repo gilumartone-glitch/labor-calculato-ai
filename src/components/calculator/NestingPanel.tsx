@@ -1901,23 +1901,24 @@ export const openPrintDymoLabels = (groups: NestingGroup[]) => {
 <html lang="it">
 <head>
 <meta charset="utf-8" />
-<title>Etichette pezzi (Dymo 89×36)</title>
+<title>Etichette pezzi (Dymo 55×25)</title>
 <style>
-  @page { size: 89mm 36mm; margin: 0; }
+  @page { size: 55mm 25mm; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
   .lab {
-    width: 89mm; height: 36mm; padding: 2mm 3mm;
+    width: 55mm; height: 25mm; padding: 1.5mm 2mm;
     page-break-after: always; break-after: page;
     display: flex; flex-direction: column; justify-content: space-between;
     border: 0.2mm dashed #ccc;
   }
   .lab:last-child { page-break-after: auto; }
-  .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 3mm; }
-  .ref { font-size: 11mm; font-weight: 900; letter-spacing: 0.2mm; line-height: 1; }
-  .dims { font-size: 6mm; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .lbl { font-size: 4.2mm; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mat { font-size: 3.2mm; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }
+  .ref { font-size: 7.5mm; font-weight: 900; letter-spacing: 0.15mm; line-height: 1; }
+  .dims { font-size: 4.2mm; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lbl { font-size: 3mm; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mat { font-size: 2.4mm; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   @media screen {
     body { padding: 16px; background: #eee; }
     .lab { background: #fff; margin: 0 auto 8px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }

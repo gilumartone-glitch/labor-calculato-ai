@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Layers3, AlertTriangle, ChevronDown, ChevronRight, Sparkles, Settings2, Bug } from "lucide-react";
+import { Layers3, AlertTriangle, ChevronDown, ChevronRight, Sparkles, Settings2, Bug, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Catalog, PieceLine, CatalogMaterial } from "./types";
 import {
@@ -14,12 +14,14 @@ import {
   piecesOfGroup,
   diagnoseNesting,
   NestingDiagnostic,
+  getNestingConfig,
 } from "@/lib/nesting";
 import { convertLength, DimUnit } from "@/lib/perimeter";
 import { eur } from "@/lib/format";
 import { CustomerType } from "@/lib/pricing";
 import { aggregateWorkBreakdown } from "@/lib/piece";
 import { StockHintForGroup } from "./StockHintForGroup";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 interface Props {
   pieces: PieceLine[];
@@ -1118,10 +1120,146 @@ const GroupSummary = ({
   );
 };
 
+/** Apre una finestra stampabile con la scheda taglio per l'operatore.
+ *  Per ogni gruppo elenca i fogli/rotoli e, foglio per foglio, i pezzi con
+ *  dimensioni (cm) e posizione (x,y in cm) — così l'operatore sa DOVE
+ *  tagliare ciascun pezzo su quale pannello. */
+const openPrintCuttingSheet = (
+  groups: NestingGroup[],
+  cfg: { kerfMm: number; perimeterMm: number },
+) => {
+  if (groups.length === 0) return;
+  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const now = new Date().toLocaleString("it-IT");
+
+  const sections = groups
+    .map((g) => {
+      // dimensioni "foglio" (fallback per rotolo)
+      const defaultSheetW = g.sheetWidthM ?? g.rollWidthM;
+      const defaultSheetH = g.sheetHeightM ?? g.totalLengthM;
+      const sheets: { idx: number; label: string; wM: number; hM: number; items: NestingPieceItem[] }[] = [];
+      const bySheet = new Map<number, NestingPieceItem[]>();
+      for (const it of g.items) {
+        const si = it.sheetIndex ?? 0;
+        if (!bySheet.has(si)) bySheet.set(si, []);
+        bySheet.get(si)!.push(it);
+      }
+      const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+      for (const si of sheetIndices) {
+        const ms = g.mixedSheets?.[si];
+        sheets.push({
+          idx: si,
+          label: ms ? ms.bin.label : `Foglio ${si + 1}`,
+          wM: ms ? ms.widthM : defaultSheetW,
+          hM: ms ? ms.heightM : defaultSheetH,
+          items: bySheet.get(si)!,
+        });
+      }
+
+      const sheetsHtml = sheets
+        .map((s) => {
+          const rows = s.items
+            .sort((a, b) => a.y - b.y || a.x - b.x)
+            .map(
+              (it) => `
+                <tr>
+                  <td class="lbl">${esc(it.label)}${it.rotated ? " <span class='rot'>↻</span>" : ""}</td>
+                  <td class="num">${cm(it.w)} × ${cm(it.h)} cm</td>
+                  <td class="num">x=${cm(it.x)} cm</td>
+                  <td class="num">y=${cm(it.y)} cm</td>
+                </tr>`,
+            )
+            .join("");
+          return `
+            <div class="sheet">
+              <h3>${esc(s.label)} · ${cm(s.wM)} × ${cm(s.hM)} cm</h3>
+              <table>
+                <thead><tr><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`;
+        })
+        .join("");
+      const unplacedHtml = g.unplaced.length
+        ? `<div class="warn"><strong>Pezzi NON piazzati (${g.unplaced.length}):</strong> ${g.unplaced.map((u) => `${esc(u.label)} — ${esc(u.reason)}`).join(" · ")}</div>`
+        : "";
+      return `
+        <section class="grp">
+          <h2>${esc(g.label)}</h2>
+          <div class="meta">
+            ${sheets.length} foglio/i · Sfrido ${(g.wastePct * 100).toFixed(1)}%
+          </div>
+          ${sheetsHtml}
+          ${unplacedHtml}
+        </section>`;
+    })
+    .join("");
+
+  const html = `<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>Scheda taglio operatore</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; margin: 24px; color: #111; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 6px; border-bottom: 2px solid #111; padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 16px 0 6px; background: #eee; padding: 6px 10px; border-left: 4px solid #111; }
+  .info { font-size: 13px; color: #555; margin-bottom: 16px; }
+  .meta { font-size: 12px; color: #444; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
+  th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+  th { background: #111; color: #fff; font-weight: 600; }
+  td.num { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  td.lbl { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .rot { color: #b45309; }
+  .warn { margin-top: 8px; padding: 8px 12px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-size: 13px; }
+  .grp { page-break-inside: avoid; margin-bottom: 20px; }
+  .sheet { page-break-inside: avoid; }
+  @media print { body { margin: 12mm; } }
+</style>
+</head>
+<body>
+  <h1>Scheda taglio operatore</h1>
+  <div class="info">
+    Generata il ${esc(now)} · Fresa ${cfg.kerfMm} mm · Margine perimetro effettivo ${cfg.perimeterMm.toFixed(1)} mm
+  </div>
+  ${sections}
+  <script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
+
+
 export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
+  /** Impostazioni fresa + margine perimetrale (persistite in localStorage). */
+  const [nestSettings, setNestSettings] = useLocalStorageState("nesting.settings.v1", {
+    kerfMm: 0,
+    perimeterMm: 10,
+    skipPerimeter: false,
+  });
+  /** Catalogo "effettivo" con i flag di nesting: viene usato per TUTTI i calcoli
+   *  del pannello, così le impostazioni fresa/margine vengono applicate ovunque. */
+  const effCatalog = useMemo<Catalog>(() => ({
+    ...catalog,
+    __kerfMm: nestSettings.kerfMm,
+    __perimeterMarginMm: nestSettings.perimeterMm,
+    __skipPerimeterMargin: nestSettings.skipPerimeter,
+  }), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+  const perimeterM = useMemo(() => getNestingConfig(effCatalog).perimeterM, [effCatalog]);
+
   const baseGroups = useMemo(
-    () => computeNesting(pieces, catalog, customerType),
-    [pieces, catalog, customerType],
+    () => computeNesting(pieces, effCatalog, customerType),
+    [pieces, effCatalog, customerType],
   );
   /** Override formato per gruppo (chiave = group.key). */
   const [overrides, setOverrides] = useState<Record<string, NestingFormatOverride | null>>(
@@ -1133,8 +1271,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   );
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
   const diagnostics = useMemo(
-    () => diagnoseNesting(pieces, catalog, customerType),
-    [pieces, catalog, customerType],
+    () => diagnoseNesting(pieces, effCatalog, customerType),
+    [pieces, effCatalog, customerType],
   );
   const diagnosticByKey = useMemo(() => {
     const m = new Map<string, NestingDiagnostic>();
@@ -1158,12 +1296,12 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         const mb = mixedBinsByGroup[g.key];
         if (mb && mb.length > 0) {
           const ps = piecesOfGroup(pieces, g.key);
-          return recomputeGroupWithMixedBins(g, ps, mb, indexMap);
+          return recomputeGroupWithMixedBins(g, ps, mb, indexMap, perimeterM);
         }
         const ov = overrides[g.key];
         if (!ov || ov.widthM <= 0 || ov.heightM <= 0) return g;
         const ps = piecesOfGroup(pieces, g.key);
-        const overridden = recomputeGroupWithOverride(g, ps, catalog, ov, indexMap, customerType);
+        const overridden = recomputeGroupWithOverride(g, ps, effCatalog, ov, indexMap, customerType);
         // Progetti vecchi: un override "da listino" salvato prima del fix può
         // bloccare il gruppo sulla 305×205 e lasciare pezzi non piazzati, mentre
         // il ricalcolo automatico corrente trova la 600×205. In quel caso uso il
@@ -1171,7 +1309,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         if (ov.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
         return overridden;
       }),
-    [baseGroups, overrides, mixedBinsByGroup, pieces, catalog, customerType, indexMap],
+    [baseGroups, overrides, mixedBinsByGroup, pieces, effCatalog, customerType, indexMap, perimeterM],
   );
 
   /** Varianti compatibili con il gruppo (per il selettore "da listino"). */
@@ -1241,6 +1379,70 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         </div>
       </header>
       <div className="rule-line mb-4" />
+
+      {/* Impostazioni operative: fresa (kerf) + margine perimetrale + stampa scheda taglio */}
+      <div className="mb-5 border-2 border-ink/15 rounded-md bg-muted/20 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Settings2 className="w-4 h-4 text-primary" />
+          <span className="font-display text-base font-semibold">Impostazioni taglio</span>
+        </div>
+        <div className="flex flex-wrap items-end gap-6">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-ink">Spazio fresa (mm)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={nestSettings.kerfMm}
+              onChange={(e) => setNestSettings((s) => ({ ...s, kerfMm: Math.max(0, Number(e.target.value) || 0) }))}
+              className="w-32 h-10 px-3 border-2 border-input rounded-md bg-background text-base font-mono tabular-nums"
+              title="Larghezza della fresa: lo spazio lasciato tra due pezzi adiacenti"
+            />
+            <span className="text-xs text-muted-foreground">Distanza fra i pezzi</span>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-ink">Margine perimetro (mm)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={nestSettings.perimeterMm}
+              disabled={nestSettings.skipPerimeter}
+              onChange={(e) => setNestSettings((s) => ({ ...s, perimeterMm: Math.max(0, Number(e.target.value) || 0) }))}
+              className="w-32 h-10 px-3 border-2 border-input rounded-md bg-background text-base font-mono tabular-nums disabled:opacity-40"
+              title="Margine minimo sul bordo del foglio (default 10 mm). La fresa viene sempre sommata."
+            />
+            <span className="text-xs text-muted-foreground">
+              Effettivo: {nestSettings.skipPerimeter ? "0 mm (bypass)" : `${(nestSettings.perimeterMm + nestSettings.kerfMm).toFixed(1)} mm`}
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 h-10 px-3 border-2 border-input rounded-md bg-background cursor-pointer">
+            <input
+              type="checkbox"
+              checked={nestSettings.skipPerimeter}
+              onChange={(e) => setNestSettings((s) => ({ ...s, skipPerimeter: e.target.checked }))}
+              className="w-5 h-5 accent-primary"
+            />
+            <span className="text-sm font-semibold">Bypassa margine perimetro</span>
+          </label>
+
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              disabled={groups.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 disabled:opacity-40"
+              title="Apre una scheda stampabile con la posizione di taglio di ogni pezzo su ogni foglio"
+            >
+              <Printer className="w-4 h-4" />
+              Stampa scheda taglio operatore
+            </button>
+          </div>
+        </div>
+      </div>
+
 
       {groups.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">

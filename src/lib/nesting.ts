@@ -207,13 +207,32 @@ const bboxM = (p: PieceLine, hem: { addW: number; addH: number } = { addW: 0, ad
   return { w, h, widthBottomM: wb };
 };
 
-/** Costruisce una mappa pieceId → allowance di orli (m). */
+/** Configurazione runtime del nesting: fresa (kerf) e margine perimetrale.
+ *  Letti da flag `__kerfMm`, `__perimeterMarginMm`, `__skipPerimeterMargin` del Catalog. */
+export const getNestingConfig = (catalog: Catalog): { kerfM: number; perimeterM: number } => {
+  const c = catalog as unknown as { __kerfMm?: number; __perimeterMarginMm?: number; __skipPerimeterMargin?: boolean };
+  const kerfMm = Math.max(0, Number(c.__kerfMm) || 0);
+  const skip = !!c.__skipPerimeterMargin;
+  const basePerimMm = skip ? 0 : Math.max(0, Number(c.__perimeterMarginMm ?? 10));
+  // Il margine effettivo somma sempre la larghezza fresa (istruzione utente:
+  // "sul perimetro devi lasciare 10 mm + il margine della fresa").
+  const perimMm = skip ? 0 : basePerimMm + kerfMm;
+  return { kerfM: kerfMm / 1000, perimeterM: perimMm / 1000 };
+};
+
+/** Costruisce una mappa pieceId → allowance di orli (m).
+ *  Se il catalog ha una larghezza fresa (`__kerfMm`), viene sommata al bbox
+ *  di ogni pezzo per garantire spaziatura tra i tagli. */
 const buildHemMap = (
   pieces: PieceLine[],
   catalog: Catalog,
 ): Map<string, { addW: number; addH: number }> => {
+  const { kerfM } = getNestingConfig(catalog);
   const m = new Map<string, { addW: number; addH: number }>();
-  for (const p of pieces) m.set(p.id, pieceHemAllowanceM(p, catalog));
+  for (const p of pieces) {
+    const base = pieceHemAllowanceM(p, catalog);
+    m.set(p.id, { addW: base.addW + kerfM, addH: base.addH + kerfM });
+  }
   return m;
 };
 
@@ -983,13 +1002,17 @@ const computeGroup = (
     preSheetH = sheetRotated ? baseW : baseH;
   }
   const rollWidthM = preRollWidthM;
+  // Margine perimetrale + fresa: riduce l'area utilizzabile e trasla gli items.
+  const { perimeterM } = getNestingConfig(catalog);
+  const explodeW = Math.max(0.001, rollWidthM - 2 * perimeterM);
+  const explodeH = fmt0 === "lastra" ? Math.max(0.001, preSheetH - 2 * perimeterM) : preSheetH;
   // Esplodo per quantity
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,
     pieceIndexMap,
-    rollWidthM,
+    explodeW,
     fmt0,
-    preSheetH,
+    explodeH,
     hemMap,
   );
   if (raw.length === 0) return { ...empty, material: picked.material, rollWidthM, unplaced: [] };
@@ -1008,27 +1031,29 @@ const computeGroup = (
   let unplaced: PairedUnit[];
   let sheetsUsedAuto: number | undefined;
   let sheetHeightAuto: number | undefined;
+  const shiftItems = (its: NestingPieceItem[]): NestingPieceItem[] =>
+    perimeterM > 0 ? its.map((it) => ({ ...it, x: it.x + perimeterM, y: it.y + perimeterM })) : its;
   if (format === "lastra") {
     const u = (picked.material.dimUnit || picked.material.heightUnit || "cm") as DimUnit;
     const sheetHRaw = parseFloat(String(picked.material.height || "0").replace(",", "."));
     const sheetWRaw = parseFloat(String(picked.material.baseWidth || "0").replace(",", "."));
-    // rollWidthM (=picked.heightM) è ricavato dal campo "height" della variante. Per le
-    // lastre interpretiamo: larghezza foglio = baseWidth, altezza foglio = height.
-    // Se sheetRotated, base e altezza vengono scambiate.
     const baseW = sheetWRaw > 0 ? sheetWRaw * factorOf(u) : rollWidthM;
     const baseH = sheetHRaw > 0 ? sheetHRaw * factorOf(u) : rollWidthM;
     const sheetW = sheetRotated ? baseH : baseW;
     const sheetH = sheetRotated ? baseW : baseH;
     sheetHeightAuto = sheetH;
-    const packed = multiSheetPack(units, sheetW, sheetH);
-    items = packed.items;
+    const usableW = Math.max(0.001, sheetW - 2 * perimeterM);
+    const usableH = Math.max(0.001, sheetH - 2 * perimeterM);
+    const packed = multiSheetPack(units, usableW, usableH);
+    items = shiftItems(packed.items);
     unplaced = packed.unplaced;
     sheetsUsedAuto = packed.sheetsUsed;
     totalLengthM = packed.sheetsUsed * sheetH;
   } else {
-    const packed = shelfPack(units, rollWidthM);
-    items = packed.items;
-    totalLengthM = packed.totalLengthM;
+    const usableRoll = Math.max(0.001, rollWidthM - 2 * perimeterM);
+    const packed = shelfPack(units, usableRoll);
+    items = shiftItems(packed.items);
+    totalLengthM = packed.totalLengthM + 2 * perimeterM;
     unplaced = packed.unplaced;
   }
 
@@ -1214,12 +1239,13 @@ const computeMixedLastraGroup = (
   if (variantsWH.length < 2) return null;
   const maxW = Math.max(...variantsWH.map((v) => v.W));
   const maxH = Math.max(...variantsWH.map((v) => v.H));
+  const { perimeterM } = getNestingConfig(catalog);
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,
     pieceIndexMap,
-    maxW,
+    Math.max(0.001, maxW - 2 * perimeterM),
     "lastra",
-    maxH,
+    Math.max(0.001, maxH - 2 * perimeterM),
     hemMap,
   );
   if (raw.length === 0) return null;
@@ -1286,7 +1312,9 @@ const computeMixedLastraGroup = (
     let openIdx = -1;
     for (let i = 0; i < availableBins.length; i++) {
       const b = availableBins[i];
-      if (ors.some((o) => o.w <= b.widthM + 1e-6 && o.h <= b.heightM + 1e-6)) {
+      const bw = Math.max(0.001, b.widthM - 2 * perimeterM);
+      const bh = Math.max(0.001, b.heightM - 2 * perimeterM);
+      if (ors.some((o) => o.w <= bw + 1e-6 && o.h <= bh + 1e-6)) {
         openIdx = i;
         break;
       }
@@ -1297,9 +1325,11 @@ const computeMixedLastraGroup = (
     }
     const bin = availableBins.splice(openIdx, 1)[0];
     const material = matByBinId.get(bin.id)!;
+    const usableW = Math.max(0.001, bin.widthM - 2 * perimeterM);
+    const usableH = Math.max(0.001, bin.heightM - 2 * perimeterM);
     const newSheet: OpenSheet = {
-      bin, w: bin.widthM, h: bin.heightM,
-      free: [{ x: 0, y: 0, w: bin.widthM, h: bin.heightM }],
+      bin, w: usableW, h: usableH,
+      free: [{ x: 0, y: 0, w: usableW, h: usableH }],
       material,
     };
     openSheets.push(newSheet);
@@ -1327,6 +1357,14 @@ const computeMixedLastraGroup = (
   }
 
   if (openSheets.length === 0) return null;
+
+  // Trasla gli items del margine perimetrale (coordinate assolute sul foglio).
+  if (perimeterM > 0) {
+    for (const it of allItems) {
+      it.x += perimeterM;
+      it.y += perimeterM;
+    }
+  }
 
   // Costo per foglio con prezzi della sua variante specifica
   const cutCount = pieces.filter((p) => p.priceMode === "cut").length;
@@ -1532,9 +1570,17 @@ export const recomputeGroupWithOverride = (
   // Per il recompute con override (lastra) usiamo le dimensioni del foglio come
   // larghezza limite — non rilevante per lo split di rotoli, ma evita pezzi enormi.
   const hemMap = buildHemMap(pieces, catalog);
-  const { items: raw } = explodePieces(pieces, pieceIndexMap, sheetW, baseGroup.format, sheetH, hemMap);
+  const { perimeterM } = getNestingConfig(catalog);
+  const usableW = Math.max(0.001, sheetW - 2 * perimeterM);
+  const usableH = Math.max(0.001, sheetH - 2 * perimeterM);
+  const { items: raw } = explodePieces(pieces, pieceIndexMap, usableW, baseGroup.format, usableH, hemMap);
   const units = pairShapes(raw);
-  const { items, sheetsUsed, unplaced } = multiSheetPack(units, sheetW, sheetH);
+  const packedRaw = multiSheetPack(units, usableW, usableH);
+  const items = perimeterM > 0
+    ? packedRaw.items.map((it) => ({ ...it, x: it.x + perimeterM, y: it.y + perimeterM }))
+    : packedRaw.items;
+  const sheetsUsed = packedRaw.sheetsUsed;
+  const unplaced = packedRaw.unplaced;
 
   // Quantità disponibile (0 = illimitato)
   const available = Math.max(0, Math.floor(Number(override.quantity) || 0));
@@ -1641,12 +1687,19 @@ export const recomputeGroupWithMixedBins = (
   pieces: PieceLine[],
   bins: NestingMixedBin[],
   pieceIndexMap: Map<string, number>,
+  perimeterM: number = 0,
 ): NestingGroup => {
   if (bins.length === 0) return baseGroup;
   // 1) Esplodi i pezzi usando come limite la massima dimensione disponibile (il bin più grande)
   const maxW = Math.max(...bins.map((b) => b.widthM));
   const maxH = Math.max(...bins.map((b) => b.heightM));
-  const { items: raw } = explodePieces(pieces, pieceIndexMap, maxW, "lastra", maxH);
+  const { items: raw } = explodePieces(
+    pieces,
+    pieceIndexMap,
+    Math.max(0.001, maxW - 2 * perimeterM),
+    "lastra",
+    Math.max(0.001, maxH - 2 * perimeterM),
+  );
   const units = pairShapes(raw);
 
   // 2) Pool di "fogli aperti", ognuno con le proprie dimensioni di bin (MaxRects BSSF)
@@ -1697,7 +1750,9 @@ export const recomputeGroupWithMixedBins = (
     let openIdx = -1;
     for (let i = 0; i < availableBins.length; i++) {
       const b = availableBins[i];
-      const ok = ors.some((o) => o.w <= b.widthM + 1e-6 && o.h <= b.heightM + 1e-6);
+      const bw = Math.max(0.001, b.widthM - 2 * perimeterM);
+      const bh = Math.max(0.001, b.heightM - 2 * perimeterM);
+      const ok = ors.some((o) => o.w <= bw + 1e-6 && o.h <= bh + 1e-6);
       if (ok) { openIdx = i; break; }
     }
     if (openIdx < 0) {
@@ -1705,9 +1760,11 @@ export const recomputeGroupWithMixedBins = (
       continue;
     }
     const bin = availableBins.splice(openIdx, 1)[0];
+    const usableW = Math.max(0.001, bin.widthM - 2 * perimeterM);
+    const usableH = Math.max(0.001, bin.heightM - 2 * perimeterM);
     const newSheet: OpenSheet = {
-      bin, w: bin.widthM, h: bin.heightM,
-      free: [{ x: 0, y: 0, w: bin.widthM, h: bin.heightM }],
+      bin, w: usableW, h: usableH,
+      free: [{ x: 0, y: 0, w: usableW, h: usableH }],
     };
     openSheets.push(newSheet);
     const newIndex = openSheets.length - 1;
@@ -1730,12 +1787,16 @@ export const recomputeGroupWithMixedBins = (
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
   }
 
+  if (perimeterM > 0) {
+    for (const it of allItems) { it.x += perimeterM; it.y += perimeterM; }
+  }
+
   const mixedSheets: NestingMixedSheet[] = openSheets.map((s) => ({
-    bin: s.bin, widthM: s.w, heightM: s.h,
+    bin: s.bin, widthM: s.bin.widthM, heightM: s.bin.heightM,
   }));
 
   // Aree e sfrido (calcolati sui fogli effettivamente usati, eterogenei)
-  const totalAreaM2 = openSheets.reduce((s, sh) => s + sh.w * sh.h, 0);
+  const totalAreaM2 = openSheets.reduce((s, sh) => s + sh.bin.widthM * sh.bin.heightM, 0);
   const placedKey = new Set(allItems.map((it) => `${it.pieceId}|${it.copy}`));
   const usedAreaM2 = raw
     .filter((r) => placedKey.has(`${r.pieceId}|${r.copy}`))
@@ -1755,16 +1816,16 @@ export const recomputeGroupWithMixedBins = (
       ),
     ],
     format: "lastra",
-    rollWidthM: openSheets[0]?.w ?? baseGroup.rollWidthM,
-    totalLengthM: openSheets.reduce((s, sh) => s + sh.h, 0),
+    rollWidthM: openSheets[0]?.bin.widthM ?? baseGroup.rollWidthM,
+    totalLengthM: openSheets.reduce((s, sh) => s + sh.bin.heightM, 0),
     totalAreaM2,
     usedAreaM2,
     wastePct,
     sheetsNeeded: openSheets.length,
     // Per la canvas usiamo "sheetWidthM/sheetHeightM" del primo foglio come fallback,
     // ma il rendering reale userà `mixedSheets` quando presente.
-    sheetWidthM: openSheets[0]?.w ?? baseGroup.sheetWidthM,
-    sheetHeightM: openSheets[0]?.h ?? baseGroup.sheetHeightM,
+    sheetWidthM: openSheets[0]?.bin.widthM ?? baseGroup.sheetWidthM,
+    sheetHeightM: openSheets[0]?.bin.heightM ?? baseGroup.sheetHeightM,
     mixedSheets,
     scrapCost: 0,
     minBillingExtra: 0,

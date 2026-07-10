@@ -1721,13 +1721,13 @@ export const recomputeGroupWithMixedBins = (
   const sorted = [...units].sort(
     (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h,
   );
-  for (const u of sorted) {
-    const ors = mrUnitOrientations(u);
 
-    // 1) BSSF globale sui fogli già aperti
+  // Helper: miglior BSSF sui fogli aperti filtrato per tipo (scrap/sheet).
+  const bestOnOpen = (ors: ReturnType<typeof mrUnitOrientations>, kind: "scrap" | "sheet") => {
     let best: { sheetIdx: number; placement: MRPlacement } | null = null;
     for (let si = 0; si < openSheets.length; si++) {
       const s = openSheets[si];
+      if (s.bin.kind !== kind) continue;
       for (const o of ors) {
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
         const f = mrFindBSSF(s.free, o.w, o.h);
@@ -1742,27 +1742,23 @@ export const recomputeGroupWithMixedBins = (
         }
       }
     }
-    if (best) {
-      const s = openSheets[best.sheetIdx];
-      mrPlace(s.free, best.placement.rect);
-      mrEmitItems(u, best.placement.rect, best.placement.rotated, best.sheetIdx, allItems);
-      continue;
-    }
+    return best;
+  };
 
-    // 2) apri un nuovo foglio dal pool: il più piccolo che contiene almeno un cand
-    let openIdx = -1;
+  // Helper: indice del più piccolo bin disponibile del tipo indicato che contiene il pezzo.
+  const findNewBinIdx = (ors: ReturnType<typeof mrUnitOrientations>, kind: "scrap" | "sheet") => {
     for (let i = 0; i < availableBins.length; i++) {
       const b = availableBins[i];
+      if (b.kind !== kind) continue;
       const bw = Math.max(0.001, b.widthM - 2 * perimeterM);
       const bh = Math.max(0.001, b.heightM - 2 * perimeterM);
-      const ok = ors.some((o) => o.w <= bw + 1e-6 && o.h <= bh + 1e-6);
-      if (ok) { openIdx = i; break; }
+      if (ors.some((o) => o.w <= bw + 1e-6 && o.h <= bh + 1e-6)) return i;
     }
-    if (openIdx < 0) {
-      unplacedUnits.push(u);
-      continue;
-    }
-    const bin = availableBins.splice(openIdx, 1)[0];
+    return -1;
+  };
+
+  const openNewBin = (binIdx: number, ors: ReturnType<typeof mrUnitOrientations>, u: PairedUnit) => {
+    const bin = availableBins.splice(binIdx, 1)[0];
     const usableW = Math.max(0.001, bin.widthM - 2 * perimeterM);
     const usableH = Math.max(0.001, bin.heightM - 2 * perimeterM);
     const newSheet: OpenSheet = {
@@ -1785,9 +1781,30 @@ export const recomputeGroupWithMixedBins = (
         openBest = cand;
       }
     }
-    if (!openBest) { unplacedUnits.push(u); continue; }
+    if (!openBest) return false;
     mrPlace(newSheet.free, openBest.rect);
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
+    return true;
+  };
+
+  for (const u of sorted) {
+    const ors = mrUnitOrientations(u);
+    // Priorità: 1) sfridi aperti  2) apri nuovo sfrido  3) lastre aperte  4) apri nuova lastra.
+    // Così gli sfridi vengono SEMPRE consumati prima delle lastre intere.
+    const order: Array<"scrap" | "sheet"> = ["scrap", "sheet"];
+    let placed = false;
+    for (const kind of order) {
+      const b = bestOnOpen(ors, kind);
+      if (b) {
+        const s = openSheets[b.sheetIdx];
+        mrPlace(s.free, b.placement.rect);
+        mrEmitItems(u, b.placement.rect, b.placement.rotated, b.sheetIdx, allItems);
+        placed = true; break;
+      }
+      const idx = findNewBinIdx(ors, kind);
+      if (idx >= 0 && openNewBin(idx, ors, u)) { placed = true; break; }
+    }
+    if (!placed) unplacedUnits.push(u);
   }
 
   if (perimeterM > 0) {

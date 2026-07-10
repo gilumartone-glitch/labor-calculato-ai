@@ -71,8 +71,8 @@ const colorForPiece = (id: string): string => {
  */
 const PIECE_FILL_OPACITY = 0.5;
 const KERF_VISUAL_MIN_PX = 7;
-const visualKerfStrokePx = (kerfM: number, scale: number) =>
-  kerfM > 0 ? Math.max(kerfM * scale, KERF_VISUAL_MIN_PX) : 0;
+const visualKerfInsetM = (kerfM: number, scale: number) =>
+  kerfM > 0 ? Math.max(kerfM / 2, KERF_VISUAL_MIN_PX / 2 / Math.max(scale, 0.001)) : 0;
 
 /**
  * Sfondo CSS che riproduce esattamente `fill={colorForPiece(id)}` +
@@ -122,7 +122,6 @@ const SheetSvg = ({
   kerfM?: number;
 }) => {
   const PAD = 28;
-  const halfKerf = Math.max(0, kerfM) / 2;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -130,7 +129,7 @@ const SheetSvg = ({
   const innerH = sheetHeightM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
-  const gapStroke = visualKerfStrokePx(kerfM, scale);
+  const insetM = visualKerfInsetM(kerfM, scale);
 
 
   return (
@@ -175,26 +174,36 @@ const SheetSvg = ({
           {fmtCm(sheetHeightM)} cm
         </text>
 
+        {kerfM > 0 && sheetItems.map((it, idx) => (
+          <rect
+            key={`kerf-${it.pieceId}-${it.copy}-${idx}`}
+            x={PAD + it.x * scale}
+            y={PAD + it.y * scale}
+            width={it.w * scale}
+            height={it.h * scale}
+            fill="hsl(var(--nesting-gap))"
+            stroke="none"
+          />
+        ))}
+
         {sheetItems.map((it, idx) => {
           const realWm = Math.max(0, it.w - kerfM);
           const realHm = Math.max(0, it.h - kerfM);
-          const x = PAD + (it.x + halfKerf) * scale;
-          const y = PAD + (it.y + halfKerf) * scale;
-          const w = realWm * scale;
-          const h = realHm * scale;
+          const x = PAD + (it.x + insetM) * scale;
+          const y = PAD + (it.y + insetM) * scale;
+          const w = Math.max(0.001, it.w - insetM * 2) * scale;
+          const h = Math.max(0.001, it.h - insetM * 2) * scale;
           // Colore SOLIDO pre-composto (identico a quello delle righe della lista).
           // Niente fillOpacity: garantisce che pezzo nel piano e riga in lista siano
           // matematicamente lo stesso colore renderizzato.
           const bg = pieceBackground(it.pieceId);
           const edge = colorForPiece(it.pieceId);
           let shape: JSX.Element;
-          let gapShape: JSX.Element | null = null;
           if (it.shape === "triangle") {
             const points =
               it.pairRole === "secondary"
                 ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}`
                 : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else if (it.shape === "trapezoid") {
             const wbM = it.widthBottomM ?? it.w;
@@ -205,15 +214,12 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}`
                 : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else {
-            gapShape = gapStroke > 0 ? <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
           }
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
-              {gapShape}
               {shape}
               {w > 20 && h > 12 && (() => {
                 const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));
@@ -289,7 +295,7 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
     const innerH = rollWidthM * scale;
     const W = innerW + PAD * 2;
     const H = innerH + PAD * 2;
-    const gapStroke = visualKerfStrokePx(kerfM, scale);
+    const insetM = visualKerfInsetM(kerfM, scale);
     return (
       <div className="border border-ink/20 rounded-sm bg-paper overflow-hidden">
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-ink/15 bg-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -315,22 +321,30 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
           <text x={PAD - 10} y={PAD + innerH / 2} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700} transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}>
             altezza telo {fmtCm(rollWidthM)} cm
           </text>
+          {kerfM > 0 && items.map((it, idx) => (
+            <rect
+              key={`kerf-roll-${it.pieceId}-${it.copy}-${idx}`}
+              x={PAD + it.y * scale}
+              y={PAD + it.x * scale}
+              width={it.h * scale}
+              height={it.w * scale}
+              fill="hsl(var(--nesting-gap))"
+              stroke="none"
+            />
+          ))}
           {items.map((it, idx) => {
-            const halfKerf = Math.max(0, kerfM) / 2;
             const realWm = Math.max(0, it.w - kerfM);
             const realHm = Math.max(0, it.h - kerfM);
             // rotolo: assi swappati (x algoritmo = y visivo)
-            const x = PAD + (it.y + halfKerf) * scale;
-            const y = PAD + (it.x + halfKerf) * scale;
-            const w = realHm * scale;
-            const h = realWm * scale;
+            const x = PAD + (it.y + insetM) * scale;
+            const y = PAD + (it.x + insetM) * scale;
+            const w = Math.max(0.001, it.h - insetM * 2) * scale;
+            const h = Math.max(0.001, it.w - insetM * 2) * scale;
             const bg = pieceBackground(it.pieceId);
             const edge = colorForPiece(it.pieceId);
             let shape: JSX.Element;
-            let gapShape: JSX.Element | null = null;
             if (it.shape === "triangle") {
               const points = it.pairRole === "secondary" ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}` : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-              gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else if (it.shape === "trapezoid") {
               const wbM = it.widthBottomM ?? it.w;
@@ -338,15 +352,12 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
               const wb = w * ratio;
               const off = (w - wb) / 2;
               const points = it.pairRole === "secondary" ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}` : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-              gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else {
-              gapShape = gapStroke > 0 ? <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
             }
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>
-                {gapShape}
                 {shape}
                 {w > 24 && h > 14 && (() => {
                   const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));

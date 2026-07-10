@@ -1121,9 +1121,25 @@ const GroupSummary = ({
 };
 
 export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
+  /** Impostazioni fresa + margine perimetrale (persistite in localStorage). */
+  const [nestSettings, setNestSettings] = useLocalStorageState("nesting.settings.v1", {
+    kerfMm: 0,
+    perimeterMm: 10,
+    skipPerimeter: false,
+  });
+  /** Catalogo "effettivo" con i flag di nesting: viene usato per TUTTI i calcoli
+   *  del pannello, così le impostazioni fresa/margine vengono applicate ovunque. */
+  const effCatalog = useMemo<Catalog>(() => ({
+    ...catalog,
+    __kerfMm: nestSettings.kerfMm,
+    __perimeterMarginMm: nestSettings.perimeterMm,
+    __skipPerimeterMargin: nestSettings.skipPerimeter,
+  }), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+  const perimeterM = useMemo(() => getNestingConfig(effCatalog).perimeterM, [effCatalog]);
+
   const baseGroups = useMemo(
-    () => computeNesting(pieces, catalog, customerType),
-    [pieces, catalog, customerType],
+    () => computeNesting(pieces, effCatalog, customerType),
+    [pieces, effCatalog, customerType],
   );
   /** Override formato per gruppo (chiave = group.key). */
   const [overrides, setOverrides] = useState<Record<string, NestingFormatOverride | null>>(
@@ -1135,8 +1151,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   );
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
   const diagnostics = useMemo(
-    () => diagnoseNesting(pieces, catalog, customerType),
-    [pieces, catalog, customerType],
+    () => diagnoseNesting(pieces, effCatalog, customerType),
+    [pieces, effCatalog, customerType],
   );
   const diagnosticByKey = useMemo(() => {
     const m = new Map<string, NestingDiagnostic>();
@@ -1160,12 +1176,12 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         const mb = mixedBinsByGroup[g.key];
         if (mb && mb.length > 0) {
           const ps = piecesOfGroup(pieces, g.key);
-          return recomputeGroupWithMixedBins(g, ps, mb, indexMap);
+          return recomputeGroupWithMixedBins(g, ps, mb, indexMap, perimeterM);
         }
         const ov = overrides[g.key];
         if (!ov || ov.widthM <= 0 || ov.heightM <= 0) return g;
         const ps = piecesOfGroup(pieces, g.key);
-        const overridden = recomputeGroupWithOverride(g, ps, catalog, ov, indexMap, customerType);
+        const overridden = recomputeGroupWithOverride(g, ps, effCatalog, ov, indexMap, customerType);
         // Progetti vecchi: un override "da listino" salvato prima del fix può
         // bloccare il gruppo sulla 305×205 e lasciare pezzi non piazzati, mentre
         // il ricalcolo automatico corrente trova la 600×205. In quel caso uso il
@@ -1173,7 +1189,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         if (ov.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
         return overridden;
       }),
-    [baseGroups, overrides, mixedBinsByGroup, pieces, catalog, customerType, indexMap],
+    [baseGroups, overrides, mixedBinsByGroup, pieces, effCatalog, customerType, indexMap, perimeterM],
   );
 
   /** Varianti compatibili con il gruppo (per il selettore "da listino"). */

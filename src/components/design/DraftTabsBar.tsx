@@ -914,7 +914,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   return (
     <>
       <div className="border-b-2 border-ink/20 bg-paper">
-        <div className="container py-2 flex items-center gap-2 flex-wrap">
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-2 flex items-center gap-2 flex-wrap">
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mr-2">
             // Schede progetto
           </span>

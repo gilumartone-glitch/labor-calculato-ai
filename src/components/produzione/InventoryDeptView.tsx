@@ -271,6 +271,14 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-3">
+        <Button
+          onClick={() => setAddDialogOpen(true)}
+          className="h-12 px-5 text-base font-bold gap-2"
+          disabled={!catalog}
+        >
+          <PackagePlus className="w-5 h-5" />
+          Aggiungi a magazzino
+        </Button>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
           <Stat label="Articoli" value={totals.total} />
           <Stat label="Tracciati" value={totals.placed} accent="primary" />
@@ -282,6 +290,8 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca…" className="pl-7 h-9 w-64" />
         </div>
       </div>
+
+
 
       <div className="border-2 border-ink/15 rounded-sm bg-paper overflow-hidden">
         {loadingCat ? (

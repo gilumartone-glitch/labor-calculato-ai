@@ -1963,7 +1963,8 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
 
   const safeName = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60);
 
-  // Se un solo pezzo → download diretto .labelx; altrimenti ZIP con N file .labelx.
+  // DYMO Connect for Desktop apre/salva il formato DesktopLabel con estensione .dymo.
+  // Se un solo pezzo → download diretto .dymo; altrimenti ZIP con N file .dymo.
   const stamp = new Date().toISOString().slice(0, 10);
   const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -1980,7 +1981,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
     const l = labels[0];
     triggerDownload(
       new Blob([buildLabelx(l)], { type: "application/xml" }),
-      `${safeName(l.ref)}.labelx`,
+      `${safeName(l.ref)}.dymo`,
     );
     return;
   }
@@ -1988,7 +1989,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   labels.forEach((l) => {
-    zip.file(`${safeName(l.ref)}.labelx`, buildLabelx(l));
+    zip.file(`${safeName(l.ref)}.dymo`, buildLabelx(l));
   });
   const blob = await zip.generateAsync({ type: "blob" });
   triggerDownload(blob, `etichette-nesting-${stamp}.zip`);
@@ -2213,11 +2214,11 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               onClick={() => openPrintDymoLabels(groups)}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
-              title="Scarica un file .labelx (DYMO Connect) per ogni pezzo — 55×25 mm"
+              title="Scarica un file .dymo (DYMO Connect) per ogni pezzo — 55×25 mm"
 
             >
               <Download className="w-4 h-4" />
-              Scarica etichette .labelx
+              Scarica etichette .dymo
 
             </button>
           </div>

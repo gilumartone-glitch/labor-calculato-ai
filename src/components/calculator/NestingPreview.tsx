@@ -383,7 +383,7 @@ const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number
 };
 
 /** Riepilogo testuale: lastre/sfridi usati + copertura per pezzo. */
-const GroupTextSummary = ({ group, groupPieces }: { group: NestingGroup; groupPieces: PieceLine[] }) => {
+const GroupTextSummary = ({ group }: { group: NestingGroup }) => {
   const isLastra = group.format === "lastra";
 
   // Bin usati (etichetta + dimensioni cm)
@@ -739,7 +739,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           <div className="p-3 space-y-2">
             <UnplacedPiecesAlert group={g} groupPieces={groupPieces} />
             {!textOnly && <GroupCanvas group={g} kerfM={(nestSettings.kerfMm || 0) / 1000} />}
-            {!graphicOnly && <GroupTextSummary group={g} groupPieces={groupPieces} />}
+            {!graphicOnly && <GroupTextSummary group={g} />}
           </div>
         </section>
         );

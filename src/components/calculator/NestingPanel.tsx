@@ -1851,7 +1851,7 @@ export const openPrintCuttingSheet = (
  *  Formato tape 89×36 mm (LabelWriter 30321/S0722400) — una etichetta per pagina,
  *  così la stampante Dymo può alimentare correttamente. Ogni etichetta riporta:
  *  riferimento (es. A-1), materiale, misure in cm, indicazione rotazione. */
-const openPrintDymoLabels = (groups: NestingGroup[]) => {
+export const openPrintDymoLabels = (groups: NestingGroup[]) => {
   if (groups.length === 0) return;
   const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
   const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });

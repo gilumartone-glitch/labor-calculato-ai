@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Layers3, Download, Printer, Tag } from "lucide-react";
+import { Layers3, Download, Printer, Tag, AlertTriangle } from "lucide-react";
 import { Catalog, PieceLine } from "./types";
 import {
   computeNesting,
@@ -17,6 +17,7 @@ import { useProdStore } from "@/lib/produzione/store";
 import { mmToCm, mToCm } from "@/lib/fmt";
 import { exportNestingDxf, openPrintCuttingSheet, openPrintDymoLabels, exportNestingLabelsCsv } from "./NestingPanel";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { convertLength, DimUnit } from "@/lib/perimeter";
 
 /**
  * Componente READ-ONLY che mostra il nesting di una lista di pezzi:
@@ -31,6 +32,44 @@ const fmt = (n: number, d = 2) =>
   n.toLocaleString("it-IT", { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const fmtCm = (m: number) => mToCm(m);
+
+const pieceDimsLabel = (piece?: PieceLine | null): string | null => {
+  if (!piece) return null;
+  const unit = (piece.dimUnit || "cm") as DimUnit;
+  const wM = convertLength(Number(piece.width) || 0, unit, "m");
+  const hM = convertLength(Number(piece.height) || 0, unit, "m");
+  if (!(wM > 0 && hM > 0)) return null;
+  return `${fmtCm(wM)}×${fmtCm(hM)} cm`;
+};
+
+const UnplacedPiecesAlert = ({ group, groupPieces }: { group: NestingGroup; groupPieces: PieceLine[] }) => {
+  if (group.unplaced.length === 0) return null;
+  return (
+    <div className="border-2 border-destructive bg-destructive/10 rounded-md p-4 shadow-sm">
+      <div className="flex items-center gap-3 text-destructive mb-3">
+        <AlertTriangle className="w-6 h-6 shrink-0" />
+        <div className="font-display text-xl font-bold leading-tight">
+          {group.unplaced.length} pezz{group.unplaced.length === 1 ? "o" : "i"} rimast{group.unplaced.length === 1 ? "o" : "i"} fuori nesting
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {group.unplaced.map((u, i) => {
+          const src = groupPieces.find((p) => p.id === u.pieceId);
+          const dims = pieceDimsLabel(src);
+          return (
+            <div key={`${u.pieceId}-${u.label}-${i}`} className="border border-destructive/50 bg-background rounded-sm px-3 py-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-mono text-lg font-black text-destructive">{u.label}</span>
+                {dims && <span className="font-mono text-base font-bold text-ink tabular-nums">{dims}</span>}
+              </div>
+              <div className="mt-1 text-sm font-semibold text-destructive leading-snug">{u.reason}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const materialMetaLabel = (group: NestingGroup) =>
   [
@@ -344,7 +383,7 @@ const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number
 };
 
 /** Riepilogo testuale: lastre/sfridi usati + copertura per pezzo. */
-const GroupTextSummary = ({ group }: { group: NestingGroup }) => {
+const GroupTextSummary = ({ group, groupPieces }: { group: NestingGroup; groupPieces: PieceLine[] }) => {
   const isLastra = group.format === "lastra";
 
   // Bin usati (etichetta + dimensioni cm)
@@ -410,6 +449,7 @@ const GroupTextSummary = ({ group }: { group: NestingGroup }) => {
 
   return (
     <div className="space-y-2">
+      <UnplacedPiecesAlert group={group} groupPieces={groupPieces} />
       {/* Lastre/sfridi usati */}
       <div>
         <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground mb-1">
@@ -644,10 +684,12 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           <Download className="w-4 h-4" /> Esporta etichette CSV
         </button>
       </div>
-      {groups.map((g, idx) => (
+      {groups.map((g, idx) => {
+        const groupPieces = piecesOfGroup(pieces, g.key);
+        return (
         <section
           key={g.key + idx}
-          className="rounded-sm border border-ink/20 bg-background overflow-hidden"
+          className={`rounded-sm border bg-background overflow-hidden ${g.unplaced.length > 0 ? "border-destructive" : "border-ink/20"}`}
         >
           <header className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 bg-ink/5 border-b border-ink/15">
             <div className="flex items-center gap-2 min-w-0">
@@ -668,7 +710,15 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
                 )}
               </div>
             </div>
-            <div className="font-mono text-[10px] text-muted-foreground flex items-center gap-2">
+            <div className="font-mono text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap justify-end">
+              {g.unplaced.length > 0 && (
+                <>
+                  <span className="inline-flex items-center gap-1 text-destructive font-bold text-xs">
+                    <AlertTriangle className="w-4 h-4" /> {g.unplaced.length} fuori nesting
+                  </span>
+                  <span className="text-ink/30">·</span>
+                </>
+              )}
               {(() => {
                 const usedMixed = g.mixedSheets?.filter((_, i) => g.items.some((it) => (it.sheetIndex ?? 0) === i)) ?? [];
                 if (usedMixed.length === 0) return null;
@@ -688,11 +738,13 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
             </div>
           </header>
           <div className="p-3 space-y-2">
+            <UnplacedPiecesAlert group={g} groupPieces={groupPieces} />
             {!textOnly && <GroupCanvas group={g} kerfM={(nestSettings.kerfMm || 0) / 1000} />}
-            {!graphicOnly && <GroupTextSummary group={g} />}
+            {!graphicOnly && <GroupTextSummary group={g} groupPieces={groupPieces} />}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 };

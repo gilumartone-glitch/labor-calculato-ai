@@ -499,7 +499,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
               sheetWidthM={sheetW}
               sheetHeightM={sheetH}
               sheetItems={sheetItems}
-              label={`Lastra ${sheetLetter(absIdx)} / ${sheetLetter(sheetsCount - 1)}`}
+              label={`Lastra ${sheetLetter(absIdx)}`}
               debug={debug}
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}

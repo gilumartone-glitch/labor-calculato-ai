@@ -1911,7 +1911,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
     const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
     for (const si of sheetIndices) {
       const items = bySheet.get(si)!;
-      const sheetMat = g.mixedSheets?.[si]?.bin.material ?? g.material;
+      const sheetMat = g.material;
       items.forEach((it, i) => {
         const piece = pieceMap.get(it.pieceId);
         const { w, h } = realPieceCm(piece, it);
@@ -2036,7 +2036,7 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[], pieces: PieceLine
     for (const si of sheetIndices) {
       const items = bySheet.get(si)!;
       const ms = g.mixedSheets?.[si];
-      const sheetMat = ms?.bin.material ?? g.material;
+      const sheetMat = g.material;
       const sheetLetterStr = sheetLetter(si);
       const sheetFormat = ms ? `${cmSheet(ms.bin.widthM)}×${cmSheet(ms.bin.heightM)} cm` : "";
       items.forEach((it, i) => {

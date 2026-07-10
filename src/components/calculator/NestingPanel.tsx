@@ -1851,12 +1851,53 @@ export const openPrintCuttingSheet = (
 /** Genera un archivio ZIP contenente UN file .labelx (DYMO Label XML v8)
  *  per ogni pezzo del nesting. Formato tape 55×25 mm. L'operatore apre i file
  *  in DYMO Connect / DYMO Label e stampa. */
-export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
+/** Helpers per etichette: dimensione reale del pezzo tagliato (senza margini/kerf)
+ *  e descrizione completa del materiale (nome + colore + spessore + finitura). */
+const cmFactorFromUnit = (u?: string): number => (u === "m" ? 100 : u === "mm" ? 0.1 : 1);
+const buildPieceLookup = (pieces: PieceLine[]) => {
+  const map = new Map<string, PieceLine>();
+  for (const p of pieces) map.set(p.id, p);
+  return map;
+};
+const realPieceCm = (p: PieceLine | undefined, it: NestingPieceItem): { w: number; h: number } => {
+  if (p) {
+    const f = cmFactorFromUnit(p.dimUnit);
+    return { w: (p.width || 0) * f, h: (p.height || 0) * f };
+  }
+  // fallback: usa bbox nesting (in metri) meno margini standard 4cm
+  return { w: Math.max(0, it.w * 100 - 4), h: Math.max(0, it.h * 100 - 4) };
+};
+const materialDescription = (
+  mat: CatalogMaterial | null | undefined,
+  piece: PieceLine | undefined,
+  fallback: string,
+): string => {
+  const parts: string[] = [];
+  const name = mat?.name || piece?.productName || fallback;
+  if (name) parts.push(name);
+  const color = mat?.color || piece?.color;
+  if (color) parts.push(color);
+  const thick =
+    (mat?.thickness && String(mat.thickness).trim()) ||
+    (mat?.height && String(mat.height).trim()) ||
+    (piece?.thickness && String(piece.thickness).trim()) ||
+    (piece?.height && String(piece.height).trim()) ||
+    "";
+  if (thick) parts.push(/mm|cm/i.test(thick) ? thick : `${thick} mm`);
+  const finish = mat?.finish || piece?.finish;
+  if (finish) parts.push(finish);
+  const fire = mat?.fireproof || piece?.fireproof;
+  if (fire) parts.push(fire);
+  return parts.join(" ");
+};
+
+export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceLine[] = []) => {
   if (groups.length === 0) return;
   const esc = (s: string) => String(s).replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;",
   }[c]!));
-  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const fmt = (v: number) => v.toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const pieceMap = buildPieceLookup(pieces);
 
   type Label = { ref: string; material: string; dims: string; rotated: boolean; sheet: string; label: string };
   const labels: Label[] = [];
@@ -1870,11 +1911,14 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
     const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
     for (const si of sheetIndices) {
       const items = bySheet.get(si)!;
+      const sheetMat = g.mixedSheets?.[si]?.bin.material ?? g.material;
       items.forEach((it, i) => {
+        const piece = pieceMap.get(it.pieceId);
+        const { w, h } = realPieceCm(piece, it);
         labels.push({
           ref: `${sheetLetter(si)}-${i + 1}`,
-          material: g.material?.name ?? g.label,
-          dims: `${cm(it.w)} × ${cm(it.h)} cm`,
+          material: materialDescription(sheetMat, piece, g.label),
+          dims: `${fmt(w)} × ${fmt(h)} cm`,
           rotated: !!it.rotated,
           sheet: `Lastra ${sheetLetter(si)}`,
           label: it.label,
@@ -1885,11 +1929,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   if (labels.length === 0) return;
 
   // Formato DYMO DieCutLabel v8 (twips = 1/1440 inch). Estensione .label
-  // È lo schema nativo e stabile supportato da DYMO Label 8, DYMO Connect e
-  // DYMO Connect for Desktop. 55×25mm ≈ 3118×1417 twips, ma DYMO richiede
-  // un PaperName di stock nel proprio catalogo per renderizzare: usiamo
-  // "30336" (Small Multi-Purpose, 1"×2-1/8" = 25×54mm) che è lo stock più
-  // vicino ai nostri 55×25mm.
+  // Stock 30336 (Small Multi-Purpose, 1"×2-1/8" = 25×54mm) — il più vicino ai 55×25mm.
   const buildLabelXml = (l: Label) => {
     const line1 = `${l.ref}  ${l.dims}${l.rotated ? " ↻" : ""}`;
     const line2 = l.label || "";
@@ -1965,19 +2005,23 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
 };
 
 /** Esporta le etichette come CSV (prima riga = intestazioni, una colonna per ogni dato variabile). */
-export const exportNestingLabelsCsv = (groups: NestingGroup[]) => {
+export const exportNestingLabelsCsv = (groups: NestingGroup[], pieces: PieceLine[] = []) => {
   if (groups.length === 0) return;
-  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const fmt = (v: number) => v.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const cmSheet = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const pieceMap = buildPieceLookup(pieces);
   const headers = [
     "Riferimento",
     "Etichetta pezzo",
     "Materiale",
+    "Nome",
+    "Colore",
     "Spessore",
     "Finitura",
     "Lastra",
     "Formato lastra",
-    "Larghezza cm",
-    "Altezza cm",
+    "Larghezza pezzo cm",
+    "Altezza pezzo cm",
     "Ruotato",
   ];
   const rows: string[][] = [];
@@ -1992,26 +2036,39 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[]) => {
     for (const si of sheetIndices) {
       const items = bySheet.get(si)!;
       const ms = g.mixedSheets?.[si];
+      const sheetMat = ms?.bin.material ?? g.material;
       const sheetLetterStr = sheetLetter(si);
-      const sheetFormat = ms ? `${cm(ms.bin.widthM)}×${cm(ms.bin.heightM)} cm` : "";
+      const sheetFormat = ms ? `${cmSheet(ms.bin.widthM)}×${cmSheet(ms.bin.heightM)} cm` : "";
       items.forEach((it, i) => {
+        const piece = pieceMap.get(it.pieceId);
+        const { w, h } = realPieceCm(piece, it);
+        const name = sheetMat?.name || piece?.productName || g.label;
+        const color = sheetMat?.color || piece?.color || "";
+        const thick =
+          (sheetMat?.thickness && String(sheetMat.thickness).trim()) ||
+          (sheetMat?.height && String(sheetMat.height).trim()) ||
+          (piece?.thickness && String(piece.thickness).trim()) ||
+          (piece?.height && String(piece.height).trim()) ||
+          "";
+        const finish = sheetMat?.finish || piece?.finish || "";
         rows.push([
           `${sheetLetterStr}-${i + 1}`,
           it.label ?? "",
-          g.material?.name ?? g.label,
-          g.material?.thickness ?? "",
-          g.material?.finish ?? "",
+          materialDescription(sheetMat, piece, g.label),
+          name,
+          color,
+          thick,
+          finish,
           `Lastra ${sheetLetterStr}`,
           sheetFormat,
-          cm(it.w),
-          cm(it.h),
+          fmt(w),
+          fmt(h),
           it.rotated ? "Sì" : "No",
         ]);
       });
     }
   }
   if (rows.length === 0) return;
-  // CSV con separatore ; (compatibile Excel IT) + BOM UTF-8
   const escCsv = (v: string) => {
     const s = String(v ?? "");
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -2029,6 +2086,7 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[]) => {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
 
 
 

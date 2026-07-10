@@ -261,6 +261,40 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
     }
   };
 
+  /** Scarica N lastre dalla giacenza esistente. Non scende sotto 0. */
+  const removeStock = async (row: Row) => {
+    const raw = addQty[row.key] ?? "";
+    const n = parseFloat(raw.replace(",", "."));
+    if (!n || n <= 0) { toast.error("Inserisci una quantità positiva"); return; }
+    if (!row.inv) { toast.error("Nessuna giacenza da scaricare"); return; }
+    const current = Number(row.inv.qty_intera);
+    if (n > current) { toast.error(`Disponibili solo ${current} ${row.um}`); return; }
+    setAddingKey(row.key);
+    try {
+      const newQty = current - n;
+      const { error } = await supabase
+        .from("inventory_items")
+        .update({ qty_intera: newQty })
+        .eq("id", row.inv.id);
+      if (error) throw error;
+      await logAction({
+        action: "MAGAZZINO_SCARICO",
+        entity_type: "inventory",
+        entity_id: row.inv.id,
+        detail: `${row.inv.code} · −${n} ${row.um} · ${row.label}`,
+        prev_state: { qty_intera: current },
+        new_state: { qty_intera: newQty },
+      });
+      setAddQty((p) => ({ ...p, [row.key]: "" }));
+      await refreshInventory();
+      toast.success(`−${n} → totale ${newQty} ${row.um}`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore scarico");
+    } finally {
+      setAddingKey(null);
+    }
+  };
+
   const totals = useMemo(() => {
     const placed = rows.filter((r) => r.inv).length;
     const lowStock = rows.filter((r) => r.inv && r.inv.qty_intera < r.inv.soglia_minima).length;

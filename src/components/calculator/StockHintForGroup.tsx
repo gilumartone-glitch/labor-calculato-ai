@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { NestingFormatOverride, NestingGroup, NestingMixedBin, NestingPieceItem } from "@/lib/nesting";
 import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
 import { sheetSizeFromCatalog } from "@/lib/produzione/scrap";
+import { mmToCm, mToCm } from "@/lib/fmt";
 
 /* Suggerimenti magazzino per UN gruppo di nesting:
  * - cerca inventory_items dello stesso materiale (per nome/colore + spessore se presente)
@@ -15,7 +16,7 @@ import { sheetSizeFromCatalog } from "@/lib/produzione/scrap";
  *   nel nesting, lo segnala come alternativa
  * Tutto è solo suggerimento: il grafico decide manualmente. */
 
-const fmtCm = (mm: number) => `${Math.round(mm / 10)} cm`;
+const fmtCm = (mm: number) => `${mmToCm(mm)} cm`;
 const itemsBoundingMm = (items: NestingPieceItem[]): { w: number; h: number }[] =>
   items.map((it) => ({ w: Math.round(it.w * 1000), h: Math.round(it.h * 1000) }));
 
@@ -194,14 +195,14 @@ export const StockHintForGroup = ({
       w: scrap.w_mm,
       h: scrap.h_mm,
       qty: 1,
-      label: `${scrap.code} ${Math.round(scrap.w_mm / 10)}×${Math.round(scrap.h_mm / 10)} cm`,
+      label: `${scrap.code} ${mmToCm(scrap.w_mm)}×${mmToCm(scrap.h_mm)} cm`,
     }));
     const sheetBins: Bin[] = allSheets.map(({ item, w, h }) => ({
       kind: "sheet",
       id: item.id,
       w, h,
       qty: Math.max(0, item.qty_intera ?? 0),
-      label: `${item.code} ${Math.round(w / 10)}×${Math.round(h / 10)} cm`,
+      label: `${item.code} ${mmToCm(w)}×${mmToCm(h)} cm`,
     }));
     // Disponibilità rimanente
     const scrapLeft = new Map<string, number>(scrapBins.map((b) => [b.id, b.qty]));
@@ -285,10 +286,10 @@ export const StockHintForGroup = ({
         for (const t of tokens) {
           if (t.kind === "scrap") {
             const s = scraps.find((x) => x.id === t.id);
-            if (s) dims.push({ w: s.w_mm, h: s.h_mm, qty: 1, label: `${s.code} ${Math.round(s.w_mm/10)}×${Math.round(s.h_mm/10)} cm` });
+            if (s) dims.push({ w: s.w_mm, h: s.h_mm, qty: 1, label: `${s.code} ${mmToCm(s.w_mm)}×${mmToCm(s.h_mm)} cm` });
           } else {
             const sh = allSheets.find((x) => x.item.id === t.id);
-            if (sh) dims.push({ w: sh.w, h: sh.h, qty: Math.max(1, t.useQty), label: `${sh.item.code} ${Math.round(sh.w/10)}×${Math.round(sh.h/10)} cm × ${t.useQty}` });
+            if (sh) dims.push({ w: sh.w, h: sh.h, qty: Math.max(1, t.useQty), label: `${sh.item.code} ${mmToCm(sh.w)}×${mmToCm(sh.h)} cm × ${t.useQty}` });
           }
         }
         if (dims.length === 0) {
@@ -320,7 +321,7 @@ export const StockHintForGroup = ({
             id: s.id,
             widthM: s.w_mm / 1000,
             heightM: s.h_mm / 1000,
-            label: `${s.code} ${Math.round(s.w_mm/10)}×${Math.round(s.h_mm/10)} cm`,
+            label: `${s.code} ${mmToCm(s.w_mm)}×${mmToCm(s.h_mm)} cm`,
           });
         } else {
           const sh = allSheets.find((x) => x.item.id === t.id);
@@ -331,7 +332,7 @@ export const StockHintForGroup = ({
               id: sh.item.id,
               widthM: sh.w / 1000,
               heightM: sh.h / 1000,
-              label: `${sh.item.code} ${Math.round(sh.w/10)}×${Math.round(sh.h/10)} cm`,
+              label: `${sh.item.code} ${mmToCm(sh.w)}×${mmToCm(sh.h)} cm`,
             });
           }
         }
@@ -406,12 +407,12 @@ export const StockHintForGroup = ({
         const s = scraps.find((x) => x.id === t.id);
         if (!s) continue;
         tokens.push(`scrap:${t.id}`);
-        labels.push(`Sfrido ${s.code} · ${Math.round(s.w_mm / 10)}×${Math.round(s.h_mm / 10)} cm`);
+        labels.push(`Sfrido ${s.code} · ${mmToCm(s.w_mm)}×${mmToCm(s.h_mm)} cm`);
         kindCounts.scrap++;
       } else {
         const sh = allSheets.find((x) => x.item.id === t.id);
         if (!sh) continue;
-        const dim = `${Math.round(sh.w / 10)}×${Math.round(sh.h / 10)} cm`;
+        const dim = `${mmToCm(sh.w)}×${mmToCm(sh.h)} cm`;
         // Aggancio una volta per "useQty"
         for (let q = 0; q < Math.max(1, t.useQty); q++) {
           tokens.push(`item:${t.id}`);

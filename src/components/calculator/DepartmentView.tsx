@@ -30,6 +30,7 @@ import { CommessaReparto } from "@/components/flow/types";
 import { copyLabDimensions, findLabDimensionSource } from "@/lib/lab-sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { mmToCm, mToCm } from "@/lib/fmt";
 
 interface DepartmentViewProps {
   deptKey: string;
@@ -689,11 +690,9 @@ export const DepartmentView = ({
                     // per i gruppi lastra degli altri reparti.
                     const showAddebitaSfrido = !isTappezzeria;
                     const dim = isRoll
-                      ? ` · rotolo h ${Math.round((g.rollWidthM ?? 0) * 100)} cm × ${(g.totalLengthM ?? 0).toFixed(2)} m`
+                      ? ` · rotolo h ${mToCm(g.rollWidthM ?? 0)} cm × ${(g.totalLengthM ?? 0).toFixed(2)} m`
                       : g.sheetWidthM && g.sheetHeightM
-                        ? ` · ${Math.round(g.sheetWidthM * 100)}×${Math.round(
-                            g.sheetHeightM * 100,
-                          )} cm`
+                        ? ` · ${mToCm(g.sheetWidthM)}×${mToCm(g.sheetHeightM)} cm`
                         : "";
                     return (
                       <div

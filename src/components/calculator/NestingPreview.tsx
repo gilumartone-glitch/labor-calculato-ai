@@ -15,7 +15,7 @@ import {
 } from "@/lib/nesting";
 import { useProdStore } from "@/lib/produzione/store";
 import { mmToCm, mToCm } from "@/lib/fmt";
-import { exportNestingDxf, openPrintCuttingSheet, openPrintDymoLabels } from "./NestingPanel";
+import { exportNestingDxf, openPrintCuttingSheet, openPrintDymoLabels, exportNestingLabelsCsv } from "./NestingPanel";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /**

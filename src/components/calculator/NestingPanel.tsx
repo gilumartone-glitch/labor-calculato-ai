@@ -2256,6 +2256,16 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               Scarica etichette .label
 
             </button>
+            <button
+              type="button"
+              onClick={() => exportNestingLabelsCsv(groups)}
+              disabled={groups.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
+              title="Esporta CSV con una riga per etichetta (intestazioni in prima riga)"
+            >
+              <Download className="w-4 h-4" />
+              Esporta etichette CSV
+            </button>
           </div>
         </div>
       </div>

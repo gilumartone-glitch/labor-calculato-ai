@@ -252,58 +252,60 @@ export const StockHintForGroup = ({
       qty: Math.max(0, item.qty_intera ?? 0),
       label: `${item.code} ${mmToCm(w)}×${mmToCm(h)} cm`,
     }));
-    // Pezzi ordinati per area ↓
-    const reqsSorted = reqs
-      .map((r, idx) => ({ ...r, idx }))
-      .sort((a, b) => b.w * b.h - a.w * a.h);
+    const baseReqs = reqs.map((r, idx) => ({ ...r, idx }));
 
-    const scrapLeft = new Map<string, number>(scrapBins.map((b) => [b.id, b.qty]));
-    const sheetLeft = new Map<string, number>(sheetBins.map((b) => [b.id, b.qty]));
-    const openBins: OpenBin[] = [];
-    const openNew = (b: Bin): OpenBin => {
-      const ob: OpenBin = { ...b, key: `${b.kind}:${b.id}:${openBins.length}`, free: [{ x: 0, y: 0, w: b.w, h: b.h }], used: [] };
-      openBins.push(ob);
-      return ob;
+    const buildRecommendation = (reqsSorted: typeof baseReqs) => {
+      const scrapLeft = new Map<string, number>(scrapBins.map((b) => [b.id, b.qty]));
+      const sheetLeft = new Map<string, number>(sheetBins.map((b) => [b.id, b.qty]));
+      const openBins: OpenBin[] = [];
+      const openNew = (b: Bin): OpenBin => {
+        const ob: OpenBin = { ...b, key: `${b.kind}:${b.id}:${openBins.length}`, free: [{ x: 0, y: 0, w: b.w, h: b.h }], used: [] };
+        openBins.push(ob);
+        return ob;
+      };
+      let placed = 0;
+      for (const r of reqsSorted) {
+        const openCandidates = [...openBins].sort((a, b) => a.w * a.h - b.w * b.h);
+        let done = false;
+        for (const b of openCandidates) {
+          if (tryPlace(b, r.w, r.h)) { placed++; done = true; break; }
+        }
+        if (done) continue;
+
+        const best = [
+          ...scrapBins.filter((b) => (scrapLeft.get(b.id) ?? 0) > 0 && fits(r, b)),
+          ...sheetBins.filter((b) => (sheetLeft.get(b.id) ?? 0) > 0 && fits(r, b)),
+        ].sort((a, b) => a.w * a.h - b.w * b.h)[0];
+
+        if (best) {
+          if (best.kind === "scrap") scrapLeft.set(best.id, (scrapLeft.get(best.id) ?? 0) - 1);
+          else sheetLeft.set(best.id, (sheetLeft.get(best.id) ?? 0) - 1);
+          const ob = openNew(best);
+          if (tryPlace(ob, r.w, r.h)) placed++;
+        }
+      }
+      const useScrap = new Map<string, number>();
+      const useSheet = new Map<string, number>();
+      for (const b of openBins) {
+        if (b.used.length === 0) continue;
+        if (b.kind === "scrap") useScrap.set(b.id, (useScrap.get(b.id) ?? 0) + 1);
+        else useSheet.set(b.id, (useSheet.get(b.id) ?? 0) + 1);
+      }
+      const tokens: PickToken[] = [];
+      for (const [id] of useScrap) tokens.push({ kind: "scrap", id });
+      for (const [id, q] of useSheet) tokens.push({ kind: "sheet", id, useQty: q });
+      return { tokens, placed, total: reqs.length, missing: reqs.length - placed, area: openBins.reduce((s, b) => b.used.length > 0 ? s + b.w * b.h : s, 0) };
     };
-    let placed = 0;
-    for (const r of reqsSorted) {
-      const openCandidates = [...openBins].sort((a, b) => {
-        if (a.kind !== b.kind) return a.kind === "scrap" ? -1 : 1;
-        return a.w * a.h - b.w * b.h;
-      });
-      let done = false;
-      for (const b of openCandidates) {
-        if (tryPlace(b, r.w, r.h)) { placed++; done = true; break; }
-      }
-      if (done) continue;
-      const bestScrap = scrapBins.find((b) => (scrapLeft.get(b.id) ?? 0) > 0 && fits(r, b));
-      if (bestScrap) {
-        scrapLeft.set(bestScrap.id, (scrapLeft.get(bestScrap.id) ?? 0) - 1);
-        const ob = openNew(bestScrap);
-        if (tryPlace(ob, r.w, r.h)) { placed++; continue; }
-      }
-      const bestSheet = sheetBins.find((b) => (sheetLeft.get(b.id) ?? 0) > 0 && fits(r, b));
-      if (bestSheet) {
-        sheetLeft.set(bestSheet.id, (sheetLeft.get(bestSheet.id) ?? 0) - 1);
-        const ob = openNew(bestSheet);
-        if (tryPlace(ob, r.w, r.h)) placed++;
-      }
-    }
-    const useScrap = new Map<string, number>();
-    const useSheet = new Map<string, number>();
-    for (const b of openBins) {
-      if (b.used.length === 0) continue;
-      if (b.kind === "scrap") useScrap.set(b.id, (useScrap.get(b.id) ?? 0) + 1);
-      else useSheet.set(b.id, (useSheet.get(b.id) ?? 0) + 1);
-    }
-    const tokens: PickToken[] = [];
-    for (const [id] of useScrap) tokens.push({ kind: "scrap", id });
-    for (const [id, q] of useSheet) tokens.push({ kind: "sheet", id, useQty: q });
+
+    const best = reqSortVariants(baseReqs)
+      .map(buildRecommendation)
+      .sort((a, b) => a.missing - b.missing || a.area - b.area || a.tokens.length - b.tokens.length)[0]
+      ?? buildRecommendation(baseReqs);
     return {
-      tokens,
-      placed,
-      total: reqs.length,
-      missing: reqs.length - placed,
+      tokens: best.tokens,
+      placed: best.placed,
+      total: best.total,
+      missing: best.missing,
     };
   }, [reqs, allScraps, allSheets]);
 

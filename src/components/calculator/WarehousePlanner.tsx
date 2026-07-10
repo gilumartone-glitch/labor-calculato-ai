@@ -35,6 +35,57 @@ type GroupPlan = {
 const fits = (r: { w: number; h: number }, b: { w: number; h: number }) =>
   (r.w <= b.w && r.h <= b.h) || (r.h <= b.w && r.w <= b.h);
 
+// --- MaxRects Best-Short-Side-Fit con rotazione (in mm) per stimare correttamente
+// quanti pezzi entrano in una lastra/sfrido: così lo shortage non conta 1 lastra per pezzo.
+type FR = { x: number; y: number; w: number; h: number };
+const bssf = (free: FR[], w: number, h: number) => {
+  let best: { rect: FR; s1: number; s2: number } | null = null;
+  for (const f of free) {
+    if (f.w + 1e-6 < w || f.h + 1e-6 < h) continue;
+    const leftover = [f.w - w, f.h - h];
+    const s1 = Math.min(...leftover), s2 = Math.max(...leftover);
+    if (!best || s1 < best.s1 - 1e-9 || (Math.abs(s1 - best.s1) < 1e-9 && s2 < best.s2)) {
+      best = { rect: { x: f.x, y: f.y, w, h }, s1, s2 };
+    }
+  }
+  return best;
+};
+const placeInto = (free: FR[], p: FR) => {
+  const next: FR[] = [];
+  for (const f of free) {
+    if (p.x >= f.x + f.w || p.x + p.w <= f.x || p.y >= f.y + f.h || p.y + p.h <= f.y) {
+      next.push(f); continue;
+    }
+    if (p.x > f.x) next.push({ x: f.x, y: f.y, w: p.x - f.x, h: f.h });
+    if (p.x + p.w < f.x + f.w) next.push({ x: p.x + p.w, y: f.y, w: f.x + f.w - (p.x + p.w), h: f.h });
+    if (p.y > f.y) next.push({ x: f.x, y: f.y, w: f.w, h: p.y - f.y });
+    if (p.y + p.h < f.y + f.h) next.push({ x: f.x, y: p.y + p.h, w: f.w, h: f.y + f.h - (p.y + p.h) });
+  }
+  // rimuovi contenuti
+  const pruned: FR[] = [];
+  for (let i = 0; i < next.length; i++) {
+    let contained = false;
+    for (let j = 0; j < next.length; j++) {
+      if (i === j) continue;
+      const a = next[i], b = next[j];
+      if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+        contained = true; break;
+      }
+    }
+    if (!contained) pruned.push(next[i]);
+  }
+  return pruned;
+};
+type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[] };
+const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
+  const a = bssf(bin.free, w, h);
+  const b = w !== h ? bssf(bin.free, h, w) : null;
+  const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
+  if (!pick) return false;
+  bin.free = placeInto(bin.free, pick.rect);
+  return true;
+};
+
 import { mmToCm } from "@/lib/fmt";
 const cm = (mm: number) => mmToCm(mm);
 // Estrae il valore numerico da una stringa spessore (es. "8 mm" → 8, "8mm" → 8).
@@ -183,40 +234,58 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         idx: i, w: Math.round(it.w * 1000), h: Math.round(it.h * 1000), label: it.label,
       })).sort((a, b) => b.w * b.h - a.w * a.h);
 
-      const bins: NestingMixedBin[] = [];
+      const openBins: OpenBin[] = [];
       const missing: { label: string; w: number; h: number }[] = [];
       let uScrap = 0, uSheet = 0, uFallback = 0;
 
-      const pushBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string) => {
-        bins.push({ kind, id, widthM: w / 1000, heightM: h / 1000, label });
-        return bins.length - 1;
+      const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
+        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w, h }] };
+        openBins.push(b); return b;
       };
 
       for (const r of reqs) {
-        // 1) sfrido più piccolo che lo contenga (PRIORITÀ ASSOLUTA)
+        // 0) prova a farlo entrare in un bin GIÀ APERTO (multi-pezzo per lastra):
+        //    prima sfridi aperti, poi lastre aperte, entrambi dal più piccolo.
+        const openCandidates = [...openBins].sort((a, b) => {
+          if (a.kind !== b.kind) return a.kind === "scrap" ? -1 : 1;
+          return a.w * a.h - b.w * b.h;
+        });
+        let placed = false;
+        for (const bin of openCandidates) {
+          if (tryPlace(bin, r.w, r.h)) { placed = true; break; }
+        }
+        if (placed) continue;
+
+        // 1) apri il più piccolo SFRIDO che lo contenga
         const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
-          pushBin("scrap", b.id, b.w, b.h, b.label); uScrap++; continue;
+          const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
+          tryPlace(nb, r.w, r.h); uScrap++; continue;
         }
-        // 2) lastra intera più piccola che lo contenga (tra tutte le misure in magazzino)
+        // 2) apri la più piccola LASTRA di magazzino che lo contenga
         const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
-          pushBin("sheet", b.id, b.w, b.h, b.label); uSheet++; continue;
+          const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
+          tryPlace(nb, r.w, r.h); uSheet++; continue;
         }
-        // 3) fallback catalogo (SOLO se bypass attivo): scegli la più piccola misura
-        //    standard che contiene il pezzo, tra TUTTE le varianti del prodotto.
+        // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
         if (bypass && pool.fallbacks.length > 0) {
           const fb = pool.fallbacks.find((b) => fits(r, b));
           if (fb) {
-            pushBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
-            uFallback++; continue;
+            const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
+            tryPlace(nb, r.w, r.h); uFallback++; continue;
           }
         }
         // 4) mancante
         missing.push({ label: r.label, w: r.w, h: r.h });
       }
+
+      const bins: NestingMixedBin[] = openBins.map((b) => ({
+        kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
+      }));
+
 
       out[g.key] = {
         bins, covered: reqs.length - missing.length, total: reqs.length, missing,

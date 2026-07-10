@@ -1586,7 +1586,7 @@ const exportNestingDxf = (
 /** Esporta un PDF (A4 landscape) con il layout di taglio di ogni lastra, disegnato
  *  in scala reale (unità mm di jsPDF). Ogni lastra su una pagina, con bordo lastra,
  *  margine perimetro tratteggiato, pezzi con riferimento e misure in cm. */
-const exportNestingPdf = (
+export const exportNestingPdf = (
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number },
 ) => {

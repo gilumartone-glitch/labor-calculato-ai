@@ -475,6 +475,12 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
         inv={scrapDialog?.inv ?? null}
         matLabel={scrapDialog?.label}
       />
+      <AddInventoryDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        dept={dept}
+        catalog={catalog}
+      />
     </div>
   );
 };

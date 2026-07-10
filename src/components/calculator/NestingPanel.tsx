@@ -182,7 +182,7 @@ const SheetSvg = ({
                     className="fill-ink"
                     pointerEvents="none"
                     stroke="hsl(var(--background))"
-                    strokeWidth={fs * 0.35}
+                    strokeWidth={fs * 0.12}
                     paintOrder="stroke"
                     strokeLinejoin="round"
                   >
@@ -293,7 +293,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                   const cx = x + w / 2;
                   const cy = y + h / 2;
                   return (
-                    <text x={cx} y={showDim ? cy - fs * 0.15 : cy + fs * 0.35} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={fs} fontWeight={800} className="fill-ink" pointerEvents="none" stroke="hsl(var(--background))" strokeWidth={fs * 0.35} paintOrder="stroke" strokeLinejoin="round">
+                    <text x={cx} y={showDim ? cy - fs * 0.15 : cy + fs * 0.35} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={fs} fontWeight={800} className="fill-ink" pointerEvents="none" stroke="hsl(var(--background))" strokeWidth={fs * 0.12} paintOrder="stroke" strokeLinejoin="round">
                       <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                       {showDim && (
                         <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>

@@ -63,7 +63,6 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
   const [creatingScrapKey, setCreatingScrapKey] = useState<string | null>(null);
   /** Quantità da aggiungere per ogni riga (+N). Indipendente dall'edit del totale. */
   const [addQty, setAddQty] = useState<Record<string, string>>({});
-  const [addQty, setAddQty] = useState<Record<string, string>>({});
   const [addingKey, setAddingKey] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 

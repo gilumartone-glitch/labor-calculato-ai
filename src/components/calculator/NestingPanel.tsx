@@ -893,15 +893,14 @@ const GroupSummary = ({
           />
           {group.mixedSheets && group.mixedSheets.length > 0 && (
             <div className="border border-primary/40 bg-primary/5 rounded-sm p-3">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-2 inline-flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3" />
+              <div className="font-mono text-sm font-bold uppercase tracking-wider text-primary mb-2 inline-flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4" />
                 Copertura pezzi · combinazione applicata
               </div>
-              <ul className="font-mono text-[11px] space-y-0.5">
+              <ul className="font-mono text-sm space-y-1">
                 {(() => {
-                  // Mappa pieceId+copy → foglio assegnato
                   const seen = new Set<string>();
-                  const rows: { label: string; sheetIdx: number; binLabel: string; kind: string }[] = [];
+                  const rows: { label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
                   for (const it of group.items) {
                     const k = `${it.pieceId}|${it.copy}`;
                     if (seen.has(k)) continue;
@@ -914,12 +913,19 @@ const GroupSummary = ({
                       sheetIdx: si,
                       binLabel: ms.bin.label,
                       kind: ms.bin.kind === "scrap" ? "Sfrido" : "Lastra",
+                      w: it.w,
+                      h: it.h,
                     });
                   }
                   return rows.map((r, i) => (
                     <li key={i} className="flex items-center justify-between gap-3">
-                      <span className="text-ink font-semibold truncate">{r.label}</span>
-                      <span className="text-muted-foreground tabular-nums shrink-0">
+                      <span className="text-ink font-bold truncate">
+                        {r.label}
+                        <span className="ml-2 font-semibold text-muted-foreground tabular-nums">
+                          {fmtCm(r.w)}×{fmtCm(r.h)} cm
+                        </span>
+                      </span>
+                      <span className="text-ink font-semibold tabular-nums shrink-0">
                         → {r.kind} {r.sheetIdx + 1} · {r.binLabel}
                       </span>
                     </li>

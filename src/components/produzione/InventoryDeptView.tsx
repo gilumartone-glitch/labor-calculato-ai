@@ -411,7 +411,7 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                             {r.inv?.qty_intera ?? 0}
                           </span>
                           <span className="text-[10px] font-mono text-ink/40">{r.um}</span>
-                          {/* Quick-add: +N */}
+                          {/* Quick add/remove: ±N */}
                           <input
                             type="number"
                             step="1"
@@ -419,10 +419,18 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                             value={addQty[r.key] ?? ""}
                             onChange={(ev) => setAddQty((p) => ({ ...p, [r.key]: ev.target.value }))}
                             onKeyDown={(ev) => { if (ev.key === "Enter") addStock(r); }}
-                            placeholder="+N"
-                            className="h-7 w-14 text-[11px] text-right border border-ink/20 rounded-sm px-1 bg-background"
-                            title="Quantità da aggiungere alla giacenza"
+                            placeholder="N"
+                            className="h-7 w-12 text-[11px] text-right border border-ink/20 rounded-sm px-1 bg-background"
+                            title="Quantità da caricare o scaricare"
                           />
+                          <button
+                            onClick={() => removeStock(r)}
+                            disabled={addingKey === r.key || !addQty[r.key] || !r.inv || Number(r.inv?.qty_intera ?? 0) <= 0}
+                            className="inline-flex items-center justify-center h-7 w-7 border border-destructive/50 text-destructive rounded-sm hover:bg-destructive hover:text-destructive-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Scarica dalla giacenza"
+                          >
+                            {addingKey === r.key ? <Loader2 className="w-3 h-3 animate-spin" /> : <Minus className="w-3.5 h-3.5" />}
+                          </button>
                           <button
                             onClick={() => addStock(r)}
                             disabled={addingKey === r.key || !addQty[r.key]}

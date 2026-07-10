@@ -72,11 +72,17 @@ export const DepartmentView = ({
   // limitati alle lavorazioni di quel prodotto finito. Su "Tutti" (activeSubProjectId=null)
   // si vedono tutte, raggruppate. Le mutazioni di stato usano `allPieces` per non
   // perdere i pezzi degli altri sub-progetti.
-  const pieces = activeSubProjectId
-    ? allPieces.filter((p) => (p.subProjectId ?? null) === activeSubProjectId)
-    : allPieces;
-  const inScope = (p: PieceLine) =>
-    !activeSubProjectId || (p.subProjectId ?? null) === activeSubProjectId;
+  // activeSubProjectId può essere:
+  //  - null          → mostra tutti i pezzi (raggruppati per sub-progetto)
+  //  - "__none__"    → mostra SOLO i pezzi "Generale" (senza sub-progetto)
+  //  - <id>          → mostra SOLO i pezzi di quel sub-progetto
+  const matchesActive = (p: PieceLine) => {
+    if (!activeSubProjectId) return true;
+    if (activeSubProjectId === "__none__") return !p.subProjectId;
+    return (p.subProjectId ?? null) === activeSubProjectId;
+  };
+  const pieces = activeSubProjectId ? allPieces.filter(matchesActive) : allPieces;
+  const inScope = matchesActive;
 
   // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
   // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.

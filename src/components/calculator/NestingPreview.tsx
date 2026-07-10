@@ -483,7 +483,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
         // 1) PRIORITÀ MASSIMA: stato salvato nel preventivo (mixedBins → poi override formato).
         const savedMixed = nestingState?.mixedBins?.[g.key];
         if (savedMixed && savedMixed.length > 0) {
-          return recomputeGroupWithMixedBins(g, groupPieces, savedMixed, indexMap);
+          return recomputeGroupWithMixedBins(g, groupPieces, savedMixed, indexMap, effCatalog);
         }
         const savedOv = nestingState?.overrides?.[g.key];
         if (savedOv && savedOv.widthM > 0 && savedOv.heightM > 0) {

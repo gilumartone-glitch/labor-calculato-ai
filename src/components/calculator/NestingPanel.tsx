@@ -1274,6 +1274,148 @@ const GroupSummary = ({
  *  TUTTI i gruppi, affiancati orizzontalmente. Ogni pezzo è una LWPOLYLINE
  *  chiusa + un TEXT con etichetta. Coordinate in millimetri. Y invertita per
  *  avere l'origine in basso a sinistra come nei CAM. */
+/** Parsifica un DXF R12 minimale e verifica: unità mm, dimensioni lastre,
+ *  margine perimetrale, spaziatura fresa tra bounding-box dei pezzi.
+ *  Ritorna una lista di avvisi (vuota se tutto ok). */
+const verifyDxfOutput = (
+  content: string,
+  groups: NestingGroup[],
+  cfg: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean },
+): string[] => {
+  const issues: string[] = [];
+  const src = content.split(/\r?\n/);
+
+  // 1) Header unità
+  const idxInsUnits = src.findIndex((l) => l.trim() === "$INSUNITS");
+  if (idxInsUnits < 0 || (src[idxInsUnits + 2] ?? "").trim() !== "4") {
+    issues.push("$INSUNITS non è 4 (mm)");
+  }
+
+  // 2) Parse LWPOLYLINE con layer -> lista di bbox
+  type Poly = { layer: string; xs: number[]; ys: number[] };
+  const polys: Poly[] = [];
+  for (let i = 0; i < src.length - 1; i++) {
+    if (src[i].trim() === "0" && src[i + 1].trim() === "LWPOLYLINE") {
+      let layer = "";
+      const xs: number[] = [];
+      const ys: number[] = [];
+      let j = i + 2;
+      while (j < src.length - 1) {
+        const code = src[j].trim();
+        const val = src[j + 1];
+        if (code === "0") break;
+        if (code === "8") layer = val.trim();
+        else if (code === "10") xs.push(parseFloat(val));
+        else if (code === "20") ys.push(parseFloat(val));
+        j += 2;
+      }
+      polys.push({ layer, xs, ys });
+    }
+  }
+  const bboxOf = (p: Poly) => ({
+    minX: Math.min(...p.xs), maxX: Math.max(...p.xs),
+    minY: Math.min(...p.ys), maxY: Math.max(...p.ys),
+  });
+
+  const lastre = polys.filter((p) => p.layer === "LASTRA");
+  const margini = polys.filter((p) => p.layer === "MARGINE");
+  const pezzi = polys.filter((p) => p.layer === "PEZZI");
+
+  // 3) Conta lastre attese
+  const expectedSheets = groups.reduce((s, g) => {
+    const idxs = new Set(g.items.map((it) => it.sheetIndex ?? 0));
+    return s + idxs.size;
+  }, 0);
+  if (lastre.length !== expectedSheets) {
+    issues.push(`lastre nel DXF ${lastre.length} ≠ attese ${expectedSheets}`);
+  }
+
+  // 4) Per ogni lastra: dimensione fisica, margine, kerf tra pezzi
+  const EPS = 0.5; // mm
+  const M2MM = 1000;
+  let sheetPtr = 0;
+  for (const g of groups) {
+    const bySheet = new Map<number, NestingPieceItem[]>();
+    for (const it of g.items) {
+      const si = it.sheetIndex ?? 0;
+      if (!bySheet.has(si)) bySheet.set(si, []);
+      bySheet.get(si)!.push(it);
+    }
+    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+    for (const si of sheetIndices) {
+      const ms = g.mixedSheets?.[si];
+      const expW = (ms ? ms.widthM : g.sheetWidthM ?? g.rollWidthM) * M2MM;
+      const expH = (ms ? ms.heightM : g.sheetHeightM ?? g.totalLengthM) * M2MM;
+      const lastra = lastre[sheetPtr];
+      if (!lastra) { sheetPtr++; continue; }
+      const b = bboxOf(lastra);
+      const w = b.maxX - b.minX, h = b.maxY - b.minY;
+      if (Math.abs(w - expW) > EPS || Math.abs(h - expH) > EPS) {
+        issues.push(`Lastra ${sheetLetter(si)}: ${w.toFixed(1)}×${h.toFixed(1)}mm ≠ ${expW.toFixed(1)}×${expH.toFixed(1)}mm`);
+      }
+
+      // pezzi dentro questa lastra (bbox contenuto)
+      const inside = pezzi.filter((p) => {
+        const pb = bboxOf(p);
+        return pb.minX >= b.minX - EPS && pb.maxX <= b.maxX + EPS &&
+               pb.minY >= b.minY - EPS && pb.maxY <= b.maxY + EPS;
+      });
+
+      // Margine perimetrale
+      if (!cfg.skipPerimeter && cfg.perimeterMm > 0) {
+        for (const p of inside) {
+          const pb = bboxOf(p);
+          const dLeft = pb.minX - b.minX;
+          const dRight = b.maxX - pb.maxX;
+          const dBottom = pb.minY - b.minY;
+          const dTop = b.maxY - pb.maxY;
+          const minD = Math.min(dLeft, dRight, dBottom, dTop);
+          if (minD < cfg.perimeterMm - EPS) {
+            issues.push(`Lastra ${sheetLetter(si)}: pezzo a ${minD.toFixed(1)}mm dal bordo (< margine ${cfg.perimeterMm}mm)`);
+            break;
+          }
+        }
+      }
+
+      // Spaziatura fresa (kerf) tra bbox di pezzi che si "affrontano"
+      if (cfg.kerfMm > 0 && inside.length >= 2) {
+        const bbs = inside.map(bboxOf);
+        let violated = false;
+        for (let i = 0; i < bbs.length && !violated; i++) {
+          for (let j = i + 1; j < bbs.length && !violated; j++) {
+            const A = bbs[i], B = bbs[j];
+            const overlapY = !(A.maxY < B.minY || B.maxY < A.minY);
+            const overlapX = !(A.maxX < B.minX || B.maxX < A.minX);
+            if (overlapY) {
+              const gap = A.maxX <= B.minX ? B.minX - A.maxX
+                        : B.maxX <= A.minX ? A.minX - B.maxX : Infinity;
+              if (gap < cfg.kerfMm - EPS) {
+                issues.push(`Lastra ${sheetLetter(si)}: gap orizzontale ${gap.toFixed(1)}mm < fresa ${cfg.kerfMm}mm`);
+                violated = true;
+              }
+            }
+            if (!violated && overlapX) {
+              const gap = A.maxY <= B.minY ? B.minY - A.maxY
+                        : B.maxY <= A.minY ? A.minY - B.maxY : Infinity;
+              if (gap < cfg.kerfMm - EPS) {
+                issues.push(`Lastra ${sheetLetter(si)}: gap verticale ${gap.toFixed(1)}mm < fresa ${cfg.kerfMm}mm`);
+                violated = true;
+              }
+            }
+          }
+        }
+      }
+      sheetPtr++;
+    }
+  }
+
+  // 5) Se atteso margine, verifica presenza guida MARGINE
+  if (!cfg.skipPerimeter && cfg.perimeterMm > 0 && margini.length === 0 && lastre.length > 0) {
+    issues.push("guida margine perimetrale assente nel DXF");
+  }
+  return issues;
+};
+
 const exportNestingDxf = (
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean },
@@ -1373,6 +1515,24 @@ const exportNestingDxf = (
   push(0, "EOF");
 
   const content = lines.join("\n");
+
+  // === Verifica automatica del DXF prodotto ===
+  // Riparsifichiamo il file per garantire che unità, misure lastra, margine
+  // perimetrale e spaziatura fresa tra pezzi corrispondano ai parametri.
+  const issues = verifyDxfOutput(content, groups, {
+    kerfMm,
+    perimeterMm: cfg.perimeterMm,
+    skipPerimeter: cfg.skipPerimeter,
+  });
+  if (issues.length === 0) {
+    toast.success("DXF verificato: unità mm, lastre e margini corretti");
+  } else {
+    console.warn("[DXF verify]", issues);
+    toast.warning(`DXF esportato con ${issues.length} avviso/i`, {
+      description: issues.slice(0, 3).join(" · "),
+    });
+  }
+
   const blob = new Blob([content], { type: "application/dxf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

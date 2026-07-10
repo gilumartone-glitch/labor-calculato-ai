@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, Hash, Paperclip, X, Download, FileArchive, FileText, Image as ImageIcon, File as FileIcon, Loader2 } from "lucide-react";
+import { Send, Hash, Paperclip, X, Download, FileArchive, FileText, Image as ImageIcon, File as FileIcon, Loader2, MessageSquarePlus, User as UserIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdStore } from "@/lib/produzione/store";
 import { toast } from "sonner";
 
-type Channel = { id: string; name: string; kind: string; order_id: string | null };
+type Channel = { id: string; name: string; kind: string; order_id: string | null; members?: string[] | null };
 type Attachment = { path: string; name: string; size: number; type: string };
 type Msg = {
   id: string;
@@ -42,10 +43,7 @@ const AttachmentChip = ({ a }: { a: Attachment }) => {
   const Icon = iconFor(a.name, a.type);
   const download = async () => {
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.path, 60);
-    if (error || !data) {
-      toast.error("Impossibile scaricare il file");
-      return;
-    }
+    if (error || !data) { toast.error("Impossibile scaricare il file"); return; }
     const res = await fetch(data.signedUrl);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -80,6 +78,8 @@ const ProdChat = () => {
   const [text, setText] = useState("");
   const [pending, setPending] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showNewDm, setShowNewDm] = useState(false);
+  const [dmSearch, setDmSearch] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -119,14 +119,54 @@ const ProdChat = () => {
 
   const profileById = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
 
+  const nameFor = (uid: string) => profileById.get(uid)?.display_name ?? "Utente";
+
+  const dmLabel = (c: Channel) => {
+    if (!user) return c.name;
+    const other = (c.members ?? []).find((m) => m !== user.id);
+    return other ? nameFor(other) : c.name || "Diretto";
+  };
+
+  const openDm = async (otherUserId: string) => {
+    if (!user) return;
+    // 1) cerca canale diretto esistente
+    const { data: existing } = await supabase
+      .from("prod_chat_channels")
+      .select("*")
+      .eq("kind", "diretto" as any)
+      .contains("members", [user.id, otherUserId] as any);
+    const found = (existing ?? []).find(
+      (c: any) => Array.isArray(c.members) && c.members.length === 2 && c.members.includes(otherUserId),
+    ) as Channel | undefined;
+    if (found) {
+      if (!channels.some((c) => c.id === found.id)) setChannels((prev) => [...prev, found]);
+      setActive(found.id);
+      setShowNewDm(false);
+      return;
+    }
+    // 2) crea nuovo
+    const other = profileById.get(otherUserId);
+    const { data: ins, error } = await supabase
+      .from("prod_chat_channels")
+      .insert({
+        kind: "diretto" as any,
+        name: other?.display_name ?? "Diretto",
+        members: [user.id, otherUserId] as any,
+        order_id: null,
+      })
+      .select()
+      .single();
+    if (error || !ins) { toast.error("Impossibile aprire la conversazione"); return; }
+    setChannels((prev) => [...prev, ins as Channel]);
+    setActive((ins as Channel).id);
+    setShowNewDm(false);
+  };
+
   const addFiles = (files: FileList | null) => {
     if (!files || !user) return;
     const arr = Array.from(files);
     const oversize = arr.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
-    if (oversize) {
-      toast.error(`"${oversize.name}" supera ${MAX_FILE_MB}MB`);
-      return;
-    }
+    if (oversize) { toast.error(`"${oversize.name}" supera ${MAX_FILE_MB}MB`); return; }
     setPending((prev) => [...prev, ...arr]);
   };
 
@@ -145,7 +185,6 @@ const ProdChat = () => {
       try {
         for (const f of files) {
           const safe = f.name.replace(/[^\w.\-]+/g, "_");
-          // preserve folder path (webkitRelativePath) when uploading a folder
           const rel = (f as any).webkitRelativePath || "";
           const nameForStorage = rel ? rel.replace(/[^\w./\-]+/g, "_") : safe;
           const path = `${user.id}/${active}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${nameForStorage}`;
@@ -153,39 +192,38 @@ const ProdChat = () => {
             contentType: f.type || "application/octet-stream",
             upsert: false,
           });
-          if (error) {
-            toast.error(`Upload fallito: ${f.name}`);
-            continue;
-          }
-          attachments.push({
-            path,
-            name: rel || f.name,
-            size: f.size,
-            type: f.type || "application/octet-stream",
-          });
+          if (error) { toast.error(`Upload fallito: ${f.name}`); continue; }
+          attachments.push({ path, name: rel || f.name, size: f.size, type: f.type || "application/octet-stream" });
         }
-      } finally {
-        setUploading(false);
-      }
+      } finally { setUploading(false); }
     }
 
     const { error } = await supabase.from("prod_chat_messages").insert({
-      channel_id: active,
-      user_id: user.id,
-      body,
-      attachments: attachments as any,
+      channel_id: active, user_id: user.id, body, attachments: attachments as any,
     });
     if (error) toast.error("Invio messaggio fallito");
   };
 
   const activeChan = channels.find((c) => c.id === active);
+  const isDm = activeChan?.kind === "diretto";
+  const channelHeader = activeChan ? (isDm ? dmLabel(activeChan) : activeChan.name) : "—";
+
+  const roomChannels = channels.filter((c) => c.kind !== "diretto");
+  const dmChannels = channels.filter((c) => c.kind === "diretto");
+
+  const otherUsers = profiles.filter((p) => p.id !== user?.id);
+  const filteredUsers = dmSearch.trim()
+    ? otherUsers.filter((p) => (p.display_name ?? "").toLowerCase().includes(dmSearch.toLowerCase()))
+    : otherUsers;
 
   return (
     <ProdLayout>
       <div className="flex h-[calc(100vh-48px)]">
-        <aside className="w-60 border-r-2 border-ink/15 bg-paper overflow-y-auto">
-          <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground border-b">Canali</div>
-          {channels.map((c) => (
+        <aside className="w-64 border-r-2 border-ink/15 bg-paper overflow-y-auto flex flex-col">
+          <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground border-b flex items-center justify-between">
+            <span>Canali</span>
+          </div>
+          {roomChannels.map((c) => (
             <button
               key={c.id}
               onClick={() => setActive(c.id)}
@@ -195,10 +233,41 @@ const ProdChat = () => {
               {c.name.replace(/^#/, "")}
             </button>
           ))}
+
+          <div className="px-3 py-2 mt-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground border-t border-b flex items-center justify-between">
+            <span>Messaggi diretti</span>
+            <button
+              onClick={() => setShowNewDm(true)}
+              className="text-primary hover:opacity-80"
+              title="Nuovo messaggio diretto"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {dmChannels.length === 0 && (
+            <button
+              onClick={() => setShowNewDm(true)}
+              className="mx-3 my-2 px-2 py-1.5 text-[11px] rounded-sm border border-dashed border-ink/30 text-muted-foreground hover:bg-muted flex items-center justify-center gap-1"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" /> Scrivi a un utente
+            </button>
+          )}
+          {dmChannels.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActive(c.id)}
+              className={`w-full text-left px-3 py-1.5 text-[12px] flex items-center gap-1.5 ${active === c.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              <UserIcon className="w-3 h-3" />
+              <span className="truncate">{dmLabel(c)}</span>
+            </button>
+          ))}
         </aside>
+
         <div className="flex-1 flex flex-col bg-background">
-          <div className="h-10 border-b-2 border-ink/15 bg-paper flex items-center px-4 font-display font-semibold text-sm">
-            {activeChan?.name ?? "—"}
+          <div className="h-10 border-b-2 border-ink/15 bg-paper flex items-center gap-2 px-4 font-display font-semibold text-sm">
+            {isDm ? <UserIcon className="w-4 h-4" /> : <Hash className="w-4 h-4" />}
+            {channelHeader}
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {msgs.map((m) => {
@@ -241,54 +310,55 @@ const ProdChat = () => {
             </div>
           )}
           <div className="border-t-2 border-ink/15 bg-paper p-3 flex gap-2 items-center">
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => { addFiles(e.target.files); if (fileRef.current) fileRef.current.value = ""; }}
-            />
-            <input
-              ref={folderRef}
-              type="file"
-              multiple
-              className="hidden"
-              // @ts-expect-error non-standard attribute for folder upload
-              webkitdirectory=""
-              directory=""
-              onChange={(e) => { addFiles(e.target.files); if (folderRef.current) folderRef.current.value = ""; }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => fileRef.current?.click()}
-              title="Allega file (qualsiasi formato: .rar, .zip, .pdf, immagini…)"
-            >
+            <input ref={fileRef} type="file" multiple className="hidden"
+              onChange={(e) => { addFiles(e.target.files); if (fileRef.current) fileRef.current.value = ""; }} />
+            <input ref={folderRef} type="file" multiple className="hidden"
+              // @ts-expect-error non-standard folder upload attributes
+              webkitdirectory="" directory=""
+              onChange={(e) => { addFiles(e.target.files); if (folderRef.current) folderRef.current.value = ""; }} />
+            <Button type="button" variant="outline" size="icon" onClick={() => fileRef.current?.click()} title="Allega file">
               <Paperclip className="w-4 h-4" />
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => folderRef.current?.click()}
-              title="Allega intera cartella"
-            >
+            <Button type="button" variant="outline" size="icon" onClick={() => folderRef.current?.click()} title="Allega cartella">
               <FileArchive className="w-4 h-4" />
             </Button>
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
+            <Input value={text} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Scrivi un messaggio…"
-            />
-            <Button onClick={send} disabled={uploading} className="gap-1.5">
+              placeholder={activeChan ? "Scrivi un messaggio…" : "Seleziona un canale o apri un messaggio diretto"} />
+            <Button onClick={send} disabled={uploading || !active} className="gap-1.5">
               {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               Invia
             </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={showNewDm} onOpenChange={setShowNewDm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nuovo messaggio diretto</DialogTitle></DialogHeader>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+            <Input value={dmSearch} onChange={(e) => setDmSearch(e.target.value)} placeholder="Cerca utente…" className="pl-8" autoFocus />
+          </div>
+          <div className="max-h-80 overflow-y-auto -mx-2">
+            {filteredUsers.length === 0 && (
+              <div className="text-center text-[12px] text-muted-foreground py-6">Nessun utente trovato</div>
+            )}
+            {filteredUsers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => openDm(p.id)}
+                className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-muted rounded-sm"
+              >
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold">
+                  {(p.display_name ?? "?").slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-[13px]">{p.display_name ?? "Utente"}</span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </ProdLayout>
   );
 };

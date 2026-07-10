@@ -449,7 +449,6 @@ const GroupTextSummary = ({ group, groupPieces }: { group: NestingGroup; groupPi
 
   return (
     <div className="space-y-2">
-      <UnplacedPiecesAlert group={group} groupPieces={groupPieces} />
       {/* Lastre/sfridi usati */}
       <div>
         <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground mb-1">

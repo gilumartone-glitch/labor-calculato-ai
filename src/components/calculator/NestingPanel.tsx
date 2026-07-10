@@ -275,11 +275,21 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>
                 {shape}
-                {w > 32 && h > 18 && (
-                  <text x={x + w / 2} y={y + h / 2 + 3} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={Math.min(11, Math.max(8, h / 4))} fontWeight={700} className="fill-ink" pointerEvents="none">
-                    {it.label}{it.rotated ? "↻" : ""}
-                  </text>
-                )}
+                {w > 32 && h > 18 && (() => {
+                  const fs = Math.min(11, Math.max(8, h / 5));
+                  const showDim = h > 30;
+                  return (
+                    <text x={x + w / 2} y={y + h / 2 + (showDim ? -1 : 3)} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={fs} fontWeight={700} className="fill-ink" pointerEvents="none">
+                      <tspan x={x + w / 2}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
+                      {showDim && (
+                        <tspan x={x + w / 2} dy={fs + 1} fontWeight={500} fontSize={fs - 1}>
+                          {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                        </tspan>
+                      )}
+                    </text>
+                  );
+                })()}
+
               </g>
             );
           })}

@@ -1278,7 +1278,7 @@ const openPrintCuttingSheet = (
         const ms = g.mixedSheets?.[si];
         sheets.push({
           idx: si,
-          label: ms ? ms.bin.label : `Foglio ${si + 1}`,
+          label: ms ? `Lastra ${sheetLetter(si)} · ${ms.bin.label}` : `Lastra ${sheetLetter(si)}`,
           wM: ms ? ms.widthM : defaultSheetW,
           hM: ms ? ms.heightM : defaultSheetH,
           items: bySheet.get(si)!,

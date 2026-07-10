@@ -209,7 +209,12 @@ const SheetSvg = ({
 /** Render del gruppo: per le lastre disegna N fogli affiancati; per i rotoli un unico telo verticale. */
 const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: boolean }) => {
   const { rollWidthM, totalLengthM, items } = group;
+  const [page, setPage] = useState(0);
+  const PER_ROW = 2;
+  const ROWS = 3;
+  const PER_PAGE = PER_ROW * ROWS; // 6 fogli per pagina
   if (rollWidthM <= 0 || totalLengthM <= 0) return null;
+
   const isLastra = group.format === "lastra";
 
   // ---------- ROTOLI: rendering con altezza telo in verticale ----------

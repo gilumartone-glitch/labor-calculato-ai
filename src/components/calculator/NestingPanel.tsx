@@ -1585,23 +1585,51 @@ const openPrintCuttingSheet = (
 
       const sheetsHtml = sheets
         .map((s) => {
+          // SVG del layout (scale-fit in ~700px larghezza max, mantiene aspect ratio)
+          const SW = s.wM, SH = s.hM;
+          const maxPx = 700;
+          const scale = maxPx / Math.max(SW, SH);
+          const vbW = SW * 1000, vbH = SH * 1000; // in mm
+          const pxW = Math.round(SW * scale * 100); // px display
+          const pxH = Math.round(SH * scale * 100);
+          const marginMm = cfg.perimeterMm;
+          const pieceRects = s.items
+            .map((it, i) => {
+              const x = it.x * 1000, y = it.y * 1000, w = it.w * 1000, h = it.h * 1000;
+              const cx = x + w / 2, cy = y + h / 2;
+              const fs = Math.max(60, Math.min(w, h) / 8);
+              const num = i + 1;
+              return `
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#e5e7eb" stroke="#111" stroke-width="4"/>
+                <text x="${cx}" y="${cy - fs*0.2}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#111">${sheetLetter(s.idx)}-${num}</text>
+                <text x="${cx}" y="${cy + fs*0.9}" text-anchor="middle" font-size="${fs*0.7}" fill="#111">${(it.w*100).toFixed(1)}×${(it.h*100).toFixed(1)}</text>`;
+            })
+            .join("");
+          const marginRect = marginMm > 0
+            ? `<rect x="${marginMm}" y="${marginMm}" width="${vbW - 2*marginMm}" height="${vbH - 2*marginMm}" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dasharray="30 20"/>`
+            : "";
+          const svg = `
+            <svg viewBox="0 0 ${vbW} ${vbH}" width="${pxW}" height="${pxH}" xmlns="http://www.w3.org/2000/svg" style="border:2px solid #111;background:#fafafa;display:block;margin:0 auto 12px;">
+              ${marginRect}
+              ${pieceRects}
+            </svg>`;
+
           const rows = s.items
-            .sort((a, b) => a.y - b.y || a.x - b.x)
-            .map(
-              (it) => `
+            .map((it, i) => `
                 <tr>
+                  <td class="num lbl">${sheetLetter(s.idx)}-${i+1}</td>
                   <td class="lbl">${esc(it.label)}${it.rotated ? " <span class='rot'>↻</span>" : ""}</td>
                   <td class="num">${cm(it.w)} × ${cm(it.h)} cm</td>
                   <td class="num">x=${cm(it.x)} cm</td>
                   <td class="num">y=${cm(it.y)} cm</td>
-                </tr>`,
-            )
+                </tr>`)
             .join("");
           return `
             <div class="sheet">
               <h3>${esc(s.label)} · ${cm(s.wM)} × ${cm(s.hM)} cm</h3>
+              ${svg}
               <table>
-                <thead><tr><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
+                <thead><tr><th>Rif.</th><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
             </div>`;

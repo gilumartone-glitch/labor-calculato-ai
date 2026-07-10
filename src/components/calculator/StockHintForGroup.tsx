@@ -44,6 +44,45 @@ type Bin = {
   label: string;
 };
 
+type FR = { x: number; y: number; w: number; h: number };
+const bssf = (free: FR[], w: number, h: number) => {
+  let best: { rect: FR; s1: number; s2: number } | null = null;
+  for (const f of free) {
+    if (f.w + 1e-6 < w || f.h + 1e-6 < h) continue;
+    const s1 = Math.min(f.w - w, f.h - h);
+    const s2 = Math.max(f.w - w, f.h - h);
+    if (!best || s1 < best.s1 - 1e-9 || (Math.abs(s1 - best.s1) < 1e-9 && s2 < best.s2)) {
+      best = { rect: { x: f.x, y: f.y, w, h }, s1, s2 };
+    }
+  }
+  return best;
+};
+const placeInto = (free: FR[], p: FR) => {
+  const next: FR[] = [];
+  for (const f of free) {
+    if (p.x >= f.x + f.w || p.x + p.w <= f.x || p.y >= f.y + f.h || p.y + p.h <= f.y) {
+      next.push(f); continue;
+    }
+    if (p.x > f.x) next.push({ x: f.x, y: f.y, w: p.x - f.x, h: f.h });
+    if (p.x + p.w < f.x + f.w) next.push({ x: p.x + p.w, y: f.y, w: f.x + f.w - (p.x + p.w), h: f.h });
+    if (p.y > f.y) next.push({ x: f.x, y: f.y, w: f.w, h: p.y - f.y });
+    if (p.y + p.h < f.y + f.h) next.push({ x: f.x, y: p.y + p.h, w: f.w, h: f.y + f.h - (p.y + p.h) });
+  }
+  return next.filter((a, i) => !next.some((b, j) => i !== j && a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h));
+};
+const intersects = (a: FR, b: FR) =>
+  !(a.x >= b.x + b.w - 1e-6 || a.x + a.w <= b.x + 1e-6 || a.y >= b.y + b.h - 1e-6 || a.y + a.h <= b.y + 1e-6);
+type OpenBin = Bin & { key: string; free: FR[]; used: FR[] };
+const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
+  const a = bssf(bin.free, w, h);
+  const b = w !== h ? bssf(bin.free, h, w) : null;
+  const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
+  if (!pick || bin.used.some((u) => intersects(u, pick.rect))) return false;
+  bin.free = placeInto(bin.free, pick.rect);
+  bin.used.push(pick.rect);
+  return true;
+};
+
 interface Props {
   group: NestingGroup;
   /** Override già applicato dall'utente sul gruppo (per evitare di sovrascrivere le scelte manuali). */
@@ -204,48 +243,49 @@ export const StockHintForGroup = ({
       qty: Math.max(0, item.qty_intera ?? 0),
       label: `${item.code} ${mmToCm(w)}×${mmToCm(h)} cm`,
     }));
-    // Disponibilità rimanente
-    const scrapLeft = new Map<string, number>(scrapBins.map((b) => [b.id, b.qty]));
-    const sheetLeft = new Map<string, number>(sheetBins.map((b) => [b.id, b.qty]));
     // Pezzi ordinati per area ↓
     const reqsSorted = reqs
       .map((r, idx) => ({ ...r, idx }))
       .sort((a, b) => b.w * b.h - a.w * a.h);
 
-    // Conteggio uso per ciascun bin
-    const useScrap = new Map<string, number>();
-    const useSheet = new Map<string, number>();
+    const scrapLeft = new Map<string, number>(scrapBins.map((b) => [b.id, b.qty]));
+    const sheetLeft = new Map<string, number>(sheetBins.map((b) => [b.id, b.qty]));
+    const openBins: OpenBin[] = [];
+    const openNew = (b: Bin): OpenBin => {
+      const ob: OpenBin = { ...b, key: `${b.kind}:${b.id}:${openBins.length}`, free: [{ x: 0, y: 0, w: b.w, h: b.h }], used: [] };
+      openBins.push(ob);
+      return ob;
+    };
     let placed = 0;
     for (const r of reqsSorted) {
-      // 1) Cerca lo SFRIDO più piccolo che lo contenga e abbia disponibilità
-      let bestScrap: Bin | null = null;
-      let bestScrapArea = Infinity;
-      for (const b of scrapBins) {
-        if ((scrapLeft.get(b.id) ?? 0) <= 0) continue;
-        if (!fits(r, { w: b.w, h: b.h })) continue;
-        const area = b.w * b.h;
-        if (area < bestScrapArea) { bestScrapArea = area; bestScrap = b; }
+      const openCandidates = [...openBins].sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === "scrap" ? -1 : 1;
+        return a.w * a.h - b.w * b.h;
+      });
+      let done = false;
+      for (const b of openCandidates) {
+        if (tryPlace(b, r.w, r.h)) { placed++; done = true; break; }
       }
+      if (done) continue;
+      const bestScrap = scrapBins.find((b) => (scrapLeft.get(b.id) ?? 0) > 0 && fits(r, b));
       if (bestScrap) {
         scrapLeft.set(bestScrap.id, (scrapLeft.get(bestScrap.id) ?? 0) - 1);
-        useScrap.set(bestScrap.id, (useScrap.get(bestScrap.id) ?? 0) + 1);
-        placed++;
-        continue;
+        const ob = openNew(bestScrap);
+        if (tryPlace(ob, r.w, r.h)) { placed++; continue; }
       }
-      // 2) Altrimenti cerca la LASTRA INTERA più piccola che lo contenga
-      let bestSheet: Bin | null = null;
-      let bestSheetArea = Infinity;
-      for (const b of sheetBins) {
-        if ((sheetLeft.get(b.id) ?? 0) <= 0) continue;
-        if (!fits(r, { w: b.w, h: b.h })) continue;
-        const area = b.w * b.h;
-        if (area < bestSheetArea) { bestSheetArea = area; bestSheet = b; }
-      }
+      const bestSheet = sheetBins.find((b) => (sheetLeft.get(b.id) ?? 0) > 0 && fits(r, b));
       if (bestSheet) {
         sheetLeft.set(bestSheet.id, (sheetLeft.get(bestSheet.id) ?? 0) - 1);
-        useSheet.set(bestSheet.id, (useSheet.get(bestSheet.id) ?? 0) + 1);
-        placed++;
+        const ob = openNew(bestSheet);
+        if (tryPlace(ob, r.w, r.h)) placed++;
       }
+    }
+    const useScrap = new Map<string, number>();
+    const useSheet = new Map<string, number>();
+    for (const b of openBins) {
+      if (b.used.length === 0) continue;
+      if (b.kind === "scrap") useScrap.set(b.id, (useScrap.get(b.id) ?? 0) + 1);
+      else useSheet.set(b.id, (useSheet.get(b.id) ?? 0) + 1);
     }
     const tokens: PickToken[] = [];
     for (const [id] of useScrap) tokens.push({ kind: "scrap", id });

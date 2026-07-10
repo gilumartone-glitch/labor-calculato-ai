@@ -16,7 +16,7 @@ import { sheetSizeFromCatalog, fmtMm } from "@/lib/produzione/scrap";
 /** Vista magazzino di un singolo reparto, riusabile fuori da /produzione. */
 
 const matKey = (m: CatalogMaterial) =>
-  [m.name, m.color, m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
+  [m.name, m.color, m.baseWidth ?? "", m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
     .map((x) => String(x ?? "").trim().toLowerCase())
     .join("|");
 

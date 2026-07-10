@@ -97,7 +97,7 @@ const SheetSvg = ({
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="font-mono text-[10px] font-semibold text-primary uppercase tracking-widest">{label}</div>
+      <div className="font-mono text-sm font-bold text-primary uppercase tracking-wider">{label}</div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ width: W, height: H, maxWidth: "100%" }}
@@ -121,17 +121,18 @@ const SheetSvg = ({
         />
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill={`url(#grid-${group.key}-${label})`} className="text-ink" />
         {/* quote */}
-        <text x={PAD + innerW / 2} y={PAD - 5} textAnchor="middle" className="fill-muted-foreground" fontFamily="ui-monospace, monospace" fontSize={9}>
+        <text x={PAD + innerW / 2} y={PAD - 6} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700}>
           {fmtCm(sheetWidthM)} cm
         </text>
         <text
-          x={PAD - 8}
+          x={PAD - 10}
           y={PAD + innerH / 2}
           textAnchor="middle"
-          className="fill-muted-foreground"
+          className="fill-ink"
           fontFamily="ui-monospace, monospace"
-          fontSize={9}
-          transform={`rotate(-90 ${PAD - 8} ${PAD + innerH / 2})`}
+          fontSize={13}
+          fontWeight={700}
+          transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}
         >
           {fmtCm(sheetHeightM)} cm
         </text>

@@ -1692,6 +1692,96 @@ const openPrintCuttingSheet = (
   w.document.close();
 };
 
+/** Apre una finestra stampabile con UNA etichetta Dymo per ogni pezzo.
+ *  Formato tape 89×36 mm (LabelWriter 30321/S0722400) — una etichetta per pagina,
+ *  così la stampante Dymo può alimentare correttamente. Ogni etichetta riporta:
+ *  riferimento (es. A-1), materiale, misure in cm, indicazione rotazione. */
+const openPrintDymoLabels = (groups: NestingGroup[]) => {
+  if (groups.length === 0) return;
+  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+
+  type Label = { ref: string; material: string; dims: string; rotated: boolean; sheet: string; label: string };
+  const labels: Label[] = [];
+  for (const g of groups) {
+    const bySheet = new Map<number, NestingPieceItem[]>();
+    for (const it of g.items) {
+      const si = it.sheetIndex ?? 0;
+      if (!bySheet.has(si)) bySheet.set(si, []);
+      bySheet.get(si)!.push(it);
+    }
+    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+    for (const si of sheetIndices) {
+      const items = bySheet.get(si)!;
+      items.forEach((it, i) => {
+        labels.push({
+          ref: `${sheetLetter(si)}-${i + 1}`,
+          material: g.material?.name ?? g.label,
+          dims: `${cm(it.w)} × ${cm(it.h)} cm`,
+          rotated: !!it.rotated,
+          sheet: `Lastra ${sheetLetter(si)}`,
+          label: it.label,
+        });
+      });
+    }
+  }
+  if (labels.length === 0) return;
+
+  const cards = labels
+    .map(
+      (l) => `
+      <div class="lab">
+        <div class="row1">
+          <div class="ref">${esc(l.ref)}</div>
+          <div class="dims">${esc(l.dims)}${l.rotated ? " ↻" : ""}</div>
+        </div>
+        <div class="lbl">${esc(l.label)}</div>
+        <div class="mat">${esc(l.material)} · ${esc(l.sheet)}</div>
+      </div>`,
+    )
+    .join("");
+
+  const html = `<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>Etichette pezzi (Dymo 89×36)</title>
+<style>
+  @page { size: 89mm 36mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+  .lab {
+    width: 89mm; height: 36mm; padding: 2mm 3mm;
+    page-break-after: always; break-after: page;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border: 0.2mm dashed #ccc;
+  }
+  .lab:last-child { page-break-after: auto; }
+  .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 3mm; }
+  .ref { font-size: 11mm; font-weight: 900; letter-spacing: 0.2mm; line-height: 1; }
+  .dims { font-size: 6mm; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lbl { font-size: 4.2mm; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mat { font-size: 3.2mm; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media screen {
+    body { padding: 16px; background: #eee; }
+    .lab { background: #fff; margin: 0 auto 8px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  }
+</style>
+</head>
+<body>
+${cards}
+<script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
+
 
 
 export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {

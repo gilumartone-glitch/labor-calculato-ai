@@ -2116,7 +2116,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         const mb = mixedBinsByGroup[g.key];
         if (mb && mb.length > 0) {
           const ps = piecesOfGroup(pieces, g.key);
-          return recomputeGroupWithMixedBins(g, ps, mb, indexMap, perimeterM);
+          return recomputeGroupWithMixedBins(g, ps, mb, indexMap, perimeterM, effCatalog);
         }
         const ov = overrides[g.key];
         if (!ov || ov.widthM <= 0 || ov.heightM <= 0) return g;

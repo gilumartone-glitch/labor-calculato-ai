@@ -418,7 +418,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                 sheetWidthM={ms.widthM}
                 sheetHeightM={ms.heightM}
                 sheetItems={pageItems[i]}
-                label={`${kindLabel} ${sheetLetter(absIdx)} / ${sheetLetter(mixed.length - 1)} · ${ms.bin.label}`}
+                label={`${kindLabel} ${sheetLetter(absIdx)} · ${ms.bin.label}`}
                 debug={debug}
                 maxW={ms.widthM * sharedScale + PAD * 2}
                 maxH={ms.heightM * sharedScale + PAD * 2}

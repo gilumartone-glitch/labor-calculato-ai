@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Layers3 } from "lucide-react";
+import { Layers3, FileText, Printer, Tag } from "lucide-react";
 import { Catalog, PieceLine } from "./types";
 import {
   computeNesting,
@@ -15,6 +15,8 @@ import {
 } from "@/lib/nesting";
 import { useProdStore } from "@/lib/produzione/store";
 import { mmToCm, mToCm } from "@/lib/fmt";
+import { exportNestingPdf, openPrintCuttingSheet, openPrintDymoLabels } from "./NestingPanel";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /**
  * Componente READ-ONLY che mostra il nesting di una lista di pezzi:

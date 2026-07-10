@@ -938,7 +938,7 @@ const GroupSummary = ({
                         key={i}
                         className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
                         style={{
-                          backgroundColor: bg,
+                          background: `linear-gradient(${bg}, ${bg}), hsl(var(--background))`,
                           border: `1px solid ${color}`,
                           gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
                         }}

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Layers3, FileText, Printer, Tag } from "lucide-react";
+import { Layers3, Download, Printer, Tag } from "lucide-react";
 import { Catalog, PieceLine } from "./types";
 import {
   computeNesting,

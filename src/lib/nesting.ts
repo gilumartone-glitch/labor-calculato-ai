@@ -1687,12 +1687,19 @@ export const recomputeGroupWithMixedBins = (
   pieces: PieceLine[],
   bins: NestingMixedBin[],
   pieceIndexMap: Map<string, number>,
+  perimeterM: number = 0,
 ): NestingGroup => {
   if (bins.length === 0) return baseGroup;
   // 1) Esplodi i pezzi usando come limite la massima dimensione disponibile (il bin più grande)
   const maxW = Math.max(...bins.map((b) => b.widthM));
   const maxH = Math.max(...bins.map((b) => b.heightM));
-  const { items: raw } = explodePieces(pieces, pieceIndexMap, maxW, "lastra", maxH);
+  const { items: raw } = explodePieces(
+    pieces,
+    pieceIndexMap,
+    Math.max(0.001, maxW - 2 * perimeterM),
+    "lastra",
+    Math.max(0.001, maxH - 2 * perimeterM),
+  );
   const units = pairShapes(raw);
 
   // 2) Pool di "fogli aperti", ognuno con le proprie dimensioni di bin (MaxRects BSSF)

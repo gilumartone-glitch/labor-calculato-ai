@@ -69,10 +69,11 @@ const normalize = (name: string | undefined | null): string => {
 /** Reparti in cui ha senso spezzare le lavorazioni: quelli con operazioni "unità/ora"
  *  di natura diversa (falegnameria, laboratorio, tappezzeria). Stampa/taglio sono già
  *  reparti distinti nel modello, quindi non vanno spezzati ulteriormente. */
+// La tappezzeria NON viene splittata: le sue operazioni (tintura, imbottitura,
+// verniciatura tessuto…) fanno tipicamente parte di un unico flusso di lavoro.
 const SPLITTABLE: ReadonlySet<ProdDept> = new Set<ProdDept>([
   "falegnameria",
   "laboratorio",
-  "tappezzeria",
 ]);
 
 /** Restituisce le lavorazioni concrete da lanciare in Flow.

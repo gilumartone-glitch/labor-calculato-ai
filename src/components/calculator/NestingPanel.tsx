@@ -2164,6 +2164,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
 
       <WarehousePlanner
         groups={groups}
+        catalog={catalog}
         onApplyAllMixedBins={(byGroup) => setMixedBinsByGroup((prev) => ({ ...prev, ...byGroup }))}
       />
 

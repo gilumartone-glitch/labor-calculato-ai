@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { NestingGroup, NestingMixedBin } from "@/lib/nesting";
 import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
+import type { Catalog } from "./types";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /** Pianificatore MAGAZZINO GLOBALE per il nesting.
@@ -15,8 +16,9 @@ import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 type BinPool = {
   scraps: { id: string; w: number; h: number; label: string }[]; // qty 1 ciascuno
   sheets: { id: string; w: number; h: number; label: string; qty: number }[];
-  // catalog fallback (dimensioni della lastra "standard" del gruppo, quantità illimitata)
-  fallback: { w: number; h: number; label: string } | null;
+  // catalog fallback: TUTTE le misure standard del materiale (stesso colore + spessore),
+  // ordinate dalla più piccola alla più grande. Quantità illimitata ciascuna.
+  fallbacks: { w: number; h: number; label: string }[];
 };
 
 type GroupPlan = {
@@ -37,11 +39,13 @@ const cm = (mm: number) => `${Math.round(mm / 10)}`;
 
 interface Props {
   groups: NestingGroup[];
+  /** Catalogo del reparto: usato per generare i fallback standard multi-misura. */
+  catalog?: Catalog;
   /** Applica i mixed-bins su tutti i gruppi contemporaneamente (o azzera). */
   onApplyAllMixedBins: (byGroup: Record<string, NestingMixedBin[] | null>) => void;
 }
 
-export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
+export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props) => {
   // Default ON: il nesting deve suggerire automaticamente i pezzi migliori
   // (prima sfridi in magazzino, poi lastre standard). Bypass ON di default
   // così se il magazzino non basta si completa comunque con lastre nuove.
@@ -51,6 +55,38 @@ export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
   const [pools, setPools] = useState<Record<string, BinPool>>({});
   const lastAppliedRef = useRef<string>("");
 
+  const norm = (s: unknown) => String(s ?? "").trim().toLowerCase();
+
+  // Estrae TUTTE le misure standard del materiale (stesso nome + colore + spessore),
+  // così il fallback può considerare più formati (es. Policarbonato 305×205 e 610×205).
+  const catalogFallbacksFor = (g: NestingGroup): { w: number; h: number; label: string }[] => {
+    if (!catalog?.materials) return [];
+    const mat = g.material;
+    if (!mat) return [];
+    const matches = catalog.materials.filter((m) => {
+      if (norm(m.name) !== norm(mat.name)) return false;
+      if (mat.color && norm(m.color) !== norm(mat.color)) return false;
+      if (mat.thickness && norm(m.thickness) !== norm(mat.thickness)) return false;
+      return (m.format ?? "rotolo") === (mat.format ?? "rotolo");
+    });
+    const seen = new Set<string>();
+    const out: { w: number; h: number; label: string }[] = [];
+    for (const m of matches) {
+      const u = String(m.dimUnit ?? m.heightUnit ?? "cm").toLowerCase();
+      const mul = u === "m" ? 1000 : u === "mm" ? 1 : 10;
+      const bRaw = parseFloat(String(m.baseWidth ?? "").replace(",", "."));
+      const hRaw = parseFloat(String(m.height ?? "").replace(",", "."));
+      if (!(bRaw > 0 && hRaw > 0)) continue;
+      const w = Math.round(bRaw * mul);
+      const h = Math.round(hRaw * mul);
+      const key = `${w}x${h}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ w, h, label: `Lastra standard ${cm(w)}×${cm(h)} cm` });
+    }
+    return out.sort((a, b) => a.w * a.h - b.w * b.h);
+  };
+
   // Carica magazzino per ogni gruppo (una query per materiale distinto)
   useEffect(() => {
     if (!enabled || groups.length === 0) return;
@@ -58,11 +94,9 @@ export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
     (async () => {
       setLoading(true);
       const nextPools: Record<string, BinPool> = {};
-      // De-dup per material_name+color+thickness
-      const norm = (s: unknown) => String(s ?? "").trim().toLowerCase();
       for (const g of groups) {
         const name = g.material?.name ?? "";
-        if (!name) { nextPools[g.key] = { scraps: [], sheets: [], fallback: null }; continue; }
+        if (!name) { nextPools[g.key] = { scraps: [], sheets: [], fallbacks: catalogFallbacksFor(g) }; continue; }
         const { data: invData } = await supabase
           .from("inventory_items").select("*").ilike("material_name", name);
         const matched = ((invData ?? []) as InvItem[]).filter((r) => {
@@ -79,7 +113,7 @@ export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
             .in("inventory_id", ids).eq("status", "libero");
           scraps = (sd ?? []) as ScrapPiece[];
         }
-        const pool: BinPool = { scraps: [], sheets: [], fallback: null };
+        const pool: BinPool = { scraps: [], sheets: [], fallbacks: [] };
         pool.scraps = scraps.map((s) => ({
           id: s.id, w: s.w_mm, h: s.h_mm,
           label: `${s.code} ${cm(s.w_mm)}×${cm(s.h_mm)} cm`,
@@ -102,27 +136,32 @@ export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
             label: `${it.code} ${cm(w)}×${cm(h)} cm`,
           });
         }
-        // fallback = dimensioni della lastra standard del gruppo (se format lastra)
+        // Fallback = TUTTE le misure standard di catalogo per stesso materiale + colore + spessore.
+        // Include anche la lastra "di riferimento" del gruppo, per compatibilità.
+        const catFbs = catalogFallbacksFor(g);
+        const fbSeen = new Set(catFbs.map((f) => `${f.w}x${f.h}`));
         if (g.format === "lastra" && g.sheetWidthM && g.sheetHeightM) {
-          pool.fallback = {
-            w: g.sheetWidthM * 1000, h: g.sheetHeightM * 1000,
-            label: `Lastra standard ${cm(g.sheetWidthM * 1000)}×${cm(g.sheetHeightM * 1000)} cm`,
-          };
+          const w = Math.round(g.sheetWidthM * 1000);
+          const h = Math.round(g.sheetHeightM * 1000);
+          if (!fbSeen.has(`${w}x${h}`)) {
+            catFbs.push({ w, h, label: `Lastra standard ${cm(w)}×${cm(h)} cm` });
+          }
         }
+        pool.fallbacks = catFbs.sort((a, b) => a.w * a.h - b.w * b.h);
         nextPools[g.key] = pool;
       }
       if (!cancelled) { setPools(nextPools); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [enabled, groups]);
+  }, [enabled, groups, catalog]);
 
   // Calcolo del piano per ogni gruppo
   const plans = useMemo<Record<string, GroupPlan>>(() => {
     const out: Record<string, GroupPlan> = {};
     if (!enabled) return out;
     for (const g of groups) {
-      const pool = pools[g.key] ?? { scraps: [], sheets: [], fallback: null };
-      // Pool ordinato PICCOLO → GRANDE (area crescente)
+      const pool = pools[g.key] ?? { scraps: [], sheets: [], fallbacks: [] };
+      // Pool ordinato PICCOLO → GRANDE (area crescente): sfridi + lastre di magazzino.
       const scraps = [...pool.scraps].map((b) => ({ ...b, left: 1 }))
         .sort((a, b) => a.w * a.h - b.w * b.h);
       const sheets = [...pool.sheets].map((b) => ({ ...b, left: b.qty }))
@@ -142,22 +181,26 @@ export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
       };
 
       for (const r of reqs) {
-        // 1) sfrido più piccolo che lo contenga
+        // 1) sfrido più piccolo che lo contenga (PRIORITÀ ASSOLUTA)
         const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
           pushBin("scrap", b.id, b.w, b.h, b.label); uScrap++; continue;
         }
-        // 2) lastra intera più piccola che lo contenga
+        // 2) lastra intera più piccola che lo contenga (tra tutte le misure in magazzino)
         const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
           pushBin("sheet", b.id, b.w, b.h, b.label); uSheet++; continue;
         }
-        // 3) fallback catalogo (solo se bypass attivo)
-        if (bypass && pool.fallback && fits(r, pool.fallback)) {
-          pushBin("sheet", `__fallback_${uFallback}`, pool.fallback.w, pool.fallback.h, pool.fallback.label);
-          uFallback++; continue;
+        // 3) fallback catalogo (SOLO se bypass attivo): scegli la più piccola misura
+        //    standard che contiene il pezzo, tra TUTTE le varianti del prodotto.
+        if (bypass && pool.fallbacks.length > 0) {
+          const fb = pool.fallbacks.find((b) => fits(r, b));
+          if (fb) {
+            pushBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
+            uFallback++; continue;
+          }
         }
         // 4) mancante
         missing.push({ label: r.label, w: r.w, h: r.h });

@@ -132,18 +132,18 @@ const SheetSvg = ({
         />
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill={`url(#grid-${group.key}-${label})`} className="text-ink" />
         {/* quote */}
-        <text x={PAD + innerW / 2} y={PAD - 6} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700}>
+        <text x={PAD + innerW / 2} y={PAD - 8} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={20} fontWeight={800}>
           {fmtCm(sheetWidthM)} cm
         </text>
         <text
-          x={PAD - 10}
+          x={PAD - 12}
           y={PAD + innerH / 2}
           textAnchor="middle"
           className="fill-ink"
           fontFamily="ui-monospace, monospace"
-          fontSize={13}
-          fontWeight={700}
-          transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}
+          fontSize={20}
+          fontWeight={800}
+          transform={`rotate(-90 ${PAD - 12} ${PAD + innerH / 2})`}
         >
           {fmtCm(sheetHeightM)} cm
         </text>

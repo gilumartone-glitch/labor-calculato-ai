@@ -341,7 +341,7 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                 <tr>
                   <th className="text-left px-3 py-2 w-28">Codice</th>
                   <th className="text-left px-3 py-2">Materiale</th>
-                  <th className="text-right px-3 py-2 w-44">Giacenza · aggiungi</th>
+                  <th className="text-right px-3 py-2 w-52">Giacenza · carico/scarico</th>
                   <th className="text-center px-3 py-2 w-24">Sfrido pz</th>
                   <th className="text-left px-3 py-2 w-12">UM</th>
                   <th className="text-left px-3 py-2 w-28">Lastra</th>

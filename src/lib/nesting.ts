@@ -645,6 +645,17 @@ const pairShapes = (raw: RawItem[]): PairedUnit[] => {
 type MRRect = { x: number; y: number; w: number; h: number };
 type MRPlacement = { rect: MRRect; score1: number; score2: number; rotated: boolean };
 
+const mrIntersects = (a: MRRect, b: MRRect): boolean =>
+  !(
+    a.x >= b.x + b.w - 1e-9 ||
+    a.x + a.w <= b.x + 1e-9 ||
+    a.y >= b.y + b.h - 1e-9 ||
+    a.y + a.h <= b.y + 1e-9
+  );
+
+const mrOverlapsUsed = (used: MRRect[] | undefined, rect: MRRect): boolean =>
+  !!used?.some((u) => mrIntersects(u, rect));
+
 const mrContains = (a: MRRect, b: MRRect): boolean =>
   a.x <= b.x + 1e-9 &&
   a.y <= b.y + 1e-9 &&
@@ -708,8 +719,8 @@ const mrPlace = (free: MRRect[], r: MRRect): void => {
   for (const r2 of pruned) free.push(r2);
 };
 
-type MRBin = { w: number; h: number; free: MRRect[] };
-const mrNewBin = (w: number, h: number): MRBin => ({ w, h, free: [{ x: 0, y: 0, w, h }] });
+type MRBin = { w: number; h: number; free: MRRect[]; used: MRRect[] };
+const mrNewBin = (w: number, h: number): MRBin => ({ w, h, free: [{ x: 0, y: 0, w, h }], used: [] });
 
 /** Costruisce la lista di orientamenti (naturale + eventualmente ruotato) per una unit. */
 const mrUnitOrientations = (u: PairedUnit): { w: number; h: number; rotated: boolean }[] => {

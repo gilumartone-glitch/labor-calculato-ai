@@ -552,7 +552,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     } catch {
       return [];
     }
-  }, [pieces, catalog, inventory, scraps, nestingState, customerType]);
+  }, [pieces, effCatalog, inventory, scraps, nestingState, customerType]);
 
   if (groups.length === 0) {
     return null;

@@ -294,7 +294,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         missing.push({ label: r.label, w: r.w, h: r.h });
       }
 
-      const bins: NestingMixedBin[] = openBins.map((b) => ({
+      const bins: NestingMixedBin[] = openBins.filter((b) => b.used.length > 0).map((b) => ({
         kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
       }));
 
@@ -384,7 +384,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       {enabled && !loading && groups.length > 0 && (
         <div className="mt-4 space-y-3">
           {/* Riepilogo globale */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 font-mono text-sm">
             <div className="border border-ink/15 rounded-md p-2 bg-background">
               <div className="text-xs uppercase text-muted-foreground">Pezzi totali</div>
               <div className="text-lg font-bold tabular-nums">{totals.total}</div>
@@ -403,6 +403,12 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
               <div className="text-xs uppercase text-muted-foreground">Lastre magazzino</div>
               <div className="text-lg font-bold tabular-nums">{totals.sheet}</div>
             </div>
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Lastre da ordinare</div>
+              <div className={`text-lg font-bold tabular-nums ${totals.fallback > 0 ? "text-destructive" : "text-primary"}`}>
+                {totals.fallback}
+              </div>
+            </div>
             <div className={`border rounded-md p-2 bg-background ${totals.missing > 0 ? "border-destructive/60" : "border-ink/15"}`}>
               <div className="text-xs uppercase text-muted-foreground">Da ordinare</div>
               <div className={`text-lg font-bold tabular-nums ${totals.missing > 0 ? "text-destructive" : "text-primary"}`}>
@@ -412,10 +418,17 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
           </div>
 
           {/* Copertura completa */}
-          {totals.missing === 0 && totals.total > 0 && (
+          {totals.missing === 0 && totals.total > 0 && totals.fallback === 0 && (
             <div className="flex items-center gap-2 p-3 border-2 border-primary/50 bg-primary/10 rounded-md text-primary font-semibold text-base">
               <CheckCircle2 className="w-5 h-5" />
               Tutti i pezzi coperti dal magazzino: {totals.scrap} sfrido/i + {totals.sheet} lastra/e.
+            </div>
+          )}
+
+          {totals.fallback > 0 && (
+            <div className="flex items-center gap-2 p-3 border-2 border-destructive/50 bg-destructive/10 rounded-md text-destructive font-semibold text-base">
+              <ShoppingCart className="w-5 h-5" />
+              Magazzino usato: {totals.scrap} sfrido/i + {totals.sheet} lastra/e. Da ordinare con bypass: {totals.fallback} lastra/e standard.
             </div>
           )}
 

@@ -894,7 +894,9 @@ const GroupSummary = ({
     group.items.some((it) => (it.sheetIndex ?? 0) === i),
   ) ?? [];
   const usedMixedScraps = usedMixedSheets.filter((s) => s.bin.kind === "scrap").length;
-  const usedMixedFullSheets = usedMixedSheets.filter((s) => s.bin.kind === "sheet").length;
+  const usedMixedFallbacks = usedMixedSheets.filter((s) => s.bin.kind === "sheet" && String(s.bin.id).startsWith("__fallback_")).length;
+  const usedMixedFullSheets = usedMixedSheets.filter((s) => s.bin.kind === "sheet" && !String(s.bin.id).startsWith("__fallback_")).length;
+  const mixedCountLabel = `${usedMixedFullSheets}L + ${usedMixedScraps}S${usedMixedFallbacks > 0 ? ` + ${usedMixedFallbacks}O` : ""}`;
   return (
     <div className="border border-ink/20 rounded-sm overflow-hidden">
       <button
@@ -923,7 +925,7 @@ const GroupSummary = ({
               <div className="label-cap mb-0.5">{usedMixedSheets.length > 0 ? "Magazzino" : "Lastre"}</div>
               <div className="font-semibold tabular-nums text-primary">
                 {usedMixedSheets.length > 0
-                  ? `${usedMixedFullSheets}L + ${usedMixedScraps}S`
+                  ? mixedCountLabel
                   : `${group.sheetsNeeded} ×`}
               </div>
             </div>
@@ -1059,6 +1061,7 @@ const GroupSummary = ({
                   <>
                     Usati dal magazzino <span className="font-bold text-primary">{usedMixedFullSheets} lastr{usedMixedFullSheets === 1 ? "a" : "e"} inter{usedMixedFullSheets === 1 ? "a" : "e"}</span>
                     {usedMixedScraps > 0 && <> + <span className="font-bold text-primary">{usedMixedScraps} sfrid{usedMixedScraps === 1 ? "o" : "i"}</span></>}.
+                    {usedMixedFallbacks > 0 && <> Da ordinare: <span className="font-bold text-destructive">{usedMixedFallbacks} lastr{usedMixedFallbacks === 1 ? "a" : "e"}</span>.</>}
                   </>
                 ) : (
                   <>

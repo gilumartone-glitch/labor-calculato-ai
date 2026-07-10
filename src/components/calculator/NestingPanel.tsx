@@ -935,7 +935,7 @@ const GroupSummary = ({
                       <li
                         key={i}
                         className="rounded-sm px-2.5 py-2 flex flex-col gap-1 shadow-sm border-l-4"
-                        style={{ borderLeftColor: color, backgroundColor: `${color.replace(")", " / 0.12)").replace("hsl(", "hsl(")}`, borderTop: `1px solid ${color}`, borderRight: `1px solid ${color}`, borderBottom: `1px solid ${color}` }}
+                        style={{ borderLeftColor: color, backgroundColor: color.replace(")", " / 0.12)"), borderTopColor: color, borderRightColor: color, borderBottomColor: color, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderStyle: "solid" }}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-bold text-ink truncate">{r.label}</span>

@@ -910,74 +910,74 @@ const multiSheetPack = (
   sheetWidthM: number,
   sheetHeightM: number,
 ): { items: NestingPieceItem[]; sheetsUsed: number; unplaced: PairedUnit[] } => {
-  // Ordino per max lato desc, poi area desc (euristica standard per MaxRects)
-  const sorted = [...units].sort(
-    (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h,
-  );
-  const bins: MRBin[] = [];
-  const allItems: NestingPieceItem[] = [];
-  const unplaced: PairedUnit[] = [];
+  const packOnce = (sorted: PairedUnit[]) => {
+    const bins: MRBin[] = [];
+    const allItems: NestingPieceItem[] = [];
+    const unplaced: PairedUnit[] = [];
 
-  for (const u of sorted) {
-    const ors = mrUnitOrientations(u).filter(
-      (o) => o.w <= sheetWidthM + 1e-6 && o.h <= sheetHeightM + 1e-6,
-    );
-    if (ors.length === 0) {
-      unplaced.push(u);
-      continue;
-    }
-    // Cerco il MIGLIORE placement globalmente tra tutti i bin aperti e tutti gli orientamenti.
-    let best: { binIdx: number; placement: MRPlacement } | null = null;
-    for (let bi = 0; bi < bins.length; bi++) {
-      for (const o of ors) {
-        const f = mrFindBSSF(bins[bi].free, o.w, o.h);
-        if (!f) continue;
-        if (mrOverlapsUsed(bins[bi].used, f.rect)) continue;
-        const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
-        if (
-          !best ||
-          cand.score1 < best.placement.score1 - 1e-9 ||
-          (Math.abs(cand.score1 - best.placement.score1) < 1e-9 && cand.score2 < best.placement.score2)
-        ) {
-          best = { binIdx: bi, placement: cand };
-        }
-      }
-    }
-    if (!best) {
-      // Apro un nuovo foglio
-      const bin = mrNewBin(sheetWidthM, sheetHeightM);
-      bins.push(bin);
-      const bi = bins.length - 1;
-      // Nel bin appena aperto scelgo l'orientamento che spreca meno
-      let openBest: MRPlacement | null = null;
-      for (const o of ors) {
-          const f = mrFindBSSF(bin.free, o.w, o.h);
-        if (!f) continue;
-          if (mrOverlapsUsed(bin.used, f.rect)) continue;
-        const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
-        if (
-          !openBest ||
-          cand.score1 < openBest.score1 - 1e-9 ||
-          (Math.abs(cand.score1 - openBest.score1) < 1e-9 && cand.score2 < openBest.score2)
-        ) {
-          openBest = cand;
-        }
-      }
-      if (!openBest) {
+    for (const u of sorted) {
+      const ors = mrUnitOrientations(u).filter(
+        (o) => o.w <= sheetWidthM + 1e-6 && o.h <= sheetHeightM + 1e-6,
+      );
+      if (ors.length === 0) {
         unplaced.push(u);
         continue;
       }
-      mrPlace(bin.free, openBest.rect);
-      bin.used.push(openBest.rect);
-      mrEmitItems(u, openBest.rect, openBest.rotated, bi, allItems);
-    } else {
-      mrPlace(bins[best.binIdx].free, best.placement.rect);
-      bins[best.binIdx].used.push(best.placement.rect);
-      mrEmitItems(u, best.placement.rect, best.placement.rotated, best.binIdx, allItems);
+      // Cerco il MIGLIORE placement globalmente tra tutti i bin aperti e tutti gli orientamenti.
+      let best: { binIdx: number; placement: MRPlacement } | null = null;
+      for (let bi = 0; bi < bins.length; bi++) {
+        for (const o of ors) {
+          const f = mrFindBSSF(bins[bi].free, o.w, o.h, bins[bi].used);
+          if (!f) continue;
+          const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+          if (
+            !best ||
+            cand.score1 < best.placement.score1 - 1e-9 ||
+            (Math.abs(cand.score1 - best.placement.score1) < 1e-9 && cand.score2 < best.placement.score2)
+          ) {
+            best = { binIdx: bi, placement: cand };
+          }
+        }
+      }
+      if (!best) {
+        const bin = mrNewBin(sheetWidthM, sheetHeightM);
+        bins.push(bin);
+        const bi = bins.length - 1;
+        let openBest: MRPlacement | null = null;
+        for (const o of ors) {
+          const f = mrFindBSSF(bin.free, o.w, o.h, bin.used);
+          if (!f) continue;
+          const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
+          if (
+            !openBest ||
+            cand.score1 < openBest.score1 - 1e-9 ||
+            (Math.abs(cand.score1 - openBest.score1) < 1e-9 && cand.score2 < openBest.score2)
+          ) {
+            openBest = cand;
+          }
+        }
+        if (!openBest) {
+          unplaced.push(u);
+          continue;
+        }
+        mrPlace(bin.free, openBest.rect);
+        bin.used.push(openBest.rect);
+        mrEmitItems(u, openBest.rect, openBest.rotated, bi, allItems);
+      } else {
+        mrPlace(bins[best.binIdx].free, best.placement.rect);
+        bins[best.binIdx].used.push(best.placement.rect);
+        mrEmitItems(u, best.placement.rect, best.placement.rotated, best.binIdx, allItems);
+      }
     }
-  }
 
-  return { items: allItems, sheetsUsed: bins.length, unplaced };
+    return { items: allItems, sheetsUsed: bins.length, unplaced };
+  };
+
+  return sortedUnitVariants(units)
+    .map(packOnce)
+    .filter((r) => !nestingItemsOverlap(r.items))
+    .sort((a, b) => a.unplaced.length - b.unplaced.length || a.sheetsUsed - b.sheetsUsed)[0]
+    ?? packOnce(sortedUnitVariants(units)[0]);
 };
 
 /** Calcola un gruppo di nesting (un materiale + un set di pezzi). */

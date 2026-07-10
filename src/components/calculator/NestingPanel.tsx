@@ -542,6 +542,8 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}
               fixedScale={sharedScale}
+              kerfM={kerfM}
+
             />
           );
         })}

@@ -908,10 +908,10 @@ const GroupSummary = ({
                 <Sparkles className="w-4 h-4" />
                 Copertura pezzi · combinazione applicata
               </div>
-              <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                 {(() => {
                   const seen = new Set<string>();
-                  const rows: { label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
+                  const rows: { pieceId: string; label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
                   for (const it of group.items) {
                     const k = `${it.pieceId}|${it.copy}`;
                     if (seen.has(k)) continue;
@@ -920,6 +920,7 @@ const GroupSummary = ({
                     const ms = group.mixedSheets![si];
                     if (!ms) continue;
                     rows.push({
+                      pieceId: it.pieceId,
                       label: it.label,
                       sheetIdx: si,
                       binLabel: ms.bin.label,
@@ -928,17 +929,26 @@ const GroupSummary = ({
                       h: it.h,
                     });
                   }
-                  return rows.map((r, i) => (
-                    <li key={i} className="border border-ink/20 bg-paper rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm">
-                      <span className="font-mono text-base font-bold text-ink">{r.label}</span>
-                      <span className="font-mono text-sm font-bold text-primary tabular-nums bg-primary/10 px-2 py-0.5 rounded">
-                        {fmtCm(r.w)}×{fmtCm(r.h)} cm
-                      </span>
-                      <span className="font-mono text-xs text-ink/70 ml-auto tabular-nums">
-                        → {r.kind} #{r.sheetIdx + 1} · {r.binLabel}
-                      </span>
-                    </li>
-                  ));
+                  return rows.map((r, i) => {
+                    const color = colorForPiece(r.pieceId);
+                    return (
+                      <li
+                        key={i}
+                        className="rounded-sm px-2.5 py-2 flex flex-col gap-1 shadow-sm border-l-4"
+                        style={{ borderLeftColor: color, backgroundColor: `${color.replace(")", " / 0.12)").replace("hsl(", "hsl(")}`, borderTop: `1px solid ${color}`, borderRight: `1px solid ${color}`, borderBottom: `1px solid ${color}` }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-ink truncate">{r.label}</span>
+                        </div>
+                        <span className="font-mono text-xs font-bold text-ink tabular-nums bg-background/70 px-1.5 py-0.5 rounded self-start">
+                          {fmtCm(r.w)}×{fmtCm(r.h)} cm
+                        </span>
+                        <span className="font-mono text-[11px] text-ink/80 tabular-nums">
+                          → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
+                        </span>
+                      </li>
+                    );
+                  });
                 })()}
               </ul>
             </div>

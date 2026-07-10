@@ -1990,16 +1990,17 @@ export const openPrintDymoLabels = async (groups: NestingGroup[], pieces: PieceL
     const l = labels[0];
     triggerDownload(
       new Blob([buildLabelXml(l)], { type: "application/xml" }),
-      `${safeName(l.ref)}.label`,
+      `${labelFileName(l, 0)}.label`,
     );
     return;
   }
 
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  labels.forEach((l) => {
-    zip.file(`${safeName(l.ref)}.label`, buildLabelXml(l));
+  labels.forEach((l, i) => {
+    zip.file(`${labelFileName(l, i)}.label`, buildLabelXml(l));
   });
+
   const blob = await zip.generateAsync({ type: "blob" });
   triggerDownload(blob, `etichette-nesting-${stamp}.zip`);
 };

@@ -22,6 +22,7 @@ import { eur } from "@/lib/format";
 import { CustomerType } from "@/lib/pricing";
 import { aggregateWorkBreakdown } from "@/lib/piece";
 import { StockHintForGroup } from "./StockHintForGroup";
+import { WarehousePlanner } from "./WarehousePlanner";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 interface Props {
@@ -2130,6 +2131,10 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         </div>
       </div>
 
+      <WarehousePlanner
+        groups={groups}
+        onApplyAllMixedBins={(byGroup) => setMixedBinsByGroup((prev) => ({ ...prev, ...byGroup }))}
+      />
 
       {groups.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">

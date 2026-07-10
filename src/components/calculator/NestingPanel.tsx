@@ -62,6 +62,21 @@ const colorForPiece = (id: string): string => {
   return `hsl(${h} 70% 55%)`;
 };
 
+/**
+ * Opacità unica del riempimento del pezzo in TUTTI i rendering (SVG del nesting
+ * e sfondo delle righe della lista "Copertura pezzi"). Modificare qui aggiorna
+ * entrambi i posti contemporaneamente — non possono più divergere.
+ */
+const PIECE_FILL_OPACITY = 0.5;
+
+/**
+ * Sfondo CSS che riproduce esattamente `fill={colorForPiece(id)}` +
+ * `fillOpacity={PIECE_FILL_OPACITY}` sopra `hsl(var(--background))` dell'SVG.
+ * Usato dalle righe della lista per coincidere col pezzo nel nesting.
+ */
+const pieceBackground = (id: string): string =>
+  `color-mix(in srgb, ${colorForPiece(id)} ${PIECE_FILL_OPACITY * 100}%, hsl(var(--background)))`;
+
 /** Etichetta lastra come lettera: 0→A, 1→B, ..., 25→Z, 26→AA. */
 const sheetLetter = (idx: number): string => {
   let n = idx;
@@ -160,7 +175,7 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}`
                 : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-            shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
+            shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
           } else if (it.shape === "trapezoid") {
             const wbM = it.widthBottomM ?? it.w;
             const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
@@ -170,9 +185,9 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}`
                 : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-            shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
+            shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
           } else {
-            shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1} />;
+            shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
           }
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
@@ -284,16 +299,16 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
             let shape: JSX.Element;
             if (it.shape === "triangle") {
               const points = it.pairRole === "secondary" ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}` : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-              shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
+              shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
             } else if (it.shape === "trapezoid") {
               const wbM = it.widthBottomM ?? it.w;
               const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
               const wb = w * ratio;
               const off = (w - wb) / 2;
               const points = it.pairRole === "secondary" ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}` : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-              shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
+              shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
             } else {
-              shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.35} stroke={color} strokeWidth={1} />;
+              shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
             }
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>
@@ -931,15 +946,12 @@ const GroupSummary = ({
                   }
                   return rows.map((r, i) => {
                     const color = colorForPiece(r.pieceId);
-                    // Esatta composizione del nesting: fill color @ 0.5 opacity sopra hsl(var(--background)).
-                    // Usiamo color-mix per ottenere il colore RGB finale identico a quello dell'SVG.
-                    const solidBg = `color-mix(in srgb, ${color} 50%, hsl(var(--background)))`;
                     return (
                       <li
                         key={i}
                         className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
                         style={{
-                          background: solidBg,
+                          background: pieceBackground(r.pieceId),
                           border: `1px solid ${color}`,
                           gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
                         }}

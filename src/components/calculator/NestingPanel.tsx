@@ -1586,7 +1586,7 @@ const exportNestingDxf = (
 /** Esporta un PDF (A4 landscape) con il layout di taglio di ogni lastra, disegnato
  *  in scala reale (unità mm di jsPDF). Ogni lastra su una pagina, con bordo lastra,
  *  margine perimetro tratteggiato, pezzi con riferimento e misure in cm. */
-const exportNestingPdf = (
+export const exportNestingPdf = (
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number },
 ) => {
@@ -1704,7 +1704,7 @@ const exportNestingPdf = (
   toast.success("PDF esportato in scala reale");
 };
 
-const openPrintCuttingSheet = (
+export const openPrintCuttingSheet = (
 
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number },
@@ -1851,7 +1851,7 @@ const openPrintCuttingSheet = (
  *  Formato tape 89×36 mm (LabelWriter 30321/S0722400) — una etichetta per pagina,
  *  così la stampante Dymo può alimentare correttamente. Ogni etichetta riporta:
  *  riferimento (es. A-1), materiale, misure in cm, indicazione rotazione. */
-const openPrintDymoLabels = (groups: NestingGroup[]) => {
+export const openPrintDymoLabels = (groups: NestingGroup[]) => {
   if (groups.length === 0) return;
   const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
   const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });

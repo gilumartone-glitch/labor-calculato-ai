@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Layers3 } from "lucide-react";
+import { Layers3, FileText, Printer, Tag } from "lucide-react";
 import { Catalog, PieceLine } from "./types";
 import {
   computeNesting,
@@ -15,6 +15,8 @@ import {
 } from "@/lib/nesting";
 import { useProdStore } from "@/lib/produzione/store";
 import { mmToCm, mToCm } from "@/lib/fmt";
+import { exportNestingPdf, openPrintCuttingSheet, openPrintDymoLabels } from "./NestingPanel";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /**
  * Componente READ-ONLY che mostra il nesting di una lista di pezzi:
@@ -444,6 +446,15 @@ type Props = {
  */
 export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly, nestingState, customerType }: Props) => {
   const { inventory, scraps } = useProdStore();
+  const [nestSettings] = useLocalStorageState("nesting.settings.v1", {
+    kerfMm: 0,
+    perimeterMm: 10,
+    skipPerimeter: false,
+  });
+  const exportCfg = {
+    kerfMm: nestSettings.kerfMm,
+    perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm,
+  };
   const groups = useMemo(() => {
     if (!catalog || !pieces.length) return [] as NestingGroup[];
     try {
@@ -537,6 +548,37 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
         <span className="ml-auto text-muted-foreground normal-case tracking-normal text-[11px]">
           {groups.length} {groups.length === 1 ? "materiale" : "materiali"}
         </span>
+      </div>
+
+      {/* Toolbar operatore: PDF nesting, scheda taglio stampabile, etichette Dymo */}
+      <div className="flex flex-wrap items-center gap-2 -mt-2">
+        <button
+          type="button"
+          onClick={() => exportNestingPdf(groups, exportCfg)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
+          title="Scarica il PDF del nesting in scala reale"
+        >
+          <FileText className="w-4 h-4" /> Scarica PDF nesting
+        </button>
+        <button
+          type="button"
+          onClick={() => openPrintCuttingSheet(groups, exportCfg)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-40"
+          title="Apre la scheda taglio con disegno e lista pezzi per ogni foglio"
+        >
+          <Printer className="w-4 h-4" /> Stampa lista di taglio
+        </button>
+        <button
+          type="button"
+          onClick={() => openPrintDymoLabels(groups)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
+          title="Stampa una etichetta Dymo (89×36 mm) per ogni pezzo"
+        >
+          <Tag className="w-4 h-4" /> Stampa etichette Dymo
+        </button>
       </div>
       {groups.map((g, idx) => (
         <section

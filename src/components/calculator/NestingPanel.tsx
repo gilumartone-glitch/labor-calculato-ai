@@ -70,6 +70,9 @@ const colorForPiece = (id: string): string => {
  * entrambi i posti contemporaneamente — non possono più divergere.
  */
 const PIECE_FILL_OPACITY = 0.5;
+const KERF_VISUAL_MIN_PX = 7;
+const visualKerfStrokePx = (kerfM: number, scale: number) =>
+  kerfM > 0 ? Math.max(kerfM * scale, KERF_VISUAL_MIN_PX) : 0;
 
 /**
  * Sfondo CSS che riproduce esattamente `fill={colorForPiece(id)}` +
@@ -127,6 +130,7 @@ const SheetSvg = ({
   const innerH = sheetHeightM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
+  const gapStroke = visualKerfStrokePx(kerfM, scale);
 
 
   return (
@@ -184,11 +188,13 @@ const SheetSvg = ({
           const bg = pieceBackground(it.pieceId);
           const edge = colorForPiece(it.pieceId);
           let shape: JSX.Element;
+          let gapShape: JSX.Element | null = null;
           if (it.shape === "triangle") {
             const points =
               it.pairRole === "secondary"
                 ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}`
                 : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
+            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else if (it.shape === "trapezoid") {
             const wbM = it.widthBottomM ?? it.w;
@@ -199,12 +205,15 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}`
                 : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
+            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else {
+            gapShape = gapStroke > 0 ? <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
           }
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
+              {gapShape}
               {shape}
               {w > 20 && h > 12 && (() => {
                 const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));
@@ -280,6 +289,7 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
     const innerH = rollWidthM * scale;
     const W = innerW + PAD * 2;
     const H = innerH + PAD * 2;
+    const gapStroke = visualKerfStrokePx(kerfM, scale);
     return (
       <div className="border border-ink/20 rounded-sm bg-paper overflow-hidden">
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-ink/15 bg-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -317,8 +327,10 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
             const bg = pieceBackground(it.pieceId);
             const edge = colorForPiece(it.pieceId);
             let shape: JSX.Element;
+            let gapShape: JSX.Element | null = null;
             if (it.shape === "triangle") {
               const points = it.pairRole === "secondary" ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}` : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
+              gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else if (it.shape === "trapezoid") {
               const wbM = it.widthBottomM ?? it.w;
@@ -326,12 +338,15 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
               const wb = w * ratio;
               const off = (w - wb) / 2;
               const points = it.pairRole === "secondary" ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}` : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
+              gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
             } else {
+              gapShape = gapStroke > 0 ? <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
               shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
             }
             return (
               <g key={`${it.pieceId}-${it.copy}-${idx}`}>
+                {gapShape}
                 {shape}
                 {w > 24 && h > 14 && (() => {
                   const fs = Math.min(24, Math.max(13, Math.min(w, h) / 4.5));
@@ -1688,16 +1703,25 @@ export const exportNestingPdf = (
       doc.setDrawColor(0);
       doc.setLineWidth(0.35);
       items.forEach((it, i) => {
-        const x = ox + it.x * 1000 * scale;
-        const y = oy + it.y * 1000 * scale;
-        const w = it.w * 1000 * scale;
-        const h = it.h * 1000 * scale;
+        const kerfMm = Math.max(0, cfg.kerfMm);
+        const halfKerfMm = kerfMm / 2;
+        const x = ox + (it.x * 1000 + halfKerfMm) * scale;
+        const y = oy + (it.y * 1000 + halfKerfMm) * scale;
+        const w = Math.max(0.1, it.w * 1000 - kerfMm) * scale;
+        const h = Math.max(0.1, it.h * 1000 - kerfMm) * scale;
+        if (kerfMm > 0) {
+          doc.setDrawColor(255);
+          doc.setLineWidth(Math.max(1.2, kerfMm * scale));
+          doc.rect(x, y, w, h, "S");
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.35);
+        }
         doc.setFillColor(229, 231, 235);
         doc.rect(x, y, w, h, "FD");
         const cx = x + w / 2;
         const cy = y + h / 2;
         const ref = `${sheetLetter(si)}-${i + 1}`;
-        const dims = `${(it.w * 100).toFixed(1)}×${(it.h * 100).toFixed(1)}`;
+        const dims = `${((it.w * 1000 - kerfMm) / 10).toFixed(1)}×${((it.h * 1000 - kerfMm) / 10).toFixed(1)}`;
         const refSize = Math.max(7, Math.min(18, Math.min(w, h) / 3));
         const dimSize = Math.max(5, refSize * 0.55);
         doc.setTextColor(0);
@@ -1772,14 +1796,21 @@ export const openPrintCuttingSheet = (
           const marginMm = cfg.perimeterMm;
           const pieceRects = s.items
             .map((it, i) => {
-              const x = it.x * 1000, y = it.y * 1000, w = it.w * 1000, h = it.h * 1000;
+              const kerfMm = Math.max(0, cfg.kerfMm);
+              const halfKerfMm = kerfMm / 2;
+              const x = it.x * 1000 + halfKerfMm;
+              const y = it.y * 1000 + halfKerfMm;
+              const w = Math.max(0.1, it.w * 1000 - kerfMm);
+              const h = Math.max(0.1, it.h * 1000 - kerfMm);
               const cx = x + w / 2, cy = y + h / 2;
               const fs = Math.max(60, Math.min(w, h) / 8);
               const num = i + 1;
+              const gapStroke = kerfMm > 0 ? Math.max(kerfMm, 24) : 0;
               return `
+                ${gapStroke > 0 ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#fff" stroke-width="${gapStroke}"/>` : ""}
                 <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#e5e7eb" stroke="#111" stroke-width="4"/>
                 <text x="${cx}" y="${cy - fs*0.2}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#111">${sheetLetter(s.idx)}-${num}</text>
-                <text x="${cx}" y="${cy + fs*0.9}" text-anchor="middle" font-size="${fs*0.7}" fill="#111">${(it.w*100).toFixed(1)}×${(it.h*100).toFixed(1)}</text>`;
+                <text x="${cx}" y="${cy + fs*0.9}" text-anchor="middle" font-size="${fs*0.7}" fill="#111">${(w/10).toFixed(1)}×${(h/10).toFixed(1)}</text>`;
             })
             .join("");
           const marginRect = marginMm > 0

@@ -44,6 +44,10 @@ const colorForPiece = (id: string): string => {
   return `hsl(${h} 70% 55%)`;
 };
 
+const KERF_VISUAL_MIN_PX = 7;
+const visualKerfStrokePx = (kerfM: number, scale: number) =>
+  kerfM > 0 ? Math.max(kerfM * scale, KERF_VISUAL_MIN_PX) : 0;
+
 const SheetSvg = ({
   group,
   sheetWidthM,
@@ -76,6 +80,7 @@ const SheetSvg = ({
   const H = innerH + PAD * 2;
   // Bordo di sicurezza in pixel (2 cm per lato → riduce la forma reale interna).
   const safetyPx = (NESTING_SAFETY_BORDER_CM / 100) * scale;
+  const gapStroke = visualKerfStrokePx(kerfM, scale);
 
 
   return (
@@ -126,11 +131,13 @@ const SheetSvg = ({
           const iw = Math.max(0, w - safetyPx * 2);
           const ih = Math.max(0, h - safetyPx * 2);
           let shape: JSX.Element;
+          let gapShape: JSX.Element | null = null;
           if (it.shape === "triangle") {
             const points =
               it.pairRole === "secondary"
                 ? `${ix},${iy} ${ix + iw},${iy} ${ix + iw / 2},${iy + ih}`
                 : `${ix + iw / 2},${iy} ${ix + iw},${iy + ih} ${ix},${iy + ih}`;
+            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
           } else if (it.shape === "trapezoid") {
             const wbM = it.widthBottomM ?? it.w;
@@ -141,12 +148,15 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${ix + off},${iy} ${ix + iw - off},${iy} ${ix + iw},${iy + ih} ${ix},${iy + ih}`
                 : `${ix},${iy} ${ix + iw},${iy} ${ix + iw - off},${iy + ih} ${ix + off},${iy + ih}`;
+            gapShape = gapStroke > 0 ? <polygon points={points} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <polygon points={points} fill={color} fillOpacity={0.45} stroke={color} strokeWidth={1} />;
           } else {
+            gapShape = gapStroke > 0 ? <rect x={ix} y={iy} width={iw} height={ih} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" /> : null;
             shape = <rect x={ix} y={iy} width={iw} height={ih} fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1} />;
           }
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
+              {gapShape}
               {shape}
               {/* Bordo di sicurezza 2 cm per lato (tratteggiato) */}
               {safetyPx > 0.5 && (
@@ -288,6 +298,7 @@ const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number
   const innerH = rollWidthM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
+  const gapStroke = visualKerfStrokePx(kerfM, scale);
   return (
     <div className="border border-ink/15 rounded-sm bg-paper overflow-hidden">
       <div className="px-3 py-1.5 border-b border-ink/15 bg-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -306,6 +317,7 @@ const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number
           const color = colorForPiece(it.pieceId);
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
+              {gapStroke > 0 && <rect x={x} y={y} width={w} height={h} fill="none" stroke="hsl(var(--nesting-gap))" strokeWidth={gapStroke} strokeLinejoin="round" />}
               <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.4} stroke={color} strokeWidth={1} />
 
               {w > 28 && h > 14 && (

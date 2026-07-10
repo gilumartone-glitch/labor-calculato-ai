@@ -1,0 +1,1 @@
+ALTER FUNCTION public.admin_task_permission_key(public.admin_task_category) SET search_path = public;

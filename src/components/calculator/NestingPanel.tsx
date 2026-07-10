@@ -1849,7 +1849,7 @@ export const openPrintCuttingSheet = (
 };
 
 /** Apre una finestra stampabile con UNA etichetta Dymo per ogni pezzo.
- *  Formato tape 89×36 mm (LabelWriter 30321/S0722400) — una etichetta per pagina,
+ *  Formato tape 55×25 mm — una etichetta per pagina,
  *  così la stampante Dymo può alimentare correttamente. Ogni etichetta riporta:
  *  riferimento (es. A-1), materiale, misure in cm, indicazione rotazione. */
 export const openPrintDymoLabels = (groups: NestingGroup[]) => {

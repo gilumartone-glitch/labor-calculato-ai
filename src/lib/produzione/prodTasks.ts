@@ -1,7 +1,7 @@
 import type { ProdDept } from "./types";
 import { DEPT_LABEL } from "./types";
 import type { ProdSnapshot } from "./snapshot";
-import { collectSnapshotDepartments, inferProdDeptsFromSnapshot } from "./snapshot";
+import { inferProdDeptsFromSnapshot } from "./snapshot";
 import type { SubProject } from "@/components/calculator/types";
 import { getProductWorks } from "@/components/calculator/types";
 

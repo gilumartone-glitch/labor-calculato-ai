@@ -946,15 +946,12 @@ const GroupSummary = ({
                   }
                   return rows.map((r, i) => {
                     const color = colorForPiece(r.pieceId);
-                    // Esatta composizione del nesting: fill color @ 0.5 opacity sopra hsl(var(--background)).
-                    // Usiamo color-mix per ottenere il colore RGB finale identico a quello dell'SVG.
-                    const solidBg = `color-mix(in srgb, ${color} 50%, hsl(var(--background)))`;
                     return (
                       <li
                         key={i}
                         className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
                         style={{
-                          background: solidBg,
+                          background: pieceBackground(r.pieceId),
                           border: `1px solid ${color}`,
                           gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
                         }}

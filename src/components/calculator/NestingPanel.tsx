@@ -306,10 +306,14 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
             altezza telo {fmtCm(rollWidthM)} cm
           </text>
           {items.map((it, idx) => {
-            const x = PAD + it.y * scale;
-            const y = PAD + it.x * scale;
-            const w = it.h * scale;
-            const h = it.w * scale;
+            const halfKerf = Math.max(0, kerfM) / 2;
+            const realWm = Math.max(0, it.w - kerfM);
+            const realHm = Math.max(0, it.h - kerfM);
+            // rotolo: assi swappati (x algoritmo = y visivo)
+            const x = PAD + (it.y + halfKerf) * scale;
+            const y = PAD + (it.x + halfKerf) * scale;
+            const w = realHm * scale;
+            const h = realWm * scale;
             const bg = pieceBackground(it.pieceId);
             const edge = colorForPiece(it.pieceId);
             let shape: JSX.Element;
@@ -339,12 +343,13 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
                       <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                       {showDim && (
                         <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
-                          {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                          {fmtCm(realWm)}×{fmtCm(realHm)} cm
                         </tspan>
                       )}
                     </text>
                   );
                 })()}
+
 
               </g>
             );

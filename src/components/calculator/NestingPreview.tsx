@@ -582,9 +582,10 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           onClick={() => openPrintDymoLabels(groups)}
           disabled={groups.length === 0}
           className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
-          title="Stampa una etichetta Dymo (89×36 mm) per ogni pezzo"
+          title="Scarica un file .labelx (DYMO Connect) per ogni pezzo — 55×25 mm"
         >
-          <Tag className="w-4 h-4" /> Stampa etichette Dymo
+          <Tag className="w-4 h-4" /> Scarica etichette .labelx
+
         </button>
       </div>
       {groups.map((g, idx) => (

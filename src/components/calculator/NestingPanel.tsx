@@ -1884,87 +1884,56 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   }
   if (labels.length === 0) return;
 
-  // 55mm × 25mm → in 1/1000 inch (unità DYMO): 55mm = 2165, 25mm = 984
-  // Paper name "30334" (2-1/4 x 1-1/4 in = 57×32mm) — usiamo formato custom.
-  const buildLabelx = (l: Label) => {
-    const line1 = `${l.ref}   ${l.dims}${l.rotated ? " ↻" : ""}`;
-    const line2 = l.label;
+  // Formato DYMO DieCutLabel v8 (twips = 1/1440 inch). Estensione .label
+  // È lo schema nativo e stabile supportato da DYMO Label 8, DYMO Connect e
+  // DYMO Connect for Desktop. 55×25mm ≈ 3118×1417 twips, ma DYMO richiede
+  // un PaperName di stock nel proprio catalogo per renderizzare: usiamo
+  // "30336" (Small Multi-Purpose, 1"×2-1/8" = 25×54mm) che è lo stock più
+  // vicino ai nostri 55×25mm.
+  const buildLabelXml = (l: Label) => {
+    const line1 = `${l.ref}  ${l.dims}${l.rotated ? " ↻" : ""}`;
+    const line2 = l.label || "";
     const line3 = `${l.material} · ${l.sheet}`;
-    const text = `${line1}\n${line2}\n${line3}`;
+    const mkElement = (str: string, size: number, bold: "True" | "False") => `
+        <Element>
+          <String>${esc(str + "\n")}</String>
+          <Attributes>
+            <Font Family="Arial" Size="${size}" Bold="${bold}" Italic="False" Underline="False" Strikeout="False"/>
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+          </Attributes>
+        </Element>`;
     return `<?xml version="1.0" encoding="utf-8"?>
-<DesktopLabel Version="1">
-  <DYMOLabel Version="3">
-    <Description>Etichetta pezzo ${esc(l.ref)}</Description>
-    <Orientation>Landscape</Orientation>
-    <LabelName>Small30334</LabelName>
-    <InitialLength>0</InitialLength>
-    <BorderStyle>SolidLine</BorderStyle>
-    <DYMORect>
-      <DYMOPoint>
-        <X>0.057</X>
-        <Y>0.061</Y>
-      </DYMOPoint>
-      <Size>
-        <Width>2.16</Width>
-        <Height>0.985</Height>
-      </Size>
-    </DYMORect>
-    <BorderColor>
-      <SolidColorBrush>
-        <Color A="1" R="0" G="0" B="0"></Color>
-      </SolidColorBrush>
-    </BorderColor>
-    <BorderThickness>1</BorderThickness>
-    <Show_Border>False</Show_Border>
-    <DynamicLayoutManager>
-      <RotationBehavior>ClearObjects</RotationBehavior>
-      <LabelObjects>
-        <TextObject>
-          <Name>PezzoText</Name>
-          <Brushes>
-            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></BackgroundBrush>
-            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
-            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
-            <FillBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></FillBrush>
-          </Brushes>
-          <Rotation>Rotation0</Rotation>
-          <OutlineThickness>1</OutlineThickness>
-          <IsOutlined>False</IsOutlined>
-          <BorderStyle>SolidLine</BorderStyle>
-          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0"/></Margin>
-          <PartsAssembly>
-            <StyledText>
-              <Text>${esc(text)}</Text>
-              <Style>
-                <DYMOFont Family="Arial" Size="12" Bold="True" Italic="False" Underline="False" Strikeout="False"/>
-                <ForeColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></ForeColor>
-              </Style>
-            </StyledText>
-          </PartsAssembly>
-          <HorizontalAlignment>Left</HorizontalAlignment>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <FitMode>ShrinkToFit</FitMode>
-          <IsVertical>False</IsVertical>
-          <ObjectLayout>
-            <DYMOPoint><X>0.1</X><Y>0.08</Y></DYMOPoint>
-            <Size><Width>2.06</Width><Height>0.84</Height></Size>
-          </ObjectLayout>
-        </TextObject>
-      </LabelObjects>
-    </DynamicLayoutManager>
-  </DYMOLabel>
-  <LabelApplication>DymoConnect</LabelApplication>
-  <DataTable>
-    <Columns/>
-    <Rows/>
-  </DataTable>
-</DesktopLabel>`;
+<DieCutLabel Version="8.0" Units="twips">
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>SmallMultiPurpose</Id>
+  <PaperName>30336 1 in x 2-1/8 in</PaperName>
+  <DrawCommands>
+    <RoundRectangle X="0" Y="0" Width="1440" Height="3060" Rx="180" Ry="180"/>
+  </DrawCommands>
+  <ObjectInfo>
+    <TextObject>
+      <Name>TEXT</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>${mkElement(line1, 14, "True")}${mkElement(line2, 12, "True")}${mkElement(line3, 9, "False")}
+      </StyledText>
+    </TextObject>
+    <Bounds X="150" Y="100" Width="2900" Height="1250"/>
+  </ObjectInfo>
+</DieCutLabel>`;
   };
 
   const safeName = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60);
 
-  // DYMO Connect for Desktop apre/salva il formato DesktopLabel con estensione .dymo.
-  // Se un solo pezzo → download diretto .dymo; altrimenti ZIP con N file .dymo.
   const stamp = new Date().toISOString().slice(0, 10);
   const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -1980,8 +1949,8 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   if (labels.length === 1) {
     const l = labels[0];
     triggerDownload(
-      new Blob([buildLabelx(l)], { type: "application/xml" }),
-      `${safeName(l.ref)}.dymo`,
+      new Blob([buildLabelXml(l)], { type: "application/xml" }),
+      `${safeName(l.ref)}.label`,
     );
     return;
   }
@@ -1989,7 +1958,7 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   labels.forEach((l) => {
-    zip.file(`${safeName(l.ref)}.dymo`, buildLabelx(l));
+    zip.file(`${safeName(l.ref)}.label`, buildLabelXml(l));
   });
   const blob = await zip.generateAsync({ type: "blob" });
   triggerDownload(blob, `etichette-nesting-${stamp}.zip`);

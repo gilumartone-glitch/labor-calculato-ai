@@ -692,9 +692,7 @@ export const DepartmentView = ({
                     const dim = isRoll
                       ? ` · rotolo h ${mToCm(g.rollWidthM ?? 0)} cm × ${(g.totalLengthM ?? 0).toFixed(2)} m`
                       : g.sheetWidthM && g.sheetHeightM
-                        ? ` · ${mToCm(g.sheetWidthM)}×${Math.round(
-                            g.sheetHeightM * 100,
-                          )} cm`
+                        ? ` · ${mToCm(g.sheetWidthM)}×${mToCm(g.sheetHeightM)} cm`
                         : "";
                     return (
                       <div

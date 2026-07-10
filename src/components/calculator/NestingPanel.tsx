@@ -62,6 +62,21 @@ const colorForPiece = (id: string): string => {
   return `hsl(${h} 70% 55%)`;
 };
 
+/**
+ * Opacità unica del riempimento del pezzo in TUTTI i rendering (SVG del nesting
+ * e sfondo delle righe della lista "Copertura pezzi"). Modificare qui aggiorna
+ * entrambi i posti contemporaneamente — non possono più divergere.
+ */
+const PIECE_FILL_OPACITY = 0.5;
+
+/**
+ * Sfondo CSS che riproduce esattamente `fill={colorForPiece(id)}` +
+ * `fillOpacity={PIECE_FILL_OPACITY}` sopra `hsl(var(--background))` dell'SVG.
+ * Usato dalle righe della lista per coincidere col pezzo nel nesting.
+ */
+const pieceBackground = (id: string): string =>
+  `color-mix(in srgb, ${colorForPiece(id)} ${PIECE_FILL_OPACITY * 100}%, hsl(var(--background)))`;
+
 /** Etichetta lastra come lettera: 0→A, 1→B, ..., 25→Z, 26→AA. */
 const sheetLetter = (idx: number): string => {
   let n = idx;

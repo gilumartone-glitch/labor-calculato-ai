@@ -1139,7 +1139,7 @@ export const DepartmentView = ({
                 <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <Plus className="w-3 h-3" strokeWidth={3} />
                 </span>
-                Aggiungi pezzo{activeSubProjectId ? ` a "${subProjects.find((s) => s.id === activeSubProjectId)?.name ?? ""}"` : ""}
+                Aggiungi pezzo{activeSubProjectId === "__none__" ? " (Generale)" : activeSubProjectId ? ` a "${subProjects.find((s) => s.id === activeSubProjectId)?.name ?? ""}"` : ""}
               </button>
               {pieces.length > 0 && (
                 <button

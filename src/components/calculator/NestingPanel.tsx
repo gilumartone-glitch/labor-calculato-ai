@@ -97,7 +97,7 @@ const SheetSvg = ({
    *  Serve a tenere proporzioni coerenti tra fogli di dimensioni diverse. */
   fixedScale?: number;
 }) => {
-  const PAD = 14;
+  const PAD = 28;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -132,18 +132,18 @@ const SheetSvg = ({
         />
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill={`url(#grid-${group.key}-${label})`} className="text-ink" />
         {/* quote */}
-        <text x={PAD + innerW / 2} y={PAD - 6} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={13} fontWeight={700}>
+        <text x={PAD + innerW / 2} y={PAD - 8} textAnchor="middle" className="fill-ink" fontFamily="ui-monospace, monospace" fontSize={20} fontWeight={800}>
           {fmtCm(sheetWidthM)} cm
         </text>
         <text
-          x={PAD - 10}
+          x={PAD - 12}
           y={PAD + innerH / 2}
           textAnchor="middle"
           className="fill-ink"
           fontFamily="ui-monospace, monospace"
-          fontSize={13}
-          fontWeight={700}
-          transform={`rotate(-90 ${PAD - 10} ${PAD + innerH / 2})`}
+          fontSize={20}
+          fontWeight={800}
+          transform={`rotate(-90 ${PAD - 12} ${PAD + innerH / 2})`}
         >
           {fmtCm(sheetHeightM)} cm
         </text>
@@ -418,7 +418,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                 sheetWidthM={ms.widthM}
                 sheetHeightM={ms.heightM}
                 sheetItems={pageItems[i]}
-                label={`${kindLabel} ${sheetLetter(absIdx)} / ${sheetLetter(mixed.length - 1)} · ${ms.bin.label}`}
+                label={`${kindLabel} ${sheetLetter(absIdx)} · ${ms.bin.label}`}
                 debug={debug}
                 maxW={ms.widthM * sharedScale + PAD * 2}
                 maxH={ms.heightM * sharedScale + PAD * 2}
@@ -499,7 +499,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
               sheetWidthM={sheetW}
               sheetHeightM={sheetH}
               sheetItems={sheetItems}
-              label={`Lastra ${sheetLetter(absIdx)} / ${sheetLetter(sheetsCount - 1)}`}
+              label={`Lastra ${sheetLetter(absIdx)}`}
               debug={debug}
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}
@@ -936,14 +936,18 @@ const GroupSummary = ({
                     return (
                       <li
                         key={i}
-                        className="rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm"
-                        style={{ backgroundColor: bg, border: `1px solid ${color}` }}
+                        className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
+                        style={{
+                          background: `linear-gradient(${bg}, ${bg}), hsl(var(--background))`,
+                          border: `1px solid ${color}`,
+                          gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
+                        }}
                       >
                         <span className="font-mono text-sm font-bold text-ink">{r.label}</span>
-                        <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded">
+                        <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded justify-self-start">
                           {fmtCm(r.w)}×{fmtCm(r.h)} cm
                         </span>
-                        <span className="font-mono text-xs text-ink ml-auto tabular-nums">
+                        <span className="font-mono text-xs text-ink tabular-nums justify-self-end">
                           → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
                         </span>
                       </li>

@@ -53,6 +53,7 @@ const SheetSvg = ({
   maxW,
   maxH,
   fixedScale,
+  kerfM = 0,
 }: {
   group: NestingGroup;
   sheetWidthM: number;
@@ -62,8 +63,10 @@ const SheetSvg = ({
   maxW: number;
   maxH: number;
   fixedScale?: number;
+  kerfM?: number;
 }) => {
   const PAD = 12;
+  const halfKerf = Math.max(0, kerfM) / 2;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -73,6 +76,7 @@ const SheetSvg = ({
   const H = innerH + PAD * 2;
   // Bordo di sicurezza in pixel (2 cm per lato → riduce la forma reale interna).
   const safetyPx = (NESTING_SAFETY_BORDER_CM / 100) * scale;
+
 
   return (
     <div className="flex flex-col items-center gap-1 shrink-0">
@@ -105,11 +109,14 @@ const SheetSvg = ({
           {fmtCm(sheetHeightM)} cm
         </text>
         {sheetItems.map((it, idx) => {
-          const x = PAD + it.x * scale;
-          const y = PAD + it.y * scale;
-          const w = it.w * scale;
-          const h = it.h * scale;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.x + halfKerf) * scale;
+          const y = PAD + (it.y + halfKerf) * scale;
+          const w = realWm * scale;
+          const h = realHm * scale;
           const color = colorForPiece(it.pieceId);
+
           // Forma reale (senza il bordo di sicurezza): rettangolo interno di
           // safetyPx px su tutti i lati. Per triangle/trapezoid disegniamo la
           // forma piena come prima (la geometria già conteggia margini), ma
@@ -178,7 +185,7 @@ const SheetSvg = ({
   );
 };
 
-const GroupCanvas = ({ group }: { group: NestingGroup }) => {
+const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number }) => {
   const { rollWidthM, totalLengthM, items } = group;
   if (rollWidthM <= 0 || totalLengthM <= 0) return null;
   const isLastra = group.format === "lastra";
@@ -221,6 +228,8 @@ const GroupCanvas = ({ group }: { group: NestingGroup }) => {
                 maxW={ms.widthM * scale + PAD * 2}
                 maxH={ms.heightM * scale + PAD * 2}
                 fixedScale={scale}
+                kerfM={kerfM}
+
               />
             );
           })}
@@ -259,6 +268,8 @@ const GroupCanvas = ({ group }: { group: NestingGroup }) => {
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}
               fixedScale={sharedScale}
+              kerfM={kerfM}
+
             />
           ))}
         </div>
@@ -285,14 +296,18 @@ const GroupCanvas = ({ group }: { group: NestingGroup }) => {
       <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto max-h-[280px] mx-auto" preserveAspectRatio="xMidYMid meet" style={{ aspectRatio: `${W} / ${H}` }}>
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="hsl(var(--background))" stroke="currentColor" strokeWidth={1.2} className="text-ink/40" />
         {items.map((it, idx) => {
-          const x = PAD + it.y * scale;
-          const y = PAD + it.x * scale;
-          const w = it.h * scale;
-          const h = it.w * scale;
+          const halfKerf = Math.max(0, kerfM) / 2;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.y + halfKerf) * scale;
+          const y = PAD + (it.x + halfKerf) * scale;
+          const w = realHm * scale;
+          const h = realWm * scale;
           const color = colorForPiece(it.pieceId);
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
               <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.4} stroke={color} strokeWidth={1} />
+
               {w > 28 && h > 14 && (
                 <text x={x + w / 2} y={y + h / 2 + 3} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={Math.min(10, Math.max(7, h / 4))} fontWeight={700} className="fill-ink">
                   {it.label}{it.rotated ? "↻" : ""}
@@ -638,7 +653,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
             </div>
           </header>
           <div className="p-3 space-y-2">
-            {!textOnly && <GroupCanvas group={g} />}
+            {!textOnly && <GroupCanvas group={g} kerfM={(nestSettings.kerfMm || 0) / 1000} />}
             {!graphicOnly && <GroupTextSummary group={g} />}
           </div>
         </section>

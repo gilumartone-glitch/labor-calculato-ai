@@ -101,6 +101,7 @@ const SheetSvg = ({
   maxW,
   maxH,
   fixedScale,
+  kerfM = 0,
 }: {
   group: NestingGroup;
   sheetWidthM: number;
@@ -113,8 +114,12 @@ const SheetSvg = ({
   /** Se valorizzato, usa questa scala (px per metro) invece di adattare al box.
    *  Serve a tenere proporzioni coerenti tra fogli di dimensioni diverse. */
   fixedScale?: number;
+  /** Larghezza fresa in metri: le geometrie disegnate vengono rientrate di
+   *  halfKerf su ogni lato per mostrare visivamente lo spazio tra i pezzi. */
+  kerfM?: number;
 }) => {
   const PAD = 28;
+  const halfKerf = Math.max(0, kerfM) / 2;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -122,6 +127,7 @@ const SheetSvg = ({
   const innerH = sheetHeightM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
+
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -166,10 +172,12 @@ const SheetSvg = ({
         </text>
 
         {sheetItems.map((it, idx) => {
-          const x = PAD + it.x * scale;
-          const y = PAD + it.y * scale;
-          const w = it.w * scale;
-          const h = it.h * scale;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.x + halfKerf) * scale;
+          const y = PAD + (it.y + halfKerf) * scale;
+          const w = realWm * scale;
+          const h = realHm * scale;
           // Colore SOLIDO pre-composto (identico a quello delle righe della lista).
           // Niente fillOpacity: garantisce che pezzo nel piano e riga in lista siano
           // matematicamente lo stesso colore renderizzato.
@@ -221,12 +229,13 @@ const SheetSvg = ({
                     <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                     {showDim && (
                       <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
-                        {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                        {fmtCm(realWm)}×{fmtCm(realHm)} cm
                       </tspan>
                     )}
                   </text>
                 );
               })()}
+
 
               {debug && (
                 <g pointerEvents="none">
@@ -246,7 +255,7 @@ const SheetSvg = ({
 };
 
 /** Render del gruppo: per le lastre disegna N fogli affiancati; per i rotoli un unico telo verticale. */
-const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: boolean }) => {
+const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup; debug?: boolean; kerfM?: number }) => {
   const { rollWidthM, totalLengthM, items } = group;
   const [page, setPage] = useState(0);
   const PER_ROW = 2;
@@ -297,10 +306,14 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
             altezza telo {fmtCm(rollWidthM)} cm
           </text>
           {items.map((it, idx) => {
-            const x = PAD + it.y * scale;
-            const y = PAD + it.x * scale;
-            const w = it.h * scale;
-            const h = it.w * scale;
+            const halfKerf = Math.max(0, kerfM) / 2;
+            const realWm = Math.max(0, it.w - kerfM);
+            const realHm = Math.max(0, it.h - kerfM);
+            // rotolo: assi swappati (x algoritmo = y visivo)
+            const x = PAD + (it.y + halfKerf) * scale;
+            const y = PAD + (it.x + halfKerf) * scale;
+            const w = realHm * scale;
+            const h = realWm * scale;
             const bg = pieceBackground(it.pieceId);
             const edge = colorForPiece(it.pieceId);
             let shape: JSX.Element;
@@ -330,12 +343,13 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                       <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                       {showDim && (
                         <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
-                          {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                          {fmtCm(realWm)}×{fmtCm(realHm)} cm
                         </tspan>
                       )}
                     </text>
                   );
                 })()}
+
 
               </g>
             );
@@ -445,6 +459,8 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                 maxW={ms.widthM * sharedScale + PAD * 2}
                 maxH={ms.heightM * sharedScale + PAD * 2}
                 fixedScale={sharedScale}
+                kerfM={kerfM}
+
               />
             );
           })}
@@ -526,6 +542,8 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}
               fixedScale={sharedScale}
+              kerfM={kerfM}
+
             />
           );
         })}
@@ -835,6 +853,7 @@ const GroupSummary = ({
   pickedStockLabel,
   pickedStockConflict,
   diagnostic,
+  kerfMm = 0,
 }: {
   group: NestingGroup;
   groupPieces: PieceLine[];
@@ -849,7 +868,9 @@ const GroupSummary = ({
   pickedStockLabel?: string | null;
   pickedStockConflict?: boolean;
   diagnostic?: NestingDiagnostic;
+  kerfMm?: number;
 }) => {
+
   const [debug, setDebug] = useState(false);
   const wastePct = group.wastePct * 100;
   const wasteColor =
@@ -1032,7 +1053,7 @@ const GroupSummary = ({
               Debug nesting
             </button>
           </div>
-          <GroupCanvas group={group} debug={debug} />
+          <GroupCanvas group={group} debug={debug} kerfM={(kerfMm || 0) / 1000} />
           {debug && (
             <div className="border border-destructive/40 rounded-sm bg-destructive/5 overflow-x-auto">
               <div className="px-3 py-1.5 border-b border-destructive/30 bg-destructive/10 font-mono text-[10px] uppercase tracking-widest text-destructive flex items-center gap-2">
@@ -2344,6 +2365,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                   expanded={isExpanded(g.key)}
                   onToggle={() => setExpanded((prev) => ({ ...prev, [g.key]: !isExpanded(g.key) }))}
                   variants={variantsForGroup(g)}
+                  kerfMm={nestSettings.kerfMm}
+
                   override={overrides[g.key] ?? null}
                   onOverrideChange={(o) =>
                     setOverrides((prev) => ({ ...prev, [g.key]: o }))

@@ -1407,10 +1407,13 @@ const computeMixedLastraGroup = (
   const seamCost = seamLengthM * seamPricePerM;
   materialCostOptimized += seamCost;
 
+  // NOTE: riportiamo le dimensioni FISICHE della lastra (bin.widthM/heightM),
+  // NON quelle utili post-margine. Il margine serve solo a decidere se un pezzo
+  // ci entra: la lastra fisica che viene tagliata è la piena (es. 305×205).
   const mixedSheets: NestingMixedSheet[] = openSheets.map((s) => ({
     bin: s.bin,
-    widthM: s.w,
-    heightM: s.h,
+    widthM: s.bin.widthM,
+    heightM: s.bin.heightM,
   }));
   const usedAreaM2 = raw.reduce((s, r) => s + r.realArea, 0);
   const totalAreaM2 = totalSheetArea;

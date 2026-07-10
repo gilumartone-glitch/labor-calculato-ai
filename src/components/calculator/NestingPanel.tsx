@@ -823,6 +823,7 @@ const FormatSelector = ({
 
 const GroupSummary = ({
   group,
+  groupPieces,
   expanded,
   onToggle,
   variants,
@@ -836,6 +837,7 @@ const GroupSummary = ({
   diagnostic,
 }: {
   group: NestingGroup;
+  groupPieces: PieceLine[];
   expanded: boolean;
   onToggle: () => void;
   variants: CatalogMaterial[];
@@ -924,51 +926,80 @@ const GroupSummary = ({
             pickedStockLabel={pickedStockLabel}
             pickedStockConflict={pickedStockConflict}
           />
-          {group.mixedSheets && group.mixedSheets.length > 0 && (
+          {(group.items.length > 0 || group.unplaced.length > 0) && (
             <div className="border border-primary/40 bg-primary/5 rounded-sm p-3">
-              <div className="font-mono text-sm font-bold uppercase tracking-wider text-primary mb-2 inline-flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" />
-                Copertura pezzi · combinazione applicata
+              <div className="font-mono text-sm font-bold uppercase tracking-wider text-primary mb-2 inline-flex items-center gap-1.5 justify-between w-full">
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4" />
+                  Copertura pezzi
+                </span>
+                <span className="text-[11px] text-ink/70 normal-case tracking-normal">
+                  {group.items.length > 0 && <>{new Set(group.items.map((i) => `${i.pieceId}|${i.copy}`)).size} piazzati</>}
+                  {group.unplaced.length > 0 && <span className="text-destructive"> · {group.unplaced.length} non piazzati</span>}
+                </span>
               </div>
               <ul className="flex flex-col gap-1.5">
                 {(() => {
                   const seen = new Set<string>();
-                  const rows: { pieceId: string; label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
+                  type Row = { pieceId: string; label: string; sheetIdx: number | null; binLabel: string; kind: string; w: number; h: number; missing?: boolean; reason?: string };
+                  const rows: Row[] = [];
+                  const defaultBinLabel = group.format === "lastra"
+                    ? `Lastra ${fmtCm(group.sheetWidthM ?? group.rollWidthM)}×${fmtCm(group.sheetHeightM ?? 0)} cm`
+                    : `Telo h ${fmtCm(group.rollWidthM)} cm`;
                   for (const it of group.items) {
                     const k = `${it.pieceId}|${it.copy}`;
                     if (seen.has(k)) continue;
                     seen.add(k);
                     const si = it.sheetIndex ?? 0;
-                    const ms = group.mixedSheets![si];
-                    if (!ms) continue;
+                    const ms = group.mixedSheets?.[si];
                     rows.push({
                       pieceId: it.pieceId,
                       label: it.label,
                       sheetIdx: si,
-                      binLabel: ms.bin.label,
-                      kind: ms.bin.kind === "scrap" ? "Sfrido" : "Lastra",
+                      binLabel: ms?.bin.label ?? defaultBinLabel,
+                      kind: ms?.bin.kind === "scrap" ? "Sfrido" : "Lastra",
                       w: it.w,
                       h: it.h,
                     });
                   }
+                  for (const up of group.unplaced) {
+                    // dedup: se già presente come piazzato non lo mostro come mancante
+                    const alreadyPlaced = rows.some((r) => r.pieceId === up.pieceId && r.label === up.label);
+                    if (alreadyPlaced) continue;
+                    const src = groupPieces.find((p) => p.id === up.pieceId);
+                    rows.push({
+                      pieceId: up.pieceId,
+                      label: up.label,
+                      sheetIdx: null,
+                      binLabel: up.reason || "Non piazzato",
+                      kind: "Mancante",
+                      w: (src?.width ?? 0) / 100,
+                      h: (src?.height ?? 0) / 100,
+                      missing: true,
+                      reason: up.reason,
+                    });
+                  }
                   return rows.map((r, i) => {
-                    const color = colorForPiece(r.pieceId);
+                    const color = r.missing ? "hsl(var(--destructive))" : colorForPiece(r.pieceId);
+                    const bg = r.missing ? "hsl(var(--destructive) / 0.1)" : pieceBackground(r.pieceId);
                     return (
                       <li
                         key={i}
                         className="rounded-sm px-3 py-2 grid items-center gap-x-3 shadow-sm"
                         style={{
-                          background: pieceBackground(r.pieceId),
+                          background: bg,
                           border: `1px solid ${color}`,
                           gridTemplateColumns: "minmax(70px, auto) minmax(120px, auto) 1fr",
                         }}
                       >
-                        <span className="font-mono text-sm font-bold text-ink">{r.label}</span>
+                        <span className={`font-mono text-sm font-bold ${r.missing ? "text-destructive" : "text-ink"}`}>{r.label}</span>
                         <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded justify-self-start">
-                          {fmtCm(r.w)}×{fmtCm(r.h)} cm
+                          {r.w > 0 && r.h > 0 ? `${fmtCm(r.w)}×${fmtCm(r.h)} cm` : "— cm"}
                         </span>
-                        <span className="font-mono text-xs text-ink tabular-nums justify-self-end">
-                          → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
+                        <span className={`font-mono text-xs tabular-nums justify-self-end ${r.missing ? "text-destructive font-bold" : "text-ink"}`}>
+                          {r.missing
+                            ? <>⚠ {r.binLabel}</>
+                            : <>→ {r.kind}{r.sheetIdx !== null && group.mixedSheets ? <> <strong>{sheetLetter(r.sheetIdx)}</strong></> : null} · {r.binLabel}</>}
                         </span>
                       </li>
                     );
@@ -2174,6 +2205,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                 <GroupSummary
                   key={g.key}
                   group={g}
+                  groupPieces={groupPieces}
                   expanded={isExpanded(g.key)}
                   onToggle={() => setExpanded((prev) => ({ ...prev, [g.key]: !isExpanded(g.key) }))}
                   variants={variantsForGroup(g)}

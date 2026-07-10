@@ -328,54 +328,84 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
     const bySheetMix = visibleIdx.map((i) => allBySheet[i]);
     const hiddenCount = allMixed.length - mixed.length;
     if (mixed.length === 0) return null;
-    const TARGET_ROW_W = 760;
-    const GAP = 12;
+    // Layout paginato: 2 fogli per riga × 3 righe = 6 per pagina, con frecce.
+    const GAP = 16;
     const PAD = 14;
-    // Scala condivisa: stessa "px per metro" per tutti i fogli misti, così
-    // uno sfrido 100×100 cm appare visivamente più piccolo di una lastra 305×205 cm.
+    // Larghezza pannello disponibile ~880px; 2 colonne = ~420 px per foglio.
+    const CARD_W = 420;
+    const CARD_H = 260;
     const maxBinW = Math.max(...mixed.map((m) => m.widthM));
     const maxBinH = Math.max(...mixed.map((m) => m.heightM));
-    // Larghezza disponibile = riga target meno gap meno padding interno di ciascun foglio.
-    const totalGap = GAP * (mixed.length - 1);
-    const totalPad = PAD * 2 * mixed.length;
-    const sumWidthsM = mixed.reduce((s, m) => s + m.widthM, 0);
-    // Scala che fa stare tutti i fogli affiancati in TARGET_ROW_W
-    const scaleByRow = (TARGET_ROW_W - totalGap - totalPad) / Math.max(0.001, sumWidthsM);
-    // Scala che limita l'altezza massima a 360px (in base al foglio più alto)
-    const scaleByHeight = (360 - PAD * 2) / Math.max(0.001, maxBinH);
-    // Scala che limita la larghezza massima del singolo foglio (estetica)
-    const scaleByMaxW = (320 - PAD * 2) / Math.max(0.001, maxBinW);
-    const sharedScale = Math.max(40, Math.min(scaleByRow, scaleByHeight, scaleByMaxW));
+    const scaleByW = (CARD_W - PAD * 2) / Math.max(0.001, maxBinW);
+    const scaleByH = (CARD_H - PAD * 2) / Math.max(0.001, maxBinH);
+    const sharedScale = Math.max(60, Math.min(scaleByW, scaleByH));
+
+    const totalPages = Math.max(1, Math.ceil(mixed.length / PER_PAGE));
+    const curPage = Math.min(page, totalPages - 1);
+    const startIdx = curPage * PER_PAGE;
+    const pageSheets = mixed.slice(startIdx, startIdx + PER_PAGE);
+    const pageItems = bySheetMix.slice(startIdx, startIdx + PER_PAGE);
+
     return (
       <div className="bg-paper">
-        <div className="flex items-center justify-between px-1 pb-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          <span>
-            {mixed.length} foglio/i misti · sfridi + lastre dal magazzino
+        <div className="flex items-center justify-between px-1 pb-3 gap-3">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            <strong className="text-ink">{mixed.length}</strong> foglio/i misti · sfridi + lastre dal magazzino
             {hiddenCount > 0 ? ` · ${hiddenCount} non utilizzato/i nascosto/i` : ""}
-          </span>
-          <span>area utile totale: {fmt(group.usedAreaM2)} m² / {fmt(group.totalAreaM2)} m²</span>
-        </div>
-        <div className="overflow-x-auto">
-          <div className="flex flex-wrap items-start justify-center" style={{ gap: GAP }}>
-            {bySheetMix.map((sheetItems, idx) => {
-              const ms = mixed[idx];
-              const kindLabel = ms.bin.kind === "scrap" ? "Sfrido" : "Lastra";
-              return (
-                <SheetSvg
-                  key={`mixsheet-${idx}`}
-                  group={group}
-                  sheetWidthM={ms.widthM}
-                  sheetHeightM={ms.heightM}
-                  sheetItems={sheetItems}
-                  label={`${kindLabel} ${idx + 1}/${mixed.length} · ${ms.bin.label}`}
-                  debug={debug}
-                  maxW={ms.widthM * sharedScale + PAD * 2}
-                  maxH={ms.heightM * sharedScale + PAD * 2}
-                  fixedScale={sharedScale}
-                />
-              );
-            })}
           </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[11px] text-muted-foreground">
+              area utile: {fmt(group.usedAreaM2)} m² / {fmt(group.totalAreaM2)} m²
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1 border-2 border-ink/20 rounded-md bg-background">
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.max(0, curPage - 1))}
+                  disabled={curPage === 0}
+                  className="h-9 w-9 flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                  title="Fogli precedenti"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="font-mono text-sm font-bold px-2 min-w-[64px] text-center">
+                  {curPage + 1} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.min(totalPages - 1, curPage + 1))}
+                  disabled={curPage >= totalPages - 1}
+                  className="h-9 w-9 flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                  title="Fogli successivi"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${PER_ROW}, minmax(0, 1fr))`, gap: GAP }}
+        >
+          {pageSheets.map((ms, i) => {
+            const absIdx = startIdx + i;
+            const kindLabel = ms.bin.kind === "scrap" ? "Sfrido" : "Lastra";
+            return (
+              <SheetSvg
+                key={`mixsheet-${absIdx}`}
+                group={group}
+                sheetWidthM={ms.widthM}
+                sheetHeightM={ms.heightM}
+                sheetItems={pageItems[i]}
+                label={`${kindLabel} ${absIdx + 1}/${mixed.length} · ${ms.bin.label}`}
+                debug={debug}
+                maxW={ms.widthM * sharedScale + PAD * 2}
+                maxH={ms.heightM * sharedScale + PAD * 2}
+                fixedScale={sharedScale}
+              />
+            );
+          })}
         </div>
       </div>
     );
@@ -383,45 +413,85 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
 
   if (sheetH <= 0) return null;
 
-  // ---- Caso B: lastre uniformi (legacy) ----
+  // ---- Caso B: lastre uniformi (legacy) - paginato 2×3 ----
   const bySheet: NestingPieceItem[][] = Array.from({ length: sheetsCount }, () => []);
   for (const it of items) {
     const si = Math.min(sheetsCount - 1, Math.max(0, it.sheetIndex ?? 0));
     bySheet[si].push(it);
   }
-  const TARGET_ROW_W = 760;
-  const GAP = 12;
-  const MAX_SHEET_W = Math.min(280, Math.floor((TARGET_ROW_W - GAP * (sheetsCount - 1)) / sheetsCount));
-  const sheetMaxW = Math.max(140, MAX_SHEET_W);
-  const aspect = sheetH / sheetW;
-  const sheetMaxH = Math.min(360, Math.max(160, sheetMaxW * aspect));
+  const GAP = 16;
+  const PAD = 14;
+  const CARD_W = 420;
+  const CARD_H = 260;
+  const scaleByW = (CARD_W - PAD * 2) / Math.max(0.001, sheetW);
+  const scaleByH = (CARD_H - PAD * 2) / Math.max(0.001, sheetH);
+  const sharedScale = Math.max(60, Math.min(scaleByW, scaleByH));
+
+  const totalPages = Math.max(1, Math.ceil(sheetsCount / PER_PAGE));
+  const curPage = Math.min(page, totalPages - 1);
+  const startIdx = curPage * PER_PAGE;
+  const pageSheets = bySheet.slice(startIdx, startIdx + PER_PAGE);
 
   return (
     <div className="bg-paper">
-      <div className="flex items-center justify-between px-1 pb-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        <span>{sheetsCount} lastr{sheetsCount === 1 ? "a" : "e"} · {fmtCm(sheetW)} × {fmtCm(sheetH)} cm ciascuna</span>
-        <span>area utile totale: {fmt(group.usedAreaM2)} m² / {fmt(group.totalAreaM2)} m²</span>
+      <div className="flex items-center justify-between px-1 pb-3 gap-3">
+        <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          <strong className="text-ink">{sheetsCount}</strong> lastr{sheetsCount === 1 ? "a" : "e"} · {fmtCm(sheetW)} × {fmtCm(sheetH)} cm ciascuna
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[11px] text-muted-foreground">
+            area utile: {fmt(group.usedAreaM2)} m² / {fmt(group.totalAreaM2)} m²
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 border-2 border-ink/20 rounded-md bg-background">
+              <button
+                type="button"
+                onClick={() => setPage(Math.max(0, curPage - 1))}
+                disabled={curPage === 0}
+                className="h-9 w-9 flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                title="Fogli precedenti"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="font-mono text-sm font-bold px-2 min-w-[64px] text-center">
+                {curPage + 1} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(Math.min(totalPages - 1, curPage + 1))}
+                disabled={curPage >= totalPages - 1}
+                className="h-9 w-9 flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                title="Fogli successivi"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <div className="flex flex-wrap items-start justify-center" style={{ gap: GAP }}>
-          {bySheet.map((sheetItems, idx) => (
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${PER_ROW}, minmax(0, 1fr))`, gap: GAP }}>
+        {pageSheets.map((sheetItems, i) => {
+          const absIdx = startIdx + i;
+          return (
             <SheetSvg
-              key={`sheet-${idx}`}
+              key={`sheet-${absIdx}`}
               group={group}
               sheetWidthM={sheetW}
               sheetHeightM={sheetH}
               sheetItems={sheetItems}
-              label={`Lastra ${idx + 1} / ${sheetsCount}`}
+              label={`Lastra ${absIdx + 1} / ${sheetsCount}`}
               debug={debug}
-              maxW={sheetMaxW}
-              maxH={sheetMaxH}
+              maxW={sheetW * sharedScale + PAD * 2}
+              maxH={sheetH * sharedScale + PAD * 2}
+              fixedScale={sharedScale}
             />
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
 };
+
 
 /** Helper: dimensioni in metri di una variante. Per "lastra" usa baseWidth×height,
  *  per "rotolo" usa rollLength (lunghezza) come default × height (altezza rotolo). */

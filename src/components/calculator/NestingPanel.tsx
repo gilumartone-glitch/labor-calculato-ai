@@ -2156,7 +2156,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               onClick={() => openPrintDymoLabels(groups)}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
-              title="Stampa una etichetta Dymo (89×36 mm) per ogni pezzo con riferimento e misure"
+              title="Stampa una etichetta Dymo (55×25 mm) per ogni pezzo con riferimento e misure"
             >
               <Printer className="w-4 h-4" />
               Stampa etichette Dymo

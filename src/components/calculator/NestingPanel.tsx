@@ -101,6 +101,7 @@ const SheetSvg = ({
   maxW,
   maxH,
   fixedScale,
+  kerfM = 0,
 }: {
   group: NestingGroup;
   sheetWidthM: number;
@@ -113,8 +114,12 @@ const SheetSvg = ({
   /** Se valorizzato, usa questa scala (px per metro) invece di adattare al box.
    *  Serve a tenere proporzioni coerenti tra fogli di dimensioni diverse. */
   fixedScale?: number;
+  /** Larghezza fresa in metri: le geometrie disegnate vengono rientrate di
+   *  halfKerf su ogni lato per mostrare visivamente lo spazio tra i pezzi. */
+  kerfM?: number;
 }) => {
   const PAD = 28;
+  const halfKerf = Math.max(0, kerfM) / 2;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -122,6 +127,7 @@ const SheetSvg = ({
   const innerH = sheetHeightM * scale;
   const W = innerW + PAD * 2;
   const H = innerH + PAD * 2;
+
 
   return (
     <div className="flex flex-col items-center gap-1">

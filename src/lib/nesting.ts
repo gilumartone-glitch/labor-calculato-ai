@@ -763,6 +763,42 @@ const mrEmitItems = (
   });
 };
 
+const pairedItemKey = (it: Pick<NestingPieceItem, "pieceId" | "copy">) => `${it.pieceId}:${it.copy}`;
+
+/** Controllo finale di sicurezza: due pezzi rettangolari emessi sullo stesso foglio
+ *  non devono mai avere bbox sovrapposti. Le coppie triangle/trapezoid condividono
+ *  volutamente lo stesso bbox e vengono ignorate. */
+const nestingItemsOverlap = (items: NestingPieceItem[]): boolean => {
+  const bySheet = new Map<number, NestingPieceItem[]>();
+  for (const it of items) {
+    const si = it.sheetIndex ?? 0;
+    if (!bySheet.has(si)) bySheet.set(si, []);
+    bySheet.get(si)!.push(it);
+  }
+  for (const sheetItems of bySheet.values()) {
+    for (let i = 0; i < sheetItems.length; i++) {
+      const a = sheetItems[i];
+      for (let j = i + 1; j < sheetItems.length; j++) {
+        const b = sheetItems[j];
+        if (a.pairedWith === pairedItemKey(b) || b.pairedWith === pairedItemKey(a)) continue;
+        if (mrIntersects(
+          { x: a.x, y: a.y, w: a.w, h: a.h },
+          { x: b.x, y: b.y, w: b.w, h: b.h },
+        )) return true;
+      }
+    }
+  }
+  return false;
+};
+
+const sortedUnitVariants = (units: PairedUnit[]): PairedUnit[][] => [
+  [...units].sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h),
+  [...units].sort((a, b) => b.w * b.h - a.w * a.h || Math.max(b.w, b.h) - Math.max(a.w, a.h)),
+  [...units].sort((a, b) => b.w - a.w || b.h - a.h || b.w * b.h - a.w * a.h),
+  [...units].sort((a, b) => b.h - a.h || b.w - a.w || b.w * b.h - a.w * a.h),
+  [...units].sort((a, b) => Math.min(b.w, b.h) - Math.min(a.w, a.h) || b.w * b.h - a.w * a.h),
+];
+
 /** Shelf / First-Fit Decreasing su un telo di larghezza rollWidthM (lunghezza illimitata).
  *
  *  Convenzione:

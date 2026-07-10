@@ -966,7 +966,7 @@ const GroupSummary = ({
                     // dedup: se già presente come piazzato non lo mostro come mancante
                     const alreadyPlaced = rows.some((r) => r.pieceId === up.pieceId && r.label === up.label);
                     if (alreadyPlaced) continue;
-                    const src = pieces.find((p) => p.id === up.pieceId);
+                    const src = groupPieces.find((p) => p.id === up.pieceId);
                     rows.push({
                       pieceId: up.pieceId,
                       label: up.label,

@@ -1288,6 +1288,7 @@ const computeMixedLastraGroup = (
     w: number;
     h: number;
     free: MRRect[];
+    used: MRRect[];
     material: CatalogMaterial;
   };
   const openSheets: OpenSheet[] = [];
@@ -1307,6 +1308,7 @@ const computeMixedLastraGroup = (
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
         const f = mrFindBSSF(s.free, o.w, o.h);
         if (!f) continue;
+        if (mrOverlapsUsed(s.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -1345,6 +1347,7 @@ const computeMixedLastraGroup = (
     const newSheet: OpenSheet = {
       bin, w: usableW, h: usableH,
       free: [{ x: 0, y: 0, w: usableW, h: usableH }],
+      used: [],
       material,
     };
     openSheets.push(newSheet);
@@ -1354,6 +1357,7 @@ const computeMixedLastraGroup = (
       if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
       const f = mrFindBSSF(newSheet.free, o.w, o.h);
       if (!f) continue;
+      if (mrOverlapsUsed(newSheet.used, f.rect)) continue;
       const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
       if (
         !openBest ||
@@ -1368,6 +1372,7 @@ const computeMixedLastraGroup = (
       continue;
     }
     mrPlace(newSheet.free, openBest.rect);
+    newSheet.used.push(openBest.rect);
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
   }
 

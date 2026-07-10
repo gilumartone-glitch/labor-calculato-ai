@@ -62,6 +62,17 @@ const colorForPiece = (id: string): string => {
   return `hsl(${h} 70% 55%)`;
 };
 
+/** Etichetta lastra come lettera: 0→A, 1→B, ..., 25→Z, 26→AA. */
+const sheetLetter = (idx: number): string => {
+  let n = idx;
+  let s = "";
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return s;
+};
+
 /** Disegna un SINGOLO foglio (lastra o rotolo) con i suoi pezzi in coordinate locali. */
 const SheetSvg = ({
   group,
@@ -407,7 +418,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
                 sheetWidthM={ms.widthM}
                 sheetHeightM={ms.heightM}
                 sheetItems={pageItems[i]}
-                label={`${kindLabel} ${absIdx + 1}/${mixed.length} · ${ms.bin.label}`}
+                label={`${kindLabel} ${sheetLetter(absIdx)} / ${sheetLetter(mixed.length - 1)} · ${ms.bin.label}`}
                 debug={debug}
                 maxW={ms.widthM * sharedScale + PAD * 2}
                 maxH={ms.heightM * sharedScale + PAD * 2}
@@ -488,7 +499,7 @@ const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: bo
               sheetWidthM={sheetW}
               sheetHeightM={sheetH}
               sheetItems={sheetItems}
-              label={`Lastra ${absIdx + 1} / ${sheetsCount}`}
+              label={`Lastra ${sheetLetter(absIdx)} / ${sheetLetter(sheetsCount - 1)}`}
               debug={debug}
               maxW={sheetW * sharedScale + PAD * 2}
               maxH={sheetH * sharedScale + PAD * 2}
@@ -897,10 +908,10 @@ const GroupSummary = ({
                 <Sparkles className="w-4 h-4" />
                 Copertura pezzi · combinazione applicata
               </div>
-              <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                 {(() => {
                   const seen = new Set<string>();
-                  const rows: { label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
+                  const rows: { pieceId: string; label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
                   for (const it of group.items) {
                     const k = `${it.pieceId}|${it.copy}`;
                     if (seen.has(k)) continue;
@@ -909,6 +920,7 @@ const GroupSummary = ({
                     const ms = group.mixedSheets![si];
                     if (!ms) continue;
                     rows.push({
+                      pieceId: it.pieceId,
                       label: it.label,
                       sheetIdx: si,
                       binLabel: ms.bin.label,
@@ -917,17 +929,26 @@ const GroupSummary = ({
                       h: it.h,
                     });
                   }
-                  return rows.map((r, i) => (
-                    <li key={i} className="border border-ink/20 bg-paper rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm">
-                      <span className="font-mono text-base font-bold text-ink">{r.label}</span>
-                      <span className="font-mono text-sm font-bold text-primary tabular-nums bg-primary/10 px-2 py-0.5 rounded">
-                        {fmtCm(r.w)}×{fmtCm(r.h)} cm
-                      </span>
-                      <span className="font-mono text-xs text-ink/70 ml-auto tabular-nums">
-                        → {r.kind} #{r.sheetIdx + 1} · {r.binLabel}
-                      </span>
-                    </li>
-                  ));
+                  return rows.map((r, i) => {
+                    const color = colorForPiece(r.pieceId);
+                    return (
+                      <li
+                        key={i}
+                        className="rounded-sm px-2.5 py-2 flex flex-col gap-1 shadow-sm border-l-4"
+                        style={{ borderLeftColor: color, backgroundColor: color.replace(")", " / 0.12)"), borderTopColor: color, borderRightColor: color, borderBottomColor: color, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderStyle: "solid" }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-ink truncate">{r.label}</span>
+                        </div>
+                        <span className="font-mono text-xs font-bold text-ink tabular-nums bg-background/70 px-1.5 py-0.5 rounded self-start">
+                          {fmtCm(r.w)}×{fmtCm(r.h)} cm
+                        </span>
+                        <span className="font-mono text-[11px] text-ink/80 tabular-nums">
+                          → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
+                        </span>
+                      </li>
+                    );
+                  });
                 })()}
               </ul>
             </div>
@@ -1257,7 +1278,7 @@ const openPrintCuttingSheet = (
         const ms = g.mixedSheets?.[si];
         sheets.push({
           idx: si,
-          label: ms ? ms.bin.label : `Foglio ${si + 1}`,
+          label: ms ? `Lastra ${sheetLetter(si)} · ${ms.bin.label}` : `Lastra ${sheetLetter(si)}`,
           wM: ms ? ms.widthM : defaultSheetW,
           hM: ms ? ms.heightM : defaultSheetH,
           items: bySheet.get(si)!,

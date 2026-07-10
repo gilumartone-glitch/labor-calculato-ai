@@ -1260,6 +1260,70 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
       </header>
       <div className="rule-line mb-4" />
 
+      {/* Impostazioni operative: fresa (kerf) + margine perimetrale + stampa scheda taglio */}
+      <div className="mb-5 border-2 border-ink/15 rounded-md bg-muted/20 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Settings2 className="w-4 h-4 text-primary" />
+          <span className="font-display text-base font-semibold">Impostazioni taglio</span>
+        </div>
+        <div className="flex flex-wrap items-end gap-6">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-ink">Spazio fresa (mm)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={nestSettings.kerfMm}
+              onChange={(e) => setNestSettings((s) => ({ ...s, kerfMm: Math.max(0, Number(e.target.value) || 0) }))}
+              className="w-32 h-10 px-3 border-2 border-input rounded-md bg-background text-base font-mono tabular-nums"
+              title="Larghezza della fresa: lo spazio lasciato tra due pezzi adiacenti"
+            />
+            <span className="text-xs text-muted-foreground">Distanza fra i pezzi</span>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-ink">Margine perimetro (mm)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={nestSettings.perimeterMm}
+              disabled={nestSettings.skipPerimeter}
+              onChange={(e) => setNestSettings((s) => ({ ...s, perimeterMm: Math.max(0, Number(e.target.value) || 0) }))}
+              className="w-32 h-10 px-3 border-2 border-input rounded-md bg-background text-base font-mono tabular-nums disabled:opacity-40"
+              title="Margine minimo sul bordo del foglio (default 10 mm). La fresa viene sempre sommata."
+            />
+            <span className="text-xs text-muted-foreground">
+              Effettivo: {nestSettings.skipPerimeter ? "0 mm (bypass)" : `${(nestSettings.perimeterMm + nestSettings.kerfMm).toFixed(1)} mm`}
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 h-10 px-3 border-2 border-input rounded-md bg-background cursor-pointer">
+            <input
+              type="checkbox"
+              checked={nestSettings.skipPerimeter}
+              onChange={(e) => setNestSettings((s) => ({ ...s, skipPerimeter: e.target.checked }))}
+              className="w-5 h-5 accent-primary"
+            />
+            <span className="text-sm font-semibold">Bypassa margine perimetro</span>
+          </label>
+
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              disabled={groups.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 disabled:opacity-40"
+              title="Apre una scheda stampabile con la posizione di taglio di ogni pezzo su ogni foglio"
+            >
+              <Printer className="w-4 h-4" />
+              Stampa scheda taglio operatore
+            </button>
+          </div>
+        </div>
+      </div>
+
+
       {groups.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           Aggiungi pezzi con dimensioni e tipo prodotto per visualizzare il nesting.

@@ -2011,64 +2011,31 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[], pieces: PieceLine
   const fmt = (v: number) => v.toLocaleString("it-IT", { maximumFractionDigits: 2 });
   const cmSheet = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 2 });
   const pieceMap = buildPieceLookup(pieces);
-  const headers = [
-    "Riferimento",
-    "Etichetta pezzo",
-    "Materiale",
-    "Nome",
-    "Colore",
-    "Spessore",
-    "Finitura",
-    "Lastra",
-    "Formato lastra",
-    "Larghezza pezzo cm",
-    "Altezza pezzo cm",
-    "Ruotato",
-  ];
+  const headers = ["Materiale", "Spessore", "Colore", "Dimensioni pezzo"];
   const rows: string[][] = [];
   for (const g of groups) {
-    const bySheet = new Map<number, NestingPieceItem[]>();
+    const sheetMat = g.material;
     for (const it of g.items) {
-      const si = it.sheetIndex ?? 0;
-      if (!bySheet.has(si)) bySheet.set(si, []);
-      bySheet.get(si)!.push(it);
-    }
-    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
-    for (const si of sheetIndices) {
-      const items = bySheet.get(si)!;
-      const ms = g.mixedSheets?.[si];
-      const sheetMat = g.material;
-      const sheetLetterStr = sheetLetter(si);
-      const sheetFormat = ms ? `${cmSheet(ms.bin.widthM)}×${cmSheet(ms.bin.heightM)} cm` : "";
-      items.forEach((it, i) => {
-        const piece = pieceMap.get(it.pieceId);
-        const { w, h } = realPieceCm(piece, it);
-        const name = sheetMat?.name || piece?.productName || g.label;
-        const color = sheetMat?.color || piece?.color || "";
-        const thick =
-          (sheetMat?.thickness && String(sheetMat.thickness).trim()) ||
-          (sheetMat?.height && String(sheetMat.height).trim()) ||
-          (piece?.thickness && String(piece.thickness).trim()) ||
-          (piece?.height && String(piece.height).trim()) ||
-          "";
-        const finish = sheetMat?.finish || piece?.finish || "";
-        rows.push([
-          `${sheetLetterStr}-${i + 1}`,
-          it.label ?? "",
-          materialDescription(sheetMat, piece, g.label),
-          name,
-          color,
-          thick,
-          finish,
-          `Lastra ${sheetLetterStr}`,
-          sheetFormat,
-          fmt(w),
-          fmt(h),
-          it.rotated ? "Sì" : "No",
-        ]);
-      });
+      const piece = pieceMap.get(it.pieceId);
+      const { w, h } = realPieceCm(piece, it);
+      const materiale = sheetMat?.name || piece?.productName || g.label;
+      const rawThick =
+        (sheetMat?.thickness && String(sheetMat.thickness).trim()) ||
+        (sheetMat?.height && String(sheetMat.height).trim()) ||
+        (piece?.thickness && String(piece.thickness).trim()) ||
+        (piece?.height && String(piece.height).trim()) ||
+        "";
+      const spessore = rawThick ? (/mm|cm/i.test(rawThick) ? rawThick : `${rawThick} mm`) : "";
+      const colore = sheetMat?.color || piece?.color || "";
+      rows.push([
+        materiale,
+        spessore,
+        colore,
+        `${fmt(w)} × ${fmt(h)} cm`,
+      ]);
     }
   }
+
   if (rows.length === 0) return;
   const escCsv = (v: string) => {
     const s = String(v ?? "");

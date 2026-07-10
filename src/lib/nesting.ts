@@ -1570,9 +1570,17 @@ export const recomputeGroupWithOverride = (
   // Per il recompute con override (lastra) usiamo le dimensioni del foglio come
   // larghezza limite — non rilevante per lo split di rotoli, ma evita pezzi enormi.
   const hemMap = buildHemMap(pieces, catalog);
-  const { items: raw } = explodePieces(pieces, pieceIndexMap, sheetW, baseGroup.format, sheetH, hemMap);
+  const { perimeterM } = getNestingConfig(catalog);
+  const usableW = Math.max(0.001, sheetW - 2 * perimeterM);
+  const usableH = Math.max(0.001, sheetH - 2 * perimeterM);
+  const { items: raw } = explodePieces(pieces, pieceIndexMap, usableW, baseGroup.format, usableH, hemMap);
   const units = pairShapes(raw);
-  const { items, sheetsUsed, unplaced } = multiSheetPack(units, sheetW, sheetH);
+  const packedRaw = multiSheetPack(units, usableW, usableH);
+  const items = perimeterM > 0
+    ? packedRaw.items.map((it) => ({ ...it, x: it.x + perimeterM, y: it.y + perimeterM }))
+    : packedRaw.items;
+  const sheetsUsed = packedRaw.sheetsUsed;
+  const unplaced = packedRaw.unplaced;
 
   // Quantità disponibile (0 = illimitato)
   const available = Math.max(0, Math.floor(Number(override.quantity) || 0));

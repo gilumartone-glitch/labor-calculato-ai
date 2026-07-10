@@ -72,11 +72,17 @@ export const DepartmentView = ({
   // limitati alle lavorazioni di quel prodotto finito. Su "Tutti" (activeSubProjectId=null)
   // si vedono tutte, raggruppate. Le mutazioni di stato usano `allPieces` per non
   // perdere i pezzi degli altri sub-progetti.
-  const pieces = activeSubProjectId
-    ? allPieces.filter((p) => (p.subProjectId ?? null) === activeSubProjectId)
-    : allPieces;
-  const inScope = (p: PieceLine) =>
-    !activeSubProjectId || (p.subProjectId ?? null) === activeSubProjectId;
+  // activeSubProjectId può essere:
+  //  - null          → mostra tutti i pezzi (raggruppati per sub-progetto)
+  //  - "__none__"    → mostra SOLO i pezzi "Generale" (senza sub-progetto)
+  //  - <id>          → mostra SOLO i pezzi di quel sub-progetto
+  const matchesActive = (p: PieceLine) => {
+    if (!activeSubProjectId) return true;
+    if (activeSubProjectId === "__none__") return !p.subProjectId;
+    return (p.subProjectId ?? null) === activeSubProjectId;
+  };
+  const pieces = activeSubProjectId ? allPieces.filter(matchesActive) : allPieces;
+  const inScope = matchesActive;
 
   // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
   // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
@@ -477,7 +483,7 @@ export const DepartmentView = ({
       allowRotation: deptKey === "stampa",
       // Per Stampa/Laboratorio le misure sono finali: nessun margine di lavorazione.
       noMargins: deptKey === "stampa",
-      subProjectId: activeSubProjectId ?? null,
+      subProjectId: activeSubProjectId && activeSubProjectId !== "__none__" ? activeSubProjectId : null,
     };
     setState({ ...state, pieces: [...allPieces, newLine] });
     setLastAddedPieceId(newLine.id);
@@ -947,7 +953,14 @@ export const DepartmentView = ({
               // Se activeSubProjectId punta a un sub-progetto, mostro SOLO quello + un
               // "Aggiungi" scoped. Se null, mostro tutti raggruppati per sub-progetto.
               const groupsToRender: { key: string; label: string; subId: string | null; items: PieceLine[] }[] = [];
-              if (activeSubProjectId) {
+              if (activeSubProjectId === "__none__") {
+                groupsToRender.push({
+                  key: "__none__",
+                  label: "Generale",
+                  subId: null,
+                  items: pieces.filter((p) => !p.subProjectId),
+                });
+              } else if (activeSubProjectId) {
                 const sp = subProjects.find((s) => s.id === activeSubProjectId);
                 groupsToRender.push({
                   key: activeSubProjectId,
@@ -1126,7 +1139,7 @@ export const DepartmentView = ({
                 <span className="w-5 h-5 grid place-items-center rounded-sm border-2 border-current group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <Plus className="w-3 h-3" strokeWidth={3} />
                 </span>
-                Aggiungi pezzo{activeSubProjectId ? ` a "${subProjects.find((s) => s.id === activeSubProjectId)?.name ?? ""}"` : ""}
+                Aggiungi pezzo{activeSubProjectId === "__none__" ? " (Generale)" : activeSubProjectId ? ` a "${subProjects.find((s) => s.id === activeSubProjectId)?.name ?? ""}"` : ""}
               </button>
               {pieces.length > 0 && (
                 <button

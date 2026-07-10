@@ -84,11 +84,11 @@ const SheetSvg = ({
 
 
   return (
-    <div className="flex flex-col items-center gap-1 shrink-0">
+    <div className="flex flex-col items-center gap-1 w-full max-w-full overflow-hidden">
       <div className="font-mono text-[10px] font-semibold text-primary uppercase tracking-widest text-center max-w-[500px]">
         {label}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: W, height: H }} className="block">
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: W, height: "auto", aspectRatio: `${W} / ${H}` }} className="block shrink-0">
         <rect
           x={PAD}
           y={PAD}

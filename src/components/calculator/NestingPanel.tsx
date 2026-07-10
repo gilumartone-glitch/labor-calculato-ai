@@ -2205,6 +2205,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                 <GroupSummary
                   key={g.key}
                   group={g}
+                  groupPieces={groupPieces}
                   expanded={isExpanded(g.key)}
                   onToggle={() => setExpanded((prev) => ({ ...prev, [g.key]: !isExpanded(g.key) }))}
                   variants={variantsForGroup(g)}

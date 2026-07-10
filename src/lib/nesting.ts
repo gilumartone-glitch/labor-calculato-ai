@@ -662,11 +662,14 @@ const mrContains = (a: MRRect, b: MRRect): boolean =>
   a.x + a.w + 1e-9 >= b.x + b.w &&
   a.y + a.h + 1e-9 >= b.y + b.h;
 
-/** Best-Short-Side-Fit su una lista di rettangoli liberi. Ritorna null se non ci sta. */
-const mrFindBSSF = (free: MRRect[], w: number, h: number): { rect: MRRect; score1: number; score2: number } | null => {
+/** Best-Short-Side-Fit su una lista di rettangoli liberi. Ritorna null se non ci sta.
+ *  Se `used` è passato, scarta subito i candidati che si accavallano a pezzi già piazzati. */
+const mrFindBSSF = (free: MRRect[], w: number, h: number, used?: MRRect[]): { rect: MRRect; score1: number; score2: number } | null => {
   let best: { rect: MRRect; score1: number; score2: number } | null = null;
   for (const fr of free) {
     if (fr.w + 1e-9 < w || fr.h + 1e-9 < h) continue;
+    const rect = { x: fr.x, y: fr.y, w, h };
+    if (mrOverlapsUsed(used, rect)) continue;
     const leftoverH = fr.w - w;
     const leftoverV = fr.h - h;
     const short = Math.min(leftoverH, leftoverV);
@@ -676,7 +679,7 @@ const mrFindBSSF = (free: MRRect[], w: number, h: number): { rect: MRRect; score
       short < best.score1 - 1e-9 ||
       (Math.abs(short - best.score1) < 1e-9 && long < best.score2)
     ) {
-      best = { rect: { x: fr.x, y: fr.y, w, h }, score1: short, score2: long };
+      best = { rect, score1: short, score2: long };
     }
   }
   return best;
@@ -1306,9 +1309,8 @@ const computeMixedLastraGroup = (
       const s = openSheets[si];
       for (const o of ors) {
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
-        const f = mrFindBSSF(s.free, o.w, o.h);
+        const f = mrFindBSSF(s.free, o.w, o.h, s.used);
         if (!f) continue;
-        if (mrOverlapsUsed(s.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -1356,9 +1358,8 @@ const computeMixedLastraGroup = (
     let openBest: MRPlacement | null = null;
     for (const o of ors) {
       if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
-      const f = mrFindBSSF(newSheet.free, o.w, o.h);
+      const f = mrFindBSSF(newSheet.free, o.w, o.h, newSheet.used);
       if (!f) continue;
-      if (mrOverlapsUsed(newSheet.used, f.rect)) continue;
       const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
       if (
         !openBest ||

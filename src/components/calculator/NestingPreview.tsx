@@ -53,6 +53,7 @@ const SheetSvg = ({
   maxW,
   maxH,
   fixedScale,
+  kerfM = 0,
 }: {
   group: NestingGroup;
   sheetWidthM: number;
@@ -62,8 +63,10 @@ const SheetSvg = ({
   maxW: number;
   maxH: number;
   fixedScale?: number;
+  kerfM?: number;
 }) => {
   const PAD = 12;
+  const halfKerf = Math.max(0, kerfM) / 2;
   const scaleW = (maxW - PAD * 2) / sheetWidthM;
   const scaleH = (maxH - PAD * 2) / sheetHeightM;
   const scale = fixedScale ?? Math.min(scaleW, scaleH);
@@ -73,6 +76,7 @@ const SheetSvg = ({
   const H = innerH + PAD * 2;
   // Bordo di sicurezza in pixel (2 cm per lato → riduce la forma reale interna).
   const safetyPx = (NESTING_SAFETY_BORDER_CM / 100) * scale;
+
 
   return (
     <div className="flex flex-col items-center gap-1 shrink-0">

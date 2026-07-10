@@ -549,6 +549,37 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           {groups.length} {groups.length === 1 ? "materiale" : "materiali"}
         </span>
       </div>
+
+      {/* Toolbar operatore: PDF nesting, scheda taglio stampabile, etichette Dymo */}
+      <div className="flex flex-wrap items-center gap-2 -mt-2">
+        <button
+          type="button"
+          onClick={() => exportNestingPdf(groups, exportCfg)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
+          title="Scarica il PDF del nesting in scala reale"
+        >
+          <FileText className="w-4 h-4" /> Scarica PDF nesting
+        </button>
+        <button
+          type="button"
+          onClick={() => openPrintCuttingSheet(groups, exportCfg)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-40"
+          title="Apre la scheda taglio con disegno e lista pezzi per ogni foglio"
+        >
+          <Printer className="w-4 h-4" /> Stampa lista di taglio
+        </button>
+        <button
+          type="button"
+          onClick={() => openPrintDymoLabels(groups)}
+          disabled={groups.length === 0}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
+          title="Stampa una etichetta Dymo (89×36 mm) per ogni pezzo"
+        >
+          <Tag className="w-4 h-4" /> Stampa etichette Dymo
+        </button>
+      </div>
       {groups.map((g, idx) => (
         <section
           key={g.key + idx}

@@ -1049,7 +1049,7 @@ const GroupSummary = ({
               Debug nesting
             </button>
           </div>
-          <GroupCanvas group={group} debug={debug} kerfM={(nestSettings.kerfMm || 0) / 1000} />
+          <GroupCanvas group={group} debug={debug} kerfM={(kerfMm || 0) / 1000} />
           {debug && (
             <div className="border border-destructive/40 rounded-sm bg-destructive/5 overflow-x-auto">
               <div className="px-3 py-1.5 border-b border-destructive/30 bg-destructive/10 font-mono text-[10px] uppercase tracking-widest text-destructive flex items-center gap-2">

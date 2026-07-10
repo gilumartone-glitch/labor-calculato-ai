@@ -1373,6 +1373,24 @@ const exportNestingDxf = (
   push(0, "EOF");
 
   const content = lines.join("\n");
+
+  // === Verifica automatica del DXF prodotto ===
+  // Riparsifichiamo il file per garantire che unità, misure lastra, margine
+  // perimetrale e spaziatura fresa tra pezzi corrispondano ai parametri.
+  const issues = verifyDxfOutput(content, groups, {
+    kerfMm,
+    perimeterMm: cfg.perimeterMm,
+    skipPerimeter: cfg.skipPerimeter,
+  });
+  if (issues.length === 0) {
+    toast.success("DXF verificato: unità mm, lastre e margini corretti");
+  } else {
+    console.warn("[DXF verify]", issues);
+    toast.warning(`DXF esportato con ${issues.length} avviso/i`, {
+      description: issues.slice(0, 3).join(" · "),
+    });
+  }
+
   const blob = new Blob([content], { type: "application/dxf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

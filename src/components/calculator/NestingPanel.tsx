@@ -168,14 +168,18 @@ const SheetSvg = ({
           const y = PAD + it.y * scale;
           const w = it.w * scale;
           const h = it.h * scale;
-          const color = colorForPiece(it.pieceId);
+          // Colore SOLIDO pre-composto (identico a quello delle righe della lista).
+          // Niente fillOpacity: garantisce che pezzo nel piano e riga in lista siano
+          // matematicamente lo stesso colore renderizzato.
+          const bg = pieceBackground(it.pieceId);
+          const edge = colorForPiece(it.pieceId);
           let shape: JSX.Element;
           if (it.shape === "triangle") {
             const points =
               it.pairRole === "secondary"
                 ? `${x},${y} ${x + w},${y} ${x + w / 2},${y + h}`
                 : `${x + w / 2},${y} ${x + w},${y + h} ${x},${y + h}`;
-            shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+            shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else if (it.shape === "trapezoid") {
             const wbM = it.widthBottomM ?? it.w;
             const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
@@ -185,9 +189,9 @@ const SheetSvg = ({
               it.pairRole === "secondary"
                 ? `${x + off},${y} ${x + w - off},${y} ${x + w},${y + h} ${x},${y + h}`
                 : `${x},${y} ${x + w},${y} ${x + w - off},${y + h} ${x + off},${y + h}`;
-            shape = <polygon points={points} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+            shape = <polygon points={points} fill={bg} stroke={edge} strokeWidth={0.8} />;
           } else {
-            shape = <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={PIECE_FILL_OPACITY} stroke={color} strokeWidth={1} />;
+            shape = <rect x={x} y={y} width={w} height={h} fill={bg} stroke={edge} strokeWidth={0.8} />;
           }
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>

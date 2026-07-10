@@ -953,7 +953,14 @@ export const DepartmentView = ({
               // Se activeSubProjectId punta a un sub-progetto, mostro SOLO quello + un
               // "Aggiungi" scoped. Se null, mostro tutti raggruppati per sub-progetto.
               const groupsToRender: { key: string; label: string; subId: string | null; items: PieceLine[] }[] = [];
-              if (activeSubProjectId) {
+              if (activeSubProjectId === "__none__") {
+                groupsToRender.push({
+                  key: "__none__",
+                  label: "Generale",
+                  subId: null,
+                  items: pieces.filter((p) => !p.subProjectId),
+                });
+              } else if (activeSubProjectId) {
                 const sp = subProjects.find((s) => s.id === activeSubProjectId);
                 groupsToRender.push({
                   key: activeSubProjectId,

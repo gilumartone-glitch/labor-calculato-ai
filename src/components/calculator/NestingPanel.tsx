@@ -1449,10 +1449,11 @@ const verifyDxfOutput = (
   return issues;
 };
 
-const exportNestingDxf = (
+export const exportNestingDxf = (
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean },
 ) => {
+
   if (groups.length === 0) return;
   const lines: string[] = [];
   const push = (code: number | string, val: string | number) => {

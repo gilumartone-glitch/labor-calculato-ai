@@ -1120,6 +1120,126 @@ const GroupSummary = ({
   );
 };
 
+/** Apre una finestra stampabile con la scheda taglio per l'operatore.
+ *  Per ogni gruppo elenca i fogli/rotoli e, foglio per foglio, i pezzi con
+ *  dimensioni (cm) e posizione (x,y in cm) — così l'operatore sa DOVE
+ *  tagliare ciascun pezzo su quale pannello. */
+const openPrintCuttingSheet = (
+  groups: NestingGroup[],
+  cfg: { kerfMm: number; perimeterMm: number },
+) => {
+  if (groups.length === 0) return;
+  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const now = new Date().toLocaleString("it-IT");
+
+  const sections = groups
+    .map((g) => {
+      // dimensioni "foglio" (fallback per rotolo)
+      const defaultSheetW = g.sheetWidthM ?? g.rollWidthM;
+      const defaultSheetH = g.sheetHeightM ?? g.totalLengthM;
+      const sheets: { idx: number; label: string; wM: number; hM: number; items: NestingPieceItem[] }[] = [];
+      const bySheet = new Map<number, NestingPieceItem[]>();
+      for (const it of g.items) {
+        const si = it.sheetIndex ?? 0;
+        if (!bySheet.has(si)) bySheet.set(si, []);
+        bySheet.get(si)!.push(it);
+      }
+      const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+      for (const si of sheetIndices) {
+        const ms = g.mixedSheets?.[si];
+        sheets.push({
+          idx: si,
+          label: ms ? ms.bin.label : `Foglio ${si + 1}`,
+          wM: ms ? ms.widthM : defaultSheetW,
+          hM: ms ? ms.heightM : defaultSheetH,
+          items: bySheet.get(si)!,
+        });
+      }
+
+      const sheetsHtml = sheets
+        .map((s) => {
+          const rows = s.items
+            .sort((a, b) => a.y - b.y || a.x - b.x)
+            .map(
+              (it) => `
+                <tr>
+                  <td class="lbl">${esc(it.label)}${it.rotated ? " <span class='rot'>↻</span>" : ""}</td>
+                  <td class="num">${cm(it.w)} × ${cm(it.h)} cm</td>
+                  <td class="num">x=${cm(it.x)} cm</td>
+                  <td class="num">y=${cm(it.y)} cm</td>
+                </tr>`,
+            )
+            .join("");
+          return `
+            <div class="sheet">
+              <h3>${esc(s.label)} · ${cm(s.wM)} × ${cm(s.hM)} cm</h3>
+              <table>
+                <thead><tr><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`;
+        })
+        .join("");
+      const unplacedHtml = g.unplaced.length
+        ? `<div class="warn"><strong>Pezzi NON piazzati (${g.unplaced.length}):</strong> ${g.unplaced.map((u) => `${esc(u.label)} — ${esc(u.reason)}`).join(" · ")}</div>`
+        : "";
+      return `
+        <section class="grp">
+          <h2>${esc(g.label)}</h2>
+          <div class="meta">
+            ${sheets.length} foglio/i · Sfrido ${(g.wastePct * 100).toFixed(1)}%
+          </div>
+          ${sheetsHtml}
+          ${unplacedHtml}
+        </section>`;
+    })
+    .join("");
+
+  const html = `<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>Scheda taglio operatore</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; margin: 24px; color: #111; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 6px; border-bottom: 2px solid #111; padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 16px 0 6px; background: #eee; padding: 6px 10px; border-left: 4px solid #111; }
+  .info { font-size: 13px; color: #555; margin-bottom: 16px; }
+  .meta { font-size: 12px; color: #444; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
+  th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+  th { background: #111; color: #fff; font-weight: 600; }
+  td.num { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  td.lbl { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .rot { color: #b45309; }
+  .warn { margin-top: 8px; padding: 8px 12px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-size: 13px; }
+  .grp { page-break-inside: avoid; margin-bottom: 20px; }
+  .sheet { page-break-inside: avoid; }
+  @media print { body { margin: 12mm; } }
+</style>
+</head>
+<body>
+  <h1>Scheda taglio operatore</h1>
+  <div class="info">
+    Generata il ${esc(now)} · Fresa ${cfg.kerfMm} mm · Margine perimetro effettivo ${cfg.perimeterMm.toFixed(1)} mm
+  </div>
+  ${sections}
+  <script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
+
+
 export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
   /** Impostazioni fresa + margine perimetrale (persistite in localStorage). */
   const [nestSettings, setNestSettings] = useLocalStorageState("nesting.settings.v1", {

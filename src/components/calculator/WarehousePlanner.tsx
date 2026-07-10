@@ -77,9 +77,11 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
     if (!mat) return [];
     const matches = catalog.materials.filter((m) => {
       if (norm(m.name) !== norm(mat.name)) return false;
-      if (mat.color && norm(m.color) !== norm(mat.color)) return false;
-      if (mat.thickness && norm(m.thickness) !== norm(mat.thickness)) return false;
-      return (m.format ?? "rotolo") === (mat.format ?? "rotolo");
+      if (mat.color && norm(m.color) && norm(m.color) !== norm(mat.color)) return false;
+      if (mat.thickness && normThickness(m.thickness) && normThickness(m.thickness) !== normThickness(mat.thickness)) return false;
+      const fmA = m.format ?? "lastra";
+      const fmB = mat.format ?? "lastra";
+      return fmA === fmB;
     });
     const seen = new Set<string>();
     const out: { w: number; h: number; label: string }[] = [];

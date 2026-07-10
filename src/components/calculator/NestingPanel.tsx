@@ -255,7 +255,7 @@ const SheetSvg = ({
 };
 
 /** Render del gruppo: per le lastre disegna N fogli affiancati; per i rotoli un unico telo verticale. */
-const GroupCanvas = ({ group, debug = false }: { group: NestingGroup; debug?: boolean }) => {
+const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup; debug?: boolean; kerfM?: number }) => {
   const { rollWidthM, totalLengthM, items } = group;
   const [page, setPage] = useState(0);
   const PER_ROW = 2;

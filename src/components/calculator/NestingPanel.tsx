@@ -1964,6 +1964,72 @@ export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   triggerDownload(blob, `etichette-nesting-${stamp}.zip`);
 };
 
+/** Esporta le etichette come CSV (prima riga = intestazioni, una colonna per ogni dato variabile). */
+export const exportNestingLabelsCsv = (groups: NestingGroup[]) => {
+  if (groups.length === 0) return;
+  const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const headers = [
+    "Riferimento",
+    "Etichetta pezzo",
+    "Materiale",
+    "Spessore",
+    "Finitura",
+    "Lastra",
+    "Formato lastra",
+    "Larghezza cm",
+    "Altezza cm",
+    "Ruotato",
+  ];
+  const rows: string[][] = [];
+  for (const g of groups) {
+    const bySheet = new Map<number, NestingPieceItem[]>();
+    for (const it of g.items) {
+      const si = it.sheetIndex ?? 0;
+      if (!bySheet.has(si)) bySheet.set(si, []);
+      bySheet.get(si)!.push(it);
+    }
+    const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
+    for (const si of sheetIndices) {
+      const items = bySheet.get(si)!;
+      const ms = g.mixedSheets?.[si];
+      const sheetLetterStr = sheetLetter(si);
+      const sheetFormat = ms ? `${cm(ms.bin.wM)}×${cm(ms.bin.hM)} cm` : "";
+      items.forEach((it, i) => {
+        rows.push([
+          `${sheetLetterStr}-${i + 1}`,
+          it.label ?? "",
+          g.material?.name ?? g.label,
+          g.material?.thickness ?? "",
+          g.material?.finish ?? "",
+          `Lastra ${sheetLetterStr}`,
+          sheetFormat,
+          cm(it.w),
+          cm(it.h),
+          it.rotated ? "Sì" : "No",
+        ]);
+      });
+    }
+  }
+  if (rows.length === 0) return;
+  // CSV con separatore ; (compatibile Excel IT) + BOM UTF-8
+  const escCsv = (v: string) => {
+    const s = String(v ?? "");
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv =
+    "\uFEFF" +
+    [headers, ...rows].map((r) => r.map(escCsv).join(";")).join("\r\n");
+  const stamp = new Date().toISOString().slice(0, 10);
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `etichette-nesting-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 
 
 

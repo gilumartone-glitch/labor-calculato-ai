@@ -1239,12 +1239,13 @@ const computeMixedLastraGroup = (
   if (variantsWH.length < 2) return null;
   const maxW = Math.max(...variantsWH.map((v) => v.W));
   const maxH = Math.max(...variantsWH.map((v) => v.H));
+  const { perimeterM } = getNestingConfig(catalog);
   const { items: raw, seamLengthM: splitSeamLengthM } = explodePieces(
     pieces,
     pieceIndexMap,
-    maxW,
+    Math.max(0.001, maxW - 2 * perimeterM),
     "lastra",
-    maxH,
+    Math.max(0.001, maxH - 2 * perimeterM),
     hemMap,
   );
   if (raw.length === 0) return null;

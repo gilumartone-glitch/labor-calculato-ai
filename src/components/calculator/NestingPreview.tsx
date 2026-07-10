@@ -455,6 +455,12 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     kerfMm: nestSettings.kerfMm,
     perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm,
   };
+  const dxfCfg = {
+    kerfMm: nestSettings.kerfMm,
+    perimeterMm: nestSettings.perimeterMm,
+    skipPerimeter: nestSettings.skipPerimeter,
+  };
+
   const groups = useMemo(() => {
     if (!catalog || !pieces.length) return [] as NestingGroup[];
     try {

@@ -134,12 +134,12 @@ const SheetSvg = ({
 
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1 w-full max-w-full overflow-hidden">
       <div className="font-mono text-sm font-bold text-primary uppercase tracking-wider">{label}</div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: W, height: H, maxWidth: "100%" }}
-        className="block"
+        style={{ width: "100%", maxWidth: W, height: "auto", aspectRatio: `${W} / ${H}` }}
+        className="block shrink-0"
       >
         <defs>
           <pattern id={`grid-${group.key}-${label}`} width="10" height="10" patternUnits="userSpaceOnUse">
@@ -457,7 +457,7 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
         </div>
         <div
           className="grid"
-          style={{ gridTemplateColumns: `repeat(${PER_ROW}, minmax(0, 1fr))`, gap: GAP }}
+          style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 430px), 1fr))`, gap: GAP }}
         >
           {pageSheets.map((ms, i) => {
             const absIdx = startIdx + i;
@@ -542,7 +542,7 @@ const GroupCanvas = ({ group, debug = false, kerfM = 0 }: { group: NestingGroup;
           )}
         </div>
       </div>
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${PER_ROW}, minmax(0, 1fr))`, gap: GAP }}>
+      <div className="grid" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 430px), 1fr))`, gap: GAP }}>
         {pageSheets.map((sheetItems, i) => {
           const absIdx = startIdx + i;
           return (

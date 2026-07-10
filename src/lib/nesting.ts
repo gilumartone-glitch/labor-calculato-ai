@@ -1796,7 +1796,7 @@ export const recomputeGroupWithMixedBins = (
   }));
 
   // Aree e sfrido (calcolati sui fogli effettivamente usati, eterogenei)
-  const totalAreaM2 = openSheets.reduce((s, sh) => s + sh.w * sh.h, 0);
+  const totalAreaM2 = openSheets.reduce((s, sh) => s + sh.bin.widthM * sh.bin.heightM, 0);
   const placedKey = new Set(allItems.map((it) => `${it.pieceId}|${it.copy}`));
   const usedAreaM2 = raw
     .filter((r) => placedKey.has(`${r.pieceId}|${r.copy}`))
@@ -1816,16 +1816,16 @@ export const recomputeGroupWithMixedBins = (
       ),
     ],
     format: "lastra",
-    rollWidthM: openSheets[0]?.w ?? baseGroup.rollWidthM,
-    totalLengthM: openSheets.reduce((s, sh) => s + sh.h, 0),
+    rollWidthM: openSheets[0]?.bin.widthM ?? baseGroup.rollWidthM,
+    totalLengthM: openSheets.reduce((s, sh) => s + sh.bin.heightM, 0),
     totalAreaM2,
     usedAreaM2,
     wastePct,
     sheetsNeeded: openSheets.length,
     // Per la canvas usiamo "sheetWidthM/sheetHeightM" del primo foglio come fallback,
     // ma il rendering reale userà `mixedSheets` quando presente.
-    sheetWidthM: openSheets[0]?.w ?? baseGroup.sheetWidthM,
-    sheetHeightM: openSheets[0]?.h ?? baseGroup.sheetHeightM,
+    sheetWidthM: openSheets[0]?.bin.widthM ?? baseGroup.sheetWidthM,
+    sheetHeightM: openSheets[0]?.bin.heightM ?? baseGroup.sheetHeightM,
     mixedSheets,
     scrapCost: 0,
     minBillingExtra: 0,

@@ -296,14 +296,18 @@ const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number
       <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto max-h-[280px] mx-auto" preserveAspectRatio="xMidYMid meet" style={{ aspectRatio: `${W} / ${H}` }}>
         <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="hsl(var(--background))" stroke="currentColor" strokeWidth={1.2} className="text-ink/40" />
         {items.map((it, idx) => {
-          const x = PAD + it.y * scale;
-          const y = PAD + it.x * scale;
-          const w = it.h * scale;
-          const h = it.w * scale;
+          const halfKerf = Math.max(0, kerfM) / 2;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.y + halfKerf) * scale;
+          const y = PAD + (it.x + halfKerf) * scale;
+          const w = realHm * scale;
+          const h = realWm * scale;
           const color = colorForPiece(it.pieceId);
           return (
             <g key={`${it.pieceId}-${it.copy}-${idx}`}>
               <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.4} stroke={color} strokeWidth={1} />
+
               {w > 28 && h > 14 && (
                 <text x={x + w / 2} y={y + h / 2 + 3} textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize={Math.min(10, Math.max(7, h / 4))} fontWeight={700} className="fill-ink">
                   {it.label}{it.rotated ? "↻" : ""}

@@ -22,6 +22,7 @@ import { eur } from "@/lib/format";
 import { CustomerType } from "@/lib/pricing";
 import { aggregateWorkBreakdown } from "@/lib/piece";
 import { StockHintForGroup } from "./StockHintForGroup";
+import { WarehousePlanner } from "./WarehousePlanner";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 interface Props {

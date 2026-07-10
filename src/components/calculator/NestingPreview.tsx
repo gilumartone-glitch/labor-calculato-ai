@@ -185,7 +185,7 @@ const SheetSvg = ({
   );
 };
 
-const GroupCanvas = ({ group }: { group: NestingGroup }) => {
+const GroupCanvas = ({ group, kerfM = 0 }: { group: NestingGroup; kerfM?: number }) => {
   const { rollWidthM, totalLengthM, items } = group;
   if (rollWidthM <= 0 || totalLengthM <= 0) return null;
   const isLastra = group.format === "lastra";

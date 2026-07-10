@@ -1,0 +1,356 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, Loader2, Package, Warehouse, ShoppingCart } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { NestingGroup, NestingMixedBin } from "@/lib/nesting";
+import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+
+/** Pianificatore MAGAZZINO GLOBALE per il nesting.
+ *  Quando attivo: per ogni gruppo cerca in magazzino sfridi + lastre intere del materiale,
+ *  li ordina dal più piccolo al più grande e assegna ogni pezzo al più piccolo bin che lo contiene.
+ *  Se non basta, mostra i pezzi da ordinare e offre un flag "Bypassa" che completa la copertura
+ *  con lastre standard di catalogo (fallback), così il nesting non si blocca. */
+
+type BinPool = {
+  scraps: { id: string; w: number; h: number; label: string }[]; // qty 1 ciascuno
+  sheets: { id: string; w: number; h: number; label: string; qty: number }[];
+  // catalog fallback (dimensioni della lastra "standard" del gruppo, quantità illimitata)
+  fallback: { w: number; h: number; label: string } | null;
+};
+
+type GroupPlan = {
+  bins: NestingMixedBin[];
+  covered: number;
+  total: number;
+  missing: { label: string; w: number; h: number }[];
+  usedScrapCount: number;
+  usedSheetCount: number;
+  usedFallbackCount: number;
+  materialLabel: string;
+};
+
+const fits = (r: { w: number; h: number }, b: { w: number; h: number }) =>
+  (r.w <= b.w && r.h <= b.h) || (r.h <= b.w && r.w <= b.h);
+
+const cm = (mm: number) => `${Math.round(mm / 10)}`;
+
+interface Props {
+  groups: NestingGroup[];
+  /** Applica i mixed-bins su tutti i gruppi contemporaneamente (o azzera). */
+  onApplyAllMixedBins: (byGroup: Record<string, NestingMixedBin[] | null>) => void;
+}
+
+export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
+  const [enabled, setEnabled] = useLocalStorageState("nesting.useWarehouse.v1", false);
+  const [bypass, setBypass] = useLocalStorageState("nesting.useWarehouse.bypass.v1", false);
+  const [loading, setLoading] = useState(false);
+  const [pools, setPools] = useState<Record<string, BinPool>>({});
+  const lastAppliedRef = useRef<string>("");
+
+  // Carica magazzino per ogni gruppo (una query per materiale distinto)
+  useEffect(() => {
+    if (!enabled || groups.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const nextPools: Record<string, BinPool> = {};
+      // De-dup per material_name+color+thickness
+      const norm = (s: unknown) => String(s ?? "").trim().toLowerCase();
+      for (const g of groups) {
+        const name = g.material?.name ?? "";
+        if (!name) { nextPools[g.key] = { scraps: [], sheets: [], fallback: null }; continue; }
+        const { data: invData } = await supabase
+          .from("inventory_items").select("*").ilike("material_name", name);
+        const matched = ((invData ?? []) as InvItem[]).filter((r) => {
+          if (g.material?.color && norm(r.material_color) !== norm(g.material.color)) return false;
+          const attrs = (r.material_attrs ?? {}) as Record<string, any>;
+          const rowT = norm(attrs.thickness ?? attrs.spessore);
+          return !g.material?.thickness || !rowT || rowT === norm(g.material.thickness);
+        });
+        let scraps: ScrapPiece[] = [];
+        if (matched.length > 0) {
+          const ids = matched.map((m) => m.id);
+          const { data: sd } = await supabase
+            .from("inventory_scrap_pieces").select("*")
+            .in("inventory_id", ids).eq("status", "libero");
+          scraps = (sd ?? []) as ScrapPiece[];
+        }
+        const pool: BinPool = { scraps: [], sheets: [], fallback: null };
+        pool.scraps = scraps.map((s) => ({
+          id: s.id, w: s.w_mm, h: s.h_mm,
+          label: `${s.code} ${cm(s.w_mm)}×${cm(s.h_mm)} cm`,
+        }));
+        for (const it of matched) {
+          if ((it.qty_intera ?? 0) <= 0) continue;
+          const attrs = (it.material_attrs ?? {}) as Record<string, any>;
+          let w = Number(attrs.base_mm ?? attrs.width_mm ?? attrs.w_mm ?? 0);
+          let h = Number(attrs.height_mm ?? attrs.h_mm ?? 0);
+          if (!(w > 0 && h > 0)) {
+            const u = String(attrs.dimUnit ?? attrs.heightUnit ?? "cm").toLowerCase();
+            const mul = u === "m" ? 1000 : u === "mm" ? 1 : 10;
+            const bRaw = parseFloat(String(attrs.baseWidth ?? "").replace(",", "."));
+            const hRaw = parseFloat(String(it.material_height ?? attrs.height ?? "").replace(",", "."));
+            if (bRaw > 0 && hRaw > 0) { w = bRaw * mul; h = hRaw * mul; }
+          }
+          if (!(w > 0 && h > 0)) continue;
+          pool.sheets.push({
+            id: it.id, w, h, qty: it.qty_intera,
+            label: `${it.code} ${cm(w)}×${cm(h)} cm`,
+          });
+        }
+        // fallback = dimensioni della lastra standard del gruppo (se format lastra)
+        if (g.format === "lastra" && g.sheetWidthM && g.sheetHeightM) {
+          pool.fallback = {
+            w: g.sheetWidthM * 1000, h: g.sheetHeightM * 1000,
+            label: `Lastra standard ${cm(g.sheetWidthM * 1000)}×${cm(g.sheetHeightM * 1000)} cm`,
+          };
+        }
+        nextPools[g.key] = pool;
+      }
+      if (!cancelled) { setPools(nextPools); setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled, groups]);
+
+  // Calcolo del piano per ogni gruppo
+  const plans = useMemo<Record<string, GroupPlan>>(() => {
+    const out: Record<string, GroupPlan> = {};
+    if (!enabled) return out;
+    for (const g of groups) {
+      const pool = pools[g.key] ?? { scraps: [], sheets: [], fallback: null };
+      // Pool ordinato PICCOLO → GRANDE (area crescente)
+      const scraps = [...pool.scraps].map((b) => ({ ...b, left: 1 }))
+        .sort((a, b) => a.w * a.h - b.w * b.h);
+      const sheets = [...pool.sheets].map((b) => ({ ...b, left: b.qty }))
+        .sort((a, b) => a.w * a.h - b.w * b.h);
+      // Pezzi: assegno prima i grandi (Best-Fit-Decreasing) al più piccolo bin che li contiene
+      const reqs = g.items.map((it, i) => ({
+        idx: i, w: Math.round(it.w * 1000), h: Math.round(it.h * 1000), label: it.label,
+      })).sort((a, b) => b.w * b.h - a.w * a.h);
+
+      const bins: NestingMixedBin[] = [];
+      const missing: { label: string; w: number; h: number }[] = [];
+      let uScrap = 0, uSheet = 0, uFallback = 0;
+
+      const pushBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string) => {
+        bins.push({ kind, id, widthM: w / 1000, heightM: h / 1000, label });
+        return bins.length - 1;
+      };
+
+      for (const r of reqs) {
+        // 1) sfrido più piccolo che lo contenga
+        const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
+        if (sIdx >= 0) {
+          const b = scraps[sIdx]; b.left -= 1;
+          pushBin("scrap", b.id, b.w, b.h, b.label); uScrap++; continue;
+        }
+        // 2) lastra intera più piccola che lo contenga
+        const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
+        if (shIdx >= 0) {
+          const b = sheets[shIdx]; b.left -= 1;
+          pushBin("sheet", b.id, b.w, b.h, b.label); uSheet++; continue;
+        }
+        // 3) fallback catalogo (solo se bypass attivo)
+        if (bypass && pool.fallback && fits(r, pool.fallback)) {
+          pushBin("sheet", `__fallback_${uFallback}`, pool.fallback.w, pool.fallback.h, pool.fallback.label);
+          uFallback++; continue;
+        }
+        // 4) mancante
+        missing.push({ label: r.label, w: r.w, h: r.h });
+      }
+
+      out[g.key] = {
+        bins, covered: reqs.length - missing.length, total: reqs.length, missing,
+        usedScrapCount: uScrap, usedSheetCount: uSheet, usedFallbackCount: uFallback,
+        materialLabel: [g.material?.name, g.material?.color, g.material?.thickness]
+          .filter(Boolean).join(" · ") || "Materiale",
+      };
+    }
+    return out;
+  }, [enabled, groups, pools, bypass]);
+
+  // Applica automaticamente i piani sui gruppi (solo quelli con copertura completa,
+  // oppure tutti se bypass attivo).
+  useEffect(() => {
+    if (!enabled) {
+      if (lastAppliedRef.current !== "") {
+        onApplyAllMixedBins(Object.fromEntries(groups.map((g) => [g.key, null])));
+        lastAppliedRef.current = "";
+      }
+      return;
+    }
+    const payload: Record<string, NestingMixedBin[] | null> = {};
+    for (const g of groups) {
+      const plan = plans[g.key];
+      if (!plan || plan.bins.length === 0) { payload[g.key] = null; continue; }
+      if (plan.missing.length === 0 || bypass) payload[g.key] = plan.bins;
+      else payload[g.key] = null; // non completo e non bypassato: lascia nesting standard
+    }
+    const sig = JSON.stringify(payload);
+    if (sig !== lastAppliedRef.current) {
+      onApplyAllMixedBins(payload);
+      lastAppliedRef.current = sig;
+    }
+  }, [enabled, plans, bypass, groups, onApplyAllMixedBins]);
+
+  const totals = useMemo(() => {
+    let total = 0, covered = 0, scrap = 0, sheet = 0, fallback = 0, missing = 0;
+    for (const g of groups) {
+      const p = plans[g.key]; if (!p) continue;
+      total += p.total; covered += p.covered; missing += p.missing.length;
+      scrap += p.usedScrapCount; sheet += p.usedSheetCount; fallback += p.usedFallbackCount;
+    }
+    return { total, covered, scrap, sheet, fallback, missing };
+  }, [plans, groups]);
+
+  const groupsWithShortage = useMemo(
+    () => groups.filter((g) => (plans[g.key]?.missing.length ?? 0) > 0),
+    [groups, plans],
+  );
+
+  const disable = () => {
+    setEnabled(false);
+    setBypass(false);
+    onApplyAllMixedBins(Object.fromEntries(groups.map((g) => [g.key, null])));
+    lastAppliedRef.current = "";
+    toast.info("Nesting tornato al calcolo standard");
+  };
+
+  return (
+    <div className="mb-5 border-2 border-primary/40 bg-primary/5 rounded-md p-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => { setEnabled(e.target.checked); if (!e.target.checked) disable(); }}
+            className="w-6 h-6 accent-primary"
+          />
+          <span className="inline-flex items-center gap-2">
+            <Warehouse className="w-5 h-5 text-primary" />
+            <span className="font-display text-lg font-semibold">Usa magazzino nel nesting</span>
+          </span>
+        </label>
+        <span className="text-sm text-muted-foreground">
+          Ottimizza usando prima gli sfridi più piccoli, poi lastre più grandi.
+        </span>
+        {enabled && loading && (
+          <span className="ml-auto inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" /> Carico magazzino…
+          </span>
+        )}
+      </div>
+
+      {enabled && !loading && groups.length > 0 && (
+        <div className="mt-4 space-y-3">
+          {/* Riepilogo globale */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-sm">
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Pezzi totali</div>
+              <div className="text-lg font-bold tabular-nums">{totals.total}</div>
+            </div>
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Coperti da magazzino</div>
+              <div className={`text-lg font-bold tabular-nums ${totals.covered === totals.total ? "text-primary" : "text-ink"}`}>
+                {totals.covered}/{totals.total}
+              </div>
+            </div>
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Sfridi usati</div>
+              <div className="text-lg font-bold tabular-nums">{totals.scrap}</div>
+            </div>
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Lastre magazzino</div>
+              <div className="text-lg font-bold tabular-nums">{totals.sheet}</div>
+            </div>
+            <div className={`border rounded-md p-2 bg-background ${totals.missing > 0 ? "border-destructive/60" : "border-ink/15"}`}>
+              <div className="text-xs uppercase text-muted-foreground">Da ordinare</div>
+              <div className={`text-lg font-bold tabular-nums ${totals.missing > 0 ? "text-destructive" : "text-primary"}`}>
+                {totals.missing}
+              </div>
+            </div>
+          </div>
+
+          {/* Copertura completa */}
+          {totals.missing === 0 && totals.total > 0 && (
+            <div className="flex items-center gap-2 p-3 border-2 border-primary/50 bg-primary/10 rounded-md text-primary font-semibold text-base">
+              <CheckCircle2 className="w-5 h-5" />
+              Tutti i pezzi coperti dal magazzino: {totals.scrap} sfrido/i + {totals.sheet} lastra/e.
+            </div>
+          )}
+
+          {/* Shortage: pezzi da ordinare */}
+          {groupsWithShortage.length > 0 && (
+            <div className="border-2 border-destructive/60 bg-destructive/10 rounded-md p-3 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-display text-base font-bold text-destructive">
+                    Magazzino insufficiente — {totals.missing} pezzo/i da ordinare
+                  </div>
+                  <div className="text-sm text-ink/80">
+                    Attiva "Bypassa mancanza" per completare il nesting con lastre standard di listino
+                    per i pezzi non coperti.
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 h-10 px-3 border-2 border-destructive/60 bg-background rounded-md cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={bypass}
+                    onChange={(e) => setBypass(e.target.checked)}
+                    className="w-5 h-5 accent-destructive"
+                  />
+                  <span className="text-sm font-bold text-destructive">Bypassa mancanza</span>
+                </label>
+              </div>
+
+              {groupsWithShortage.map((g) => {
+                const plan = plans[g.key]; if (!plan) return null;
+                return (
+                  <div key={g.key} className="border border-destructive/40 bg-background rounded-md p-3">
+                    <div className="font-mono text-sm font-bold text-ink mb-2 flex items-center gap-2">
+                      <Package className="w-4 h-4" /> {plan.materialLabel}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-xs uppercase font-semibold text-primary mb-1 inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Presenti in magazzino ({plan.covered})
+                        </div>
+                        <ul className="text-sm font-mono space-y-0.5">
+                          {plan.usedScrapCount > 0 && (
+                            <li>· {plan.usedScrapCount} sfrido/i usati</li>
+                          )}
+                          {plan.usedSheetCount > 0 && (
+                            <li>· {plan.usedSheetCount} lastra/e intere usate</li>
+                          )}
+                          {plan.usedFallbackCount > 0 && (
+                            <li className="text-destructive">· {plan.usedFallbackCount} lastra/e standard (bypass)</li>
+                          )}
+                        </ul>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase font-semibold text-destructive mb-1 inline-flex items-center gap-1">
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          Da ordinare ({plan.missing.length})
+                        </div>
+                        <ul className="text-sm font-mono space-y-0.5 max-h-40 overflow-auto">
+                          {plan.missing.map((m, i) => (
+                            <li key={i}>
+                              · <strong>{m.label}</strong> · {cm(m.w)}×{cm(m.h)} cm
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

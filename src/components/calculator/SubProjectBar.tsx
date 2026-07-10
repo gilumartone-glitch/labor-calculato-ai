@@ -96,6 +96,28 @@ export const SubProjectBar = ({
         Tutti
       </button>
 
+      {subProjects.length > 0 && (() => {
+        const n = pieceCounts?.["__none__"] ?? 0;
+        const active = activeId === "__none__";
+        return (
+          <button
+            type="button"
+            onClick={() => setActiveId("__none__")}
+            title="Lavorazioni non assegnate a un prodotto finito"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[11px] uppercase tracking-wider font-semibold border-2 transition-colors ${
+              active
+                ? "bg-accent text-ink border-accent"
+                : "border-dashed border-ink/30 text-ink/70 hover:text-ink hover:bg-accent/20"
+            }`}
+          >
+            Generale
+            {n > 0 && (
+              <span className={`font-mono text-[9px] ${active ? "opacity-80" : "opacity-60"}`}>·{n}</span>
+            )}
+          </button>
+        );
+      })()}
+
       {subProjects
         .slice()
         .sort((a, b) => a.order - b.order)

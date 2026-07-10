@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search, Save, Loader2, AlertTriangle, Scissors, ChevronRight, ChevronDown, Plus, PackagePlus } from "lucide-react";
+import { Search, Save, Loader2, AlertTriangle, Scissors, ChevronRight, ChevronDown, Plus, Minus, PackagePlus } from "lucide-react";
 import { AddInventoryDialog } from "@/components/produzione/AddInventoryDialog";
 import { toast } from "sonner";
 import { useProdStore } from "@/lib/produzione/store";
@@ -16,7 +16,7 @@ import { sheetSizeFromCatalog, fmtMm } from "@/lib/produzione/scrap";
 /** Vista magazzino di un singolo reparto, riusabile fuori da /produzione. */
 
 const matKey = (m: CatalogMaterial) =>
-  [m.name, m.color, m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
+  [m.name, m.color, m.baseWidth ?? "", m.height, m.thickness ?? "", m.fireproof ?? "", m.finish ?? ""]
     .map((x) => String(x ?? "").trim().toLowerCase())
     .join("|");
 
@@ -261,6 +261,40 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
     }
   };
 
+  /** Scarica N lastre dalla giacenza esistente. Non scende sotto 0. */
+  const removeStock = async (row: Row) => {
+    const raw = addQty[row.key] ?? "";
+    const n = parseFloat(raw.replace(",", "."));
+    if (!n || n <= 0) { toast.error("Inserisci una quantità positiva"); return; }
+    if (!row.inv) { toast.error("Nessuna giacenza da scaricare"); return; }
+    const current = Number(row.inv.qty_intera);
+    if (n > current) { toast.error(`Disponibili solo ${current} ${row.um}`); return; }
+    setAddingKey(row.key);
+    try {
+      const newQty = current - n;
+      const { error } = await supabase
+        .from("inventory_items")
+        .update({ qty_intera: newQty })
+        .eq("id", row.inv.id);
+      if (error) throw error;
+      await logAction({
+        action: "MAGAZZINO_SCARICO",
+        entity_type: "inventory",
+        entity_id: row.inv.id,
+        detail: `${row.inv.code} · −${n} ${row.um} · ${row.label}`,
+        prev_state: { qty_intera: current },
+        new_state: { qty_intera: newQty },
+      });
+      setAddQty((p) => ({ ...p, [row.key]: "" }));
+      await refreshInventory();
+      toast.success(`−${n} → totale ${newQty} ${row.um}`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore scarico");
+    } finally {
+      setAddingKey(null);
+    }
+  };
+
   const totals = useMemo(() => {
     const placed = rows.filter((r) => r.inv).length;
     const lowStock = rows.filter((r) => r.inv && r.inv.qty_intera < r.inv.soglia_minima).length;
@@ -307,7 +341,7 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                 <tr>
                   <th className="text-left px-3 py-2 w-28">Codice</th>
                   <th className="text-left px-3 py-2">Materiale</th>
-                  <th className="text-right px-3 py-2 w-44">Giacenza · aggiungi</th>
+                  <th className="text-right px-3 py-2 w-52">Giacenza · carico/scarico</th>
                   <th className="text-center px-3 py-2 w-24">Sfrido pz</th>
                   <th className="text-left px-3 py-2 w-12">UM</th>
                   <th className="text-left px-3 py-2 w-28">Lastra</th>
@@ -377,7 +411,7 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                             {r.inv?.qty_intera ?? 0}
                           </span>
                           <span className="text-[10px] font-mono text-ink/40">{r.um}</span>
-                          {/* Quick-add: +N */}
+                          {/* Quick add/remove: ±N */}
                           <input
                             type="number"
                             step="1"
@@ -385,10 +419,18 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
                             value={addQty[r.key] ?? ""}
                             onChange={(ev) => setAddQty((p) => ({ ...p, [r.key]: ev.target.value }))}
                             onKeyDown={(ev) => { if (ev.key === "Enter") addStock(r); }}
-                            placeholder="+N"
-                            className="h-7 w-14 text-[11px] text-right border border-ink/20 rounded-sm px-1 bg-background"
-                            title="Quantità da aggiungere alla giacenza"
+                            placeholder="N"
+                            className="h-7 w-12 text-[11px] text-right border border-ink/20 rounded-sm px-1 bg-background"
+                            title="Quantità da caricare o scaricare"
                           />
+                          <button
+                            onClick={() => removeStock(r)}
+                            disabled={addingKey === r.key || !addQty[r.key] || !r.inv || Number(r.inv?.qty_intera ?? 0) <= 0}
+                            className="inline-flex items-center justify-center h-7 w-7 border border-destructive/50 text-destructive rounded-sm hover:bg-destructive hover:text-destructive-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Scarica dalla giacenza"
+                          >
+                            {addingKey === r.key ? <Loader2 className="w-3 h-3 animate-spin" /> : <Minus className="w-3.5 h-3.5" />}
+                          </button>
                           <button
                             onClick={() => addStock(r)}
                             disabled={addingKey === r.key || !addQty[r.key]}

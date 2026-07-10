@@ -1455,6 +1455,7 @@ export type Database = {
       }
       prod_chat_messages: {
         Row: {
+          attachments: Json
           body: string
           channel_id: string
           created_at: string
@@ -1463,6 +1464,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attachments?: Json
           body: string
           channel_id: string
           created_at?: string
@@ -1471,6 +1473,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attachments?: Json
           body?: string
           channel_id?: string
           created_at?: string

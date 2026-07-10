@@ -1690,9 +1690,19 @@ export const recomputeGroupWithMixedBins = (
   pieces: PieceLine[],
   bins: NestingMixedBin[],
   pieceIndexMap: Map<string, number>,
-  perimeterM: number = 0,
+  perimeterMOrCatalog: number | Catalog = 0,
+  maybeCatalog?: Catalog,
 ): NestingGroup => {
   if (bins.length === 0) return baseGroup;
+  // Compat: accetta sia (…, perimeterM, catalog?) sia (…, catalog).
+  const catalog: Catalog | undefined =
+    typeof perimeterMOrCatalog === "number" ? maybeCatalog : perimeterMOrCatalog;
+  const perimeterM: number = typeof perimeterMOrCatalog === "number"
+    ? perimeterMOrCatalog
+    : (catalog ? getNestingConfig(catalog).perimeterM : 0);
+  // hemMap con kerf: garantisce spaziatura fresa tra pezzi anche nel path mixed bins,
+  // altrimenti il DXF esportato risulta senza spazio tra i pannelli.
+  const hemMap = catalog ? buildHemMap(pieces, catalog) : undefined;
   // 1) Esplodi i pezzi usando come limite la massima dimensione disponibile (il bin più grande)
   const maxW = Math.max(...bins.map((b) => b.widthM));
   const maxH = Math.max(...bins.map((b) => b.heightM));
@@ -1702,7 +1712,9 @@ export const recomputeGroupWithMixedBins = (
     Math.max(0.001, maxW - 2 * perimeterM),
     "lastra",
     Math.max(0.001, maxH - 2 * perimeterM),
+    hemMap,
   );
+
   const units = pairShapes(raw);
 
   // 2) Pool di "fogli aperti", ognuno con le proprie dimensioni di bin (MaxRects BSSF)

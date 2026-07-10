@@ -461,10 +461,21 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     skipPerimeter: nestSettings.skipPerimeter,
   };
 
+  // Catalogo effettivo con i flag di nesting (fresa + margine perimetrale):
+  // fondamentale per far spaziare correttamente i pezzi anche in read-only,
+  // altrimenti il packer li posiziona attaccati e il DXF esportato risulta
+  // senza kerf/margine.
+  const effCatalog = useMemo(() => (catalog ? ({
+    ...catalog,
+    __kerfMm: nestSettings.kerfMm,
+    __perimeterMarginMm: nestSettings.perimeterMm,
+    __skipPerimeterMargin: nestSettings.skipPerimeter,
+  }) : catalog), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+
   const groups = useMemo(() => {
-    if (!catalog || !pieces.length) return [] as NestingGroup[];
+    if (!effCatalog || !pieces.length) return [] as NestingGroup[];
     try {
-      const base = computeNesting(pieces, catalog, customerType);
+      const base = computeNesting(pieces, effCatalog, customerType);
       const indexMap = buildPieceIndexMap(pieces);
       return base.map((g) => {
         const groupPieces = piecesOfGroup(pieces, g.key);
@@ -472,11 +483,11 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
         // 1) PRIORITÀ MASSIMA: stato salvato nel preventivo (mixedBins → poi override formato).
         const savedMixed = nestingState?.mixedBins?.[g.key];
         if (savedMixed && savedMixed.length > 0) {
-          return recomputeGroupWithMixedBins(g, groupPieces, savedMixed, indexMap);
+          return recomputeGroupWithMixedBins(g, groupPieces, savedMixed, indexMap, effCatalog);
         }
         const savedOv = nestingState?.overrides?.[g.key];
         if (savedOv && savedOv.widthM > 0 && savedOv.heightM > 0) {
-          const overridden = recomputeGroupWithOverride(g, groupPieces, catalog, savedOv, indexMap, customerType);
+          const overridden = recomputeGroupWithOverride(g, groupPieces, effCatalog, savedOv, indexMap, customerType);
           if (savedOv.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
           return overridden;
         }
@@ -536,12 +547,12 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
           }
         }
         if (bins.length === 0) return g;
-        return recomputeGroupWithMixedBins(g, groupPieces, bins, indexMap);
+        return recomputeGroupWithMixedBins(g, groupPieces, bins, indexMap, effCatalog);
       });
     } catch {
       return [];
     }
-  }, [pieces, catalog, inventory, scraps, nestingState, customerType]);
+  }, [pieces, effCatalog, inventory, scraps, nestingState, customerType]);
 
   if (groups.length === 0) {
     return null;

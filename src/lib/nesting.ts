@@ -1312,7 +1312,9 @@ const computeMixedLastraGroup = (
     let openIdx = -1;
     for (let i = 0; i < availableBins.length; i++) {
       const b = availableBins[i];
-      if (ors.some((o) => o.w <= b.widthM + 1e-6 && o.h <= b.heightM + 1e-6)) {
+      const bw = Math.max(0.001, b.widthM - 2 * perimeterM);
+      const bh = Math.max(0.001, b.heightM - 2 * perimeterM);
+      if (ors.some((o) => o.w <= bw + 1e-6 && o.h <= bh + 1e-6)) {
         openIdx = i;
         break;
       }
@@ -1323,9 +1325,11 @@ const computeMixedLastraGroup = (
     }
     const bin = availableBins.splice(openIdx, 1)[0];
     const material = matByBinId.get(bin.id)!;
+    const usableW = Math.max(0.001, bin.widthM - 2 * perimeterM);
+    const usableH = Math.max(0.001, bin.heightM - 2 * perimeterM);
     const newSheet: OpenSheet = {
-      bin, w: bin.widthM, h: bin.heightM,
-      free: [{ x: 0, y: 0, w: bin.widthM, h: bin.heightM }],
+      bin, w: usableW, h: usableH,
+      free: [{ x: 0, y: 0, w: usableW, h: usableH }],
       material,
     };
     openSheets.push(newSheet);
@@ -1353,6 +1357,14 @@ const computeMixedLastraGroup = (
   }
 
   if (openSheets.length === 0) return null;
+
+  // Trasla gli items del margine perimetrale (coordinate assolute sul foglio).
+  if (perimeterM > 0) {
+    for (const it of allItems) {
+      it.x += perimeterM;
+      it.y += perimeterM;
+    }
+  }
 
   // Costo per foglio con prezzi della sua variante specifica
   const cutCount = pieces.filter((p) => p.priceMode === "cut").length;

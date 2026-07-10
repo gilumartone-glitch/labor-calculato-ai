@@ -645,17 +645,31 @@ const pairShapes = (raw: RawItem[]): PairedUnit[] => {
 type MRRect = { x: number; y: number; w: number; h: number };
 type MRPlacement = { rect: MRRect; score1: number; score2: number; rotated: boolean };
 
+const mrIntersects = (a: MRRect, b: MRRect): boolean =>
+  !(
+    a.x >= b.x + b.w - 1e-9 ||
+    a.x + a.w <= b.x + 1e-9 ||
+    a.y >= b.y + b.h - 1e-9 ||
+    a.y + a.h <= b.y + 1e-9
+  );
+
+const mrOverlapsUsed = (used: MRRect[] | undefined, rect: MRRect): boolean =>
+  !!used?.some((u) => mrIntersects(u, rect));
+
 const mrContains = (a: MRRect, b: MRRect): boolean =>
   a.x <= b.x + 1e-9 &&
   a.y <= b.y + 1e-9 &&
   a.x + a.w + 1e-9 >= b.x + b.w &&
   a.y + a.h + 1e-9 >= b.y + b.h;
 
-/** Best-Short-Side-Fit su una lista di rettangoli liberi. Ritorna null se non ci sta. */
-const mrFindBSSF = (free: MRRect[], w: number, h: number): { rect: MRRect; score1: number; score2: number } | null => {
+/** Best-Short-Side-Fit su una lista di rettangoli liberi. Ritorna null se non ci sta.
+ *  Se `used` è passato, scarta subito i candidati che si accavallano a pezzi già piazzati. */
+const mrFindBSSF = (free: MRRect[], w: number, h: number, used?: MRRect[]): { rect: MRRect; score1: number; score2: number } | null => {
   let best: { rect: MRRect; score1: number; score2: number } | null = null;
   for (const fr of free) {
     if (fr.w + 1e-9 < w || fr.h + 1e-9 < h) continue;
+    const rect = { x: fr.x, y: fr.y, w, h };
+    if (mrOverlapsUsed(used, rect)) continue;
     const leftoverH = fr.w - w;
     const leftoverV = fr.h - h;
     const short = Math.min(leftoverH, leftoverV);
@@ -665,7 +679,7 @@ const mrFindBSSF = (free: MRRect[], w: number, h: number): { rect: MRRect; score
       short < best.score1 - 1e-9 ||
       (Math.abs(short - best.score1) < 1e-9 && long < best.score2)
     ) {
-      best = { rect: { x: fr.x, y: fr.y, w, h }, score1: short, score2: long };
+      best = { rect, score1: short, score2: long };
     }
   }
   return best;
@@ -708,8 +722,8 @@ const mrPlace = (free: MRRect[], r: MRRect): void => {
   for (const r2 of pruned) free.push(r2);
 };
 
-type MRBin = { w: number; h: number; free: MRRect[] };
-const mrNewBin = (w: number, h: number): MRBin => ({ w, h, free: [{ x: 0, y: 0, w, h }] });
+type MRBin = { w: number; h: number; free: MRRect[]; used: MRRect[] };
+const mrNewBin = (w: number, h: number): MRBin => ({ w, h, free: [{ x: 0, y: 0, w, h }], used: [] });
 
 /** Costruisce la lista di orientamenti (naturale + eventualmente ruotato) per una unit. */
 const mrUnitOrientations = (u: PairedUnit): { w: number; h: number; rotated: boolean }[] => {
@@ -882,6 +896,7 @@ const multiSheetPack = (
       for (const o of ors) {
         const f = mrFindBSSF(bins[bi].free, o.w, o.h);
         if (!f) continue;
+        if (mrOverlapsUsed(bins[bi].used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -900,8 +915,9 @@ const multiSheetPack = (
       // Nel bin appena aperto scelgo l'orientamento che spreca meno
       let openBest: MRPlacement | null = null;
       for (const o of ors) {
-        const f = mrFindBSSF(bin.free, o.w, o.h);
+          const f = mrFindBSSF(bin.free, o.w, o.h);
         if (!f) continue;
+          if (mrOverlapsUsed(bin.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !openBest ||
@@ -916,9 +932,11 @@ const multiSheetPack = (
         continue;
       }
       mrPlace(bin.free, openBest.rect);
+      bin.used.push(openBest.rect);
       mrEmitItems(u, openBest.rect, openBest.rotated, bi, allItems);
     } else {
       mrPlace(bins[best.binIdx].free, best.placement.rect);
+      bins[best.binIdx].used.push(best.placement.rect);
       mrEmitItems(u, best.placement.rect, best.placement.rotated, best.binIdx, allItems);
     }
   }
@@ -1273,6 +1291,7 @@ const computeMixedLastraGroup = (
     w: number;
     h: number;
     free: MRRect[];
+    used: MRRect[];
     material: CatalogMaterial;
   };
   const openSheets: OpenSheet[] = [];
@@ -1290,7 +1309,7 @@ const computeMixedLastraGroup = (
       const s = openSheets[si];
       for (const o of ors) {
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
-        const f = mrFindBSSF(s.free, o.w, o.h);
+        const f = mrFindBSSF(s.free, o.w, o.h, s.used);
         if (!f) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
@@ -1305,6 +1324,7 @@ const computeMixedLastraGroup = (
     if (best) {
       const s = openSheets[best.sheetIdx];
       mrPlace(s.free, best.placement.rect);
+      s.used.push(best.placement.rect);
       mrEmitItems(u, best.placement.rect, best.placement.rotated, best.sheetIdx, allItems);
       continue;
     }
@@ -1330,6 +1350,7 @@ const computeMixedLastraGroup = (
     const newSheet: OpenSheet = {
       bin, w: usableW, h: usableH,
       free: [{ x: 0, y: 0, w: usableW, h: usableH }],
+      used: [],
       material,
     };
     openSheets.push(newSheet);
@@ -1337,7 +1358,7 @@ const computeMixedLastraGroup = (
     let openBest: MRPlacement | null = null;
     for (const o of ors) {
       if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
-      const f = mrFindBSSF(newSheet.free, o.w, o.h);
+      const f = mrFindBSSF(newSheet.free, o.w, o.h, newSheet.used);
       if (!f) continue;
       const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
       if (
@@ -1353,6 +1374,7 @@ const computeMixedLastraGroup = (
       continue;
     }
     mrPlace(newSheet.free, openBest.rect);
+    newSheet.used.push(openBest.rect);
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
   }
 
@@ -1718,7 +1740,7 @@ export const recomputeGroupWithMixedBins = (
   const units = pairShapes(raw);
 
   // 2) Pool di "fogli aperti", ognuno con le proprie dimensioni di bin (MaxRects BSSF)
-  type OpenSheet = { bin: NestingMixedBin; w: number; h: number; free: MRRect[] };
+  type OpenSheet = { bin: NestingMixedBin; w: number; h: number; free: MRRect[]; used: MRRect[] };
   const openSheets: OpenSheet[] = [];
   const allItems: NestingPieceItem[] = [];
   const unplacedUnits: PairedUnit[] = [];
@@ -1744,6 +1766,7 @@ export const recomputeGroupWithMixedBins = (
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
         const f = mrFindBSSF(s.free, o.w, o.h);
         if (!f) continue;
+        if (mrOverlapsUsed(s.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -1776,6 +1799,7 @@ export const recomputeGroupWithMixedBins = (
     const newSheet: OpenSheet = {
       bin, w: usableW, h: usableH,
       free: [{ x: 0, y: 0, w: usableW, h: usableH }],
+        used: [],
     };
     openSheets.push(newSheet);
     const newIndex = openSheets.length - 1;
@@ -1784,6 +1808,7 @@ export const recomputeGroupWithMixedBins = (
       if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
       const f = mrFindBSSF(newSheet.free, o.w, o.h);
       if (!f) continue;
+      if (mrOverlapsUsed(newSheet.used, f.rect)) continue;
       const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
       if (
         !openBest ||
@@ -1795,6 +1820,7 @@ export const recomputeGroupWithMixedBins = (
     }
     if (!openBest) return false;
     mrPlace(newSheet.free, openBest.rect);
+    newSheet.used.push(openBest.rect);
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
     return true;
   };
@@ -1810,6 +1836,7 @@ export const recomputeGroupWithMixedBins = (
       if (b) {
         const s = openSheets[b.sheetIdx];
         mrPlace(s.free, b.placement.rect);
+        s.used.push(b.placement.rect);
         mrEmitItems(u, b.placement.rect, b.placement.rotated, b.sheetIdx, allItems);
         placed = true; break;
       }

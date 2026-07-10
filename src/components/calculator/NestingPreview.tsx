@@ -659,6 +659,19 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
               </div>
             </div>
             <div className="font-mono text-[10px] text-muted-foreground flex items-center gap-2">
+              {(() => {
+                const usedMixed = g.mixedSheets?.filter((_, i) => g.items.some((it) => (it.sheetIndex ?? 0) === i)) ?? [];
+                if (usedMixed.length === 0) return null;
+                const scraps = usedMixed.filter((s) => s.bin.kind === "scrap").length;
+                const fallback = usedMixed.filter((s) => s.bin.kind === "sheet" && String(s.bin.id).startsWith("__fallback_")).length;
+                const sheets = usedMixed.filter((s) => s.bin.kind === "sheet" && !String(s.bin.id).startsWith("__fallback_")).length;
+                return (
+                  <>
+                    <span>magazzino: <strong className="text-ink">{sheets} lastre + {scraps} sfridi</strong>{fallback > 0 && <strong className="text-destructive"> + {fallback} da ordinare</strong>}</span>
+                    <span className="text-ink/30">·</span>
+                  </>
+                );
+              })()}
               <span>area pezzi: <strong className="text-ink">{fmt(g.usedAreaM2)} m²</strong></span>
               <span className="text-ink/30">·</span>
               <span>sfrido: <strong className="text-ink">{fmt(g.wastePct * 100, 1)}%</strong></span>

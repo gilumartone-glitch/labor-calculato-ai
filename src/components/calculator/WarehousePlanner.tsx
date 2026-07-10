@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Package, Warehouse, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { NestingGroup, NestingMixedBin } from "@/lib/nesting";
+import { getNestingConfig, type NestingGroup, type NestingMixedBin } from "@/lib/nesting";
 import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
 import type { Catalog } from "./types";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
@@ -38,14 +38,16 @@ const fits = (r: { w: number; h: number }, b: { w: number; h: number }) =>
 // --- MaxRects Best-Short-Side-Fit con rotazione (in mm) per stimare correttamente
 // quanti pezzi entrano in una lastra/sfrido: così lo shortage non conta 1 lastra per pezzo.
 type FR = { x: number; y: number; w: number; h: number };
-const bssf = (free: FR[], w: number, h: number) => {
+const bssf = (free: FR[], w: number, h: number, used: FR[] = []) => {
   let best: { rect: FR; s1: number; s2: number } | null = null;
   for (const f of free) {
     if (f.w + 1e-6 < w || f.h + 1e-6 < h) continue;
+    const rect = { x: f.x, y: f.y, w, h };
+    if (used.some((u) => intersects(u, rect))) continue;
     const leftover = [f.w - w, f.h - h];
     const s1 = Math.min(...leftover), s2 = Math.max(...leftover);
     if (!best || s1 < best.s1 - 1e-9 || (Math.abs(s1 - best.s1) < 1e-9 && s2 < best.s2)) {
-      best = { rect: { x: f.x, y: f.y, w, h }, s1, s2 };
+      best = { rect, s1, s2 };
     }
   }
   return best;
@@ -76,13 +78,16 @@ const placeInto = (free: FR[], p: FR) => {
   }
   return pruned;
 };
-type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[] };
+const intersects = (a: FR, b: FR) =>
+  !(a.x >= b.x + b.w - 1e-6 || a.x + a.w <= b.x + 1e-6 || a.y >= b.y + b.h - 1e-6 || a.y + a.h <= b.y + 1e-6);
+type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[]; used: FR[] };
 const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
-  const a = bssf(bin.free, w, h);
-  const b = w !== h ? bssf(bin.free, h, w) : null;
+  const a = bssf(bin.free, w, h, bin.used);
+  const b = w !== h ? bssf(bin.free, h, w, bin.used) : null;
   const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
   if (!pick) return false;
   bin.free = placeInto(bin.free, pick.rect);
+  bin.used.push(pick.rect);
   return true;
 };
 
@@ -222,6 +227,12 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
   const plans = useMemo<Record<string, GroupPlan>>(() => {
     const out: Record<string, GroupPlan> = {};
     if (!enabled) return out;
+    const perimeterMm = catalog ? getNestingConfig(catalog).perimeterM * 1000 : 0;
+    const usable = (b: { w: number; h: number }) => ({
+      w: Math.max(1, b.w - 2 * perimeterMm),
+      h: Math.max(1, b.h - 2 * perimeterMm),
+    });
+    const fitsUsable = (r: { w: number; h: number }, b: { w: number; h: number }) => fits(r, usable(b));
     for (const g of groups) {
       const pool = pools[g.key] ?? { scraps: [], sheets: [], fallbacks: [] };
       // Pool ordinato PICCOLO → GRANDE (area crescente): sfridi + lastre di magazzino.
@@ -239,7 +250,8 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       let uScrap = 0, uSheet = 0, uFallback = 0;
 
       const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
-        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w, h }] };
+        const u = usable({ w, h });
+        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w: u.w, h: u.h }], used: [] };
         openBins.push(b); return b;
       };
 
@@ -257,32 +269,32 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         if (placed) continue;
 
         // 1) apri il più piccolo SFRIDO che lo contenga
-        const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
+        const sIdx = scraps.findIndex((b) => b.left > 0 && fitsUsable(r, b));
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
           const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
-          tryPlace(nb, r.w, r.h); uScrap++; continue;
+          if (tryPlace(nb, r.w, r.h)) { uScrap++; continue; }
         }
         // 2) apri la più piccola LASTRA di magazzino che lo contenga
-        const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
+        const shIdx = sheets.findIndex((b) => b.left > 0 && fitsUsable(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
           const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
-          tryPlace(nb, r.w, r.h); uSheet++; continue;
+          if (tryPlace(nb, r.w, r.h)) { uSheet++; continue; }
         }
         // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
         if (bypass && pool.fallbacks.length > 0) {
-          const fb = pool.fallbacks.find((b) => fits(r, b));
+          const fb = pool.fallbacks.find((b) => fitsUsable(r, b));
           if (fb) {
             const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
-            tryPlace(nb, r.w, r.h); uFallback++; continue;
+            if (tryPlace(nb, r.w, r.h)) { uFallback++; continue; }
           }
         }
         // 4) mancante
         missing.push({ label: r.label, w: r.w, h: r.h });
       }
 
-      const bins: NestingMixedBin[] = openBins.map((b) => ({
+      const bins: NestingMixedBin[] = openBins.filter((b) => b.used.length > 0).map((b) => ({
         kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
       }));
 
@@ -295,7 +307,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       };
     }
     return out;
-  }, [enabled, groups, pools, bypass]);
+  }, [enabled, groups, pools, bypass, catalog]);
 
   // Applica automaticamente i piani sui gruppi (solo quelli con copertura completa,
   // oppure tutti se bypass attivo).
@@ -372,7 +384,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       {enabled && !loading && groups.length > 0 && (
         <div className="mt-4 space-y-3">
           {/* Riepilogo globale */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 font-mono text-sm">
             <div className="border border-ink/15 rounded-md p-2 bg-background">
               <div className="text-xs uppercase text-muted-foreground">Pezzi totali</div>
               <div className="text-lg font-bold tabular-nums">{totals.total}</div>
@@ -391,6 +403,12 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
               <div className="text-xs uppercase text-muted-foreground">Lastre magazzino</div>
               <div className="text-lg font-bold tabular-nums">{totals.sheet}</div>
             </div>
+            <div className="border border-ink/15 rounded-md p-2 bg-background">
+              <div className="text-xs uppercase text-muted-foreground">Lastre da ordinare</div>
+              <div className={`text-lg font-bold tabular-nums ${totals.fallback > 0 ? "text-destructive" : "text-primary"}`}>
+                {totals.fallback}
+              </div>
+            </div>
             <div className={`border rounded-md p-2 bg-background ${totals.missing > 0 ? "border-destructive/60" : "border-ink/15"}`}>
               <div className="text-xs uppercase text-muted-foreground">Da ordinare</div>
               <div className={`text-lg font-bold tabular-nums ${totals.missing > 0 ? "text-destructive" : "text-primary"}`}>
@@ -400,10 +418,17 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
           </div>
 
           {/* Copertura completa */}
-          {totals.missing === 0 && totals.total > 0 && (
+          {totals.missing === 0 && totals.total > 0 && totals.fallback === 0 && (
             <div className="flex items-center gap-2 p-3 border-2 border-primary/50 bg-primary/10 rounded-md text-primary font-semibold text-base">
               <CheckCircle2 className="w-5 h-5" />
               Tutti i pezzi coperti dal magazzino: {totals.scrap} sfrido/i + {totals.sheet} lastra/e.
+            </div>
+          )}
+
+          {totals.fallback > 0 && (
+            <div className="flex items-center gap-2 p-3 border-2 border-destructive/50 bg-destructive/10 rounded-md text-destructive font-semibold text-base">
+              <ShoppingCart className="w-5 h-5" />
+              Magazzino usato: {totals.scrap} sfrido/i + {totals.sheet} lastra/e. Da ordinare con bypass: {totals.fallback} lastra/e standard.
             </div>
           )}
 

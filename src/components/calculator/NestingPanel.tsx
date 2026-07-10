@@ -890,6 +890,13 @@ const GroupSummary = ({
   const wastePct = group.wastePct * 100;
   const wasteColor =
     wastePct < 15 ? "text-primary" : wastePct < 30 ? "text-ink" : "text-destructive";
+  const usedMixedSheets = group.mixedSheets?.filter((_, i) =>
+    group.items.some((it) => (it.sheetIndex ?? 0) === i),
+  ) ?? [];
+  const usedMixedScraps = usedMixedSheets.filter((s) => s.bin.kind === "scrap").length;
+  const usedMixedFallbacks = usedMixedSheets.filter((s) => s.bin.kind === "sheet" && String(s.bin.id).startsWith("__fallback_")).length;
+  const usedMixedFullSheets = usedMixedSheets.filter((s) => s.bin.kind === "sheet" && !String(s.bin.id).startsWith("__fallback_")).length;
+  const mixedCountLabel = `${usedMixedFullSheets}L + ${usedMixedScraps}S${usedMixedFallbacks > 0 ? ` + ${usedMixedFallbacks}O` : ""}`;
   return (
     <div className="border border-ink/20 rounded-sm overflow-hidden">
       <button
@@ -915,9 +922,11 @@ const GroupSummary = ({
         <div className="flex items-center gap-5 shrink-0 font-mono text-xs">
           {group.format === "lastra" && group.sheetsNeeded !== undefined && (
             <div className="text-right">
-              <div className="label-cap mb-0.5">Lastre</div>
+              <div className="label-cap mb-0.5">{usedMixedSheets.length > 0 ? "Magazzino" : "Lastre"}</div>
               <div className="font-semibold tabular-nums text-primary">
-                {group.sheetsNeeded} ×
+                {usedMixedSheets.length > 0
+                  ? mixedCountLabel
+                  : `${group.sheetsNeeded} ×`}
               </div>
             </div>
           )}
@@ -1048,8 +1057,18 @@ const GroupSummary = ({
             <div className="flex items-center gap-2 px-3 py-2 border border-primary/40 bg-primary/5 rounded-sm font-mono text-[11px]">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span>
-                Servono <span className="font-bold text-primary">{group.sheetsNeeded} lastr{group.sheetsNeeded === 1 ? "a" : "e"}</span>
-                {" "}da {fmtCm(group.sheetWidthM ?? group.rollWidthM)} × {fmtCm(group.sheetHeightM)} cm per realizzare i pezzi.
+                {usedMixedSheets.length > 0 ? (
+                  <>
+                    Usati dal magazzino <span className="font-bold text-primary">{usedMixedFullSheets} lastr{usedMixedFullSheets === 1 ? "a" : "e"} inter{usedMixedFullSheets === 1 ? "a" : "e"}</span>
+                    {usedMixedScraps > 0 && <> + <span className="font-bold text-primary">{usedMixedScraps} sfrid{usedMixedScraps === 1 ? "o" : "i"}</span></>}.
+                    {usedMixedFallbacks > 0 && <> Da ordinare: <span className="font-bold text-destructive">{usedMixedFallbacks} lastr{usedMixedFallbacks === 1 ? "a" : "e"}</span>.</>}
+                  </>
+                ) : (
+                  <>
+                    Servono <span className="font-bold text-primary">{group.sheetsNeeded} lastr{group.sheetsNeeded === 1 ? "a" : "e"}</span>
+                    {" "}da {fmtCm(group.sheetWidthM ?? group.rollWidthM)} × {fmtCm(group.sheetHeightM)} cm per realizzare i pezzi.
+                  </>
+                )}
               </span>
             </div>
           )}
@@ -2349,8 +2368,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
       </div>
 
       <WarehousePlanner
-        groups={groups}
-        catalog={catalog}
+        groups={baseGroups}
+        catalog={effCatalog}
         onApplyAllMixedBins={(byGroup) => setMixedBinsByGroup((prev) => ({ ...prev, ...byGroup }))}
       />
 

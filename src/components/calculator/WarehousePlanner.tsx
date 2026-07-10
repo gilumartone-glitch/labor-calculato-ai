@@ -91,6 +91,13 @@ const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
   return true;
 };
 
+const reqSortVariants = <T extends { w: number; h: number }>(reqs: T[]): T[][] => [
+  [...reqs].sort((a, b) => b.w * b.h - a.w * a.h || Math.max(b.w, b.h) - Math.max(a.w, a.h)),
+  [...reqs].sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h),
+  [...reqs].sort((a, b) => b.w - a.w || b.h - a.h || b.w * b.h - a.w * a.h),
+  [...reqs].sort((a, b) => b.h - a.h || b.w - a.w || b.w * b.h - a.w * a.h),
+];
+
 import { mmToCm } from "@/lib/fmt";
 const cm = (mm: number) => mmToCm(mm);
 // Estrae il valore numerico da una stringa spessore (es. "8 mm" → 8, "8mm" → 8).

@@ -1322,6 +1322,7 @@ const computeMixedLastraGroup = (
     if (best) {
       const s = openSheets[best.sheetIdx];
       mrPlace(s.free, best.placement.rect);
+      s.used.push(best.placement.rect);
       mrEmitItems(u, best.placement.rect, best.placement.rotated, best.sheetIdx, allItems);
       continue;
     }

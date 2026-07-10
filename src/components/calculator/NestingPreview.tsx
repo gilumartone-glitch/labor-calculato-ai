@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Layers3, FileText, Printer, Tag } from "lucide-react";
+import { Layers3, Download, Printer, Tag } from "lucide-react";
 import { Catalog, PieceLine } from "./types";
 import {
   computeNesting,
@@ -15,7 +15,7 @@ import {
 } from "@/lib/nesting";
 import { useProdStore } from "@/lib/produzione/store";
 import { mmToCm, mToCm } from "@/lib/fmt";
-import { exportNestingPdf, openPrintCuttingSheet, openPrintDymoLabels } from "./NestingPanel";
+import { exportNestingDxf, openPrintCuttingSheet, openPrintDymoLabels } from "./NestingPanel";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 /**
@@ -455,6 +455,12 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     kerfMm: nestSettings.kerfMm,
     perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm,
   };
+  const dxfCfg = {
+    kerfMm: nestSettings.kerfMm,
+    perimeterMm: nestSettings.perimeterMm,
+    skipPerimeter: nestSettings.skipPerimeter,
+  };
+
   const groups = useMemo(() => {
     if (!catalog || !pieces.length) return [] as NestingGroup[];
     try {
@@ -554,13 +560,14 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
       <div className="flex flex-wrap items-center gap-2 -mt-2">
         <button
           type="button"
-          onClick={() => exportNestingPdf(groups, exportCfg)}
+          onClick={() => exportNestingDxf(groups, dxfCfg)}
           disabled={groups.length === 0}
           className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/10 disabled:opacity-40"
-          title="Scarica il PDF del nesting in scala reale"
+          title="Scarica il file DXF (mm) importabile in Aspire / VCarve / AutoCAD"
         >
-          <FileText className="w-4 h-4" /> Scarica PDF nesting
+          <Download className="w-4 h-4" /> Scarica DXF (Aspire/CAM)
         </button>
+
         <button
           type="button"
           onClick={() => openPrintCuttingSheet(groups, exportCfg)}

@@ -1449,10 +1449,11 @@ const verifyDxfOutput = (
   return issues;
 };
 
-const exportNestingDxf = (
+export const exportNestingDxf = (
   groups: NestingGroup[],
   cfg: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean },
 ) => {
+
   if (groups.length === 0) return;
   const lines: string[] = [];
   const push = (code: number | string, val: string | number) => {
@@ -2130,14 +2131,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              onClick={() => exportNestingPdf(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              onClick={() => exportNestingDxf(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.perimeterMm, skipPerimeter: nestSettings.skipPerimeter })}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
-              title="Scarica un PDF (A4 orizzontale) con il layout di taglio in scala reale"
+              title="Scarica un file DXF (mm, scala reale) importabile in Aspire / VCarve / AutoCAD"
             >
-              <FileText className="w-4 h-4" />
-              Esporta PDF
+              <Download className="w-4 h-4" />
+              Esporta DXF (Aspire/CAM)
             </button>
+
             <button
               type="button"
               onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}

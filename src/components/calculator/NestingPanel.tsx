@@ -172,10 +172,12 @@ const SheetSvg = ({
         </text>
 
         {sheetItems.map((it, idx) => {
-          const x = PAD + it.x * scale;
-          const y = PAD + it.y * scale;
-          const w = it.w * scale;
-          const h = it.h * scale;
+          const realWm = Math.max(0, it.w - kerfM);
+          const realHm = Math.max(0, it.h - kerfM);
+          const x = PAD + (it.x + halfKerf) * scale;
+          const y = PAD + (it.y + halfKerf) * scale;
+          const w = realWm * scale;
+          const h = realHm * scale;
           // Colore SOLIDO pre-composto (identico a quello delle righe della lista).
           // Niente fillOpacity: garantisce che pezzo nel piano e riga in lista siano
           // matematicamente lo stesso colore renderizzato.
@@ -227,12 +229,13 @@ const SheetSvg = ({
                     <tspan x={cx}>{it.label}{it.rotated ? " ↻" : ""}</tspan>
                     {showDim && (
                       <tspan x={cx} dy={fs * 1.05} fontWeight={600} fontSize={fs * 0.82}>
-                        {fmtCm(it.w)}×{fmtCm(it.h)} cm
+                        {fmtCm(realWm)}×{fmtCm(realHm)} cm
                       </tspan>
                     )}
                   </text>
                 );
               })()}
+
 
               {debug && (
                 <g pointerEvents="none">

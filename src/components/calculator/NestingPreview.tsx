@@ -461,10 +461,21 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     skipPerimeter: nestSettings.skipPerimeter,
   };
 
+  // Catalogo effettivo con i flag di nesting (fresa + margine perimetrale):
+  // fondamentale per far spaziare correttamente i pezzi anche in read-only,
+  // altrimenti il packer li posiziona attaccati e il DXF esportato risulta
+  // senza kerf/margine.
+  const effCatalog = useMemo(() => (catalog ? ({
+    ...catalog,
+    __kerfMm: nestSettings.kerfMm,
+    __perimeterMarginMm: nestSettings.perimeterMm,
+    __skipPerimeterMargin: nestSettings.skipPerimeter,
+  }) : catalog), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+
   const groups = useMemo(() => {
-    if (!catalog || !pieces.length) return [] as NestingGroup[];
+    if (!effCatalog || !pieces.length) return [] as NestingGroup[];
     try {
-      const base = computeNesting(pieces, catalog, customerType);
+      const base = computeNesting(pieces, effCatalog, customerType);
       const indexMap = buildPieceIndexMap(pieces);
       return base.map((g) => {
         const groupPieces = piecesOfGroup(pieces, g.key);

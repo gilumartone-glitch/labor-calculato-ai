@@ -2365,6 +2365,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
                   expanded={isExpanded(g.key)}
                   onToggle={() => setExpanded((prev) => ({ ...prev, [g.key]: !isExpanded(g.key) }))}
                   variants={variantsForGroup(g)}
+                  kerfMm={nestSettings.kerfMm}
+
                   override={overrides[g.key] ?? null}
                   onOverrideChange={(o) =>
                     setOverrides((prev) => ({ ...prev, [g.key]: o }))

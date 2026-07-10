@@ -42,8 +42,11 @@ interface Props {
 }
 
 export const WarehousePlanner = ({ groups, onApplyAllMixedBins }: Props) => {
-  const [enabled, setEnabled] = useLocalStorageState("nesting.useWarehouse.v1", false);
-  const [bypass, setBypass] = useLocalStorageState("nesting.useWarehouse.bypass.v1", false);
+  // Default ON: il nesting deve suggerire automaticamente i pezzi migliori
+  // (prima sfridi in magazzino, poi lastre standard). Bypass ON di default
+  // così se il magazzino non basta si completa comunque con lastre nuove.
+  const [enabled, setEnabled] = useLocalStorageState("nesting.useWarehouse.v2", true);
+  const [bypass, setBypass] = useLocalStorageState("nesting.useWarehouse.bypass.v2", true);
   const [loading, setLoading] = useState(false);
   const [pools, setPools] = useState<Record<string, BinPool>>({});
   const lastAppliedRef = useRef<string>("");

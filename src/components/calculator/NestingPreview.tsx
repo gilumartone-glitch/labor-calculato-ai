@@ -487,7 +487,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
         }
         const savedOv = nestingState?.overrides?.[g.key];
         if (savedOv && savedOv.widthM > 0 && savedOv.heightM > 0) {
-          const overridden = recomputeGroupWithOverride(g, groupPieces, catalog, savedOv, indexMap, customerType);
+          const overridden = recomputeGroupWithOverride(g, groupPieces, effCatalog, savedOv, indexMap, customerType);
           if (savedOv.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
           return overridden;
         }

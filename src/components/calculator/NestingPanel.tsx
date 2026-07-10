@@ -1848,13 +1848,14 @@ export const openPrintCuttingSheet = (
   w.document.close();
 };
 
-/** Apre una finestra stampabile con UNA etichetta Dymo per ogni pezzo.
- *  Formato tape 55×25 mm — una etichetta per pagina,
- *  così la stampante Dymo può alimentare correttamente. Ogni etichetta riporta:
- *  riferimento (es. A-1), materiale, misure in cm, indicazione rotazione. */
-export const openPrintDymoLabels = (groups: NestingGroup[]) => {
+/** Genera un archivio ZIP contenente UN file .labelx (DYMO Label XML v8)
+ *  per ogni pezzo del nesting. Formato tape 55×25 mm. L'operatore apre i file
+ *  in DYMO Connect / DYMO Label e stampa. */
+export const openPrintDymoLabels = async (groups: NestingGroup[]) => {
   if (groups.length === 0) return;
-  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const esc = (s: string) => String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;",
+  }[c]!));
   const cm = (m: number) => (m * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 });
 
   type Label = { ref: string; material: string; dims: string; rotated: boolean; sheet: string; label: string };
@@ -1883,60 +1884,116 @@ export const openPrintDymoLabels = (groups: NestingGroup[]) => {
   }
   if (labels.length === 0) return;
 
-  const cards = labels
-    .map(
-      (l) => `
-      <div class="lab">
-        <div class="row1">
-          <div class="ref">${esc(l.ref)}</div>
-          <div class="dims">${esc(l.dims)}${l.rotated ? " ↻" : ""}</div>
-        </div>
-        <div class="lbl">${esc(l.label)}</div>
-        <div class="mat">${esc(l.material)} · ${esc(l.sheet)}</div>
-      </div>`,
-    )
-    .join("");
+  // 55mm × 25mm → in 1/1000 inch (unità DYMO): 55mm = 2165, 25mm = 984
+  // Paper name "30334" (2-1/4 x 1-1/4 in = 57×32mm) — usiamo formato custom.
+  const buildLabelx = (l: Label) => {
+    const line1 = `${l.ref}   ${l.dims}${l.rotated ? " ↻" : ""}`;
+    const line2 = l.label;
+    const line3 = `${l.material} · ${l.sheet}`;
+    const text = `${line1}\n${line2}\n${line3}`;
+    return `<?xml version="1.0" encoding="utf-8"?>
+<DesktopLabel Version="1">
+  <DYMOLabel Version="3">
+    <Description>Etichetta pezzo ${esc(l.ref)}</Description>
+    <Orientation>Landscape</Orientation>
+    <LabelName>Small30334</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint>
+        <X>0.057</X>
+        <Y>0.061</Y>
+      </DYMOPoint>
+      <Size>
+        <Width>2.16</Width>
+        <Height>0.985</Height>
+      </Size>
+    </DYMORect>
+    <BorderColor>
+      <SolidColorBrush>
+        <Color A="1" R="0" G="0" B="0"></Color>
+      </SolidColorBrush>
+    </BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>False</Show_Border>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        <TextObject>
+          <Name>PezzoText</Name>
+          <Brushes>
+            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></BackgroundBrush>
+            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
+            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
+            <FillBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0"/></Margin>
+          <PartsAssembly>
+            <StyledText>
+              <Text>${esc(text)}</Text>
+              <Style>
+                <DYMOFont Family="Arial" Size="12" Bold="True" Italic="False" Underline="False" Strikeout="False"/>
+                <ForeColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></ForeColor>
+              </Style>
+            </StyledText>
+          </PartsAssembly>
+          <HorizontalAlignment>Left</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <FitMode>ShrinkToFit</FitMode>
+          <IsVertical>False</IsVertical>
+          <ObjectLayout>
+            <DYMOPoint><X>0.1</X><Y>0.08</Y></DYMOPoint>
+            <Size><Width>2.06</Width><Height>0.84</Height></Size>
+          </ObjectLayout>
+        </TextObject>
+      </LabelObjects>
+    </DynamicLayoutManager>
+  </DYMOLabel>
+  <LabelApplication>DymoConnect</LabelApplication>
+  <DataTable>
+    <Columns/>
+    <Rows/>
+  </DataTable>
+</DesktopLabel>`;
+  };
 
-  const html = `<!doctype html>
-<html lang="it">
-<head>
-<meta charset="utf-8" />
-<title>Etichette pezzi (Dymo 55×25)</title>
-<style>
-  @page { size: 55mm 25mm; margin: 0; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
-  .lab {
-    width: 55mm; height: 25mm; padding: 1.5mm 2mm;
-    page-break-after: always; break-after: page;
-    display: flex; flex-direction: column; justify-content: space-between;
-    border: 0.2mm dashed #ccc;
+  const safeName = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60);
+
+  // Se un solo pezzo → download diretto .labelx; altrimenti ZIP con N file .labelx.
+  const stamp = new Date().toISOString().slice(0, 10);
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  if (labels.length === 1) {
+    const l = labels[0];
+    triggerDownload(
+      new Blob([buildLabelx(l)], { type: "application/xml" }),
+      `${safeName(l.ref)}.labelx`,
+    );
+    return;
   }
-  .lab:last-child { page-break-after: auto; }
-  .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; }
-  .ref { font-size: 7.5mm; font-weight: 900; letter-spacing: 0.15mm; line-height: 1; }
-  .dims { font-size: 4.2mm; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .lbl { font-size: 3mm; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mat { font-size: 2.4mm; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  @media screen {
-    body { padding: 16px; background: #eee; }
-    .lab { background: #fff; margin: 0 auto 8px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
-  }
-</style>
-</head>
-<body>
-${cards}
-<script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
-</body>
-</html>`;
-
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  labels.forEach((l) => {
+    zip.file(`${safeName(l.ref)}.labelx`, buildLabelx(l));
+  });
+  const blob = await zip.generateAsync({ type: "blob" });
+  triggerDownload(blob, `etichette-nesting-${stamp}.zip`);
 };
+
 
 
 

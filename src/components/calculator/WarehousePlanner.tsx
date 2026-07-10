@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Package, Warehouse, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { NestingGroup, NestingMixedBin } from "@/lib/nesting";
+import { getNestingConfig, type NestingGroup, type NestingMixedBin } from "@/lib/nesting";
 import type { InvItem, ScrapPiece } from "@/lib/produzione/types";
 import type { Catalog } from "./types";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
@@ -76,13 +76,17 @@ const placeInto = (free: FR[], p: FR) => {
   }
   return pruned;
 };
-type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[] };
+const intersects = (a: FR, b: FR) =>
+  !(a.x >= b.x + b.w - 1e-6 || a.x + a.w <= b.x + 1e-6 || a.y >= b.y + b.h - 1e-6 || a.y + a.h <= b.y + 1e-6);
+type OpenBin = { key: string; kind: "scrap" | "sheet"; id: string; w: number; h: number; label: string; free: FR[]; used: FR[] };
 const tryPlace = (bin: OpenBin, w: number, h: number): boolean => {
   const a = bssf(bin.free, w, h);
   const b = w !== h ? bssf(bin.free, h, w) : null;
   const pick = !a ? b : !b ? a : (b.s1 < a.s1 - 1e-9 || (Math.abs(b.s1 - a.s1) < 1e-9 && b.s2 < a.s2) ? b : a);
   if (!pick) return false;
+  if (bin.used.some((u) => intersects(u, pick.rect))) return false;
   bin.free = placeInto(bin.free, pick.rect);
+  bin.used.push(pick.rect);
   return true;
 };
 
@@ -222,6 +226,12 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
   const plans = useMemo<Record<string, GroupPlan>>(() => {
     const out: Record<string, GroupPlan> = {};
     if (!enabled) return out;
+    const perimeterMm = catalog ? getNestingConfig(catalog).perimeterM * 1000 : 0;
+    const usable = (b: { w: number; h: number }) => ({
+      w: Math.max(1, b.w - 2 * perimeterMm),
+      h: Math.max(1, b.h - 2 * perimeterMm),
+    });
+    const fitsUsable = (r: { w: number; h: number }, b: { w: number; h: number }) => fits(r, usable(b));
     for (const g of groups) {
       const pool = pools[g.key] ?? { scraps: [], sheets: [], fallbacks: [] };
       // Pool ordinato PICCOLO → GRANDE (area crescente): sfridi + lastre di magazzino.
@@ -239,7 +249,8 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       let uScrap = 0, uSheet = 0, uFallback = 0;
 
       const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
-        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w, h }] };
+        const u = usable({ w, h });
+        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w: u.w, h: u.h }], used: [] };
         openBins.push(b); return b;
       };
 
@@ -257,14 +268,14 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         if (placed) continue;
 
         // 1) apri il più piccolo SFRIDO che lo contenga
-        const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
+        const sIdx = scraps.findIndex((b) => b.left > 0 && fitsUsable(r, b));
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
           const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
           tryPlace(nb, r.w, r.h); uScrap++; continue;
         }
         // 2) apri la più piccola LASTRA di magazzino che lo contenga
-        const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
+        const shIdx = sheets.findIndex((b) => b.left > 0 && fitsUsable(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
           const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
@@ -272,7 +283,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         }
         // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
         if (bypass && pool.fallbacks.length > 0) {
-          const fb = pool.fallbacks.find((b) => fits(r, b));
+          const fb = pool.fallbacks.find((b) => fitsUsable(r, b));
           if (fb) {
             const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
             tryPlace(nb, r.w, r.h); uFallback++; continue;
@@ -295,7 +306,7 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
       };
     }
     return out;
-  }, [enabled, groups, pools, bypass]);
+  }, [enabled, groups, pools, bypass, catalog]);
 
   // Applica automaticamente i piani sui gruppi (solo quelli con copertura completa,
   // oppure tutti se bypass attivo).

@@ -114,10 +114,11 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         const { data: invData } = await supabase
           .from("inventory_items").select("*").ilike("material_name", name);
         const matched = ((invData ?? []) as InvItem[]).filter((r) => {
-          if (g.material?.color && norm(r.material_color) !== norm(g.material.color)) return false;
+          if (g.material?.color && r.material_color && norm(r.material_color) !== norm(g.material.color)) return false;
           const attrs = (r.material_attrs ?? {}) as Record<string, any>;
-          const rowT = norm(attrs.thickness ?? attrs.spessore);
-          return !g.material?.thickness || !rowT || rowT === norm(g.material.thickness);
+          const rowT = normThickness(attrs.thickness ?? attrs.spessore);
+          const gT = normThickness(g.material?.thickness);
+          return !gT || !rowT || rowT === gT;
         });
         let scraps: ScrapPiece[] = [];
         if (matched.length > 0) {

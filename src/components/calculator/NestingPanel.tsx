@@ -24,6 +24,7 @@ import { aggregateWorkBreakdown } from "@/lib/piece";
 import { StockHintForGroup } from "./StockHintForGroup";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { mmToCm, mToCm } from "@/lib/fmt";
 
 interface Props {
   pieces: PieceLine[];
@@ -811,8 +812,8 @@ const FormatSelector = ({
       {override && (
         <div className="font-mono text-[10px] text-muted-foreground">
           {isRotolo
-            ? `Rotolo: h ${Math.round(override.widthM * 100)} × L max ${Math.round(override.heightM * 100)} cm`
-            : `Lastra: ${Math.round(override.widthM * 100)} × ${Math.round(override.heightM * 100)} cm`}
+            ? `Rotolo: h ${mToCm(override.widthM)} × L max ${mToCm(override.heightM)} cm`
+            : `Lastra: ${mToCm(override.widthM)} × ${mToCm(override.heightM)} cm`}
           {" · disponibili: "}
           {override.quantity ? override.quantity : "∞"}
         </div>

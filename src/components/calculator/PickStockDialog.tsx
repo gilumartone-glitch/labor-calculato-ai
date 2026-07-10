@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useProdStore } from "@/lib/produzione/store";
 import { InvDept } from "@/lib/produzione/types";
 import { PieceLine } from "./types";
+import { mmToCm, mToCm } from "@/lib/fmt";
 
 const mm = (n: number) => Math.round(n);
-const cm = (n: number) => Math.round(n / 10);
+const cm = (n: number) => mmToCm(n);
 
 /** Etichetta dimensione lastra per una riga magazzino.
  *  Per LASTRE mostra "base × altezza" (es. "305×205 cm");

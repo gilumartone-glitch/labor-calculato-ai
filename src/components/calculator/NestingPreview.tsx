@@ -14,6 +14,7 @@ import {
   piecesOfGroup,
 } from "@/lib/nesting";
 import { useProdStore } from "@/lib/produzione/store";
+import { mmToCm, mToCm } from "@/lib/fmt";
 
 /**
  * Componente READ-ONLY che mostra il nesting di una lista di pezzi:
@@ -493,7 +494,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
               id: s.id,
               widthM: s.w_mm / 1000,
               heightM: s.h_mm / 1000,
-              label: `Sfrido ${s.code} ${Math.round(s.w_mm / 10)}×${Math.round(s.h_mm / 10)} cm`,
+              label: `Sfrido ${s.code} ${mmToCm(s.w_mm)}×${mmToCm(s.h_mm)} cm`,
             });
           } else {
             const i = inventory.find((x) => x.id === t.id);
@@ -514,7 +515,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
               id: i.id,
               widthM: w / 1000,
               heightM: h / 1000,
-              label: `Lastra ${i.code} ${Math.round(w / 10)}×${Math.round(h / 10)} cm`,
+              label: `Lastra ${i.code} ${mmToCm(w)}×${mmToCm(h)} cm`,
             });
           }
         }

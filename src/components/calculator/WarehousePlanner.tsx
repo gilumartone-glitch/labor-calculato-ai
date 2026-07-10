@@ -234,40 +234,58 @@ export const WarehousePlanner = ({ groups, catalog, onApplyAllMixedBins }: Props
         idx: i, w: Math.round(it.w * 1000), h: Math.round(it.h * 1000), label: it.label,
       })).sort((a, b) => b.w * b.h - a.w * a.h);
 
-      const bins: NestingMixedBin[] = [];
+      const openBins: OpenBin[] = [];
       const missing: { label: string; w: number; h: number }[] = [];
       let uScrap = 0, uSheet = 0, uFallback = 0;
 
-      const pushBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string) => {
-        bins.push({ kind, id, widthM: w / 1000, heightM: h / 1000, label });
-        return bins.length - 1;
+      const openNewBin = (kind: "scrap" | "sheet", id: string, w: number, h: number, label: string): OpenBin => {
+        const b: OpenBin = { key: `${kind}#${id}#${openBins.length}`, kind, id, w, h, label, free: [{ x: 0, y: 0, w, h }] };
+        openBins.push(b); return b;
       };
 
       for (const r of reqs) {
-        // 1) sfrido più piccolo che lo contenga (PRIORITÀ ASSOLUTA)
+        // 0) prova a farlo entrare in un bin GIÀ APERTO (multi-pezzo per lastra):
+        //    prima sfridi aperti, poi lastre aperte, entrambi dal più piccolo.
+        const openCandidates = [...openBins].sort((a, b) => {
+          if (a.kind !== b.kind) return a.kind === "scrap" ? -1 : 1;
+          return a.w * a.h - b.w * b.h;
+        });
+        let placed = false;
+        for (const bin of openCandidates) {
+          if (tryPlace(bin, r.w, r.h)) { placed = true; break; }
+        }
+        if (placed) continue;
+
+        // 1) apri il più piccolo SFRIDO che lo contenga
         const sIdx = scraps.findIndex((b) => b.left > 0 && fits(r, b));
         if (sIdx >= 0) {
           const b = scraps[sIdx]; b.left -= 1;
-          pushBin("scrap", b.id, b.w, b.h, b.label); uScrap++; continue;
+          const nb = openNewBin("scrap", b.id, b.w, b.h, b.label);
+          tryPlace(nb, r.w, r.h); uScrap++; continue;
         }
-        // 2) lastra intera più piccola che lo contenga (tra tutte le misure in magazzino)
+        // 2) apri la più piccola LASTRA di magazzino che lo contenga
         const shIdx = sheets.findIndex((b) => b.left > 0 && fits(r, b));
         if (shIdx >= 0) {
           const b = sheets[shIdx]; b.left -= 1;
-          pushBin("sheet", b.id, b.w, b.h, b.label); uSheet++; continue;
+          const nb = openNewBin("sheet", b.id, b.w, b.h, b.label);
+          tryPlace(nb, r.w, r.h); uSheet++; continue;
         }
-        // 3) fallback catalogo (SOLO se bypass attivo): scegli la più piccola misura
-        //    standard che contiene il pezzo, tra TUTTE le varianti del prodotto.
+        // 3) fallback catalogo (SOLO se bypass): apri la più piccola misura standard
         if (bypass && pool.fallbacks.length > 0) {
           const fb = pool.fallbacks.find((b) => fits(r, b));
           if (fb) {
-            pushBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
-            uFallback++; continue;
+            const nb = openNewBin("sheet", `__fallback_${uFallback}`, fb.w, fb.h, fb.label);
+            tryPlace(nb, r.w, r.h); uFallback++; continue;
           }
         }
         // 4) mancante
         missing.push({ label: r.label, w: r.w, h: r.h });
       }
+
+      const bins: NestingMixedBin[] = openBins.map((b) => ({
+        kind: b.kind, id: b.id, widthM: b.w / 1000, heightM: b.h / 1000, label: b.label,
+      }));
+
 
       out[g.key] = {
         bins, covered: reqs.length - missing.length, total: reqs.length, missing,

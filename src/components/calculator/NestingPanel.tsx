@@ -2304,7 +2304,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
             </button>
             <button
               type="button"
-              onClick={() => openPrintDymoLabels(groups)}
+              onClick={() => openPrintDymoLabels(groups, pieces)}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
               title="Scarica un file .label (DYMO) per ogni pezzo — stock 30336 (25×54 mm)"
@@ -2316,7 +2316,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
             </button>
             <button
               type="button"
-              onClick={() => exportNestingLabelsCsv(groups)}
+              onClick={() => exportNestingLabelsCsv(groups, pieces)}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-primary text-primary font-semibold text-base hover:bg-primary/10 disabled:opacity-40"
               title="Esporta CSV con una riga per etichetta (intestazioni in prima riga)"

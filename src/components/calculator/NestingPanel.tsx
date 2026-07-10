@@ -62,6 +62,17 @@ const colorForPiece = (id: string): string => {
   return `hsl(${h} 70% 55%)`;
 };
 
+/** Etichetta lastra come lettera: 0→A, 1→B, ..., 25→Z, 26→AA. */
+const sheetLetter = (idx: number): string => {
+  let n = idx;
+  let s = "";
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return s;
+};
+
 /** Disegna un SINGOLO foglio (lastra o rotolo) con i suoi pezzi in coordinate locali. */
 const SheetSvg = ({
   group,

@@ -908,7 +908,7 @@ const GroupSummary = ({
                 <Sparkles className="w-4 h-4" />
                 Copertura pezzi · combinazione applicata
               </div>
-              <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+              <ul className="flex flex-col gap-1.5">
                 {(() => {
                   const seen = new Set<string>();
                   const rows: { pieceId: string; label: string; sheetIdx: number; binLabel: string; kind: string; w: number; h: number }[] = [];
@@ -931,19 +931,19 @@ const GroupSummary = ({
                   }
                   return rows.map((r, i) => {
                     const color = colorForPiece(r.pieceId);
+                    // Stessa opacità del riempimento nel nesting (0.5) per far coincidere esattamente i colori.
+                    const bg = color.replace(")", " / 0.5)");
                     return (
                       <li
                         key={i}
-                        className="rounded-sm px-2.5 py-2 flex flex-col gap-1 shadow-sm border-l-4"
-                        style={{ borderLeftColor: color, backgroundColor: color.replace(")", " / 0.12)"), borderTopColor: color, borderRightColor: color, borderBottomColor: color, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderStyle: "solid" }}
+                        className="rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 shadow-sm"
+                        style={{ backgroundColor: bg, border: `1px solid ${color}` }}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-ink truncate">{r.label}</span>
-                        </div>
-                        <span className="font-mono text-xs font-bold text-ink tabular-nums bg-background/70 px-1.5 py-0.5 rounded self-start">
+                        <span className="font-mono text-sm font-bold text-ink">{r.label}</span>
+                        <span className="font-mono text-sm font-bold text-ink tabular-nums bg-background/80 px-2 py-0.5 rounded">
                           {fmtCm(r.w)}×{fmtCm(r.h)} cm
                         </span>
-                        <span className="font-mono text-[11px] text-ink/80 tabular-nums">
+                        <span className="font-mono text-xs text-ink ml-auto tabular-nums">
                           → {r.kind} <strong>{sheetLetter(r.sheetIdx)}</strong> · {r.binLabel}
                         </span>
                       </li>

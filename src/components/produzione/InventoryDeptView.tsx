@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search, Save, Loader2, AlertTriangle, Scissors, ChevronRight, ChevronDown, Plus } from "lucide-react";
+import { Search, Save, Loader2, AlertTriangle, Scissors, ChevronRight, ChevronDown, Plus, PackagePlus } from "lucide-react";
+import { AddInventoryDialog } from "@/components/produzione/AddInventoryDialog";
 import { toast } from "sonner";
 import { useProdStore } from "@/lib/produzione/store";
 import { Input } from "@/components/ui/input";

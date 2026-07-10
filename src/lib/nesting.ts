@@ -1739,7 +1739,7 @@ export const recomputeGroupWithMixedBins = (
   const units = pairShapes(raw);
 
   // 2) Pool di "fogli aperti", ognuno con le proprie dimensioni di bin (MaxRects BSSF)
-  type OpenSheet = { bin: NestingMixedBin; w: number; h: number; free: MRRect[] };
+  type OpenSheet = { bin: NestingMixedBin; w: number; h: number; free: MRRect[]; used: MRRect[] };
   const openSheets: OpenSheet[] = [];
   const allItems: NestingPieceItem[] = [];
   const unplacedUnits: PairedUnit[] = [];
@@ -1765,6 +1765,7 @@ export const recomputeGroupWithMixedBins = (
         if (o.w > s.w + 1e-6 || o.h > s.h + 1e-6) continue;
         const f = mrFindBSSF(s.free, o.w, o.h);
         if (!f) continue;
+        if (mrOverlapsUsed(s.used, f.rect)) continue;
         const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
         if (
           !best ||
@@ -1797,6 +1798,7 @@ export const recomputeGroupWithMixedBins = (
     const newSheet: OpenSheet = {
       bin, w: usableW, h: usableH,
       free: [{ x: 0, y: 0, w: usableW, h: usableH }],
+        used: [],
     };
     openSheets.push(newSheet);
     const newIndex = openSheets.length - 1;
@@ -1805,6 +1807,7 @@ export const recomputeGroupWithMixedBins = (
       if (o.w > newSheet.w + 1e-6 || o.h > newSheet.h + 1e-6) continue;
       const f = mrFindBSSF(newSheet.free, o.w, o.h);
       if (!f) continue;
+      if (mrOverlapsUsed(newSheet.used, f.rect)) continue;
       const cand: MRPlacement = { rect: f.rect, score1: f.score1, score2: f.score2, rotated: o.rotated };
       if (
         !openBest ||
@@ -1816,6 +1819,7 @@ export const recomputeGroupWithMixedBins = (
     }
     if (!openBest) return false;
     mrPlace(newSheet.free, openBest.rect);
+    newSheet.used.push(openBest.rect);
     mrEmitItems(u, openBest.rect, openBest.rotated, newIndex, allItems);
     return true;
   };
@@ -1831,6 +1835,7 @@ export const recomputeGroupWithMixedBins = (
       if (b) {
         const s = openSheets[b.sheetIdx];
         mrPlace(s.free, b.placement.rect);
+        s.used.push(b.placement.rect);
         mrEmitItems(u, b.placement.rect, b.placement.rotated, b.sheetIdx, allItems);
         placed = true; break;
       }

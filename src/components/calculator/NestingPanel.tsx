@@ -1274,7 +1274,10 @@ const GroupSummary = ({
  *  TUTTI i gruppi, affiancati orizzontalmente. Ogni pezzo è una LWPOLYLINE
  *  chiusa + un TEXT con etichetta. Coordinate in millimetri. Y invertita per
  *  avere l'origine in basso a sinistra come nei CAM. */
-const exportNestingDxf = (groups: NestingGroup[]) => {
+const exportNestingDxf = (
+  groups: NestingGroup[],
+  cfg: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean },
+) => {
   if (groups.length === 0) return;
   const lines: string[] = [];
   const push = (code: number | string, val: string | number) => {
@@ -1283,127 +1286,23 @@ const exportNestingDxf = (groups: NestingGroup[]) => {
   };
   const M2MM = 1000;
   const GAP_MM = 100;
+  // Kerf effettivo in mm (spazio di taglio tra pezzi). Il packer ha già
+  // riservato kerf attorno ad ogni pezzo, quindi qui disegnamo l'outline
+  // reale del pezzo finito rientrando di kerf/2 sul bbox.
+  const kerfMm = Math.max(0, cfg.kerfMm);
+  const halfKerf = kerfMm / 2;
   const entities = () => {
-    const polyClosed = (pts: [number, number][], layer: string) => {
-      push(0, "LWPOLYLINE");
-      push(8, layer);
-      push(70, 1); // closed
-      push(90, pts.length);
-      for (const [x, y] of pts) {
-        push(10, x.toFixed(3));
-        push(20, y.toFixed(3));
-      }
-    };
-    const text = (x: number, y: number, h: number, str: string, layer: string) => {
-      push(0, "TEXT");
-      push(8, layer);
-      push(10, x.toFixed(3));
-      push(20, y.toFixed(3));
-      push(40, h.toFixed(3));
-      push(1, str.replace(/[\r\n]+/g, " "));
-    };
-
-    let cursorX = 0;
-    for (const g of groups) {
-      const defaultW = (g.sheetWidthM ?? g.rollWidthM) * M2MM;
-      const defaultH = (g.sheetHeightM ?? g.totalLengthM) * M2MM;
-      const bySheet = new Map<number, NestingPieceItem[]>();
-      for (const it of g.items) {
-        const si = it.sheetIndex ?? 0;
-        if (!bySheet.has(si)) bySheet.set(si, []);
-        bySheet.get(si)!.push(it);
-      }
-      const sheetIndices = Array.from(bySheet.keys()).sort((a, b) => a - b);
-      for (const si of sheetIndices) {
-        const ms = g.mixedSheets?.[si];
-        const sw = (ms ? ms.widthM : g.sheetWidthM ?? g.rollWidthM) * M2MM;
-        const sh = (ms ? ms.heightM : g.sheetHeightM ?? g.totalLengthM) * M2MM;
-        const ox = cursorX;
-        const oy = 0;
-        // Bordo lastra
-        polyClosed(
-          [
-            [ox, oy],
-            [ox + sw, oy],
-            [ox + sw, oy + sh],
-            [ox, oy + sh],
-          ],
-          "LASTRA",
-        );
-        // Etichetta lastra sopra
-        text(
-          ox + 5,
-          oy + sh + 20,
-          30,
-          `${g.material?.name ?? ""} · Lastra ${sheetLetter(si)} · ${(sw / 10).toFixed(1)}×${(sh / 10).toFixed(1)} cm`,
-          "LABEL",
-        );
-        for (const it of bySheet.get(si)!) {
-          // Y flip: DXF Y up, dati con Y down
-          const x = ox + it.x * M2MM;
-          const yTop = oy + sh - it.y * M2MM;
-          const w = it.w * M2MM;
-          const h = it.h * M2MM;
-          let pts: [number, number][];
-          if (it.shape === "triangle") {
-            pts =
-              it.pairRole === "secondary"
-                ? [
-                    [x, yTop],
-                    [x + w, yTop],
-                    [x + w / 2, yTop - h],
-                  ]
-                : [
-                    [x + w / 2, yTop],
-                    [x + w, yTop - h],
-                    [x, yTop - h],
-                  ];
-          } else if (it.shape === "trapezoid") {
-            const wbM = it.widthBottomM ?? it.w;
-            const ratio = wbM > 0 && it.w > 0 ? wbM / it.w : 0.6;
-            const wb = w * ratio;
-            const off = (w - wb) / 2;
-            pts =
-              it.pairRole === "secondary"
-                ? [
-                    [x + off, yTop],
-                    [x + w - off, yTop],
-                    [x + w, yTop - h],
-                    [x, yTop - h],
-                  ]
-                : [
-                    [x, yTop],
-                    [x + w, yTop],
-                    [x + w - off, yTop - h],
-                    [x + off, yTop - h],
-                  ];
-          } else {
-            pts = [
-              [x, yTop - h],
-              [x + w, yTop - h],
-              [x + w, yTop],
-              [x, yTop],
-            ];
-          }
-          polyClosed(pts, "PEZZI");
-          const fs = Math.max(20, Math.min(w, h) / 6);
-          text(
-            x + Math.min(20, w * 0.1),
-            yTop - Math.min(fs + 5, h * 0.3),
-            fs,
-            `${it.label} ${(it.w * 100).toFixed(1)}x${(it.h * 100).toFixed(1)}${it.rotated ? " R" : ""}`,
-            "LABEL",
-          );
-        }
-        cursorX += sw + GAP_MM;
-      }
-    }
-  };
-
+...
   push(0, "SECTION");
   push(2, "HEADER");
+  push(9, "$ACADVER");
+  push(1, "AC1009"); // AutoCAD R12
   push(9, "$INSUNITS");
-  push(70, 4); // millimeters
+  push(70, 4); // 4 = millimeters
+  push(9, "$MEASUREMENT");
+  push(70, 1); // 1 = metric
+  push(9, "$LUNITS");
+  push(70, 2); // decimal
   push(0, "ENDSEC");
   push(0, "SECTION");
   push(2, "ENTITIES");

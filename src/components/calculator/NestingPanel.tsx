@@ -2131,6 +2131,10 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         </div>
       </div>
 
+      <WarehousePlanner
+        groups={groups}
+        onApplyAllMixedBins={(byGroup) => setMixedBinsByGroup((prev) => ({ ...prev, ...byGroup }))}
+      />
 
       {groups.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">

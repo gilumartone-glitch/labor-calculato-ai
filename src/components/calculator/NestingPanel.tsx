@@ -82,6 +82,44 @@ const visualKerfInsetM = (kerfM: number, scale: number) =>
 const pieceBackground = (id: string): string =>
   `color-mix(in srgb, ${colorForPiece(id)} ${PIECE_FILL_OPACITY * 100}%, hsl(var(--background)))`;
 
+const pieceDimsLabel = (piece?: PieceLine | null): string | null => {
+  if (!piece) return null;
+  const unit = (piece.dimUnit || "cm") as DimUnit;
+  const wM = convertLength(Number(piece.width) || 0, unit, "m");
+  const hM = convertLength(Number(piece.height) || 0, unit, "m");
+  if (!(wM > 0 && hM > 0)) return null;
+  return `${fmtCm(wM)}×${fmtCm(hM)} cm`;
+};
+
+const UnplacedPiecesAlert = ({ group, groupPieces }: { group: NestingGroup; groupPieces: PieceLine[] }) => {
+  if (group.unplaced.length === 0) return null;
+  return (
+    <div className="border-2 border-destructive bg-destructive/10 rounded-md p-4 shadow-sm">
+      <div className="flex items-center gap-3 text-destructive mb-3">
+        <AlertTriangle className="w-6 h-6 shrink-0" />
+        <div className="font-display text-xl font-bold leading-tight">
+          {group.unplaced.length} pezz{group.unplaced.length === 1 ? "o" : "i"} rimast{group.unplaced.length === 1 ? "o" : "i"} fuori nesting
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {group.unplaced.map((u, i) => {
+          const src = groupPieces.find((p) => p.id === u.pieceId);
+          const dims = pieceDimsLabel(src);
+          return (
+            <div key={`${u.pieceId}-${u.label}-${i}`} className="border border-destructive/50 bg-background rounded-sm px-3 py-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-mono text-lg font-black text-destructive">{u.label}</span>
+                {dims && <span className="font-mono text-base font-bold text-ink tabular-nums">{dims}</span>}
+              </div>
+              <div className="mt-1 text-sm font-semibold text-destructive leading-snug">{u.reason}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 /** Etichetta lastra come lettera: 0→A, 1→B, ..., 25→Z, 26→AA. */
 const sheetLetter = (idx: number): string => {
   let n = idx;
@@ -931,6 +969,15 @@ const GroupSummary = ({
           </div>
         </div>
         <div className="flex items-center gap-5 shrink-0 font-mono text-xs">
+          {group.unplaced.length > 0 && (
+            <div className="text-right text-destructive">
+              <div className="label-cap mb-0.5 text-destructive">Fuori nesting</div>
+              <div className="font-semibold tabular-nums inline-flex items-center gap-1">
+                <AlertTriangle className="w-4 h-4" />
+                {group.unplaced.length}
+              </div>
+            </div>
+          )}
           {group.format === "lastra" && group.sheetsNeeded !== undefined && (
             <div className="text-right">
               <div className="label-cap mb-0.5">{usedMixedSheets.length > 0 ? "Magazzino" : "Lastre"}</div>
@@ -982,6 +1029,7 @@ const GroupSummary = ({
             pickedStockLabel={pickedStockLabel}
             pickedStockConflict={pickedStockConflict}
           />
+          <UnplacedPiecesAlert group={group} groupPieces={groupPieces} />
           {(group.items.length > 0 || group.unplaced.length > 0) && (
             <div className="border border-primary/40 bg-primary/5 rounded-sm p-3">
               <div className="font-mono text-sm font-bold uppercase tracking-wider text-primary mb-2 inline-flex items-center gap-1.5 justify-between w-full">
@@ -1029,8 +1077,8 @@ const GroupSummary = ({
                       sheetIdx: null,
                       binLabel: up.reason || "Non piazzato",
                       kind: "Mancante",
-                      w: (src?.width ?? 0) / 100,
-                      h: (src?.height ?? 0) / 100,
+                      w: src ? convertLength(Number(src.width) || 0, (src.dimUnit || "cm") as DimUnit, "m") : 0,
+                      h: src ? convertLength(Number(src.height) || 0, (src.dimUnit || "cm") as DimUnit, "m") : 0,
                       missing: true,
                       reason: up.reason,
                     });
@@ -1270,19 +1318,6 @@ const GroupSummary = ({
               </div>
             );
           })()}
-          {group.unplaced.length > 0 && (
-            <div className="flex items-start gap-2 p-2 border border-destructive/40 bg-destructive/5 rounded-sm">
-              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-              <div className="text-xs text-destructive">
-                <div className="font-semibold mb-1">{group.unplaced.length} pezzi non piazzati</div>
-                <ul className="font-mono text-[11px] space-y-0.5">
-                  {group.unplaced.map((u, i) => (
-                    <li key={i}>· {u.label}: {u.reason}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-[11px]">
             <div>
               <div className="label-cap mb-0.5">Area pezzi</div>
@@ -2234,6 +2269,9 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   const initialExpanded = useMemo(() => {
     const e: Record<string, boolean> = {};
     if (groups[0]) e[groups[0].key] = true;
+    for (const g of groups) {
+      if (g.unplaced.length > 0) e[g.key] = true;
+    }
     return e;
   }, [groups]);
   const isExpanded = (k: string) => expanded[k] ?? initialExpanded[k] ?? false;

@@ -2216,8 +2216,9 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               title="Scarica un file .labelx (DYMO Connect) per ogni pezzo — 55×25 mm"
 
             >
-              <Printer className="w-4 h-4" />
-              Stampa etichette Dymo
+              <Download className="w-4 h-4" />
+              Scarica etichette .labelx
+
             </button>
           </div>
         </div>

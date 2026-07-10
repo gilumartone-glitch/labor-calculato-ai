@@ -823,6 +823,7 @@ const FormatSelector = ({
 
 const GroupSummary = ({
   group,
+  groupPieces,
   expanded,
   onToggle,
   variants,
@@ -836,6 +837,7 @@ const GroupSummary = ({
   diagnostic,
 }: {
   group: NestingGroup;
+  groupPieces: PieceLine[];
   expanded: boolean;
   onToggle: () => void;
   variants: CatalogMaterial[];

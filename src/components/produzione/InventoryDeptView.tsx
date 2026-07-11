@@ -349,9 +349,47 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
           <Stat label="Sfridi" value={totals.totScraps} icon={<Scissors className="w-3 h-3" />} />
           <Stat label="Sotto soglia" value={totals.lowStock} accent="warn" icon={<AlertTriangle className="w-3 h-3" />} />
         </div>
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-ink/40" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca…" className="pl-7 h-9 w-64" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-ink/40" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca codice…" className="pl-7 h-10 w-56 text-sm" />
+          </div>
+          <select
+            value={fName}
+            onChange={(e) => setFName(e.target.value)}
+            className="h-10 px-2 rounded-md border-2 border-input bg-background text-sm font-semibold min-w-[140px]"
+            title="Filtra per nome prodotto"
+          >
+            <option value="">Tutti i nomi</option>
+            {filterOptions.names.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <select
+            value={fThick}
+            onChange={(e) => setFThick(e.target.value)}
+            className="h-10 px-2 rounded-md border-2 border-input bg-background text-sm font-semibold min-w-[110px]"
+            title="Filtra per spessore"
+          >
+            <option value="">Ogni spessore</option>
+            {filterOptions.thicks.map((n) => <option key={n} value={n}>{n} mm</option>)}
+          </select>
+          <select
+            value={fColor}
+            onChange={(e) => setFColor(e.target.value)}
+            className="h-10 px-2 rounded-md border-2 border-input bg-background text-sm font-semibold min-w-[120px]"
+            title="Filtra per colore/finitura"
+          >
+            <option value="">Ogni colore</option>
+            {filterOptions.colors.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          {(fName || fThick || fColor || q) && (
+            <button
+              type="button"
+              onClick={() => { setFName(""); setFThick(""); setFColor(""); setQ(""); }}
+              className="h-10 px-3 rounded-md border-2 border-ink/20 text-sm font-semibold hover:bg-muted"
+            >
+              Pulisci
+            </button>
+          )}
         </div>
       </div>
 

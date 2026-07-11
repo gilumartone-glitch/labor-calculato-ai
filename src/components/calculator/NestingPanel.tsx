@@ -2387,7 +2387,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
 
             <button
               type="button"
-              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm })}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 disabled:opacity-40"
               title="Apre una scheda stampabile con la posizione di taglio di ogni pezzo su ogni foglio"

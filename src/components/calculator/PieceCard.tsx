@@ -95,6 +95,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   const [widthStr, setWidthStr] = useState<string>(fmtNum(line.width));
   const [heightStr, setHeightStr] = useState<string>(fmtNum(line.height));
   const [widthBottomStr, setWidthBottomStr] = useState<string>(fmtNum(line.widthBottom));
+  const fmtQty = (n: number | undefined): string =>
+    n && n > 0 ? String(Math.max(1, Math.floor(Number(n) || 1))) : "1";
+  const parseQtyStr = (s: string): number =>
+    Math.max(1, Math.floor(parseInt(s, 10) || 1));
+  const [qtyStr, setQtyStr] = useState<string>(fmtQty(line.quantity));
   // Risincronizza quando cambia esternamente (es. Reset, sync da Lab),
   // ma NON sovrascrivere se la stringa locale rappresenta già lo stesso numero
   // (altrimenti digitare "0," o "1." azzera il campo durante l'input).
@@ -107,6 +112,9 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   useEffect(() => {
     setWidthBottomStr((prev) => (parseNum(prev) === (line.widthBottom ?? 0) ? prev : fmtNum(line.widthBottom)));
   }, [line.widthBottom]);
+  useEffect(() => {
+    setQtyStr((prev) => (parseQtyStr(prev) === Math.max(1, Math.floor(Number(line.quantity) || 1)) ? prev : fmtQty(line.quantity)));
+  }, [line.quantity]);
   /** Catalogo da cui leggere materiali/varianti per QUESTO pezzo.
    *  Se il pezzo preleva il materiale dal Laboratorio, usiamo i materiali del
    *  catalogo Lab ma manteniamo le lavorazioni perimetrali (es. "Cucitura")
@@ -137,6 +145,37 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   const [collapsed, setCollapsed] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const qtyInputRef = useRef<HTMLInputElement | null>(null);
+  const lineRef = useRef(line);
+  const pendingLinePatchRef = useRef<Partial<PieceLine>>({});
+  const pendingLineTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    lineRef.current = { ...line, ...pendingLinePatchRef.current };
+  }, [line]);
+  useEffect(() => () => {
+    if (pendingLineTimerRef.current != null) window.clearTimeout(pendingLineTimerRef.current);
+  }, []);
+  /** I campi numerici principali aggiornano subito lo stato locale e mandano
+   *  al padre un update ritardato: così non riparte il nesting a ogni tasto. */
+  const queueLinePatch = (patch: Partial<PieceLine>, immediate = false) => {
+    pendingLinePatchRef.current = { ...pendingLinePatchRef.current, ...patch };
+    const next = { ...lineRef.current, ...pendingLinePatchRef.current };
+    lineRef.current = next;
+    if (pendingLineTimerRef.current != null) {
+      window.clearTimeout(pendingLineTimerRef.current);
+      pendingLineTimerRef.current = null;
+    }
+    if (immediate) {
+      pendingLinePatchRef.current = {};
+      onChange(next);
+      return;
+    }
+    pendingLineTimerRef.current = window.setTimeout(() => {
+      pendingLineTimerRef.current = null;
+      const pending = { ...pendingLinePatchRef.current };
+      pendingLinePatchRef.current = {};
+      onChange({ ...lineRef.current, ...pending });
+    }, 260);
+  };
   useEffect(() => {
     if (!autoFocusQty) return;
     const el = qtyInputRef.current;
@@ -534,10 +573,12 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               type="number"
               min={1}
               step={1}
-              value={qty === 0 ? "" : qty}
-              onChange={(e) =>
-                onChange({ ...line, quantity: Math.max(1, parseInt(e.target.value) || 1) })
-              }
+              value={qtyStr}
+              onChange={(e) => {
+                setQtyStr(e.target.value);
+                queueLinePatch({ quantity: parseQtyStr(e.target.value) });
+              }}
+              onBlur={() => queueLinePatch({ quantity: parseQtyStr(qtyStr) }, true)}
               className="w-12 bg-transparent text-right font-mono text-sm font-semibold focus:outline-none"
             />
           </div>
@@ -793,8 +834,9 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               value={widthStr}
               onChange={(e) => {
                 setWidthStr(e.target.value);
-                onChange({ ...line, width: parseNum(e.target.value) });
+                queueLinePatch({ width: parseNum(e.target.value) });
               }}
+              onBlur={() => queueLinePatch({ width: parseNum(widthStr) }, true)}
               placeholder={shape === "trapezoid" ? "B" : "b"}
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -806,8 +848,9 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               value={heightStr}
               onChange={(e) => {
                 setHeightStr(e.target.value);
-                onChange({ ...line, height: parseNum(e.target.value) });
+                queueLinePatch({ height: parseNum(e.target.value) });
               }}
+              onBlur={() => queueLinePatch({ height: parseNum(heightStr) }, true)}
               placeholder="h"
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -821,8 +864,9 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 value={widthBottomStr}
                 onChange={(e) => {
                   setWidthBottomStr(e.target.value);
-                  onChange({ ...line, widthBottom: parseNum(e.target.value) });
+                  queueLinePatch({ widthBottom: parseNum(e.target.value) });
                 }}
+                onBlur={() => queueLinePatch({ widthBottom: parseNum(widthBottomStr) }, true)}
                 placeholder="b minore"
                 disabled={materialLockedToLab}
                 className="input-bare font-mono text-sm text-right w-full disabled:opacity-50 disabled:cursor-not-allowed"

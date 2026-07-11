@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Layers3, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Sparkles, Settings2, Bug, Printer, Download, FileText } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";

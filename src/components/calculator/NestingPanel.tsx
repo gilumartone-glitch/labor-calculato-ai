@@ -2184,14 +2184,19 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     perimeterMm: 10,
     skipPerimeter: false,
   });
+  /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
+   *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
+  const deferredKerf = useDeferredValue(nestSettings.kerfMm);
+  const deferredPerim = useDeferredValue(nestSettings.perimeterMm);
+  const deferredSkip = useDeferredValue(nestSettings.skipPerimeter);
   /** Catalogo "effettivo" con i flag di nesting: viene usato per TUTTI i calcoli
    *  del pannello, così le impostazioni fresa/margine vengono applicate ovunque. */
   const effCatalog = useMemo<Catalog>(() => ({
     ...catalog,
-    __kerfMm: nestSettings.kerfMm,
-    __perimeterMarginMm: nestSettings.perimeterMm,
-    __skipPerimeterMargin: nestSettings.skipPerimeter,
-  }), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+    __kerfMm: deferredKerf,
+    __perimeterMarginMm: deferredPerim,
+    __skipPerimeterMargin: deferredSkip,
+  }), [catalog, deferredKerf, deferredPerim, deferredSkip]);
   const perimeterM = useMemo(() => getNestingConfig(effCatalog).perimeterM, [effCatalog]);
 
   const baseGroups = useMemo(

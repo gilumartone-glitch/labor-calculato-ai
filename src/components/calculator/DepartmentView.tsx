@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, Wrench, Package, FileSpreadsheet, RotateCcw, Layers3 } from "lucide-react";
 import { toast } from "sonner";
-import { useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { CatalogPanel } from "./CatalogPanel";
 import { MaterialRow } from "./MaterialRow";
 import { PieceCard } from "./PieceCard";
@@ -83,14 +83,22 @@ export const DepartmentView = ({
     return (p.subProjectId ?? null) === activeSubProjectId;
   };
   const pieces = activeSubProjectId ? allPieces.filter(matchesActive) : allPieces;
+  // I calcoli pesanti (nesting/prezzi riepilogo) vengono aggiornati a bassa priorità:
+  // mentre l'utente digita nelle box la card resta fluida e il totale si riallinea subito dopo.
+  const calcPieces = useDeferredValue(pieces);
   const inScope = matchesActive;
 
   // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
   // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
   // Tappezzeria salta lo sfrido iniziale (coerente con la card pezzo).
-  const nestingCatalog =
-    deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog;
-  const nestingGroups = computeNesting(pieces, nestingCatalog, customerType);
+  const nestingCatalog = useMemo(
+    () => (deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog),
+    [deptKey, catalog],
+  );
+  const nestingGroups = useMemo(
+    () => computeNesting(calcPieces, nestingCatalog, customerType),
+    [calcPieces, nestingCatalog, customerType],
+  );
   const chargeNestingScrap = state.nestingState?.chargeNestingScrap ?? {};
   // Gruppi su cui è possibile addebitare lo sfrido del nesting.
   // - LASTRA: sempre (lo sfrido per-lastra ha senso ovunque).
@@ -131,7 +139,7 @@ export const DepartmentView = ({
     for (const g of lastraGroups) {
       const extra = nestingScrapExtraByGroup[g.key] ?? 0;
       if (extra <= 0) continue;
-      const gPieces = piecesOfGroup(pieces, g.key);
+      const gPieces = piecesOfGroup(calcPieces, g.key);
       const groupPieces = gPieces;
       const weights = groupPieces.map((p) => ({ id: p.id, w: areaOf(p) }));
       const tot = weights.reduce((s, x) => s + x.w, 0);
@@ -179,7 +187,7 @@ export const DepartmentView = ({
       }
       for (const [pid, a] of areaByPiece) {
         const total = fabricPrice * (a / totalArea);
-        const piece = pieces.find((p) => p.id === pid);
+          const piece = calcPieces.find((p) => p.id === pid);
         const qty = Math.max(1, Math.floor(Number(piece?.quantity) || 1));
         distributedMaterialByPieceId[pid] = { total, single: total / qty };
       }
@@ -208,13 +216,13 @@ export const DepartmentView = ({
   };
 
   const piecesBaseTotal =
-    pieces.reduce((s, p) => s + effectivePieceTotal(p), 0) -
+    calcPieces.reduce((s, p) => s + effectivePieceTotal(p), 0) -
     // Lo sfrido (1,5 m linerai) si conta una sola volta per stesso materiale: tolgo i duplicati.
     // Quando la ridistribuzione è attiva lo sfrido è già gestito dal nesting → no dedup.
     (canRedistribute
       ? 0
       : aggregateScrapDeduction(
-          pieces,
+           calcPieces,
           (p) => matCat(p),
           () => customerType,
         )) +
@@ -232,7 +240,7 @@ export const DepartmentView = ({
   const piecesTotal = piecesBaseTotal;
 
   // Breakdown lavorazioni (somma per categoria su tutti i pezzi)
-  const workBreakdown = pieces.reduce(
+  const workBreakdown = calcPieces.reduce(
     (acc, p) => {
       const b = aggregateWorkBreakdown([p], matCat(p), customerType);
       acc.stampa += b.stampa;
@@ -250,11 +258,11 @@ export const DepartmentView = ({
   );
   // Materiale "interno ai pezzi" = somma costo materiale × qty (separato dai materiali sciolti)
   const piecesMaterialTotal =
-    pieces.reduce((s, p) => s + effectivePieceMaterialTotalQty(p), 0) -
+    calcPieces.reduce((s, p) => s + effectivePieceMaterialTotalQty(p), 0) -
     (canRedistribute
       ? 0
       : aggregateScrapDeduction(
-          pieces,
+          calcPieces,
           (p) => matCat(p),
           () => customerType,
         ));
@@ -275,7 +283,7 @@ export const DepartmentView = ({
     };
 
     // 1) Pre-calcolo per ogni pezzo
-    const base = pieces.map((p) => {
+    const base = calcPieces.map((p) => {
       const cat = matCat(p);
       const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
       const key = pieceScrapKey(p, cat, customerType);

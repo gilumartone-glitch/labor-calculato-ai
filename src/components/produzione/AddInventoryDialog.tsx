@@ -383,8 +383,9 @@ export const AddInventoryDialog = ({ open, onOpenChange, dept, catalog }: Props)
                   </>
                 )}
                 <div>
-                  <Label className="text-sm">Quantità</Label>
-                  <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} />
+                  <Label className="text-sm font-bold">Quantità {customSize && !asVariant ? "(nr. pezzi sfrido)" : "(nr. lastre/pezzi)"}</Label>
+                  <Input type="number" min="1" step="1" value={qty} onChange={(e) => setQty(e.target.value)} className="h-11 text-base font-mono" />
+                  <div className="text-[11px] text-muted-foreground mt-1">Puoi inserire più pezzi identici in un solo passaggio (es. 10).</div>
                 </div>
                 <div>
                   <Label className="text-sm">Posizione (opz.)</Label>

@@ -2359,7 +2359,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               title="Margine minimo sul bordo del foglio (default 10 mm). La fresa viene sempre sommata."
             />
             <span className="text-xs text-muted-foreground">
-              Effettivo: {nestSettings.skipPerimeter ? "0 mm (bypass)" : `${(nestSettings.perimeterMm + nestSettings.kerfMm).toFixed(1)} mm`}
+              Distanza dal bordo lastra {nestSettings.skipPerimeter && "(bypass attivo)"}
             </span>
           </label>
 

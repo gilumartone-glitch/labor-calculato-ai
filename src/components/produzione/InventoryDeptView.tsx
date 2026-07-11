@@ -117,11 +117,38 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
     return list;
   }, [catalog, dept, invByKey]);
 
+  /** Elenco valori unici per popolare i dropdown dei filtri. */
+  const filterOptions = useMemo(() => {
+    const names = new Set<string>();
+    const thicks = new Set<string>();
+    const colors = new Set<string>();
+    for (const r of rows) {
+      const m = r.material;
+      if (m?.name) names.add(m.name.trim());
+      const th = String((m as any)?.thickness ?? "").trim();
+      if (th) thicks.add(th);
+      const co = String((m as any)?.color ?? "").trim();
+      if (co) colors.add(co);
+    }
+    const sortNum = (a: string, b: string) => (parseFloat(a) || 0) - (parseFloat(b) || 0);
+    return {
+      names: Array.from(names).sort((a, b) => a.localeCompare(b, "it")),
+      thicks: Array.from(thicks).sort(sortNum),
+      colors: Array.from(colors).sort((a, b) => a.localeCompare(b, "it")),
+    };
+  }, [rows]);
+
   const filtered = useMemo(() => {
-    if (!q.trim()) return rows;
-    const t = q.toLowerCase();
-    return rows.filter((r) => r.label.toLowerCase().includes(t) || (r.inv?.code ?? "").toLowerCase().includes(t));
-  }, [rows, q]);
+    const t = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      const m = r.material;
+      if (fName && (m?.name ?? "").trim() !== fName) return false;
+      if (fThick && String((m as any)?.thickness ?? "").trim() !== fThick) return false;
+      if (fColor && String((m as any)?.color ?? "").trim() !== fColor) return false;
+      if (!t) return true;
+      return r.label.toLowerCase().includes(t) || (r.inv?.code ?? "").toLowerCase().includes(t);
+    });
+  }, [rows, q, fName, fThick, fColor]);
 
   const filteredExtras = extras.filter((e) =>
     !q.trim() || (e.code + " " + e.nome).toLowerCase().includes(q.toLowerCase()),

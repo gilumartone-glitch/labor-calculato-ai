@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Layers3, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Sparkles, Settings2, Bug, Printer, Download, FileText } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { toast } from "sonner";
@@ -2184,14 +2184,19 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     perimeterMm: 10,
     skipPerimeter: false,
   });
+  /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
+   *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
+  const deferredKerf = useDeferredValue(nestSettings.kerfMm);
+  const deferredPerim = useDeferredValue(nestSettings.perimeterMm);
+  const deferredSkip = useDeferredValue(nestSettings.skipPerimeter);
   /** Catalogo "effettivo" con i flag di nesting: viene usato per TUTTI i calcoli
    *  del pannello, così le impostazioni fresa/margine vengono applicate ovunque. */
   const effCatalog = useMemo<Catalog>(() => ({
     ...catalog,
-    __kerfMm: nestSettings.kerfMm,
-    __perimeterMarginMm: nestSettings.perimeterMm,
-    __skipPerimeterMargin: nestSettings.skipPerimeter,
-  }), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+    __kerfMm: deferredKerf,
+    __perimeterMarginMm: deferredPerim,
+    __skipPerimeterMargin: deferredSkip,
+  }), [catalog, deferredKerf, deferredPerim, deferredSkip]);
   const perimeterM = useMemo(() => getNestingConfig(effCatalog).perimeterM, [effCatalog]);
 
   const baseGroups = useMemo(
@@ -2354,7 +2359,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               title="Margine minimo sul bordo del foglio (default 10 mm). La fresa viene sempre sommata."
             />
             <span className="text-xs text-muted-foreground">
-              Effettivo: {nestSettings.skipPerimeter ? "0 mm (bypass)" : `${(nestSettings.perimeterMm + nestSettings.kerfMm).toFixed(1)} mm`}
+              Distanza dal bordo lastra {nestSettings.skipPerimeter && "(bypass attivo)"}
             </span>
           </label>
 
@@ -2382,7 +2387,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
 
             <button
               type="button"
-              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm })}
+              onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm })}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 disabled:opacity-40"
               title="Apre una scheda stampabile con la posizione di taglio di ogni pezzo su ogni foglio"

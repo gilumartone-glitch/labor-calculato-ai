@@ -213,10 +213,9 @@ export const getNestingConfig = (catalog: Catalog): { kerfM: number; perimeterM:
   const c = catalog as unknown as { __kerfMm?: number; __perimeterMarginMm?: number; __skipPerimeterMargin?: boolean };
   const kerfMm = Math.max(0, Number(c.__kerfMm) || 0);
   const skip = !!c.__skipPerimeterMargin;
-  const basePerimMm = skip ? 0 : Math.max(0, Number(c.__perimeterMarginMm ?? 10));
-  // Il margine effettivo somma sempre la larghezza fresa (istruzione utente:
-  // "sul perimetro devi lasciare 10 mm + il margine della fresa").
-  const perimMm = skip ? 0 : basePerimMm + kerfMm;
+  // Il margine perimetro è ESATTAMENTE quello inserito dall'utente:
+  // niente somme automatiche con il kerf (che regola solo lo spazio tra i pezzi).
+  const perimMm = skip ? 0 : Math.max(0, Number(c.__perimeterMarginMm ?? 10));
   return { kerfM: kerfMm / 1000, perimeterM: perimMm / 1000 };
 };
 

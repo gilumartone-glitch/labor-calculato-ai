@@ -529,7 +529,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
   });
   const exportCfg = {
     kerfMm: nestSettings.kerfMm,
-    perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm + nestSettings.kerfMm,
+    perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm,
   };
   const dxfCfg = {
     kerfMm: nestSettings.kerfMm,

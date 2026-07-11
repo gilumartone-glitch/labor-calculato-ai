@@ -146,9 +146,10 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   const [pickerOpen, setPickerOpen] = useState(false);
   const qtyInputRef = useRef<HTMLInputElement | null>(null);
   const lineRef = useRef(line);
+  const pendingLinePatchRef = useRef<Partial<PieceLine>>({});
   const pendingLineTimerRef = useRef<number | null>(null);
   useEffect(() => {
-    lineRef.current = line;
+    lineRef.current = { ...line, ...pendingLinePatchRef.current };
   }, [line]);
   useEffect(() => () => {
     if (pendingLineTimerRef.current != null) window.clearTimeout(pendingLineTimerRef.current);
@@ -156,19 +157,23 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   /** I campi numerici principali aggiornano subito lo stato locale e mandano
    *  al padre un update ritardato: così non riparte il nesting a ogni tasto. */
   const queueLinePatch = (patch: Partial<PieceLine>, immediate = false) => {
-    const next = { ...lineRef.current, ...patch };
+    pendingLinePatchRef.current = { ...pendingLinePatchRef.current, ...patch };
+    const next = { ...lineRef.current, ...pendingLinePatchRef.current };
     lineRef.current = next;
     if (pendingLineTimerRef.current != null) {
       window.clearTimeout(pendingLineTimerRef.current);
       pendingLineTimerRef.current = null;
     }
     if (immediate) {
+      pendingLinePatchRef.current = {};
       onChange(next);
       return;
     }
     pendingLineTimerRef.current = window.setTimeout(() => {
       pendingLineTimerRef.current = null;
-      onChange(lineRef.current);
+      const pending = { ...pendingLinePatchRef.current };
+      pendingLinePatchRef.current = {};
+      onChange({ ...lineRef.current, ...pending });
     }, 260);
   };
   useEffect(() => {

@@ -57,6 +57,9 @@ export const InventoryDeptView = ({ dept, catalog: catalogProp }: Props) => {
   const [catalog, setCatalog] = useState<Catalog | null>(catalogProp ?? null);
   const [loadingCat, setLoadingCat] = useState(!catalogProp);
   const [q, setQ] = useState("");
+  const [fName, setFName] = useState<string>("");
+  const [fThick, setFThick] = useState<string>("");
+  const [fColor, setFColor] = useState<string>("");
   const [edits, setEdits] = useState<Record<string, { qty_intera?: number; qty_sfrido?: number; posizione?: string; soglia_minima?: number; note?: string }>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [scrapDialog, setScrapDialog] = useState<{ inv: InvItem; label: string } | null>(null);

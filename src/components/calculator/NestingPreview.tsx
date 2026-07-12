@@ -512,6 +512,7 @@ type Props = {
   nestingState?: {
     overrides?: Record<string, NestingFormatOverride | null>;
     mixedBins?: Record<string, NestingMixedBin[] | null>;
+    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean };
   };
   customerType?: any;
 };
@@ -522,11 +523,20 @@ type Props = {
  */
 export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly, textOnly, nestingState, customerType }: Props) => {
   const { inventory, scraps } = useProdStore();
-  const [nestSettings] = useLocalStorageState("nesting.settings.v1", {
+  const [localNestSettings] = useLocalStorageState("nesting.settings.v1", {
     kerfMm: 0,
     perimeterMm: 10,
     skipPerimeter: false,
   });
+  // Le impostazioni fresa/margine hanno PRIORITÀ da nestingState (salvate col preventivo)
+  // così l'operatore riproduce lo stesso layout DXF del designer anche se il suo
+  // localStorage è vuoto (kerf 0 → pezzi attaccati).
+  const savedSettings = nestingState?.settings;
+  const nestSettings = {
+    kerfMm: savedSettings?.kerfMm ?? localNestSettings.kerfMm,
+    perimeterMm: savedSettings?.perimeterMm ?? localNestSettings.perimeterMm,
+    skipPerimeter: savedSettings?.skipPerimeter ?? localNestSettings.skipPerimeter,
+  };
   const exportCfg = {
     kerfMm: nestSettings.kerfMm,
     perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm,

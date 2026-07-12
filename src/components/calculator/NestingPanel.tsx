@@ -2197,6 +2197,23 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     perimeterMm: 10,
     skipPerimeter: false,
   });
+  /** Se il preventivo salvato contiene già le impostazioni di nesting (fresa/margine),
+   *  le applico una volta al mount così l'operatore in produzione (che potrebbe avere
+   *  localStorage vuoto → kerf 0) riproduce lo stesso layout DXF del designer. */
+  const settingsHydrated = useRef(false);
+  useEffect(() => {
+    if (settingsHydrated.current) return;
+    const s = initialNestingState?.settings;
+    if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null)) {
+      setNestSettings((prev) => ({
+        kerfMm: s.kerfMm ?? prev.kerfMm,
+        perimeterMm: s.perimeterMm ?? prev.perimeterMm,
+        skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
+      }));
+    }
+    settingsHydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
    *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
   const deferredKerf = useDeferredValue(nestSettings.kerfMm);

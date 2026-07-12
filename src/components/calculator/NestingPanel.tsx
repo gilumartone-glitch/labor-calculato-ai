@@ -37,11 +37,13 @@ interface Props {
   initialNestingState?: {
     overrides?: Record<string, NestingFormatOverride | null>;
     mixedBins?: Record<string, NestingMixedBin[] | null>;
+    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean };
   };
   /** Notifica i cambiamenti di stato del nesting per persistenza nello snapshot. */
   onNestingStateChange?: (state: {
     overrides: Record<string, NestingFormatOverride | null>;
     mixedBins: Record<string, NestingMixedBin[] | null>;
+    settings: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean };
   }) => void;
 }
 
@@ -2195,6 +2197,23 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     perimeterMm: 10,
     skipPerimeter: false,
   });
+  /** Se il preventivo salvato contiene già le impostazioni di nesting (fresa/margine),
+   *  le applico una volta al mount così l'operatore in produzione (che potrebbe avere
+   *  localStorage vuoto → kerf 0) riproduce lo stesso layout DXF del designer. */
+  const settingsHydrated = useRef(false);
+  useEffect(() => {
+    if (settingsHydrated.current) return;
+    const s = initialNestingState?.settings;
+    if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null)) {
+      setNestSettings((prev) => ({
+        kerfMm: s.kerfMm ?? prev.kerfMm,
+        perimeterMm: s.perimeterMm ?? prev.perimeterMm,
+        skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
+      }));
+    }
+    settingsHydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
    *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
   const deferredKerf = useDeferredValue(nestSettings.kerfMm);
@@ -2237,9 +2256,17 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   const firstSync = useRef(true);
   useEffect(() => {
     if (firstSync.current) { firstSync.current = false; return; }
-    onNestingStateChange?.({ overrides, mixedBins: mixedBinsByGroup });
+    onNestingStateChange?.({
+      overrides,
+      mixedBins: mixedBinsByGroup,
+      settings: {
+        kerfMm: nestSettings.kerfMm,
+        perimeterMm: nestSettings.perimeterMm,
+        skipPerimeter: nestSettings.skipPerimeter,
+      },
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overrides, mixedBinsByGroup]);
+  }, [overrides, mixedBinsByGroup, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
 
 
   /** Applico l'override (se presente) a ciascun gruppo. */

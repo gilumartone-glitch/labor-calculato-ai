@@ -2256,9 +2256,17 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   const firstSync = useRef(true);
   useEffect(() => {
     if (firstSync.current) { firstSync.current = false; return; }
-    onNestingStateChange?.({ overrides, mixedBins: mixedBinsByGroup });
+    onNestingStateChange?.({
+      overrides,
+      mixedBins: mixedBinsByGroup,
+      settings: {
+        kerfMm: nestSettings.kerfMm,
+        perimeterMm: nestSettings.perimeterMm,
+        skipPerimeter: nestSettings.skipPerimeter,
+      },
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overrides, mixedBinsByGroup]);
+  }, [overrides, mixedBinsByGroup, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
 
 
   /** Applico l'override (se presente) a ciascun gruppo. */

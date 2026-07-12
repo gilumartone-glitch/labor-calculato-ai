@@ -37,11 +37,13 @@ interface Props {
   initialNestingState?: {
     overrides?: Record<string, NestingFormatOverride | null>;
     mixedBins?: Record<string, NestingMixedBin[] | null>;
+    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean };
   };
   /** Notifica i cambiamenti di stato del nesting per persistenza nello snapshot. */
   onNestingStateChange?: (state: {
     overrides: Record<string, NestingFormatOverride | null>;
     mixedBins: Record<string, NestingMixedBin[] | null>;
+    settings: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean };
   }) => void;
 }
 

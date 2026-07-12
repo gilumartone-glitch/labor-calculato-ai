@@ -372,6 +372,14 @@ export type DepartmentState = {
      *  del nesting (comprensivo di margini) sulle card Lavorazioni. In quel caso
      *  ogni pezzo mostra il costo materiale naive calcolato per-pezzo. */
     bypassRedistribution?: boolean;
+    /** Impostazioni fresa/margine perimetrale usate per il calcolo del nesting.
+     *  Salvate col preventivo: l'operatore in produzione riproduce lo stesso
+     *  layout DXF anche se il suo localStorage è vuoto (kerf 0). */
+    settings?: {
+      kerfMm?: number;
+      perimeterMm?: number;
+      skipPerimeter?: boolean;
+    };
   };
 };
 

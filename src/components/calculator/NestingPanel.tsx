@@ -2401,10 +2401,10 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               onClick={() => openPrintCuttingSheet(groups, { kerfMm: nestSettings.kerfMm, perimeterMm: nestSettings.skipPerimeter ? 0 : nestSettings.perimeterMm })}
               disabled={groups.length === 0}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 disabled:opacity-40"
-              title="Apre una scheda stampabile con la posizione di taglio di ogni pezzo su ogni foglio"
+              title="Scarica la scheda taglio in Word (.doc) con checkbox spuntabili per ogni pezzo — modificabile e splittabile"
             >
               <Printer className="w-4 h-4" />
-              Stampa scheda taglio operatore
+              Scarica scheda taglio Word
             </button>
             <button
               type="button"

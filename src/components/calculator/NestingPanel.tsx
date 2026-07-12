@@ -1890,79 +1890,90 @@ export const openPrintCuttingSheet = (
           const rows = s.items
             .map((it, i) => `
                 <tr>
+                  <td class="chk">&#9744;</td>
                   <td class="num lbl">${sheetLetter(s.idx)}-${i+1}</td>
-                  <td class="lbl">${esc(it.label)}${it.rotated ? " <span class='rot'>↻</span>" : ""}</td>
-                  <td class="num">${cm(it.w)} × ${cm(it.h)} cm</td>
+                  <td class="lbl">${esc(it.label)}${it.rotated ? " <span class='rot'>(ruotato)</span>" : ""}</td>
+                  <td class="num">${cm(it.w)} &#215; ${cm(it.h)} cm</td>
                   <td class="num">x=${cm(it.x)} cm</td>
                   <td class="num">y=${cm(it.y)} cm</td>
                 </tr>`)
             .join("");
           return `
             <div class="sheet">
-              <h3>${esc(s.label)} · ${cm(s.wM)} × ${cm(s.hM)} cm</h3>
+              <h3>${esc(s.label)} &middot; ${cm(s.wM)} &#215; ${cm(s.hM)} cm</h3>
               ${svg}
               <table>
-                <thead><tr><th>Rif.</th><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
+                <thead><tr><th style="width:36px">&#10003;</th><th>Rif.</th><th>Pezzo</th><th>Dimensioni</th><th>Posizione X</th><th>Posizione Y</th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
             </div>`;
         })
         .join("");
       const unplacedHtml = g.unplaced.length
-        ? `<div class="warn"><strong>Pezzi NON piazzati (${g.unplaced.length}):</strong> ${g.unplaced.map((u) => `${esc(u.label)} — ${esc(u.reason)}`).join(" · ")}</div>`
+        ? `<div class="warn"><strong>Pezzi NON piazzati (${g.unplaced.length}):</strong> ${g.unplaced.map((u) => `${esc(u.label)} &mdash; ${esc(u.reason)}`).join(" &middot; ")}</div>`
         : "";
       return `
-        <section class="grp">
+        <div class="grp">
           <h2>${esc(g.label)}</h2>
           <div class="meta">
-            ${sheets.length} foglio/i · Sfrido ${(g.wastePct * 100).toFixed(1)}%
+            ${sheets.length} foglio/i &middot; Sfrido ${(g.wastePct * 100).toFixed(1)}%
           </div>
           ${sheetsHtml}
           ${unplacedHtml}
-        </section>`;
+        </div>`;
     })
     .join("");
 
-  const html = `<!doctype html>
-<html lang="it">
+  // Documento Word (HTML .doc con namespace Office). Word lo apre come .docx modificabile,
+  // le checkbox sono caratteri Unicode grandi (&#9744;) che si possono spuntare
+  // sostituendoli con &#9745; e le sezioni si spezzano/dividono a piacere.
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
 <meta charset="utf-8" />
 <title>Scheda taglio operatore</title>
+<!--[if gte mso 9]><xml>
+<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument>
+</xml><![endif]-->
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; margin: 24px; color: #111; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 24px 0 6px; border-bottom: 2px solid #111; padding-bottom: 4px; }
-  h3 { font-size: 15px; margin: 16px 0 6px; background: #eee; padding: 6px 10px; border-left: 4px solid #111; }
-  .info { font-size: 13px; color: #555; margin-bottom: 16px; }
-  .meta { font-size: 12px; color: #444; margin-bottom: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
-  th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
-  th { background: #111; color: #fff; font-weight: 600; }
-  td.num { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-  td.lbl { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
-  .rot { color: #b45309; }
-  .warn { margin-top: 8px; padding: 8px 12px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-size: 13px; }
-  .grp { page-break-inside: avoid; margin-bottom: 20px; }
-  .sheet { page-break-inside: avoid; }
-  @media print { body { margin: 12mm; } }
+  @page { size: A4; margin: 1.2cm; }
+  body { font-family: Calibri, Arial, sans-serif; color: #111; font-size: 12pt; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; }
+  h2 { font-size: 16pt; margin: 18pt 0 6pt; border-bottom: 2pt solid #111; padding-bottom: 2pt; }
+  h3 { font-size: 13pt; margin: 12pt 0 4pt; background: #eee; padding: 4pt 8pt; border-left: 4pt solid #111; }
+  .info { font-size: 10pt; color: #555; margin-bottom: 10pt; }
+  .meta { font-size: 10pt; color: #444; margin-bottom: 4pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 6pt; }
+  th, td { border: 0.75pt solid #999; padding: 4pt 6pt; text-align: left; vertical-align: middle; }
+  th { background: #111; color: #fff; font-weight: 700; }
+  td.num, td.lbl { font-family: Consolas, monospace; }
+  td.lbl { font-weight: 700; }
+  td.chk { text-align: center; font-size: 22pt; font-family: "Segoe UI Symbol", Arial, sans-serif; line-height: 1; }
+  .rot { color: #b45309; font-weight: normal; }
+  .warn { margin-top: 6pt; padding: 6pt 10pt; background: #fee2e2; color: #991b1b; border: 0.75pt solid #f87171; font-size: 10pt; }
+  .grp { page-break-after: always; }
+  .grp:last-child { page-break-after: auto; }
 </style>
 </head>
 <body>
   <h1>Scheda taglio operatore</h1>
   <div class="info">
-    Generata il ${esc(now)} · Fresa ${cfg.kerfMm} mm · Margine perimetro effettivo ${cfg.perimeterMm.toFixed(1)} mm
+    Generata il ${esc(now)} &middot; Fresa ${cfg.kerfMm} mm &middot; Margine perimetro effettivo ${cfg.perimeterMm.toFixed(1)} mm
   </div>
+  <div class="info">Spunta le caselle (&#9744; &rarr; &#9745;) mano a mano che tagli i pezzi. Ogni gruppo &egrave; su una pagina a s&eacute; ed &egrave; splittabile.</div>
   ${sections}
-  <script>window.addEventListener("load", () => setTimeout(() => window.print(), 300));</script>
 </body>
 </html>`;
 
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  const blob = new Blob(["\ufeff", html], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `scheda-taglio-${stamp}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 };
 
 /** Genera un archivio ZIP contenente UN file .labelx (DYMO Label XML v8)

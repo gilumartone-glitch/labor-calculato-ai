@@ -868,57 +868,30 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const navigate = useNavigate();
   // mode default = calcolo (catalogo dopo)
   const [mode, setMode] = useState<"calcolo" | "catalogo" | "ordine" | "nastri" | "ordine_nastri">("calcolo");
-  const [selectedId, setSelectedId] = useState<string>(rolls[0]?.id ?? "");
-  const scopeLsKey = scopeKey ? `mag:dance:${scopeKey}` : null;
-  const initialScoped = (() => {
-    if (!scopeLsKey) return null;
-    try { const raw = localStorage.getItem(scopeLsKey); return raw ? JSON.parse(raw) : null; } catch { return null; }
-  })();
-  const [needThickness, setNeedThickness] = useState<number>(initialScoped?.needThickness ?? 0);
-  const [needColor, setNeedColor] = useState<string>(initialScoped?.needColor ?? "");
-  const [stageW, setStageW] = useState<number>(initialScoped?.stageW ?? 0);
-  const [stageH, setStageH] = useState<number>(initialScoped?.stageH ?? 0);
-  const [segments, setSegments] = useState<Segment[]>(initialScoped?.segments ?? []);
-  const [direction, setDirection] = useState<StripDirection>(initialScoped?.direction ?? "vertical");
-  const [chosenColor, setChosenColor] = useState<string>(initialScoped?.chosenColor ?? "");
-  const [tapeType, setTapeType] = useState<"danza" | "biadesivo">(initialScoped?.tapeType ?? "danza");
-  const [chosenOptionKey, setChosenOptionKey] = useState<string | null>(initialScoped?.chosenOptionKey ?? null);
+  const [selectedId, setSelectedId] = useState<string>("");
+  // Nessuna precompilazione: i campi partono sempre vuoti. Nessuna persistenza
+  // cross-progetto/sub-progetto per evitare che compaiano valori di default.
+  const [needThickness, setNeedThickness] = useState<number>(0);
+  const [needColor, setNeedColor] = useState<string>("");
+  const [stageW, setStageW] = useState<number>(0);
+  const [stageH, setStageH] = useState<number>(0);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [direction, setDirection] = useState<StripDirection>("vertical");
+  const [chosenColor, setChosenColor] = useState<string>("");
+  const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
+  const [chosenOptionKey, setChosenOptionKey] = useState<string | null>(null);
 
-  // Ricarica lo stato calcolo quando cambia il sub-progetto attivo (o il progetto)
+  // Reset totale quando cambia il sub-progetto/progetto attivo
   const lastScopeRef = useRef<string | null | undefined>(scopeKey);
   useEffect(() => {
     if (lastScopeRef.current === scopeKey) return;
     lastScopeRef.current = scopeKey;
-    if (!scopeLsKey) {
-      setNeedThickness(0); setNeedColor(""); setStageW(0); setStageH(0);
-      setSegments([]); setDirection("vertical"); setChosenColor("");
-      setTapeType("danza"); setChosenOptionKey(null);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(scopeLsKey);
-      const s = raw ? JSON.parse(raw) : {};
-      setNeedThickness(s.needThickness ?? 0);
-      setNeedColor(s.needColor ?? "");
-      setStageW(s.stageW ?? 0);
-      setStageH(s.stageH ?? 0);
-      setSegments(s.segments ?? []);
-      setDirection(s.direction ?? "vertical");
-      setChosenColor(s.chosenColor ?? "");
-      setTapeType(s.tapeType ?? "danza");
-      setChosenOptionKey(s.chosenOptionKey ?? null);
-    } catch { /* ignore */ }
-  }, [scopeKey, scopeLsKey]);
+    setSelectedId("");
+    setNeedThickness(0); setNeedColor(""); setStageW(0); setStageH(0);
+    setSegments([]); setDirection("vertical"); setChosenColor("");
+    setTapeType("danza"); setChosenOptionKey(null);
+  }, [scopeKey]);
 
-  // Persistenza per-scope dello stato calcolo
-  useEffect(() => {
-    if (!scopeLsKey) return;
-    try {
-      localStorage.setItem(scopeLsKey, JSON.stringify({
-        needThickness, needColor, stageW, stageH, segments, direction, chosenColor, tapeType, chosenOptionKey,
-      }));
-    } catch { /* ignore */ }
-  }, [scopeLsKey, needThickness, needColor, stageW, stageH, segments, direction, chosenColor, tapeType, chosenOptionKey]);
 
   // Dialog "Invia al Flow"
   const [flowOpen, setFlowOpen] = useState(false);

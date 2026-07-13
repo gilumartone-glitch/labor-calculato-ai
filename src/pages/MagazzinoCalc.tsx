@@ -330,7 +330,7 @@ const segmentsToPoints = (segs: Segment[]): Point[] => {
 };
 
 /* ============== Pagina ============== */
-export default function MagazzinoCalc() {
+export default function MagazzinoCalc({ scopeKey }: { scopeKey?: string } = {}) {
   const { state, setState, ready, status } = useSharedCloudState<MagState>("magazzino_calc", initial, {
     hydrate,
     localStorageKeys: MAGAZZINO_LOCAL_KEYS,

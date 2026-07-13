@@ -830,7 +830,7 @@ const Index = () => {
               />
 
             ) : activeTab === "magazzino" ? (
-              <MagazzinoCalc />
+              <MagazzinoCalc scopeKey={`${(typeof window !== "undefined" ? localStorage.getItem("officina:active-draft") : "") || "default"}::${activeSubProjectId ?? "_none"}`} />
             ) : activeTab === "montaggi" ? (
               <Montaggi embedded />
             ) : (

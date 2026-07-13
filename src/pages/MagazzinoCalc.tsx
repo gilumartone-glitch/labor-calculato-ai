@@ -919,7 +919,9 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const cOk = !needColor || (r.colors ?? []).some((c) => includesLoose(c, needColor));
     return tOk && cOk;
   }), [rolls, needThickness, needColor]);
-  const selected = rolls.find((r) => r.id === selectedId) ?? filtered[0] ?? rolls[0];
+  // Nessuna auto-selezione del prodotto: mostrato solo se l'utente sceglie esplicitamente
+  const selected = selectedId ? rolls.find((r) => r.id === selectedId) : undefined;
+
 
   const customPoints = segmentsToPoints(segments);
   const activePoints = customPoints.length >= 3

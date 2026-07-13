@@ -377,6 +377,7 @@ export default function MagazzinoCalc({ scopeKey }: { scopeKey?: string } = {}) 
           setRolls={(danceRolls) => update({ danceRolls })}
           tapes={state.tapeRolls ?? []}
           setTapes={(tapeRolls) => update({ tapeRolls })}
+          scopeKey={scopeKey}
         />
       ) : sub === "ignifugo" ? (
         <FireSection products={state.fireProducts ?? []} setProducts={(fireProducts) => update({ fireProducts })} />

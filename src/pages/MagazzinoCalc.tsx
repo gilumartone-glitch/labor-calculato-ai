@@ -881,15 +881,25 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
   const [chosenOptionKey, setChosenOptionKey] = useState<string | null>(null);
 
-  // Reset totale quando cambia il sub-progetto/progetto attivo
-  const lastScopeRef = useRef<string | null | undefined>(scopeKey);
+  const resetDanceCalculation = () => {
+    setSelectedId("");
+    setNeedThickness(0);
+    setNeedColor("");
+    setStageW(0);
+    setStageH(0);
+    setSegments([]);
+    setDirection("vertical");
+    setChosenColor("");
+    setTapeType("danza");
+    setChosenOptionKey(null);
+  };
+
+  // Reset totale anche al primo mount: evita valori rimasti in memoria/HMR.
+  const lastScopeRef = useRef<string | null | undefined>(null);
   useEffect(() => {
     if (lastScopeRef.current === scopeKey) return;
     lastScopeRef.current = scopeKey;
-    setSelectedId("");
-    setNeedThickness(0); setNeedColor(""); setStageW(0); setStageH(0);
-    setSegments([]); setDirection("vertical"); setChosenColor("");
-    setTapeType("danza"); setChosenOptionKey(null);
+    resetDanceCalculation();
   }, [scopeKey]);
 
 

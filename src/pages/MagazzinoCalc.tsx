@@ -876,8 +876,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   })();
   const [needThickness, setNeedThickness] = useState<number>(initialScoped?.needThickness ?? 0);
   const [needColor, setNeedColor] = useState<string>(initialScoped?.needColor ?? "");
-  const [stageW, setStageW] = useState<number>(initialScoped?.stageW ?? 18);
-  const [stageH, setStageH] = useState<number>(initialScoped?.stageH ?? 10);
+  const [stageW, setStageW] = useState<number>(initialScoped?.stageW ?? 0);
+  const [stageH, setStageH] = useState<number>(initialScoped?.stageH ?? 0);
   const [segments, setSegments] = useState<Segment[]>(initialScoped?.segments ?? []);
   const [direction, setDirection] = useState<StripDirection>(initialScoped?.direction ?? "vertical");
   const [chosenColor, setChosenColor] = useState<string>(initialScoped?.chosenColor ?? "");
@@ -890,7 +890,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     if (lastScopeRef.current === scopeKey) return;
     lastScopeRef.current = scopeKey;
     if (!scopeLsKey) {
-      setNeedThickness(0); setNeedColor(""); setStageW(18); setStageH(10);
+      setNeedThickness(0); setNeedColor(""); setStageW(0); setStageH(0);
       setSegments([]); setDirection("vertical"); setChosenColor("");
       setTapeType("danza"); setChosenOptionKey(null);
       return;
@@ -900,8 +900,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
       const s = raw ? JSON.parse(raw) : {};
       setNeedThickness(s.needThickness ?? 0);
       setNeedColor(s.needColor ?? "");
-      setStageW(s.stageW ?? 18);
-      setStageH(s.stageH ?? 10);
+      setStageW(s.stageW ?? 0);
+      setStageH(s.stageH ?? 0);
       setSegments(s.segments ?? []);
       setDirection(s.direction ?? "vertical");
       setChosenColor(s.chosenColor ?? "");

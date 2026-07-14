@@ -2947,6 +2947,9 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
 
   const recomputeSavedFromHours = () => {
     const byKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
+    const existingKeys = new Set(
+      salaries.filter((s) => s.month === openMonth).map((s) => s.name.trim().toLowerCase()),
+    );
     const updated = salaries.map((s) => {
       if (s.month !== openMonth) return s;
       const c = byKey.get(s.name.trim().toLowerCase());
@@ -2965,7 +2968,25 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
       cassaBanca: 0,
       cassaContanti: 0,
     }));
-    setSalaries([...updated, ...toAdd]);
+    // Include anche i dipendenti senza ore, così restano visibili in elenco (totale 0)
+    const addedKeys = new Set(toAdd.map((s) => s.name.trim().toLowerCase()));
+    const zeroAdds: Salary[] = dipendenti
+      .filter((d) => {
+        const k = (d.nome ?? "").trim().toLowerCase();
+        return k && !existingKeys.has(k) && !addedKeys.has(k);
+      })
+      .map((d) => ({
+        id: uid(),
+        name: d.nome,
+        month: openMonth,
+        totale: 0,
+        bonifico: 0,
+        contanti: 0,
+        sc: false,
+        cassaBanca: 0,
+        cassaContanti: 0,
+      }));
+    setSalaries([...updated, ...toAdd, ...zeroAdds]);
   };
 
   const toggleProcessed = (v: boolean) => {

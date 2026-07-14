@@ -316,6 +316,8 @@ const MonthTable = ({
                     return (
                       <td key={d} className={`p-0.5 align-top ${weekend ? "bg-amber-50/40" : ""}`}>
                         <DayCellEditor
+                          rowId={row.id}
+                          dayNum={d}
                           segments={segs}
                           canEdit={canEdit}
                           onChange={(next) => setDaySegments(row.id, d, next)}

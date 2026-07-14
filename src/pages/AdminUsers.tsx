@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound, Trash2 } from "lucide-react";
+import { Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound, Trash2, Search, ChevronDown, ChevronUp, Mail, User as UserIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RouteGuard } from "@/components/RouteGuard";
 import { ALL_SETTORI, AppSettore, SETTORE_LABEL } from "@/lib/produzione/types";
@@ -22,11 +21,13 @@ const ROLE_OPTIONS = [
   { value: "member", label: "Member" },
 ];
 
-const LEVEL_OPTIONS: { value: Level; label: string }[] = [
-  { value: "none", label: "—" },
-  { value: "read", label: "Vedi" },
-  { value: "write", label: "Modifica" },
+const LEVEL_OPTIONS: { value: Level; label: string; cls: string }[] = [
+  { value: "none",  label: "Nessuno", cls: "bg-muted text-muted-foreground border-transparent" },
+  { value: "read",  label: "Vedi",    cls: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/30 dark:text-blue-100" },
+  { value: "write", label: "Modifica", cls: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-100" },
 ];
+
+const levelCls = (l: Level) => LEVEL_OPTIONS.find(o => o.value === l)?.cls ?? LEVEL_OPTIONS[0].cls;
 
 const Inner = () => {
   const [pages, setPages] = useState<AppPage[]>([]);
@@ -35,6 +36,8 @@ const Inner = () => {
   const [settori, setSettori] = useState<Record<string, AppSettore[]>>({});
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // form nuovo utente
   const [nuEmail, setNuEmail] = useState("");
@@ -64,9 +67,8 @@ const Inner = () => {
 
   useEffect(() => { load(); }, []);
 
-  const permFor = (user_id: string, page_key: string): Level => {
-    return (perms.find((x) => x.user_id === user_id && x.page_key === page_key)?.level ?? "none") as Level;
-  };
+  const permFor = (user_id: string, page_key: string): Level =>
+    (perms.find((x) => x.user_id === user_id && x.page_key === page_key)?.level ?? "none") as Level;
 
   const setPerm = async (user_id: string, page_key: string, level: Level) => {
     const prev = perms;
@@ -75,10 +77,7 @@ const Inner = () => {
       return [...others, { user_id, page_key, level }];
     });
     const { error } = await supabase.rpc("admin_set_user_permission", { _user_id: user_id, _page: page_key, _level: level });
-    if (error) {
-      setPerms(prev);
-      toast.error(error.message);
-    }
+    if (error) { setPerms(prev); toast.error(error.message); }
   };
 
   const toggleRole = async (user: AdminUser, role: string) => {
@@ -104,111 +103,97 @@ const Inner = () => {
   };
 
   const createUser = async () => {
-    if (!nuEmail || !nuPwd || nuPwd.length < 8) {
-      toast.error("Email e password (min 8 caratteri, non comune) obbligatori");
-      return;
-    }
+    if (!nuEmail || !nuPwd || nuPwd.length < 8) { toast.error("Email e password (min 8 caratteri) obbligatori"); return; }
     setCreating(true);
     try {
       const permissions = Object.entries(nuPerms).filter(([, lvl]) => lvl !== "none").map(([page_key, level]) => ({ page_key, level }));
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: {
-          email: nuEmail,
-          password: nuPwd,
-          display_name: nuName || undefined,
-          approved: true,
-          roles: nuRoles,
-          permissions,
-        },
+        body: { email: nuEmail, password: nuPwd, display_name: nuName || undefined, approved: true, roles: nuRoles, permissions },
       });
-      if (error || (data as any)?.error) {
-        toast.error(((data as any)?.error) || error?.message || "Errore creazione utente");
-        return;
-      }
+      if (error || (data as any)?.error) { toast.error(((data as any)?.error) || error?.message || "Errore creazione utente"); return; }
       toast.success("Utente creato");
       setShowCreate(false);
       setNuEmail(""); setNuPwd(""); setNuName(""); setNuRoles([]); setNuPerms({});
       await load();
-    } finally {
-      setCreating(false);
-    }
+    } finally { setCreating(false); }
   };
 
   const resetPassword = async (user: AdminUser) => {
-    const pwd = window.prompt(`Nuova password per ${user.email} (min 8 caratteri, non comune):`);
+    const pwd = window.prompt(`Nuova password per ${user.email} (min 8 caratteri):`);
     if (pwd === null) return;
     if (pwd.length < 8) { toast.error("Password troppo corta (min 8)"); return; }
-    const { data, error } = await supabase.functions.invoke("admin-set-password", {
-      body: { user_id: user.id, password: pwd },
-    });
-    if (error || (data as any)?.error) {
-      toast.error(((data as any)?.error) || error?.message || "Errore cambio password");
-      return;
-    }
+    const { data, error } = await supabase.functions.invoke("admin-set-password", { body: { user_id: user.id, password: pwd } });
+    if (error || (data as any)?.error) { toast.error(((data as any)?.error) || error?.message); return; }
     toast.success("Password aggiornata");
   };
 
   const deleteUser = async (user: AdminUser) => {
     if (!window.confirm(`Eliminare definitivamente ${user.display_name || user.email}?\nQuesta azione non è reversibile.`)) return;
-    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
-      body: { user_id: user.id },
-    });
-    if (error || (data as any)?.error) {
-      toast.error(((data as any)?.error) || error?.message || "Errore eliminazione");
-      return;
-    }
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: user.id } });
+    if (error || (data as any)?.error) { toast.error(((data as any)?.error) || error?.message); return; }
     toast.success("Utente eliminato");
     setUsers((cur) => cur.filter((u) => u.id !== user.id));
   };
 
   const updateUser = async (user: AdminUser, patch: { email?: string; display_name?: string }) => {
-    const { data, error } = await supabase.functions.invoke("admin-update-user", {
-      body: { user_id: user.id, ...patch },
-    });
-    if (error || (data as any)?.error) {
-      toast.error(((data as any)?.error) || error?.message || "Errore aggiornamento");
-      return;
-    }
+    const { data, error } = await supabase.functions.invoke("admin-update-user", { body: { user_id: user.id, ...patch } });
+    if (error || (data as any)?.error) { toast.error(((data as any)?.error) || error?.message); return; }
     toast.success("Utente aggiornato");
     setUsers((cur) => cur.map((x) => x.id === user.id ? { ...x, ...patch } : x));
   };
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      (u.display_name ?? "").toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.roles.some((r) => r.toLowerCase().includes(q))
+    );
+  }, [users, query]);
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b-2 border-ink bg-paper">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <header className="border-b-2 border-ink bg-paper sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-semibold mt-1 inline-flex items-center gap-2"><ShieldCheck className="w-5 h-5" /> Gestione utenti</h1>
+            <h1 className="font-display text-3xl font-bold inline-flex items-center gap-3">
+              <ShieldCheck className="w-7 h-7" /> Gestione utenti
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">{users.length} utenti totali · {users.filter(u => u.approved).length} attivi</p>
           </div>
-          <button onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-paper rounded-sm text-xs uppercase tracking-wider font-bold hover:bg-primary hover:text-primary-foreground">
-            <UserPlus className="w-4 h-4" /> Nuovo utente
+          <button onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 px-5 py-3 bg-ink text-paper rounded-sm text-sm uppercase tracking-wider font-bold hover:bg-primary hover:text-primary-foreground">
+            <UserPlus className="w-5 h-5" /> Nuovo utente
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
         {showCreate && (
-          <section className="border-2 border-ink bg-paper p-5 space-y-4">
-            <h2 className="font-display text-xl font-semibold">Crea account</h2>
-            <div className="grid gap-3 md:grid-cols-3">
+          <section className="border-2 border-ink bg-paper p-6 space-y-5 rounded-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-2xl font-semibold">Crea account</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-muted rounded-sm"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="label-cap block mb-1">Email</label>
-                <input className="input-bare w-full text-sm" type="email" value={nuEmail} onChange={(e) => setNuEmail(e.target.value)} />
+                <label className="text-xs uppercase tracking-wider font-bold block mb-1.5">Email</label>
+                <input className="w-full text-sm border-2 border-ink/20 focus:border-ink rounded-sm px-3 py-2 bg-background" type="email" value={nuEmail} onChange={(e) => setNuEmail(e.target.value)} />
               </div>
               <div>
-                <label className="label-cap block mb-1">Password (min 8, non comune)</label>
-                <input className="input-bare w-full text-sm" type="text" value={nuPwd} onChange={(e) => setNuPwd(e.target.value)} />
+                <label className="text-xs uppercase tracking-wider font-bold block mb-1.5">Password (min 8)</label>
+                <input className="w-full text-sm border-2 border-ink/20 focus:border-ink rounded-sm px-3 py-2 bg-background" type="text" value={nuPwd} onChange={(e) => setNuPwd(e.target.value)} />
               </div>
               <div>
-                <label className="label-cap block mb-1">Nome visualizzato</label>
-                <input className="input-bare w-full text-sm" value={nuName} onChange={(e) => setNuName(e.target.value)} />
+                <label className="text-xs uppercase tracking-wider font-bold block mb-1.5">Nome</label>
+                <input className="w-full text-sm border-2 border-ink/20 focus:border-ink rounded-sm px-3 py-2 bg-background" value={nuName} onChange={(e) => setNuName(e.target.value)} />
               </div>
             </div>
             <div>
-              <div className="label-cap mb-2">Ruoli</div>
+              <div className="text-xs uppercase tracking-wider font-bold mb-2">Ruoli</div>
               <div className="flex flex-wrap gap-2">
                 {ROLE_OPTIONS.map((r) => (
-                  <label key={r.value} className={`px-3 py-1.5 border-2 rounded-sm text-xs cursor-pointer ${nuRoles.includes(r.value) ? "bg-ink text-paper border-ink" : "border-ink/30 hover:border-ink"}`}>
+                  <label key={r.value} className={`px-3 py-2 border-2 rounded-sm text-sm cursor-pointer transition-colors ${nuRoles.includes(r.value) ? "bg-ink text-paper border-ink" : "border-ink/30 hover:border-ink"}`}>
                     <input type="checkbox" className="hidden" checked={nuRoles.includes(r.value)} onChange={() => setNuRoles((cur) => cur.includes(r.value) ? cur.filter((x) => x !== r.value) : [...cur, r.value])} />
                     {r.label}
                   </label>
@@ -216,120 +201,182 @@ const Inner = () => {
               </div>
             </div>
             <div>
-              <div className="label-cap mb-2">Permessi sezioni</div>
+              <div className="text-xs uppercase tracking-wider font-bold mb-2">Permessi sezioni</div>
               <div className="grid gap-2 md:grid-cols-2">
                 {pages.map((p) => (
-                  <div key={p.key} className="flex items-center justify-between gap-3 border border-ink/20 rounded-sm px-3 py-2">
-                    <div>
+                  <div key={p.key} className="flex items-center justify-between gap-3 border-2 border-ink/15 rounded-sm px-3 py-2.5 hover:border-ink/40">
+                    <div className="min-w-0">
                       <div className="text-sm font-semibold">{p.label}</div>
-                      {p.description && <div className="text-[11px] text-muted-foreground">{p.description}</div>}
+                      {p.description && <div className="text-xs text-muted-foreground truncate">{p.description}</div>}
                     </div>
-                    <select className="input-bare text-xs" value={nuPerms[p.key] ?? "none"} onChange={(e) => setNuPerms((cur) => ({ ...cur, [p.key]: e.target.value as Level }))}>
-                      {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <div className="flex gap-1">
+                      {LEVEL_OPTIONS.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setNuPerms((cur) => ({ ...cur, [p.key]: o.value }))}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-sm border-2 ${(nuPerms[p.key] ?? "none") === o.value ? o.cls : "border-ink/20 text-muted-foreground bg-transparent"}`}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowCreate(false)} className="px-3 py-2 text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">Annulla</button>
-              <button disabled={creating} onClick={createUser} className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-paper rounded-sm text-xs uppercase tracking-wider font-bold hover:bg-primary hover:text-primary-foreground disabled:opacity-60">
+            <div className="flex justify-end gap-2 pt-2 border-t border-ink/10">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 text-sm uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">Annulla</button>
+              <button disabled={creating} onClick={createUser} className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-paper rounded-sm text-sm uppercase tracking-wider font-bold hover:bg-primary hover:text-primary-foreground disabled:opacity-60">
                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Crea utente
               </button>
             </div>
           </section>
         )}
 
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <input
+            className="w-full pl-11 pr-4 py-3 border-2 border-ink/20 focus:border-ink rounded-sm bg-paper text-base"
+            placeholder="Cerca per nome, email o ruolo…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
         {loading ? (
-          <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          <div className="grid place-items-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
         ) : (
-          <section className="border-2 border-ink bg-paper">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-ink/5 border-b-2 border-ink">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-display">Utente</th>
-                    <th className="text-left px-3 py-2 font-display">Stato</th>
-                    <th className="text-left px-3 py-2 font-display">Ruoli</th>
-                    <th className="text-left px-3 py-2 font-display">Settori</th>
-                    {pages.map((p) => <th key={p.key} className="text-left px-3 py-2 font-display whitespace-nowrap">{p.label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b border-ink/10 hover:bg-ink/5 align-top">
-                      <td className="px-3 py-2 min-w-[220px]">
+          <div className="grid gap-4">
+            {filtered.map((u) => {
+              const isOpen = !!expanded[u.id];
+              const activePerms = pages.filter((p) => permFor(u.id, p.key) !== "none");
+              return (
+                <article key={u.id} className={`border-2 rounded-sm bg-paper transition-all ${u.approved ? "border-ink/30" : "border-amber-400"}`}>
+                  {/* Header */}
+                  <header className="p-4 flex flex-wrap items-start gap-4">
+                    <div className="w-11 h-11 rounded-full bg-ink text-paper grid place-items-center font-display text-lg font-bold flex-shrink-0">
+                      {(u.display_name?.[0] || u.email[0] || "?").toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-[220px]">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <input
-                          className="input-bare w-full text-sm font-semibold"
+                          className="text-lg font-display font-semibold bg-transparent border-b-2 border-transparent hover:border-ink/20 focus:border-ink outline-none px-1 flex-1 min-w-[180px]"
                           defaultValue={u.display_name ?? ""}
-                          placeholder="Nome visualizzato"
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v !== (u.display_name ?? "")) updateUser(u, { display_name: v });
-                          }}
+                          placeholder="Nome"
+                          onBlur={(e) => { const v = e.target.value.trim(); if (v !== (u.display_name ?? "")) updateUser(u, { display_name: v }); }}
                         />
+                        <button
+                          onClick={() => toggleApproved(u)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs uppercase tracking-wider font-bold border-2 ${u.approved ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700" : "bg-amber-50 border-amber-500 text-amber-800 dark:bg-amber-900/30 dark:text-amber-100"}`}
+                        >
+                          {u.approved ? <><Check className="w-3.5 h-3.5" /> Attivo</> : "In attesa"}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                        <Mail className="w-4 h-4 flex-shrink-0" />
                         <input
-                          className="input-bare w-full text-[11px] text-muted-foreground mt-1"
+                          className="bg-transparent border-b-2 border-transparent hover:border-ink/20 focus:border-ink outline-none flex-1 min-w-[200px]"
                           defaultValue={u.email}
                           type="email"
-                          placeholder="email@dominio"
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v && v !== u.email) updateUser(u, { email: v });
-                            else e.target.value = u.email;
-                          }}
+                          onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== u.email) updateUser(u, { email: v }); else e.target.value = u.email; }}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col gap-1">
-                          <button onClick={() => toggleApproved(u)} className={`inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] uppercase tracking-wider border-2 ${u.approved ? "bg-emerald-600 text-white border-emerald-700" : "border-amber-500 text-amber-700 bg-amber-50"}`}>
-                            {u.approved ? <><Check className="w-3 h-3" /> Attivo</> : "In attesa"}
-                          </button>
-                          <button onClick={() => resetPassword(u)} title="Cambia password" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-ink/30 hover:border-ink hover:bg-ink hover:text-paper">
-                            <KeyRound className="w-3 h-3" /> Password
-                          </button>
-                          <button onClick={() => deleteUser(u)} title="Elimina utente" className="inline-flex items-center gap-1 px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider border-2 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive">
-                            <Trash2 className="w-3 h-3" /> Elimina
-                          </button>
+                      </div>
+                      {/* Roles chips */}
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {u.roles.length === 0 && <span className="text-xs text-muted-foreground italic">Nessun ruolo</span>}
+                        {u.roles.map((r) => {
+                          const opt = ROLE_OPTIONS.find(o => o.value === r);
+                          return <span key={r} className="px-2 py-1 rounded-sm text-xs font-semibold bg-ink text-paper">{opt?.label ?? r}</span>;
+                        })}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {activePerms.length}/{pages.length} sezioni · {(settori[u.id] ?? []).length} settori
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <button onClick={() => setExpanded((c) => ({ ...c, [u.id]: !c[u.id] }))} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-xs uppercase tracking-wider font-bold border-2 border-ink/40 hover:bg-ink hover:text-paper">
+                        {isOpen ? <><ChevronUp className="w-4 h-4" /> Chiudi</> : <><ChevronDown className="w-4 h-4" /> Gestisci</>}
+                      </button>
+                    </div>
+                  </header>
+
+                  {isOpen && (
+                    <div className="border-t-2 border-ink/10 p-5 space-y-5 bg-muted/30">
+                      {/* Ruoli */}
+                      <section>
+                        <h3 className="text-sm uppercase tracking-wider font-bold mb-2 flex items-center gap-2"><UserIcon className="w-4 h-4" /> Ruoli</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {ROLE_OPTIONS.map((r) => {
+                            const on = u.roles.includes(r.value);
+                            return (
+                              <button key={r.value} onClick={() => toggleRole(u, r.value)} className={`px-3 py-1.5 rounded-sm text-sm font-semibold border-2 transition-colors ${on ? "bg-ink text-paper border-ink" : "border-ink/25 hover:border-ink bg-paper"}`}>
+                                {r.label}
+                              </button>
+                            );
+                          })}
                         </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1 max-w-[260px]">
-                          {ROLE_OPTIONS.map((r) => (
-                            <button key={r.value} onClick={() => toggleRole(u, r.value)} className={`px-2 py-0.5 rounded-sm text-[10px] uppercase tracking-wider border ${u.roles.includes(r.value) ? "bg-ink text-paper border-ink" : "border-ink/20 hover:border-ink"}`}>
-                              {r.label}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1 max-w-[280px]">
+                      </section>
+
+                      {/* Settori */}
+                      <section>
+                        <h3 className="text-sm uppercase tracking-wider font-bold mb-2">Settori operativi</h3>
+                        <div className="flex flex-wrap gap-2">
                           {ALL_SETTORI.map((s) => {
                             const on = (settori[u.id] ?? []).includes(s);
                             return (
-                              <button key={s} onClick={() => toggleSettore(u.id, s)} className={`px-2 py-0.5 rounded-sm text-[10px] uppercase tracking-wider border ${on ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 hover:border-ink"}`}>
+                              <button key={s} onClick={() => toggleSettore(u.id, s)} className={`px-3 py-1.5 rounded-sm text-sm font-semibold border-2 transition-colors ${on ? "bg-primary text-primary-foreground border-primary" : "border-ink/25 hover:border-ink bg-paper"}`}>
                                 {SETTORE_LABEL[s]}
                               </button>
                             );
                           })}
                         </div>
-                      </td>
-                      {pages.map((p) => (
-                        <td key={p.key} className="px-3 py-2">
-                          <select className="input-bare text-xs" value={permFor(u.id, p.key)} onChange={(e) => setPerm(u.id, p.key, e.target.value as Level)}>
-                            {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                  {users.length === 0 && (
-                    <tr><td colSpan={4 + pages.length} className="px-3 py-6 text-center text-muted-foreground text-sm">Nessun utente</td></tr>
+                      </section>
+
+                      {/* Permessi */}
+                      <section>
+                        <h3 className="text-sm uppercase tracking-wider font-bold mb-2">Permessi sezioni</h3>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {pages.map((p) => {
+                            const lvl = permFor(u.id, p.key);
+                            return (
+                              <div key={p.key} className="flex items-center justify-between gap-3 border-2 border-ink/15 rounded-sm px-3 py-2.5 bg-paper">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold">{p.label}</div>
+                                  {p.description && <div className="text-xs text-muted-foreground truncate">{p.description}</div>}
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  {LEVEL_OPTIONS.map((o) => (
+                                    <button
+                                      key={o.value}
+                                      onClick={() => setPerm(u.id, p.key, o.value)}
+                                      className={`px-2.5 py-1.5 text-xs font-bold rounded-sm border-2 ${lvl === o.value ? o.cls : "border-ink/15 text-muted-foreground hover:border-ink/40"}`}
+                                    >
+                                      {o.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+
+                      {/* Azioni */}
+                      <section className="flex flex-wrap gap-2 pt-3 border-t border-ink/10">
+                        <button onClick={() => resetPassword(u)} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm uppercase tracking-wider font-bold border-2 border-ink/30 hover:bg-ink hover:text-paper">
+                          <KeyRound className="w-4 h-4" /> Cambia password
+                        </button>
+                        <button onClick={() => deleteUser(u)} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm uppercase tracking-wider font-bold border-2 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                          <Trash2 className="w-4 h-4" /> Elimina utente
+                        </button>
+                      </section>
+                    </div>
                   )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                </article>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-ink/20 rounded-sm">Nessun utente trovato</div>
+            )}
+          </div>
         )}
       </main>
     </div>

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 import { loadContabContacts, addContabContact } from "@/lib/produzione/contabilita-contacts";
-import { ProdDept, WORK_DEPTS, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
+import { ProdDept, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;
@@ -50,7 +50,22 @@ export type WarehouseConfirmData = {
   create_admin_closure: boolean;
 };
 
-type MagazzinoUser = { id: string; display_name: string | null };
+type MagazzinoUser = { id: string; display_name: string | null; settori?: string[] | null };
+
+const MACRO_SECTOR_KEYS: Record<string, string[]> = {
+  laboratorio: ["laboratorio", "stampa", "taglio", "falegnameria", "stampa_3d", "progettazione"],
+  tappezzeria: ["tappezzeria"],
+  magazzino: ["magazzino", "acquisti", "vendite", "logistica"],
+  montaggi: ["montaggi"],
+};
+
+const usersForMacro = (list: MagazzinoUser[], macro: ProdDept) => {
+  const keys = MACRO_SECTOR_KEYS[toMacroDept(macro)] ?? [];
+  const filtered = keys.length > 0
+    ? list.filter((u) => (u.settori ?? []).some((s) => keys.includes(s)))
+    : [];
+  return filtered.length > 0 ? filtered : list;
+};
 
 export const ConfirmToWarehouseDialog = ({
   open,

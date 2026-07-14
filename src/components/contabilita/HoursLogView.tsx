@@ -73,7 +73,7 @@ const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => 
       else if (s.t === "doppia") workH += h;
       else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
       else if (s.t === "permesso") permessoOre += h;
-      else if (s.t === "ferie") hadFerie = true;
+      else if (s.t === "ferie") { ore += (h > 0 ? Math.min(h, threshold) : threshold); hadFerie = true; }
       else if (s.t === "malattia") hadMalattia = true;
     });
     ore += Math.min(workH, threshold);

@@ -2786,9 +2786,11 @@ const computeSalaryForRow = (
     let hadTrasferta = false;
     let hadFerie = false;
     let hadMalattia = false;
+    let hadDoppia = false;
     segs.forEach((s) => {
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
+      else if (s.t === "doppia") { workH += h; hadDoppia = true; }
       else if (s.t === "trasferta") { workH += h; hadTrasferta = true; }
       else if (s.t === "permesso") { paidH += h; permessoH += h; }
       else if (s.t === "ferie") { paidH += h; hadFerie = true; }
@@ -2799,7 +2801,8 @@ const computeSalaryForRow = (
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
-    const amount = isHoliday ? baseAmount * 2 : baseAmount;
+    // Festivo raddoppia. Doppia raddoppia. Se entrambi presenti, si applica solo il raddoppio (non si somma).
+    const amount = (isHoliday || hadDoppia) ? baseAmount * 2 : baseAmount;
     breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;

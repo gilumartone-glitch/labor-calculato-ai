@@ -389,20 +389,40 @@ export const ConfirmToWarehouseDialog = ({
             )}
           </div>
 
-          {/* Responsabile lavorazione (già definito in pianificazione, sola lettura) */}
-          {assignee && !loading ? (
+          {/* Responsabile lavorazione: modificabile da chi invia al Flow */}
+          {loading ? (
+            <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
+          ) : assignee && !editAssignee ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
                 <span className="text-muted-foreground uppercase tracking-wider">Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">da pianificazione</span>
+              <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
+                <Pencil className="w-3 h-3" /> Cambia
+              </button>
             </div>
-          ) : loading ? (
-            <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
           ) : (
-            <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
-              Responsabile non impostato in pianificazione.
+            <div className="border-2 border-ink/15 rounded-sm px-3 py-2 bg-paper space-y-2">
+              <Label>Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()} *</Label>
+              {workDeptUsers.length === 0 ? (
+                <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
+                  Nessun utente approvato disponibile. Verifica Gestione utenti.
+                </div>
+              ) : (
+                <select
+                  value={assignee}
+                  onChange={(e) => { setAssignee(e.target.value); setEditAssignee(false); }}
+                  className="w-full h-11 px-3 border-2 border-input rounded-md bg-background text-sm font-semibold"
+                >
+                  {workDeptUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+              )}
+              <div className="text-[10px] font-mono text-muted-foreground">
+                Mostro prima gli utenti del reparto scelto; se il reparto non ha addetti, mostro tutti gli utenti approvati.
+              </div>
             </div>
           )}
 

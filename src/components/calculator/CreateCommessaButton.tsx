@@ -28,7 +28,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
 import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL, toMacroDept } from "@/lib/produzione/types";
-import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
+import {
+  nextOrderCode,
+  subCode,
+  logAction,
+  notify,
+  getProduzioneWriters,
+  throwFlowError,
+  describeFlowLaunchError,
+  readFlowLaunchDebug,
+} from "@/lib/produzione/helpers";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
@@ -496,7 +505,7 @@ export const CreateCommessaButton = ({
         created_by: user.id,
         responsabile_id: generalManager || null,
       }).select("id").single();
-      if (error) throw error;
+      if (error) throwFlowError("creazione_commessa", "commesse", error);
       const commessaId = createdCommessa.id;
 
       // Se senza lavorazione: chiedo dati magazzino e creo solo l'ordine magazzino, niente sub di reparto
@@ -551,8 +560,12 @@ export const CreateCommessaButton = ({
       setSaving(false);
       return;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Errore sconosciuto";
-      toast.error("Errore creazione commessa", { description: msg });
+      console.error("[CreateCommessaButton] errore creazione commessa", err);
+      const detail = describeFlowLaunchError(err);
+      const debug = await readFlowLaunchDebug();
+      toast.error(detail.title, {
+        description: `${detail.description} · Permessi utente: ${JSON.stringify(debug)}`,
+      });
     } finally {
       setSaving(false);
     }
@@ -601,6 +614,7 @@ export const CreateCommessaButton = ({
           attachments: [],
           nesting_included: false,
           created_by: user.id,
+          coordinator_id: generalManager || user.id,
           source_commessa_id: payload.commessaId,
           snapshot: payload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
@@ -608,7 +622,7 @@ export const CreateCommessaButton = ({
         } as any)
         .select()
         .single();
-      if (e1) throw e1;
+      if (e1) throwFlowError("creazione_ordine", "production_orders", e1);
 
       const extractedMaterials = extractMaterialsFromSnapshot(payload.productionSnapshot);
       const materialDeptByKey = new Map(
@@ -657,7 +671,7 @@ export const CreateCommessaButton = ({
           .from("production_sub_orders")
           .insert(acquistiRows as any)
           .select("id");
-        if (ea) throw ea;
+        if (ea) throwFlowError("creazione_acquisti", "production_sub_orders", ea);
         // Associa ogni sub-acquisti al reparto tecnico del materiale mancante,
         // ma SOLO se la regola è "blocking". I materiali "autonomous" generano comunque
         // un sub acquisti, ma non bloccano il reparto consumatore.
@@ -707,7 +721,7 @@ export const CreateCommessaButton = ({
           operator_ids: d.assignee_id ? [d.assignee_id] : [],
         } as any).select("id").single();
 
-        if (e2) throw e2;
+        if (e2) throwFlowError("creazione_lavorazione", "production_sub_orders", e2);
         if (d.assignee_id) insertedSubs.push({ id: workSub.id, dept: d.work_dept, assignee: d.assignee_id });
 
         // Sub Amministrazione opzionale (chiusura/bolla)
@@ -825,7 +839,7 @@ export const CreateCommessaButton = ({
             } as any)
             .select("id")
             .single();
-          if (eSub) throw eSub;
+          if (eSub) throwFlowError("creazione_lavorazione", "production_sub_orders", eSub);
           insertedIdByTaskKey[task.key] = sub.id;
           insertedSubs.push({ id: sub.id, dept, assignee });
         }
@@ -909,7 +923,7 @@ export const CreateCommessaButton = ({
         }
         if (allPlanRows.length > 0) {
           const { error: ePlan } = await supabase.from("montaggi_planning").insert(allPlanRows);
-          if (ePlan) throw ePlan;
+          if (ePlan) throwFlowError("creazione_pianificazione", "montaggi_planning", ePlan);
         }
 
         // === Propagazione Montaggi → Assegnazione (attrezzi/materiali + notifica operai) ===
@@ -1014,7 +1028,7 @@ export const CreateCommessaButton = ({
             flowAssigneeIds.map((uid) => ({ commessa_id: payload.commessaId, user_id: uid })),
             { onConflict: "commessa_id,user_id", ignoreDuplicates: true },
           );
-        if (assErr) throw assErr;
+        if (assErr) throwFlowError("assegnazione_flow", "commessa_assegnatari", assErr);
       }
 
       await logAction({
@@ -1046,12 +1060,11 @@ export const CreateCommessaButton = ({
       navigate("/flow");
     } catch (err) {
       console.error("[CreateCommessaButton] errore creazione ordine", err);
-      const msg = err instanceof Error
-        ? err.message
-        : (err && typeof err === "object" && "message" in (err as any))
-          ? String((err as any).message)
-          : (typeof err === "string" ? err : JSON.stringify(err));
-      toast.error(`Errore creazione ordine: ${msg}`);
+      const detail = describeFlowLaunchError(err);
+      const debug = await readFlowLaunchDebug();
+      toast.error(detail.title, {
+        description: `${detail.description} · Permessi utente: ${JSON.stringify(debug)}`,
+      });
     } finally {
       setSaving(false);
     }

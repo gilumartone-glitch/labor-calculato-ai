@@ -1,6 +1,74 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ProdOrder, ProdSubOrder, isNotifType, PROD_NOTIF_TYPES } from "./types";
 
+export type FlowLaunchStep =
+  | "creazione_commessa"
+  | "creazione_ordine"
+  | "creazione_acquisti"
+  | "creazione_lavorazione"
+  | "creazione_pianificazione"
+  | "assegnazione_flow"
+  | "chiusura_draft"
+  | "generico";
+
+const FLOW_STEP_LABEL: Record<FlowLaunchStep, string> = {
+  creazione_commessa: "creazione commessa Flow",
+  creazione_ordine: "creazione ordine produzione",
+  creazione_acquisti: "creazione sub-ordine Acquisti",
+  creazione_lavorazione: "creazione lavorazione",
+  creazione_pianificazione: "creazione pianificazione",
+  assegnazione_flow: "assegnazione operatori Flow",
+  chiusura_draft: "chiusura scheda progetto",
+  generico: "invio al Flow",
+};
+
+export class FlowLaunchError extends Error {
+  step: FlowLaunchStep;
+  table?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  raw: unknown;
+
+  constructor(step: FlowLaunchStep, table: string | undefined, raw: any) {
+    const message = raw?.message ? String(raw.message) : String(raw ?? "Errore sconosciuto");
+    super(message);
+    this.name = "FlowLaunchError";
+    this.step = step;
+    this.table = table;
+    this.code = raw?.code ? String(raw.code) : undefined;
+    this.details = raw?.details ? String(raw.details) : undefined;
+    this.hint = raw?.hint ? String(raw.hint) : undefined;
+    this.raw = raw;
+  }
+}
+
+export function throwFlowError(step: FlowLaunchStep, table: string, error: unknown): never {
+  throw new FlowLaunchError(step, table, error);
+}
+
+export function describeFlowLaunchError(error: unknown): { title: string; description: string } {
+  if (error instanceof FlowLaunchError) {
+    const parts = [
+      `Fase: ${FLOW_STEP_LABEL[error.step]}`,
+      error.table ? `Tabella: ${error.table}` : null,
+      error.code ? `Codice: ${error.code}` : null,
+      error.message ? `Messaggio: ${error.message}` : null,
+      error.details ? `Dettagli: ${error.details}` : null,
+      error.hint ? `Suggerimento: ${error.hint}` : null,
+    ].filter(Boolean);
+    return { title: `Errore invio al Flow`, description: parts.join(" · ") };
+  }
+  const msg = error instanceof Error ? error.message : String(error ?? "Errore sconosciuto");
+  return { title: "Errore invio al Flow", description: msg };
+}
+
+export async function readFlowLaunchDebug() {
+  const { data, error } = await (supabase as any).rpc("debug_flow_launch_permissions", {});
+  if (error) return { debugError: error.message };
+  return data;
+}
+
 /** Genera un codice ordine ORD-YYYY-### incrementale per anno corrente.
  *  Usa una funzione SECURITY DEFINER per leggere TUTTI gli ordini, anche quelli
  *  non visibili all'utente corrente per via delle policy RLS (evita collisioni). */

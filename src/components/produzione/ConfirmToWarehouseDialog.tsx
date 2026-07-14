@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactSelect } from "@/components/produzione/ContactSelect";
 import { loadContabContacts, addContabContact } from "@/lib/produzione/contabilita-contacts";
-import { ProdDept, WORK_DEPTS, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
+import { ProdDept, MACRO_WORK_DEPTS, MACRO_WORK_LABEL, DEPT_LABEL, DEPT_COLOR, toMacroDept } from "@/lib/produzione/types";
 
 export type WarehouseMaterialItem = {
   key: string;
@@ -50,7 +50,22 @@ export type WarehouseConfirmData = {
   create_admin_closure: boolean;
 };
 
-type MagazzinoUser = { id: string; display_name: string | null };
+type MagazzinoUser = { id: string; display_name: string | null; settori?: string[] | null };
+
+const MACRO_SECTOR_KEYS: Record<string, string[]> = {
+  laboratorio: ["laboratorio", "stampa", "taglio", "falegnameria", "stampa_3d", "progettazione"],
+  tappezzeria: ["tappezzeria"],
+  magazzino: ["magazzino", "acquisti", "vendite", "logistica"],
+  montaggi: ["montaggi"],
+};
+
+const usersForMacro = (list: MagazzinoUser[], macro: ProdDept) => {
+  const keys = MACRO_SECTOR_KEYS[toMacroDept(macro)] ?? [];
+  const filtered = keys.length > 0
+    ? list.filter((u) => (u.settori ?? []).some((s) => keys.includes(s)))
+    : [];
+  return filtered.length > 0 ? filtered : list;
+};
 
 export const ConfirmToWarehouseDialog = ({
   open,
@@ -92,9 +107,10 @@ export const ConfirmToWarehouseDialog = ({
   type InvInfo = { found: boolean; code?: string; qty_intera?: number; qty_sfrido?: number; posizione?: string | null; reparto?: string };
   const [invInfo, setInvInfo] = useState<Record<string, InvInfo>>({});
   const macros = useMemo(() => {
-    const list = (availableMacros && availableMacros.length > 0)
+    const projectMacros = (availableMacros && availableMacros.length > 0)
       ? MACRO_WORK_DEPTS.filter((m) => availableMacros.map(toMacroDept).includes(m))
       : MACRO_WORK_DEPTS;
+    const list = Array.from(new Set([...projectMacros, ...MACRO_WORK_DEPTS]));
     return list.length > 0 ? list : MACRO_WORK_DEPTS;
   }, [availableMacros]);
   const initialDept = (() => {
@@ -129,7 +145,8 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
-    setWorkDept(initialDept);
+      const targetDept = initialDept;
+      setWorkDept(targetDept);
     setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
@@ -143,8 +160,8 @@ export const ConfirmToWarehouseDialog = ({
       // Carichiamo TUTTI i profili approvati: il responsabile lavorazione può essere
       // chiunque (l'amministratore poi potrà filtrare per settore se vuole).
       const [{ data: m }, { data: a }, { data: inv }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").eq("approved", true).order("display_name", { ascending: true }),
-        supabase.from("profiles").select("id, display_name").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name, settori").eq("approved", true).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name, settori").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
         supabase.from("inventory_items").select("code, reparto, material_name, material_color, material_height, qty_intera, qty_sfrido, posizione"),
       ]);
       if (cancelled) return;
@@ -182,10 +199,14 @@ export const ConfirmToWarehouseDialog = ({
       setInvInfo(info);
       setAvailable(initAvail);
       // Preferisci il responsabile scelto in pianificazione per il reparto attivo
-      const planned = defaultAssigneeByMacro?.[workDept];
+      const planned = defaultAssigneeByMacro?.[targetDept];
       const plannedExists = planned && list.some((u) => u.id === planned);
       if (plannedExists) setAssignee(planned as string);
-      else if (list.length > 0) setAssignee(list[0].id);
+      else {
+        const preferred = usersForMacro(list, targetDept);
+        if (preferred.length > 0) setAssignee(preferred[0].id);
+        else setAssignee("");
+      }
       if (aList.length > 0) setAcquistiAssignee(aList[0].id);
       setLoading(false);
     })();
@@ -199,9 +220,15 @@ export const ConfirmToWarehouseDialog = ({
     const planned = defaultAssigneeByMacro?.[workDept];
     if (planned && users.some((u) => u.id === planned)) {
       setAssignee(planned);
+      setEditAssignee(false);
+      return;
+    }
+    const preferred = usersForMacro(users, workDept);
+    if (preferred.length > 0 && !preferred.some((u) => u.id === assignee)) {
+      setAssignee(preferred[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workDept]);
+  }, [workDept, users]);
 
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])
@@ -214,6 +241,7 @@ export const ConfirmToWarehouseDialog = ({
 
   const assigneeName = useMemo(() => users.find((u) => u.id === assignee)?.display_name ?? "", [users, assignee]);
   const acquistiAssigneeName = useMemo(() => acquistiUsers.find((u) => u.id === acquistiAssignee)?.display_name ?? "", [acquistiUsers, acquistiAssignee]);
+  const workDeptUsers = useMemo(() => usersForMacro(users, workDept), [users, workDept]);
 
   const handle = async () => {
     if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); setEditRef(true); return; }
@@ -363,20 +391,40 @@ export const ConfirmToWarehouseDialog = ({
             )}
           </div>
 
-          {/* Responsabile lavorazione (già definito in pianificazione, sola lettura) */}
-          {assignee && !loading ? (
+          {/* Responsabile lavorazione: modificabile da chi invia al Flow */}
+          {loading ? (
+            <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
+          ) : assignee && !editAssignee ? (
             <div className="flex items-center justify-between gap-2 border border-ink/15 rounded-sm px-3 py-2 bg-muted/30">
               <div className="text-[11px] font-mono">
                 <span className="text-muted-foreground uppercase tracking-wider">Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()}</span>{" "}
                 <span className="font-bold text-ink">{assigneeName || assignee.slice(0, 8)}</span>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">da pianificazione</span>
+              <button type="button" onClick={() => setEditAssignee(true)} className="text-[10px] uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
+                <Pencil className="w-3 h-3" /> Cambia
+              </button>
             </div>
-          ) : loading ? (
-            <div className="text-[11px] text-muted-foreground py-2"><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Caricamento…</div>
           ) : (
-            <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
-              Responsabile non impostato in pianificazione.
+            <div className="border-2 border-ink/15 rounded-sm px-3 py-2 bg-paper space-y-2">
+              <Label>Responsabile {(MACRO_WORK_LABEL[workDept] ?? DEPT_LABEL[workDept]).toLowerCase()} *</Label>
+              {workDeptUsers.length === 0 ? (
+                <div className="text-[11px] text-destructive py-2 border border-destructive/30 bg-destructive/5 rounded-sm px-2">
+                  Nessun utente approvato disponibile. Verifica Gestione utenti.
+                </div>
+              ) : (
+                <select
+                  value={assignee}
+                  onChange={(e) => { setAssignee(e.target.value); setEditAssignee(false); }}
+                  className="w-full h-11 px-3 border-2 border-input rounded-md bg-background text-sm font-semibold"
+                >
+                  {workDeptUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name || u.id.slice(0, 8)}</option>
+                  ))}
+                </select>
+              )}
+              <div className="text-[10px] font-mono text-muted-foreground">
+                Mostro prima gli utenti del reparto scelto; se il reparto non ha addetti, mostro tutti gli utenti approvati.
+              </div>
             </div>
           )}
 

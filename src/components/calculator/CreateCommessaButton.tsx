@@ -601,9 +601,9 @@ export const CreateCommessaButton = ({
         ? (note.trim() || null)
         : ([titolo.trim() && `Da preventivo: ${titolo.trim()}`, note.trim() || null].filter(Boolean).join(" — ") || null);
 
-      const { data: pord, error: e1 } = await supabase
-        .from("production_orders")
-        .insert({
+      const orderId = crypto.randomUUID();
+      const orderRow = {
+          id: orderId,
           code,
           cliente: payload.clienteName,
           data: scadenza || todayIsoLocal(),
@@ -619,10 +619,12 @@ export const CreateCommessaButton = ({
           snapshot: payload.productionSnapshot as never,
           customer_order_ref: d.customer_order_ref,
           production_name: d.production_name || prodName.trim() || null,
-        } as any)
-        .select()
-        .single();
+        } as any;
+      const { error: e1 } = await supabase
+        .from("production_orders")
+        .insert(orderRow);
       if (e1) throwFlowError("creazione_ordine", "production_orders", e1);
+      const pord = orderRow as { id: string } & Record<string, unknown>;
 
       const extractedMaterials = extractMaterialsFromSnapshot(payload.productionSnapshot);
       const materialDeptByKey = new Map(

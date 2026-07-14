@@ -685,7 +685,9 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       prodCode = await nextOrderCode();
       const { commessaId, clienteName, productionSnapshot, depts, prodPrio, titolo, scadenza, inferredFound } = pendingPayload;
       const flowDepts = Array.from(new Set([d.work_dept, ...depts]));
-      const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
+      const orderId = crypto.randomUUID();
+      const orderRow = {
+        id: orderId,
         code: prodCode,
         cliente: clienteName,
         data: scadenza || new Date().toISOString().slice(0, 10),
@@ -701,8 +703,10 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         snapshot: productionSnapshot as never,
         customer_order_ref: d.customer_order_ref,
         production_name: d.production_name || null,
-      } as any).select().single();
+      } as any;
+      const { error: e1 } = await supabase.from("production_orders").insert(orderRow);
       if (e1) throwFlowError("creazione_ordine", "production_orders", e1);
+      const pord = orderRow as { id: string } & Record<string, unknown>;
       prodId = pord.id;
 
       // Acquisti subs (propedeutici)

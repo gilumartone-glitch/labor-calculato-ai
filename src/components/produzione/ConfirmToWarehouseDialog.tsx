@@ -107,9 +107,10 @@ export const ConfirmToWarehouseDialog = ({
   type InvInfo = { found: boolean; code?: string; qty_intera?: number; qty_sfrido?: number; posizione?: string | null; reparto?: string };
   const [invInfo, setInvInfo] = useState<Record<string, InvInfo>>({});
   const macros = useMemo(() => {
-    const list = (availableMacros && availableMacros.length > 0)
+    const projectMacros = (availableMacros && availableMacros.length > 0)
       ? MACRO_WORK_DEPTS.filter((m) => availableMacros.map(toMacroDept).includes(m))
       : MACRO_WORK_DEPTS;
+    const list = Array.from(new Set([...projectMacros, ...MACRO_WORK_DEPTS]));
     return list.length > 0 ? list : MACRO_WORK_DEPTS;
   }, [availableMacros]);
   const initialDept = (() => {

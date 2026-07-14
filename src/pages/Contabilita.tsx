@@ -2810,6 +2810,10 @@ const computeSalaryForRow = (
     if (hadFerie) ferieDays += 1;
     if (hadMalattia) malattiaDays += 1;
   });
+  // Override fisso: Siniscalchi Carmela ha sempre 400 € da ricevere (tutto in contanti)
+  if (normalizeImportText(row.name).includes("siniscalchi carmela")) {
+    totale = 400;
+  }
   return {
     name: row.name,
     dipendenteId: row.dipendenteId,

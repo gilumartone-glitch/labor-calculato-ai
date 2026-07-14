@@ -2945,7 +2945,8 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   // Display rules:
   // Totale = c.totale (auto). Bonifico manual; Contanti = totale - bonifico.
   const bonificoOf = (s: Salary) => s.bonifico;
-  const contantiOf = (c: ComputedSalary, s: Salary) => c.totale - s.bonifico;
+  const contantiOf = (c: ComputedSalary, s: Salary) => s.sc ? s.contanti : c.totale - s.bonifico;
+  const totaleOf = (c: ComputedSalary, s: Salary) => s.sc ? (s.bonifico + s.contanti) : c.totale;
   const cassaBancaOf = (s: Salary) => s.cassaBanca;
   const compBancaOf = (s: Salary) => bonificoOf(s) - cassaBancaOf(s);
   const compContantiOf = (c: ComputedSalary, s: Salary) => contantiOf(c, s) - s.cassaContanti;

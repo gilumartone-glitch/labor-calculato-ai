@@ -2895,7 +2895,10 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const prevHoursMonth = hoursLog[prevKey] ?? { rows: [] };
   const isProcessed = !!processed[openMonth];
   const savedRowsForMonth = useMemo(
-    () => salaries.filter((s) => s.month === openMonth).sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
+    () => salaries
+      .filter((s) => s.month === openMonth)
+      .filter((s) => (s.totale || 0) > 0 || (s.bonifico || 0) !== 0 || (s.contanti || 0) !== 0 || (s.cassaBanca || 0) !== 0 || (s.cassaContanti || 0) !== 0 || s.sc)
+      .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
     [salaries, openMonth],
   );
   const useSavedRows = isProcessed && savedRowsForMonth.length > 0;

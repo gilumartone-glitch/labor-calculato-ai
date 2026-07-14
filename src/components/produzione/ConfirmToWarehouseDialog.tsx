@@ -158,8 +158,8 @@ export const ConfirmToWarehouseDialog = ({
       // Carichiamo TUTTI i profili approvati: il responsabile lavorazione può essere
       // chiunque (l'amministratore poi potrà filtrare per settore se vuole).
       const [{ data: m }, { data: a }, { data: inv }] = await Promise.all([
-        supabase.from("profiles").select("id, display_name").eq("approved", true).order("display_name", { ascending: true }),
-        supabase.from("profiles").select("id, display_name").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name, settori").eq("approved", true).order("display_name", { ascending: true }),
+        supabase.from("profiles").select("id, display_name, settori").contains("settori", ["acquisti"]).order("display_name", { ascending: true }),
         supabase.from("inventory_items").select("code, reparto, material_name, material_color, material_height, qty_intera, qty_sfrido, posizione"),
       ]);
       if (cancelled) return;
@@ -200,7 +200,11 @@ export const ConfirmToWarehouseDialog = ({
       const planned = defaultAssigneeByMacro?.[workDept];
       const plannedExists = planned && list.some((u) => u.id === planned);
       if (plannedExists) setAssignee(planned as string);
-      else if (list.length > 0) setAssignee(list[0].id);
+      else {
+        const preferred = usersForMacro(list, workDept);
+        if (preferred.length > 0) setAssignee(preferred[0].id);
+        else setAssignee("");
+      }
       if (aList.length > 0) setAcquistiAssignee(aList[0].id);
       setLoading(false);
     })();

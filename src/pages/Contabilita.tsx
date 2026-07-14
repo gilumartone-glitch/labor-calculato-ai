@@ -652,6 +652,10 @@ export default function Contabilita() {
     goals: localActive ? (local.goals ?? remote.goals) : (remote.goals ?? local.goals),
     salariesProcessed: localActive ? (local.salariesProcessed ?? remote.salariesProcessed) : (remote.salariesProcessed ?? local.salariesProcessed),
     salaryPayDates: localActive ? (local.salaryPayDates ?? remote.salaryPayDates) : (remote.salaryPayDates ?? local.salaryPayDates),
+    salaryPayDays: localActive ? (local.salaryPayDays ?? remote.salaryPayDays) : (remote.salaryPayDays ?? local.salaryPayDays),
+    salaryCalc: localActive ? (local.salaryCalc ?? remote.salaryCalc) : (remote.salaryCalc ?? local.salaryCalc),
+    salaryRates: localActive ? (local.salaryRates ?? remote.salaryRates) : (remote.salaryRates ?? local.salaryRates),
+    hoursLog: localActive ? (local.hoursLog ?? remote.hoursLog) : (remote.hoursLog ?? local.hoursLog),
     // Liste con id: merge per id (nessuna cancellazione di righe modificate altrove)
       movements: mergeById(local.movements, remote.movements ?? [], tMov, recent),
       fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix, recent),

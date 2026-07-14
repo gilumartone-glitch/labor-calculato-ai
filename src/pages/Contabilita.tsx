@@ -2899,21 +2899,6 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
       const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
       return computeSalaryForRow(r, dip, prevY, prevM);
     });
-    // Override fisso: Siniscalchi Carmela deve sempre comparire con 400 € (tutto in contanti)
-    const hasCarmela = rows.some((r) => normalizeImportText(r.name).includes("siniscalchi carmela"));
-    if (!hasCarmela) {
-      const dip = dipendenti.find((d) => normalizeImportText(d.nome).includes("siniscalchi carmela"));
-      rows.push({
-        name: dip?.nome || "SINISCALCHI CARMELA",
-        dipendenteId: dip?.id,
-        source: "auto",
-        hourlyRate: Number(dip?.hourly_rate) || 0,
-        contractH: Math.max(0, Number(dip?.contract_hours_per_day) || 8),
-        totale: 400,
-        breakdown: [],
-        totals: { normalH: 0, overtimeH: 0, paidH: 0, holidayDays: 0, trasfertaDays: 0, ferieDays: 0, malattiaDays: 0, permessoH: 0 },
-      });
-    }
     return rows;
   }, [prevHoursMonth, dipendenti, prevY, prevM]);
 

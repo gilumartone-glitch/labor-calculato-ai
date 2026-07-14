@@ -2049,6 +2049,7 @@ export type Database = {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
+      debug_flow_launch_permissions: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

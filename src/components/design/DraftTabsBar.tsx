@@ -23,7 +23,16 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CommessaPriorita, CommessaReparto } from "@/components/flow/types";
 import { ProdDept, ProdPriority, SUB_DEPT_SUFFIX, PRIORITY_LABEL, DEPT_LABEL, toMacroDept } from "@/lib/produzione/types";
-import { nextOrderCode, subCode, logAction, notify, getProduzioneWriters } from "@/lib/produzione/helpers";
+import {
+  nextOrderCode,
+  subCode,
+  logAction,
+  notify,
+  getProduzioneWriters,
+  throwFlowError,
+  describeFlowLaunchError,
+  readFlowLaunchDebug,
+} from "@/lib/produzione/helpers";
 import { inferProdDeptsFromSnapshot } from "@/lib/produzione/snapshot";
 import { extractMaterialsFromSnapshot } from "@/lib/produzione/snapshot-materials";
 import { ConfirmToWarehouseDialog, WarehouseConfirmData } from "@/components/produzione/ConfirmToWarehouseDialog";
@@ -268,6 +277,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   // Confirm-to-warehouse dialog (verifica materiali / acquisti propedeutici)
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<null | {
+    commessaId: string;
     clienteName: string;
     productionSnapshot: Record<string, unknown>;
     depts: ProdDept[];
@@ -622,7 +632,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     try {
       const productionSnapshot = await snapshotForProduction(snap);
       // 1) Crea commessa nel Flow
-      const { error } = await supabase.from("commesse").insert({
+      const { data: createdCommessa, error } = await supabase.from("commesse").insert({
         titolo: sendTitolo.trim(),
         cliente: sendCliente.trim() || null,
         importo: sendImporto || null,
@@ -633,8 +643,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         data_scadenza: sendScadenza || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
-      });
-      if (error) throw error;
+      }).select("id").single();
+      if (error) throwFlowError("creazione_commessa", "commesse", error);
 
       // 2) Prepara payload e apri il dialog di verifica materiali (acquisti propedeutici)
       const prodPrio = PRIO_TO_PROD[sendPriorita];
@@ -643,6 +653,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       const depts: ProdDept[] = inferred.length > 0 ? inferred : [fallbackDept];
       const clienteName = (sendCliente.trim() || sendTitolo.trim()).slice(0, 200);
       setPendingPayload({
+        commessaId: createdCommessa.id,
         clienteName,
         productionSnapshot,
         depts,
@@ -654,8 +665,12 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       setConfirmOpen(true);
       setSendOpen(false);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Errore";
-      toast.error("Errore invio: " + msg);
+      console.error("[DraftTabsBar] errore creazione commessa", err);
+      const detail = describeFlowLaunchError(err);
+      const debug = await readFlowLaunchDebug();
+      toast.error(detail.title, {
+        description: `${detail.description} · Permessi utente: ${JSON.stringify(debug)}`,
+      });
     } finally {
       setSendBusy(false);
     }
@@ -668,7 +683,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     let prodId: string | null = null;
     try {
       prodCode = await nextOrderCode();
-      const { clienteName, productionSnapshot, depts, prodPrio, titolo, scadenza, inferredFound } = pendingPayload;
+      const { commessaId, clienteName, productionSnapshot, depts, prodPrio, titolo, scadenza, inferredFound } = pendingPayload;
       const flowDepts = Array.from(new Set([d.work_dept, ...depts]));
       const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
         code: prodCode,
@@ -681,11 +696,13 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         attachments: [],
         nesting_included: inferredFound,
         created_by: user.id,
+        coordinator_id: user.id,
+        source_commessa_id: commessaId,
         snapshot: productionSnapshot as never,
         customer_order_ref: d.customer_order_ref,
         production_name: d.production_name || null,
       } as any).select().single();
-      if (e1) throw e1;
+      if (e1) throwFlowError("creazione_ordine", "production_orders", e1);
       prodId = pord.id;
 
       // Acquisti subs (propedeutici)
@@ -710,7 +727,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
           .from("production_sub_orders")
           .insert(acquistiRows as any)
           .select("id");
-        if (ea) throw ea;
+        if (ea) throwFlowError("creazione_acquisti", "production_sub_orders", ea);
         firstAcquistiId = acquistiSubs?.[0]?.id ?? null;
 
         await notify({
@@ -747,7 +764,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
           assignee_id: subAssignee,
           operator_ids: subAssignee ? [subAssignee] : [],
         } as any).select("id").single();
-        if (eSub) throw eSub;
+        if (eSub) throwFlowError("creazione_lavorazione", "production_sub_orders", eSub);
         insertedSubs.push({ id: sub?.id, dept, assignee: subAssignee });
       }
 
@@ -866,7 +883,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       // nuova automaticamente: il progetto deve "sparire" dalla Progettazione una
       // volta inviato al Flow. Tornerà a comparire solo se la Produzione lo
       // rimanda in revisione (return_order_to_revision crea una nuova draft).
-      await supabase.from("design_drafts").delete().eq("id", activeId);
+      const { error: deleteDraftError } = await supabase.from("design_drafts").delete().eq("id", activeId);
+      if (deleteDraftError) throwFlowError("chiusura_draft", "design_drafts", deleteDraftError);
       const remaining = drafts.filter((dr) => dr.id !== activeId);
       writeLocalState({});
       localStorage.removeItem(ACTIVE_DRAFT_KEY);
@@ -876,7 +894,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         setActiveId(null);
       } else {
         const next = remaining[0];
-        await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);
+        const { error: activateDraftError } = await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);
+        if (activateDraftError) throwFlowError("chiusura_draft", "design_drafts", activateDraftError);
         setDrafts(remaining);
         setActiveId(next.id);
         localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
@@ -890,8 +909,12 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       setPendingPayload(null);
       navigate("/flow");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Errore";
-      toast.error("Errore creazione ordine: " + msg);
+      console.error("[DraftTabsBar] errore creazione ordine", err);
+      const detail = describeFlowLaunchError(err);
+      const debug = await readFlowLaunchDebug();
+      toast.error(detail.title, {
+        description: `${detail.description} · Permessi utente: ${JSON.stringify(debug)}`,
+      });
     } finally {
       setSendBusy(false);
     }

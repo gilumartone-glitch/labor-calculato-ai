@@ -145,7 +145,8 @@ export const ConfirmToWarehouseDialog = ({
     setEditRef(!defaultRef);
     setEditAssignee(false);
     setEditAcquisti(false);
-    setWorkDept(initialDept);
+      const targetDept = initialDept;
+      setWorkDept(targetDept);
     setCreateAdminClosure(false);
     const init: Record<string, boolean> = {};
     materials.forEach((m) => { init[m.key] = true; });
@@ -198,11 +199,11 @@ export const ConfirmToWarehouseDialog = ({
       setInvInfo(info);
       setAvailable(initAvail);
       // Preferisci il responsabile scelto in pianificazione per il reparto attivo
-      const planned = defaultAssigneeByMacro?.[workDept];
+      const planned = defaultAssigneeByMacro?.[targetDept];
       const plannedExists = planned && list.some((u) => u.id === planned);
       if (plannedExists) setAssignee(planned as string);
       else {
-        const preferred = usersForMacro(list, workDept);
+        const preferred = usersForMacro(list, targetDept);
         if (preferred.length > 0) setAssignee(preferred[0].id);
         else setAssignee("");
       }

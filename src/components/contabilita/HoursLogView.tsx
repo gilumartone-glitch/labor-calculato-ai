@@ -67,17 +67,18 @@ const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => 
     let hadTrasferta = false;
     let hadFerie = false;
     let hadMalattia = false;
+    let isDoppia = false;
     segs.forEach((s) => {
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
-      else if (s.t === "doppia") workH += h;
+      else if (s.t === "doppia") { workH += (h > 0 ? h * 2 : threshold * 2); isDoppia = true; }
       else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
       else if (s.t === "permesso") permessoOre += h;
       else if (s.t === "ferie") { ore += (h > 0 ? Math.min(h, threshold) : threshold); hadFerie = true; }
       else if (s.t === "malattia") hadMalattia = true;
     });
-    ore += Math.min(workH, threshold);
-    straordinario += Math.max(workH - threshold, 0);
+    ore += isDoppia ? workH : Math.min(workH, threshold);
+    straordinario += isDoppia ? 0 : Math.max(workH - threshold, 0);
     if (hadTrasferta) trasfertaGiorni += 1;
     if (hadFerie) ferieGiorni += 1;
     if (hadMalattia) malattiaGiorni += 1;

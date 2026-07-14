@@ -2942,6 +2942,27 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const toggleProcessed = (v: boolean) => {
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
+    // Quando si marca il mese come "elaborato", congela tutte le righe calcolate
+    // salvandole in `salaries`. Così nessun dipendente scompare dalla vista storica.
+    if (v && !useSavedRows) {
+      const existingKeys = new Set(
+        salaries.filter((s) => s.month === openMonth).map((s) => s.name.trim().toLowerCase()),
+      );
+      const toAdd: Salary[] = computedRows
+        .filter((c) => !existingKeys.has(c.name.trim().toLowerCase()))
+        .map((c) => ({
+          id: uid(),
+          name: c.name,
+          month: openMonth,
+          totale: c.totale,
+          bonifico: 0,
+          contanti: c.totale,
+          sc: false,
+          cassaBanca: 0,
+          cassaContanti: 0,
+        }));
+      if (toAdd.length > 0) setSalaries([...salaries, ...toAdd]);
+    }
     setProcessed(next);
   };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);

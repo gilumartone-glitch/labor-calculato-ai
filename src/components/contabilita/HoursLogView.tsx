@@ -70,6 +70,7 @@ const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => 
     segs.forEach((s) => {
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
+      else if (s.t === "doppia") workH += h;
       else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
       else if (s.t === "permesso") permessoOre += h;
       else if (s.t === "ferie") hadFerie = true;

@@ -669,6 +669,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     try {
       prodCode = await nextOrderCode();
       const { clienteName, productionSnapshot, depts, prodPrio, titolo, scadenza, inferredFound } = pendingPayload;
+      const flowDepts = Array.from(new Set([d.work_dept, ...depts]));
       const { data: pord, error: e1 } = await supabase.from("production_orders").insert({
         code: prodCode,
         cliente: clienteName,
@@ -729,8 +730,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       );
       const salesNote = buildSalesNote(salesItems);
       const insertedSubs: { id?: string; dept: ProdDept; assignee: string | null }[] = [];
-      for (let i = 0; i < depts.length; i++) {
-        const dept = depts[i];
+      for (let i = 0; i < flowDepts.length; i++) {
+        const dept = flowDepts[i];
         const subAssignee = toMacroDept(dept) === toMacroDept(d.work_dept) ? d.assignee_id : null;
         const subNote = dept === "magazzino" && salesNote
           ? salesNote
@@ -754,11 +755,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         action: "FLOW_LANCIATO",
         entity_type: "order",
         entity_id: pord.id,
-        detail: `Ordine ${prodCode} da Progettazione per ${clienteName} (${depts.join(" → ")}) — rif. ${d.customer_order_ref}`,
-        new_state: { code: prodCode, depts, priorita: prodPrio, from: "progettazione", customer_order_ref: d.customer_order_ref, missing_count: d.missing?.length ?? 0 },
+        detail: `Ordine ${prodCode} da Progettazione per ${clienteName} (${flowDepts.join(" → ")}) — rif. ${d.customer_order_ref}`,
+        new_state: { code: prodCode, depts: flowDepts, priorita: prodPrio, from: "progettazione", customer_order_ref: d.customer_order_ref, missing_count: d.missing?.length ?? 0 },
       });
 
-      const writers = await getProduzioneWriters(depts);
+      const writers = await getProduzioneWriters(flowDepts);
       const assignees = insertedSubs.map((s) => s.assignee).filter((x): x is string => !!x);
       const targets = Array.from(new Set([...writers, ...assignees])).filter((u) => u !== user.id);
       if (targets.length > 0) {

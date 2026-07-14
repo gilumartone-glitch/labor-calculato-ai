@@ -2790,19 +2790,25 @@ const computeSalaryForRow = (
     segs.forEach((s) => {
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
-      else if (s.t === "doppia") { workH += h; hadDoppia = true; }
+      else if (s.t === "doppia") {
+        // Doppia = 16 ore: le ore inserite (default 8) vengono raddoppiate in orario lavorato
+        const eff = h > 0 ? h * 2 : contractH * 2;
+        workH += eff;
+        hadDoppia = true;
+      }
       else if (s.t === "trasferta") { workH += h; hadTrasferta = true; }
       else if (s.t === "permesso") { paidH += h; permessoH += h; }
       else if (s.t === "ferie") { paidH += (h > 0 ? h : contractH); hadFerie = true; }
       else if (s.t === "malattia") { paidH += h; hadMalattia = true; }
       else if (s.t === "festivo") hasFestivoSeg = true;
     });
-    const overtimeH = Math.max(workH - contractH, 0);
+    // Per la doppia, tutte le ore sono pagate a tariffa oraria piena (no straordinario)
+    const overtimeH = hadDoppia ? 0 : Math.max(workH - contractH, 0);
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
-    // Festivo raddoppia. Doppia raddoppia. Se entrambi presenti, si applica solo il raddoppio (non si somma).
-    const amount = (isHoliday || hadDoppia) ? baseAmount * 2 : baseAmount;
+    // Festivo raddoppia l'importo. La doppia è già raddoppiata a monte tramite le ore.
+    const amount = isHoliday ? baseAmount * 2 : baseAmount;
     breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;

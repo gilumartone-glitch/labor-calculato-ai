@@ -2968,7 +2968,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     const c = row.computed;
     const s = row.salary;
     return {
-      totale: acc.totale + c.totale,
+      totale: acc.totale + totaleOf(c, s),
       bonifico: acc.bonifico + bonificoOf(s),
       contanti: acc.contanti + contantiOf(c, s),
       cassaBanca: acc.cassaBanca + cassaBancaOf(s),

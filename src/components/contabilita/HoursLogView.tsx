@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
 import { uid } from "@/lib/format";
 
-export type DayType = "lavoro" | "trasferta" | "ferie" | "permesso" | "malattia" | "festivo";
+export type DayType = "lavoro" | "doppia" | "trasferta" | "ferie" | "permesso" | "malattia" | "festivo";
 export type DaySegment = { t: DayType; h: number };
 // New format: { segments: [...] }. Legacy format: { h, t } — handled transparently.
 export type DayCell = { segments: DaySegment[] } | { h: number; t: DayType };
@@ -28,6 +28,7 @@ const DAY_NAMES = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 
 const TYPE_OPTIONS: { value: DayType; label: string; short: string; color: string; dot: string }[] = [
   { value: "lavoro", label: "Lavoro", short: "L", color: "bg-emerald-100 text-emerald-800 border-emerald-300", dot: "bg-emerald-500" },
+  { value: "doppia", label: "Doppia", short: "D", color: "bg-orange-100 text-orange-800 border-orange-300", dot: "bg-orange-500" },
   { value: "trasferta", label: "Trasferta", short: "T", color: "bg-blue-100 text-blue-800 border-blue-300", dot: "bg-blue-500" },
   { value: "ferie", label: "Ferie", short: "F", color: "bg-amber-100 text-amber-800 border-amber-300", dot: "bg-amber-500" },
   { value: "permesso", label: "Permesso", short: "P", color: "bg-purple-100 text-purple-800 border-purple-300", dot: "bg-purple-500" },
@@ -69,6 +70,7 @@ const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => 
     segs.forEach((s) => {
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
+      else if (s.t === "doppia") workH += h;
       else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
       else if (s.t === "permesso") permessoOre += h;
       else if (s.t === "ferie") hadFerie = true;

@@ -2947,15 +2947,20 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
 
   const recomputeSavedFromHours = () => {
     const byKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
-    const existingKeys = new Set(
-      salaries.filter((s) => s.month === openMonth).map((s) => s.name.trim().toLowerCase()),
-    );
-    const updated = salaries.map((s) => {
-      if (s.month !== openMonth) return s;
-      const c = byKey.get(s.name.trim().toLowerCase());
-      if (!c) return s;
-      byKey.delete(s.name.trim().toLowerCase());
-      return { ...s, totale: c.totale };
+    const computedKeys = new Set(byKey.keys());
+    // Rimuove le righe salvate per il mese che non hanno più ore corrispondenti
+    // (a meno che non siano state modificate manualmente: bonifico/contanti/sc/cassa != 0)
+    const updated = salaries.flatMap<Salary>((s) => {
+      if (s.month !== openMonth) return [s];
+      const key = s.name.trim().toLowerCase();
+      const c = byKey.get(key);
+      if (c) {
+        byKey.delete(key);
+        return [{ ...s, totale: c.totale }];
+      }
+      const manuallyEdited = s.bonifico !== 0 || s.sc || s.cassaBanca !== 0 || s.cassaContanti !== 0;
+      if (!computedKeys.has(key) && !manuallyEdited) return [];
+      return [s];
     });
     const toAdd: Salary[] = Array.from(byKey.values()).map((c) => ({
       id: uid(),
@@ -2968,32 +2973,12 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
       cassaBanca: 0,
       cassaContanti: 0,
     }));
-    // Include anche i dipendenti senza ore, così restano visibili in elenco (totale 0)
-    const addedKeys = new Set(toAdd.map((s) => s.name.trim().toLowerCase()));
-    const zeroAdds: Salary[] = dipendenti
-      .filter((d) => {
-        const k = (d.nome ?? "").trim().toLowerCase();
-        return k && !existingKeys.has(k) && !addedKeys.has(k);
-      })
-      .map((d) => ({
-        id: uid(),
-        name: d.nome,
-        month: openMonth,
-        totale: 0,
-        bonifico: 0,
-        contanti: 0,
-        sc: false,
-        cassaBanca: 0,
-        cassaContanti: 0,
-      }));
-    setSalaries([...updated, ...toAdd, ...zeroAdds]);
+    setSalaries([...updated, ...toAdd]);
   };
 
   const toggleProcessed = (v: boolean) => {
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
-    // Quando si marca il mese come "elaborato", congela/ricalcola tutte le righe
-    // dalle ore inserite, aggiornando totali (es. dopo il fix ferie).
     if (v) recomputeSavedFromHours();
     setProcessed(next);
   };

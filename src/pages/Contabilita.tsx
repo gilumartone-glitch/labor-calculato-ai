@@ -3033,6 +3033,11 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             <span>Data pagamento {MONTHS[openMonth]}</span>
             <DateInput className="h-8 w-36 rounded-md border border-input bg-background px-2 font-mono text-xs" value={currentPayDate} onCommit={updatePayDate} />
           </label>
+          {isProcessed && (
+            <Button size="sm" variant="outline" onClick={recomputeSavedFromHours} title={`Ricalcola i totali dalle ore di ${MONTHS[prevM]} ${prevY}`}>
+              ↻ Ricalcola dalle ore
+            </Button>
+          )}
           <div className="text-xs text-muted-foreground">
             {useSavedRows ? (
               <>Valori storici salvati per <strong>{MONTHS[openMonth]} {year}</strong> · {savedRowsForMonth.length} dipendenti</>

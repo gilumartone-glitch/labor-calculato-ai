@@ -2939,30 +2939,35 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const compBancaOf = (s: Salary) => bonificoOf(s) - cassaBancaOf(s);
   const compContantiOf = (c: ComputedSalary, s: Salary) => contantiOf(c, s) - s.cassaContanti;
 
+  const recomputeSavedFromHours = () => {
+    const byKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
+    const updated = salaries.map((s) => {
+      if (s.month !== openMonth) return s;
+      const c = byKey.get(s.name.trim().toLowerCase());
+      if (!c) return s;
+      byKey.delete(s.name.trim().toLowerCase());
+      return { ...s, totale: c.totale };
+    });
+    const toAdd: Salary[] = Array.from(byKey.values()).map((c) => ({
+      id: uid(),
+      name: c.name,
+      month: openMonth,
+      totale: c.totale,
+      bonifico: 0,
+      contanti: c.totale,
+      sc: false,
+      cassaBanca: 0,
+      cassaContanti: 0,
+    }));
+    setSalaries([...updated, ...toAdd]);
+  };
+
   const toggleProcessed = (v: boolean) => {
     const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
     next[openMonth] = v;
-    // Quando si marca il mese come "elaborato", congela tutte le righe calcolate
-    // salvandole in `salaries`. Così nessun dipendente scompare dalla vista storica.
-    if (v && !useSavedRows) {
-      const existingKeys = new Set(
-        salaries.filter((s) => s.month === openMonth).map((s) => s.name.trim().toLowerCase()),
-      );
-      const toAdd: Salary[] = computedRows
-        .filter((c) => !existingKeys.has(c.name.trim().toLowerCase()))
-        .map((c) => ({
-          id: uid(),
-          name: c.name,
-          month: openMonth,
-          totale: c.totale,
-          bonifico: 0,
-          contanti: c.totale,
-          sc: false,
-          cassaBanca: 0,
-          cassaContanti: 0,
-        }));
-      if (toAdd.length > 0) setSalaries([...salaries, ...toAdd]);
-    }
+    // Quando si marca il mese come "elaborato", congela/ricalcola tutte le righe
+    // dalle ore inserite, aggiornando totali (es. dopo il fix ferie).
+    if (v) recomputeSavedFromHours();
     setProcessed(next);
   };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
@@ -3028,6 +3033,11 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             <span>Data pagamento {MONTHS[openMonth]}</span>
             <DateInput className="h-8 w-36 rounded-md border border-input bg-background px-2 font-mono text-xs" value={currentPayDate} onCommit={updatePayDate} />
           </label>
+          {isProcessed && (
+            <Button size="sm" variant="outline" onClick={recomputeSavedFromHours} title={`Ricalcola i totali dalle ore di ${MONTHS[prevM]} ${prevY}`}>
+              ↻ Ricalcola dalle ore
+            </Button>
+          )}
           <div className="text-xs text-muted-foreground">
             {useSavedRows ? (
               <>Valori storici salvati per <strong>{MONTHS[openMonth]} {year}</strong> · {savedRowsForMonth.length} dipendenti</>

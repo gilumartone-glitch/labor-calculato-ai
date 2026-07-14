@@ -2975,6 +2975,13 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     }));
     setSalaries([...updated, ...toAdd]);
   };
+
+  const toggleProcessed = (v: boolean) => {
+    const next = Array.from({ length: 12 }, (_, i) => !!processed[i]);
+    next[openMonth] = v;
+    if (v) recomputeSavedFromHours();
+    setProcessed(next);
+  };
   const currentPayDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
   const updatePayDate = (v: string) => {
     if (!isCompleteDate(v)) return;

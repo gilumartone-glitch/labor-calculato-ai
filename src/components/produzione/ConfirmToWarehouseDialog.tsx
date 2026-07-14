@@ -218,9 +218,15 @@ export const ConfirmToWarehouseDialog = ({
     const planned = defaultAssigneeByMacro?.[workDept];
     if (planned && users.some((u) => u.id === planned)) {
       setAssignee(planned);
+      setEditAssignee(false);
+      return;
+    }
+    const preferred = usersForMacro(users, workDept);
+    if (preferred.length > 0 && !preferred.some((u) => u.id === assignee)) {
+      setAssignee(preferred[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workDept]);
+  }, [workDept, users]);
 
   const missing: MissingMaterial[] = materials
     .filter((m) => !available[m.key])
@@ -233,6 +239,7 @@ export const ConfirmToWarehouseDialog = ({
 
   const assigneeName = useMemo(() => users.find((u) => u.id === assignee)?.display_name ?? "", [users, assignee]);
   const acquistiAssigneeName = useMemo(() => acquistiUsers.find((u) => u.id === acquistiAssignee)?.display_name ?? "", [acquistiUsers, acquistiAssignee]);
+  const workDeptUsers = useMemo(() => usersForMacro(users, workDept), [users, workDept]);
 
   const handle = async () => {
     if (!ref.trim()) { toast.error("Inserisci il numero ordine cliente"); setEditRef(true); return; }

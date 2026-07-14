@@ -2945,7 +2945,8 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   // Display rules:
   // Totale = c.totale (auto). Bonifico manual; Contanti = totale - bonifico.
   const bonificoOf = (s: Salary) => s.bonifico;
-  const contantiOf = (c: ComputedSalary, s: Salary) => c.totale - s.bonifico;
+  const contantiOf = (c: ComputedSalary, s: Salary) => s.sc ? s.contanti : c.totale - s.bonifico;
+  const totaleOf = (c: ComputedSalary, s: Salary) => s.sc ? (s.bonifico + s.contanti) : c.totale;
   const cassaBancaOf = (s: Salary) => s.cassaBanca;
   const compBancaOf = (s: Salary) => bonificoOf(s) - cassaBancaOf(s);
   const compContantiOf = (c: ComputedSalary, s: Salary) => contantiOf(c, s) - s.cassaContanti;
@@ -2967,7 +2968,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     const c = row.computed;
     const s = row.salary;
     return {
-      totale: acc.totale + c.totale,
+      totale: acc.totale + totaleOf(c, s),
       bonifico: acc.bonifico + bonificoOf(s),
       contanti: acc.contanti + contantiOf(c, s),
       cassaBanca: acc.cassaBanca + cassaBancaOf(s),
@@ -3060,14 +3061,31 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
                     </td>
                     <td className="border border-border p-1">
                       <button type="button" onClick={() => setBreakdownFor(c)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs font-semibold hover:bg-dept-soft/40 underline-offset-2 hover:underline" title="Vedi calcolo analitico">
-                        {eur(c.totale)}
+                        {eur(totaleOf(c, s))}
                       </button>
                     </td>
                     <td className="border border-border p-1">
                       <NumberInput className={cell} value={s.bonifico} onChange={(bonifico) => persistRow(c, { bonifico })} />
                     </td>
                     <td className="border border-border p-1">
-                      <div className={cellRO} title="Calcolato: Totale − Bonifico">{eur(contantiOf(c, s))}</div>
+                      <div className="flex items-center gap-1">
+                        <label className="flex items-center" title="Sblocca per modificare i contanti manualmente">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 cursor-pointer accent-dept"
+                            checked={!!s.sc}
+                            onChange={(e) => {
+                              const sc = e.target.checked;
+                              persistRow(c, sc ? { sc: true, contanti: contantiOf(c, s) } : { sc: false, contanti: c.totale - s.bonifico });
+                            }}
+                          />
+                        </label>
+                        {s.sc ? (
+                          <NumberInput className={cell} value={s.contanti} onChange={(contanti) => persistRow(c, { contanti })} />
+                        ) : (
+                          <div className={cellRO} title="Calcolato: Totale − Bonifico">{eur(contantiOf(c, s))}</div>
+                        )}
+                      </div>
                     </td>
                     <td className="border border-border p-1">
                       <NumberInput className={cell} value={s.cassaBanca} onChange={(cassaBanca) => persistRow(c, { cassaBanca })} />

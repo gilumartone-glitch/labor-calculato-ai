@@ -357,40 +357,113 @@ const MonthTable = ({
 };
 
 const DayCellEditor = ({
-  segments, canEdit, onChange, headerLabel,
-}: { segments: DaySegment[]; canEdit: boolean; onChange: (next: DaySegment[]) => void; headerLabel: string }) => {
+  rowId, dayNum, segments, canEdit, onChange, headerLabel,
+}: { rowId: string; dayNum: number; segments: DaySegment[]; canEdit: boolean; onChange: (next: DaySegment[]) => void; headerLabel: string }) => {
   const totalH = segments.reduce((s, x) => s + (Number(x.h) || 0), 0);
-  const summary = (
-    <div className="flex w-full flex-col items-stretch">
-      <div className="rounded border px-1 py-0.5 text-center text-xs font-mono bg-paper hover:bg-muted/50 transition min-h-[22px]">
-        {totalH > 0 ? totalH.toFixed(totalH % 1 ? 1 : 0) : <span className="text-muted-foreground">·</span>}
-      </div>
-      <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 min-h-[14px]">
-        {segments.length === 0 && <span className="text-[9px] text-muted-foreground/60">—</span>}
-        {segments.map((s, i) => {
-          const meta = typeMeta(s.t);
-          return (
-            <span key={i} className={`text-[9px] leading-none px-1 py-[1px] rounded border ${meta.color}`} title={`${s.h}h ${meta.label}`}>
-              {meta.short}{s.h % 1 === 0 ? s.h : s.h.toFixed(1)}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
+  // "Semplice": 0 o 1 segmento di tipo lavoro → input inline diretto
+  const isSimple = segments.length === 0 || (segments.length === 1 && segments[0].t === "lavoro");
+  const [buffer, setBuffer] = useState<string>(totalH ? String(totalH) : "");
 
-  if (!canEdit) return summary;
+  useEffect(() => {
+    setBuffer(totalH ? String(totalH) : "");
+  }, [totalH]);
+
+  const commitSimple = (val: string) => {
+    const n = Number(val.replace(",", "."));
+    if (!isFinite(n) || n <= 0) {
+      onChange([]);
+    } else {
+      onChange([{ t: "lavoro", h: n }]);
+    }
+  };
+
+  const focusNext = (el: HTMLInputElement) => {
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(`input[data-hours-row="${rowId}"]`));
+    const idx = inputs.indexOf(el);
+    const next = inputs[idx + 1];
+    if (next) { next.focus(); next.select(); }
+    else el.blur();
+  };
+
+  const extraBadges = segments
+    .filter((s) => s.t !== "lavoro")
+    .map((s, i) => {
+      const meta = typeMeta(s.t);
+      return (
+        <span key={i} className={`text-[9px] leading-none px-1 py-[1px] rounded border ${meta.color}`} title={`${s.h}h ${meta.label}`}>
+          {meta.short}{s.h % 1 === 0 ? s.h : s.h.toFixed(1)}
+        </span>
+      );
+    });
+
+  if (!canEdit) {
+    return (
+      <div className="flex w-full flex-col items-stretch">
+        <div className="rounded border px-1 py-0.5 text-center text-xs font-mono bg-paper min-h-[22px]">
+          {totalH > 0 ? totalH.toFixed(totalH % 1 ? 1 : 0) : <span className="text-muted-foreground">·</span>}
+        </div>
+        <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 min-h-[14px]">
+          {extraBadges}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className="block w-full">{summary}</button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3" align="start">
-        <div className="text-xs font-semibold mb-2">{headerLabel}</div>
-        <SegmentsEditor segments={segments} onChange={onChange} />
-      </PopoverContent>
-    </Popover>
+    <div className="flex w-full flex-col items-stretch gap-0.5">
+      <div className="flex items-center gap-0.5">
+        {isSimple ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            data-hours-row={rowId}
+            data-hours-day={dayNum}
+            value={buffer}
+            onChange={(e) => setBuffer(e.target.value)}
+            onBlur={() => commitSimple(buffer)}
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitSimple(buffer);
+                focusNext(e.currentTarget);
+              }
+              // Tab uses native focus order — commit on blur
+            }}
+            className="w-full min-w-0 rounded border px-1 py-0.5 text-center text-xs font-mono bg-paper hover:bg-muted/40 focus:bg-white focus:outline-none focus:ring-1 focus:ring-dept min-h-[22px]"
+            placeholder="·"
+          />
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="w-full rounded border px-1 py-0.5 text-center text-xs font-mono bg-paper hover:bg-muted/50 min-h-[22px]">
+                {totalH > 0 ? totalH.toFixed(totalH % 1 ? 1 : 0) : "·"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-3" align="start">
+              <div className="text-xs font-semibold mb-2">{headerLabel}</div>
+              <SegmentsEditor segments={segments} onChange={onChange} />
+            </PopoverContent>
+          </Popover>
+        )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="shrink-0 text-[9px] leading-none px-1 py-0.5 rounded border bg-muted/40 hover:bg-muted text-muted-foreground"
+              title="Modalità avanzata (ferie/permesso/malattia…)"
+            >···</button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-3" align="start">
+            <div className="text-xs font-semibold mb-2">{headerLabel}</div>
+            <SegmentsEditor segments={segments} onChange={onChange} />
+          </PopoverContent>
+        </Popover>
+      </div>
+      <div className="flex flex-wrap gap-0.5 justify-center min-h-[14px]">
+        {extraBadges}
+      </div>
+    </div>
   );
 };
 

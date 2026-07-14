@@ -305,6 +305,11 @@ export const CreateCommessaButton = ({
   };
   const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 
+  const resetLaunchFilters = () => ({
+    excludedDepts: [] as ProdDept[],
+    materialOnlyDepts: [] as ProdDept[],
+  });
+
   // Re-sync defaults quando si riapre il dialog (solo se i campi sono ai default vuoti)
   const handleOpenChange = (v: boolean) => {
     if (v) {
@@ -312,6 +317,7 @@ export const CreateCommessaButton = ({
         ...f,
         importo: f.importo || defaultAmount,
         reparto: f.reparto || defaultReparto,
+        ...resetLaunchFilters(),
       }));
       // carica profili (per selettori operatore per reparto)
       supabase.from("profiles").select("id, display_name, settori").then(({ data }) => {
@@ -340,6 +346,24 @@ export const CreateCommessaButton = ({
     }
     setOpen(v);
   };
+
+  // I reparti esclusi non devono restare memorizzati da un progetto precedente:
+  // se apro il dialog su una nuova commessa, tutti i reparti rilevati partono attivi.
+  useEffect(() => {
+    if (!open || inferredDepts.length === 0) return;
+    setForm((f) => {
+      const activeKeys = new Set(inferredDepts);
+      const hasPersistedExclusion = f.excludedDepts.some((d) => activeKeys.has(d));
+      const hasPersistedMaterialOnly = f.materialOnlyDepts.some((d) => activeKeys.has(d));
+      if (!hasPersistedExclusion && !hasPersistedMaterialOnly) return f;
+      return {
+        ...f,
+        excludedDepts: f.excludedDepts.filter((d) => !activeKeys.has(d)),
+        materialOnlyDepts: f.materialOnlyDepts.filter((d) => !activeKeys.has(d)),
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, inferredDepts.join("|")]);
 
   // Mantieni il titolo allineato al nome della schedina mentre il dialog è
   // aperto: se l'utente rinomina il "Progetto N", l'aggiornamento si
@@ -1046,7 +1070,7 @@ export const CreateCommessaButton = ({
         disabled={disabled}
         className={triggerClassName ?? triggerClass}
         title={label}
-        onClick={() => { setWarehouseOnly(false); handleOpenChange(true); }}
+        onClick={() => { patch({ warehouseOnly: false, ...resetLaunchFilters() }); handleOpenChange(true); }}
       >
         <Workflow className={variant === "primary" ? "w-3.5 h-3.5" : "w-3 h-3"} />
         {label}
@@ -1055,7 +1079,7 @@ export const CreateCommessaButton = ({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => { setWarehouseOnly(true); handleOpenChange(true); }}
+          onClick={() => { patch({ warehouseOnly: true, ...resetLaunchFilters() }); handleOpenChange(true); }}
           className="inline-flex items-center gap-1.5 px-2 py-1 border border-ink/30 rounded-sm text-[10px] uppercase tracking-wider font-semibold text-ink/70 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           title="Crea ordine senza lavorazione (solo magazzino)"
         >
@@ -1193,7 +1217,7 @@ export const CreateCommessaButton = ({
                           : "bg-primary text-primary-foreground border-primary"
                       }`}
                     >
-                      {DEPT_LABEL[d]} {excluded ? "· escluso" : ""}
+                      {DEPT_LABEL[d]} {excluded ? "· escluso" : "· attivo"}
                     </button>
                   );
                 })}

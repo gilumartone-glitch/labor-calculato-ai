@@ -2816,8 +2816,8 @@ const computeSalaryForRow = (
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
-    // Festivo raddoppia l'importo. La doppia è già raddoppiata a monte tramite le ore.
-    const amount = isHoliday ? baseAmount * 2 : baseAmount;
+    // Le ore festive/domenica sono già conteggiate al pari delle ordinarie: nessun raddoppio automatico.
+    const amount = baseAmount;
     breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;

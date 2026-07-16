@@ -2809,7 +2809,7 @@ const computeSalaryForRow = (
       else if (s.t === "permesso") { paidH += h; permessoH += h; }
       else if (s.t === "ferie") { paidH += contractH; hadFerie = true; }
       else if (s.t === "malattia") { paidH += h; hadMalattia = true; }
-      else if (s.t === "festivo") hasFestivoSeg = true;
+      else if (s.t === "festivo") { workH += h; hasFestivoSeg = true; }
     });
     // Per la doppia, tutte le ore sono pagate a tariffa oraria piena (no straordinario)
     const overtimeH = hadDoppia ? 0 : Math.max(workH - contractH, 0);

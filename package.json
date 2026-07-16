@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.486",
+  "version": "1.0.487",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "Workprice Buddy - Gestione produzione",

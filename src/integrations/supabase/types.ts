@@ -2060,6 +2060,7 @@ export type Database = {
         Returns: number
       }
       get_admin_user_ids: { Args: never; Returns: string[] }
+      get_contabilita_cash_only: { Args: never; Returns: Json }
       has_permission: {
         Args: {
           _page: string
@@ -2075,6 +2076,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_amministrazione: { Args: { _user_id: string }; Returns: boolean }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_dm_member: {
         Args: { _channel_id: string; _user_id: string }

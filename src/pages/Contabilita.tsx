@@ -1221,9 +1221,11 @@ export default function Contabilita() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {isAdmin && <Button size="sm" variant={stipendiSub === "stipendi" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>}
+              {!isAdmin && canEditHours && <Button size="sm" variant={stipendiSub === "contanti" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>}
               {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
             </div>
             {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} />}
+            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} />}
             {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
           </div>
         )}

@@ -29,7 +29,7 @@ import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
 type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
-type StipendiSubTab = "stipendi" | "ore";
+type StipendiSubTab = "stipendi" | "ore" | "contanti";
 
 type CashMovement = {
   id: string;
@@ -534,13 +534,20 @@ export default function Contabilita() {
   const [stipendiSub, setStipendiSub] = useState<StipendiSubTab>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:stipendiSub");
-      if (saved === "ore" || saved === "stipendi") return saved;
+      if (saved === "ore" || saved === "stipendi" || saved === "contanti") return saved;
     } catch { /* ignore */ }
     return "stipendi";
   });
   useEffect(() => { try { localStorage.setItem("officina:contabilita:stipendiSub", stipendiSub); } catch { /* ignore */ } }, [stipendiSub]);
   useEffect(() => { if (!isAdmin && !canEditHours && tab === "stipendi") setTab("generale"); }, [isAdmin, canEditHours, tab]);
-  useEffect(() => { if (stipendiSub === "stipendi" && !isAdmin && canEditHours) setStipendiSub("ore"); }, [isAdmin, canEditHours, stipendiSub]);
+  useEffect(() => {
+    if (!isAdmin && canEditHours) {
+      // amministrazione (non-admin): solo "contanti" (read-only) o "ore"
+      if (stipendiSub === "stipendi") setStipendiSub("contanti");
+    } else if (isAdmin) {
+      if (stipendiSub === "contanti") setStipendiSub("stipendi");
+    }
+  }, [isAdmin, canEditHours, stipendiSub]);
 
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {
@@ -1214,9 +1221,11 @@ export default function Contabilita() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {isAdmin && <Button size="sm" variant={stipendiSub === "stipendi" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>}
+              {!isAdmin && canEditHours && <Button size="sm" variant={stipendiSub === "contanti" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>}
               {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
             </div>
             {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} />}
+            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} />}
             {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
           </div>
         )}
@@ -2858,6 +2867,124 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
   breakdown: [],
   totals: { normalH: 0, overtimeH: 0, paidH: 0, holidayDays: 0, trasfertaDays: 0, ferieDays: 0, malattiaDays: 0, permessoH: 0 },
 });
+
+// Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
+// Non mostra totali, bonifici, cassa. Non permette modifiche.
+const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog }) => {
+  const now = new Date();
+  const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchDipendenti(false).then((r) => { if (mounted) setDipendenti(r); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const { year: prevY, month: prevM } = prevMonthYear(year, openMonth);
+  const isProcessed = !!processed[openMonth];
+  const savedRows = useMemo(
+    () => salaries
+      .filter((s) => s.month === openMonth)
+      .filter((s) => (s.totale || 0) > 0 || (s.bonifico || 0) !== 0 || (s.contanti || 0) !== 0 || s.sc)
+      .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
+    [salaries, openMonth],
+  );
+
+  // Se non ancora elaborato, calcoliamo il totale dalle ore (senza bonifico noto → contanti = totale)
+  const computedRows = useMemo(() => {
+    const hm = hoursLog[`${prevY}-${prevM}`] ?? { rows: [] };
+    return hm.rows.map((r) => {
+      const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
+      return computeSalaryForRow(r, dip, prevY, prevM);
+    });
+  }, [hoursLog, prevY, prevM, dipendenti]);
+
+  type Row = { name: string; contanti: number; stato: "confermato" | "stimato" };
+  const rows: Row[] = useMemo(() => {
+    if (isProcessed && savedRows.length > 0) {
+      return savedRows.map((s) => ({
+        name: s.name,
+        contanti: s.sc ? (Number(s.contanti) || 0) : Math.max(0, (Number(s.totale) || 0) - (Number(s.bonifico) || 0)),
+        stato: "confermato" as const,
+      }));
+    }
+    return computedRows
+      .filter((c) => c.totale > 0)
+      .map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }))
+      .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
+  }, [isProcessed, savedRows, computedRows]);
+
+  const totContanti = rows.reduce((a, r) => a + r.contanti, 0);
+  const payDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
+
+  return (
+    <Card className="border-2 border-dept shadow-soft">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle>Contanti da consegnare ai dipendenti</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">Vista di sola lettura. Amministrazione vede solo i contanti; i totali e i bonifici non sono visibili.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">Anno</label>
+          <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || now.getFullYear())} className="h-8 w-24" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {MONTHS.map((m, i) => (
+            <Button key={m} size="sm" variant={openMonth === i ? "default" : "outline"} onClick={() => setOpenMonth(i)}>
+              {m}{processed[i] ? <span className="ml-1 text-[10px]">✓</span> : null}
+            </Button>
+          ))}
+        </div>
+        <div className="rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2 text-sm">
+          {isProcessed
+            ? <>Stipendi <strong>elaborati</strong> per {MONTHS[openMonth]} {year} · pagamento previsto <strong>{payDate || "—"}</strong></>
+            : <>Non ancora elaborati per {MONTHS[openMonth]} {year}. Importi <strong>stimati</strong> dalle ore di {MONTHS[prevM]} {prevY}.</>}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-dept bg-dept-soft/40">
+                <th className="border border-border px-3 py-2 text-left label-cap">Dipendente</th>
+                <th className="border border-border px-3 py-2 text-right label-cap">Contanti da consegnare</th>
+                <th className="border border-border px-3 py-2 text-center label-cap">Stato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan={3} className="border border-border p-4 text-center text-muted-foreground">Nessun dato disponibile per {MONTHS[openMonth]} {year}.</td></tr>
+              ) : rows.map((r) => (
+                <tr key={r.name} className="border-b border-border hover:bg-dept-soft/20">
+                  <td className="border border-border px-3 py-2 font-medium">{r.name}</td>
+                  <td className="border border-border px-3 py-2 text-right font-mono font-semibold">{eur(r.contanti)}</td>
+                  <td className="border border-border px-3 py-2 text-center">
+                    {r.stato === "confermato"
+                      ? <span className="rounded-sm bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">confermato</span>
+                      : <span className="rounded-sm bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">stimato</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
+                  <td className="border border-border px-3 py-2 text-right label-cap">Totale contanti</td>
+                  <td className="border border-border px-3 py-2 text-right font-mono text-dept">{eur(totContanti)}</td>
+                  <td className="border border-border" />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+
 
 const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean }) => {
   const now = new Date();

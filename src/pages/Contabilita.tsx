@@ -2800,8 +2800,8 @@ const computeSalaryForRow = (
       const h = Math.max(0, Number(s.h) || 0);
       if (s.t === "lavoro") workH += h;
       else if (s.t === "doppia") {
-        // Doppia = 16 ore: le ore inserite (default 8) vengono raddoppiate in orario lavorato
-        const eff = h > 0 ? h * 2 : contractH * 2;
+        // Doppia = secondo turno da 8h aggiunto alle ore inserite (default: 8+8=16)
+        const eff = h > 0 ? h + contractH : contractH * 2;
         workH += eff;
         hadDoppia = true;
       }

@@ -2816,8 +2816,8 @@ const computeSalaryForRow = (
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
-    // Festivo raddoppia l'importo. La doppia è già raddoppiata a monte tramite le ore.
-    const amount = isHoliday ? baseAmount * 2 : baseAmount;
+    // Le ore festive/domenica sono già conteggiate al pari delle ordinarie: nessun raddoppio automatico.
+    const amount = baseAmount;
     breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;
@@ -3313,7 +3313,7 @@ const BreakdownDialog = ({ data, year, month, onClose }: { data: ComputedSalary 
         <DialogHeader>
           <DialogTitle>Calcolo stipendio · {data.name}</DialogTitle>
           <DialogDescription>
-            Periodo {MONTHS[month]} {year} · €/ora <strong>{data.hourlyRate.toFixed(2)}</strong> · contratto {data.contractH}h/giorno · straordinario €5/h · festivo/domenica × 2
+            Periodo {MONTHS[month]} {year} · €/ora <strong>{data.hourlyRate.toFixed(2)}</strong> · contratto {data.contractH}h/giorno · straordinario €5/h
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm">
@@ -3371,7 +3371,7 @@ const BreakdownDialog = ({ data, year, month, onClose }: { data: ComputedSalary 
           </div>
           <div className="rounded-md border bg-muted/20 p-3 text-[11px] text-muted-foreground space-y-1">
             <div><strong>Formula:</strong> (ore normali + ferie/mal/permessi) × €/ora + straordinario × €5</div>
-            <div>Le giornate di domenica o segnate come "festivo" raddoppiano l'importo del giorno.</div>
+            <div>Le ore di domenica o segnate come "festivo" sono conteggiate come ore ordinarie.</div>
           </div>
         </div>
       </DialogContent>

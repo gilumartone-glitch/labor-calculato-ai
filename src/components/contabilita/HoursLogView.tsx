@@ -74,9 +74,9 @@ const computeRowTotals = (row: HoursRow, contractHoursPerDay = 8): RowTotals => 
       else if (s.t === "doppia") { workH += (h > 0 ? h + threshold : threshold * 2); isDoppia = true; }
       else if (s.t === "trasferta") { workH += h; trasfertaOre += h; hadTrasferta = true; }
       else if (s.t === "permesso") permessoOre += h;
-      else if (s.t === "ferie") { ore += threshold; hadFerie = true; }
-      else if (s.t === "festivo") workH += h;
-      else if (s.t === "malattia") hadMalattia = true;
+      else if (s.t === "ferie") { ore += (h > 0 ? h : threshold); hadFerie = true; }
+      else if (s.t === "festivo") workH += (h > 0 ? h : threshold);
+      else if (s.t === "malattia") { ore += (h > 0 ? h : threshold); hadMalattia = true; }
     });
     ore += isDoppia ? workH : Math.min(workH, threshold);
     straordinario += isDoppia ? 0 : Math.max(workH - threshold, 0);

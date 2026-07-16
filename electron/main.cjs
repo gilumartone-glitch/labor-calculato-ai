@@ -163,17 +163,27 @@ autoUpdater.on("update-not-available", () => {
   }
 });
 
-autoUpdater.on("error", (err) => {
+autoUpdater.on("error", async (err) => {
   console.error("autoUpdater error:", err);
   if (manualCheck) {
     const win = getMainWindow();
     if (win) {
-      dialog.showMessageBox(win, {
+      const choice = await dialog.showMessageBox(win, {
         type: "error",
         title: "Errore aggiornamento",
         message: "Impossibile controllare/scaricare gli aggiornamenti",
-        detail: String(err),
+        detail:
+          String(err) +
+          "\n\nPuoi scaricare manualmente l'ultima versione dalla pagina GitHub Releases.",
+        buttons: ["Apri pagina download", "Chiudi"],
+        defaultId: 0,
+        cancelId: 1,
       });
+      if (choice.response === 0) {
+        shell.openExternal(
+          "https://github.com/gilumartone-glitch/workprice-buddy-new/releases/latest"
+        );
+      }
     }
     manualCheck = false;
   }

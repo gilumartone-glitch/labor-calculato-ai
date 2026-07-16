@@ -3047,14 +3047,21 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
 
   const displayRows = useMemo(() => {
     if (useSavedRows) {
+      const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
       return savedRowsForMonth.map((salary) => {
         const dip = findDipendente(dipendenti, salary.name);
-        return { key: salary.id, computed: computedFromSavedSalary(salary, dip), salary, saved: true };
+        // Se l'utente non ha impostato uno split manuale (sc=false), riflettiamo
+        // il totale ricalcolato dalle ore in tempo reale (così le correzioni sui
+        // conteggi ore — festivo, doppia, ferie — aggiornano subito gli importi).
+        const fresh = computedByKey.get(salary.name.trim().toLowerCase());
+        const computed = fresh && !salary.sc ? fresh : computedFromSavedSalary(salary, dip);
+        return { key: salary.id, computed, salary, saved: true };
       });
     }
     return computedRows.map((computed) => ({ key: computed.name, computed, salary: ensureSalary(computed), saved: false }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useSavedRows, savedRowsForMonth, computedRows, dipendenti, salaries, openMonth]);
+
 
   const persistRow = (c: ComputedSalary, patch: Partial<Salary>) => {
     const existing = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());

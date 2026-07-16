@@ -2882,32 +2882,33 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
     return () => { mounted = false; };
   }, []);
 
-  const { year: prevY, month: prevM } = prevMonthYear(year, openMonth);
-  const isProcessed = !!processed[openMonth];
+  // openMonth = mese di COMPETENZA (mese lavorato). Lo stipendio corrispondente
+  // è salvato sotto il mese successivo (stipendio "di luglio" = competenza giugno).
+  const nextM = openMonth === 11 ? 0 : openMonth + 1;
+  const nextY = openMonth === 11 ? year + 1 : year;
+  const isProcessed = !!processed[nextM];
   const savedRows = useMemo(
     () => salaries
-      .filter((s) => s.month === openMonth)
+      .filter((s) => s.month === nextM)
       .filter((s) => (s.totale || 0) > 0 || (s.bonifico || 0) !== 0 || (s.contanti || 0) !== 0 || s.sc)
       .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
-    [salaries, openMonth],
+    [salaries, nextM],
   );
 
-  // Se non ancora elaborato, calcoliamo il totale dalle ore (senza bonifico noto → contanti = totale)
+  // Ore del mese di competenza selezionato
   const computedRows = useMemo(() => {
-    const hm = hoursLog[`${prevY}-${prevM}`] ?? { rows: [] };
+    const hm = hoursLog[`${year}-${openMonth}`] ?? { rows: [] };
     return hm.rows.map((r) => {
       const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
-      return computeSalaryForRow(r, dip, prevY, prevM);
+      return computeSalaryForRow(r, dip, year, openMonth);
     });
-  }, [hoursLog, prevY, prevM, dipendenti]);
+  }, [hoursLog, year, openMonth, dipendenti]);
 
   type Row = { name: string; contanti: number; stato: "confermato" | "stimato" };
   const rows: Row[] = useMemo(() => {
     const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
     if (isProcessed && savedRows.length > 0) {
       return savedRows.map((s) => {
-        // Se non c'è split manuale, ricalcola il totale dalle ore correnti
-        // così festivo/doppia/ferie aggiornano subito i contanti da consegnare.
         const fresh = computedByKey.get(s.name.trim().toLowerCase());
         const totale = (!s.sc && fresh) ? fresh.totale : (Number(s.totale) || 0);
         const contanti = s.sc
@@ -2924,7 +2925,7 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
 
 
   const totContanti = rows.reduce((a, r) => a + r.contanti, 0);
-  const payDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);
+  const payDate = sanitizeSalaryPayDate(payDates[nextM], nextM);
 
   return (
     <Card className="border-2 border-dept shadow-soft">
@@ -2947,9 +2948,10 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
           ))}
         </div>
         <div className="rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2 text-sm">
+          Competenza <strong>{MONTHS[openMonth]} {year}</strong> · stipendio {MONTHS[nextM]} {nextY}
           {isProcessed
-            ? <>Stipendi <strong>elaborati</strong> per {MONTHS[openMonth]} {year} · pagamento previsto <strong>{payDate || "—"}</strong></>
-            : <>Non ancora elaborati per {MONTHS[openMonth]} {year}. Importi <strong>stimati</strong> dalle ore di {MONTHS[prevM]} {prevY}.</>}
+            ? <> · <strong>elaborato</strong> · pagamento previsto <strong>{payDate || "—"}</strong></>
+            : <> · <strong>stimato</strong> dalle ore di {MONTHS[openMonth]} {year}</>}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">

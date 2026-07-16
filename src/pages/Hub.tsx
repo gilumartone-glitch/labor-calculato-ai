@@ -5,6 +5,7 @@ import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { ChangePasswordButton } from "@/components/ChangePasswordButton";
 import { UpdateCheckButton } from "@/components/UpdateCheckButton";
+import { DownloadDesktopButton } from "@/components/DownloadDesktopButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 type Tile = {

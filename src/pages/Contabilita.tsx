@@ -2903,18 +2903,25 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
 
   type Row = { name: string; contanti: number; stato: "confermato" | "stimato" };
   const rows: Row[] = useMemo(() => {
+    const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
     if (isProcessed && savedRows.length > 0) {
-      return savedRows.map((s) => ({
-        name: s.name,
-        contanti: s.sc ? (Number(s.contanti) || 0) : Math.max(0, (Number(s.totale) || 0) - (Number(s.bonifico) || 0)),
-        stato: "confermato" as const,
-      }));
+      return savedRows.map((s) => {
+        // Se non c'è split manuale, ricalcola il totale dalle ore correnti
+        // così festivo/doppia/ferie aggiornano subito i contanti da consegnare.
+        const fresh = computedByKey.get(s.name.trim().toLowerCase());
+        const totale = (!s.sc && fresh) ? fresh.totale : (Number(s.totale) || 0);
+        const contanti = s.sc
+          ? (Number(s.contanti) || 0)
+          : Math.max(0, totale - (Number(s.bonifico) || 0));
+        return { name: s.name, contanti, stato: "confermato" as const };
+      });
     }
     return computedRows
       .filter((c) => c.totale > 0)
       .map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }))
       .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
   }, [isProcessed, savedRows, computedRows]);
+
 
   const totContanti = rows.reduce((a, r) => a + r.contanti, 0);
   const payDate = sanitizeSalaryPayDate(payDates[openMonth], openMonth);

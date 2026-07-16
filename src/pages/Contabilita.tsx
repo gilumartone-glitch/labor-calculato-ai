@@ -29,7 +29,7 @@ import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
 type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
-type StipendiSubTab = "stipendi" | "ore";
+type StipendiSubTab = "stipendi" | "ore" | "contanti";
 
 type CashMovement = {
   id: string;

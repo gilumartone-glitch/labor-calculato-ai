@@ -2807,7 +2807,7 @@ const computeSalaryForRow = (
       }
       else if (s.t === "trasferta") { workH += h; hadTrasferta = true; }
       else if (s.t === "permesso") { paidH += h; permessoH += h; }
-      else if (s.t === "ferie") { paidH += (h > 0 ? h : contractH); hadFerie = true; }
+      else if (s.t === "ferie") { paidH += contractH; hadFerie = true; }
       else if (s.t === "malattia") { paidH += h; hadMalattia = true; }
       else if (s.t === "festivo") hasFestivoSeg = true;
     });

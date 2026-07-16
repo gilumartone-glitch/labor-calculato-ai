@@ -5,6 +5,7 @@ import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
 import { ChangePasswordButton } from "@/components/ChangePasswordButton";
 import { UpdateCheckButton } from "@/components/UpdateCheckButton";
+import { DownloadDesktopButton } from "@/components/DownloadDesktopButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 type Tile = {
@@ -70,6 +71,7 @@ const Hub = () => {
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mx-1 sm:mx-0">
             <ThemeToggle />
             <UpdateCheckButton />
+            <DownloadDesktopButton />
             <ChangePasswordButton variant="outline" />
             <AdminUsersLink variant="outline" />
             <button onClick={signOut} className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs uppercase tracking-wider border-2 border-ink/30 hover:border-ink rounded-sm">

@@ -2948,9 +2948,10 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
           ))}
         </div>
         <div className="rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2 text-sm">
+          Competenza <strong>{MONTHS[openMonth]} {year}</strong> · stipendio {MONTHS[nextM]} {nextY}
           {isProcessed
-            ? <>Stipendi <strong>elaborati</strong> per {MONTHS[openMonth]} {year} · pagamento previsto <strong>{payDate || "—"}</strong></>
-            : <>Non ancora elaborati per {MONTHS[openMonth]} {year}. Importi <strong>stimati</strong> dalle ore di {MONTHS[prevM]} {prevY}.</>}
+            ? <> · <strong>elaborato</strong> · pagamento previsto <strong>{payDate || "—"}</strong></>
+            : <> · <strong>stimato</strong> dalle ore di {MONTHS[openMonth]} {year}</>}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">

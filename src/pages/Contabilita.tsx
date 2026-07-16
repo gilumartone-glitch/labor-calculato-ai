@@ -534,13 +534,20 @@ export default function Contabilita() {
   const [stipendiSub, setStipendiSub] = useState<StipendiSubTab>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:stipendiSub");
-      if (saved === "ore" || saved === "stipendi") return saved;
+      if (saved === "ore" || saved === "stipendi" || saved === "contanti") return saved;
     } catch { /* ignore */ }
     return "stipendi";
   });
   useEffect(() => { try { localStorage.setItem("officina:contabilita:stipendiSub", stipendiSub); } catch { /* ignore */ } }, [stipendiSub]);
   useEffect(() => { if (!isAdmin && !canEditHours && tab === "stipendi") setTab("generale"); }, [isAdmin, canEditHours, tab]);
-  useEffect(() => { if (stipendiSub === "stipendi" && !isAdmin && canEditHours) setStipendiSub("ore"); }, [isAdmin, canEditHours, stipendiSub]);
+  useEffect(() => {
+    if (!isAdmin && canEditHours) {
+      // amministrazione (non-admin): solo "contanti" (read-only) o "ore"
+      if (stipendiSub === "stipendi") setStipendiSub("contanti");
+    } else if (isAdmin) {
+      if (stipendiSub === "contanti") setStipendiSub("stipendi");
+    }
+  }, [isAdmin, canEditHours, stipendiSub]);
 
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     try {

@@ -302,6 +302,9 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   const [versions, setVersions] = useState<DraftVersion[]>([]);
   const lastVersionSnapRef = useRef<string>("");
 
+  // Share dialog
+  const [shareDraftId, setShareDraftId] = useState<string | null>(null);
+
   // Carica drafts iniziali e migra eventuale stato corrente
   useEffect(() => {
     if (!user) { setLoading(false); return; }

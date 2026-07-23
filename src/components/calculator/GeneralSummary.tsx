@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Wrench } from "lucide-react";
+import { Wrench, FileText, Printer } from "lucide-react";
 import { eur, num } from "@/lib/format";
 import { Catalog, DepartmentState, DepartmentTotals, SubProject, getProductWorks } from "./types";
 import { DEPT_LABEL } from "@/lib/produzione/types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
+import { generateQuotePdf } from "@/lib/quote-pdf";
 
 interface GeneralSummaryProps {
   jobName: string;

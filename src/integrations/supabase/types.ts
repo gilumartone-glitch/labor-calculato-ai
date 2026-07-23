@@ -421,6 +421,38 @@ export type Database = {
         }
         Relationships: []
       }
+      design_draft_shares: {
+        Row: {
+          created_at: string
+          created_by: string
+          draft_id: string
+          id: string
+          shared_with: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          draft_id: string
+          id?: string
+          shared_with: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          draft_id?: string
+          id?: string
+          shared_with?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_draft_shares_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "design_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       design_draft_versions: {
         Row: {
           created_at: string
@@ -2080,6 +2112,14 @@ export type Database = {
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_dm_member: {
         Args: { _channel_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_draft_owner: {
+        Args: { _draft: string; _user: string }
+        Returns: boolean
+      }
+      is_draft_shared_with: {
+        Args: { _draft: string; _user: string }
         Returns: boolean
       }
       is_project_coordinator: {

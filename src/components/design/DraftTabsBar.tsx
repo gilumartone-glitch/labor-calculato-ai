@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2 } from "lucide-react";
+import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2, Users2 } from "lucide-react";
+import { ShareDraftDialog } from "./ShareDraftDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,6 +85,14 @@ type Draft = {
   ordine: number;
   active: boolean;
   snapshot: Record<string, unknown>;
+  user_id: string;
+};
+
+type ShareRow = {
+  id: string;
+  draft_id: string;
+  shared_with: string;
+  created_by: string;
 };
 
 const CALC_DEPTS = [
@@ -293,6 +302,9 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   const [versions, setVersions] = useState<DraftVersion[]>([]);
   const lastVersionSnapRef = useRef<string>("");
 
+  // Share dialog
+  const [shareDraftId, setShareDraftId] = useState<string | null>(null);
+
   // Carica drafts iniziali e migra eventuale stato corrente
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -302,7 +314,6 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       const { data, error } = await supabase
         .from("design_drafts")
         .select("*")
-        .eq("user_id", user.id)
         .order("ordine", { ascending: true });
       if (error) {
         toast.error("Errore caricamento bozze: " + error.message);
@@ -372,8 +383,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       await supabase
         .from("design_drafts")
         .update({ snapshot: snap as never })
-        .eq("id", activeId)
-        .eq("user_id", user.id);
+        .eq("id", activeId);
     };
     const onUpdate = () => {
       if (timer) window.clearTimeout(timer);
@@ -560,9 +570,19 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       toast.info("Almeno una scheda deve restare aperta");
       return;
     }
-    if (!window.confirm("Chiudere questa scheda? I dati verranno eliminati.")) return;
-    await supabase.from("design_drafts").delete().eq("id", id);
-    const remaining = drafts.filter((d) => d.id !== id);
+    const d = drafts.find((x) => x.id === id);
+    const isOwner = d?.user_id === user.id;
+    const confirmMsg = isOwner
+      ? "Chiudere questa scheda? I dati verranno eliminati."
+      : "Rimuovere questo progetto condiviso dalle tue schede? Il proprietario e gli altri collaboratori continueranno a vederlo.";
+    if (!window.confirm(confirmMsg)) return;
+    if (isOwner) {
+      await supabase.from("design_drafts").delete().eq("id", id);
+    } else {
+      // Solo unshare per me
+      await supabase.from("design_draft_shares").delete().eq("draft_id", id).eq("shared_with", user.id);
+    }
+    const remaining = drafts.filter((x) => x.id !== id);
     setDrafts(remaining);
     if (id === activeId) {
       const next = remaining[0];
@@ -993,6 +1013,24 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                         <Pencil className="w-2.5 h-2.5" />
                       </button>
                     )}
+                    {!isRenaming && d.user_id === user.id && (
+                      <button
+                        type="button"
+                        onClick={() => setShareDraftId(d.id)}
+                        title="Condividi progetto"
+                        className="w-5 h-5 grid place-items-center opacity-60 hover:opacity-100"
+                      >
+                        <Users2 className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                    {!isRenaming && d.user_id !== user.id && (
+                      <span
+                        title="Progetto condiviso con te"
+                        className="w-5 h-5 grid place-items-center opacity-70 text-primary"
+                      >
+                        <Users2 className="w-2.5 h-2.5" />
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => closeDraft(d.id)}
@@ -1185,6 +1223,12 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         availableMacros={pendingPayload ? deriveAvailableMacros(pendingPayload.depts, activeId) : undefined}
         onConfirm={onWarehouseConfirm}
         saving={sendBusy}
+      />
+      <ShareDraftDialog
+        open={shareDraftId !== null}
+        onOpenChange={(v) => { if (!v) setShareDraftId(null); }}
+        draftId={shareDraftId}
+        draftName={drafts.find((d) => d.id === shareDraftId)?.name ?? ""}
       />
     </>
   );

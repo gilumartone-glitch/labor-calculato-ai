@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Wrench } from "lucide-react";
+import { Wrench, FileText, Printer } from "lucide-react";
 import { eur, num } from "@/lib/format";
 import { Catalog, DepartmentState, DepartmentTotals, SubProject, getProductWorks } from "./types";
 import { DEPT_LABEL } from "@/lib/produzione/types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
+import { generateQuotePdf } from "@/lib/quote-pdf";
 
 interface GeneralSummaryProps {
   jobName: string;
@@ -346,6 +347,37 @@ export const GeneralSummary = ({
             <div className="text-paper/60 text-[10px] uppercase tracking-[0.2em]">Cad.</div>
             <div className="font-mono font-semibold">{eur(perPiece)}</div>
           </div>
+        </div>
+
+        {/* Stampa preventivo */}
+        <div className="mt-6 pt-6 border-t border-paper/20 space-y-2">
+          <div className="text-paper/60 text-[10px] uppercase tracking-[0.2em] mb-2">Stampa preventivo</div>
+          <button
+            type="button"
+            onClick={() => generateQuotePdf({
+              jobName: jobName || schedinaTitle,
+              quantity, margin, vat, applyVat,
+              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog })),
+              subProjects, deptMargins,
+            }, "cliente")}
+            disabled={total === 0}
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-paper/40 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-paper/10 disabled:opacity-40"
+          >
+            <Printer className="w-3.5 h-3.5" /> Stampa cliente (settore per settore)
+          </button>
+          <button
+            type="button"
+            onClick={() => generateQuotePdf({
+              jobName: jobName || schedinaTitle,
+              quantity, margin, vat, applyVat,
+              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog })),
+              subProjects, deptMargins,
+            }, "interno")}
+            disabled={total === 0}
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-paper/40 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-paper/10 disabled:opacity-40"
+          >
+            <FileText className="w-3.5 h-3.5" /> Stampa interna (con costi)
+          </button>
         </div>
 
         {/* Crea commessa nel Flow */}

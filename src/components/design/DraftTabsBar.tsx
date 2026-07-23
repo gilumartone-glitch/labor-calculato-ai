@@ -84,6 +84,14 @@ type Draft = {
   ordine: number;
   active: boolean;
   snapshot: Record<string, unknown>;
+  user_id: string;
+};
+
+type ShareRow = {
+  id: string;
+  draft_id: string;
+  shared_with: string;
+  created_by: string;
 };
 
 const CALC_DEPTS = [

@@ -379,8 +379,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       await supabase
         .from("design_drafts")
         .update({ snapshot: snap as never })
-        .eq("id", activeId)
-        .eq("user_id", user.id);
+        .eq("id", activeId);
     };
     const onUpdate = () => {
       if (timer) window.clearTimeout(timer);

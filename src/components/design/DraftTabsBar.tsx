@@ -566,9 +566,19 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       toast.info("Almeno una scheda deve restare aperta");
       return;
     }
-    if (!window.confirm("Chiudere questa scheda? I dati verranno eliminati.")) return;
-    await supabase.from("design_drafts").delete().eq("id", id);
-    const remaining = drafts.filter((d) => d.id !== id);
+    const d = drafts.find((x) => x.id === id);
+    const isOwner = d?.user_id === user.id;
+    const confirmMsg = isOwner
+      ? "Chiudere questa scheda? I dati verranno eliminati."
+      : "Rimuovere questo progetto condiviso dalle tue schede? Il proprietario e gli altri collaboratori continueranno a vederlo.";
+    if (!window.confirm(confirmMsg)) return;
+    if (isOwner) {
+      await supabase.from("design_drafts").delete().eq("id", id);
+    } else {
+      // Solo unshare per me
+      await supabase.from("design_draft_shares").delete().eq("draft_id", id).eq("shared_with", user.id);
+    }
+    const remaining = drafts.filter((x) => x.id !== id);
     setDrafts(remaining);
     if (id === activeId) {
       const next = remaining[0];

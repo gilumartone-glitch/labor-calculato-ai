@@ -1224,6 +1224,12 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         onConfirm={onWarehouseConfirm}
         saving={sendBusy}
       />
+      <ShareDraftDialog
+        open={shareDraftId !== null}
+        onOpenChange={(v) => { if (!v) setShareDraftId(null); }}
+        draftId={shareDraftId}
+        draftName={drafts.find((d) => d.id === shareDraftId)?.name ?? ""}
+      />
     </>
   );
 };

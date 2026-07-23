@@ -1013,6 +1013,24 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                         <Pencil className="w-2.5 h-2.5" />
                       </button>
                     )}
+                    {!isRenaming && d.user_id === user.id && (
+                      <button
+                        type="button"
+                        onClick={() => setShareDraftId(d.id)}
+                        title="Condividi progetto"
+                        className="w-5 h-5 grid place-items-center opacity-60 hover:opacity-100"
+                      >
+                        <Users2 className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                    {!isRenaming && d.user_id !== user.id && (
+                      <span
+                        title="Progetto condiviso con te"
+                        className="w-5 h-5 grid place-items-center opacity-70 text-primary"
+                      >
+                        <Users2 className="w-2.5 h-2.5" />
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => closeDraft(d.id)}

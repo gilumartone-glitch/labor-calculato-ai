@@ -310,7 +310,6 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       const { data, error } = await supabase
         .from("design_drafts")
         .select("*")
-        .eq("user_id", user.id)
         .order("ordine", { ascending: true });
       if (error) {
         toast.error("Errore caricamento bozze: " + error.message);

@@ -639,6 +639,49 @@ export default function Contabilita() {
     return b.every((item) => ids.has(item.id));
   };
 
+  // Merge hoursLog senza perdere giorni già salvati altrove.
+  // - Union delle chiavi mese (mai droppare un mese presente su un lato).
+  // - Per ogni mese, merge righe per dipendenteId (fallback id).
+  // - Per ogni riga, union dei giorni: locale vince solo se localActive; un giorno mai svuotato.
+  const mergeHoursLog = (
+    local: Record<string, { rows: any[] }> | undefined,
+    remote: Record<string, { rows: any[] }> | undefined,
+    localActive: boolean,
+  ): Record<string, { rows: any[] }> => {
+    const l = local ?? {};
+    const r = remote ?? {};
+    const keys = new Set<string>([...Object.keys(l), ...Object.keys(r)]);
+    const out: Record<string, { rows: any[] }> = {};
+    for (const k of keys) {
+      const lm = l[k];
+      const rm = r[k];
+      if (!lm) { out[k] = rm; continue; }
+      if (!rm) { out[k] = lm; continue; }
+      const rowKey = (row: any) => row?.dipendenteId ?? row?.id;
+      const byKey = new Map<string, any>();
+      for (const row of rm.rows ?? []) byKey.set(rowKey(row), row);
+      for (const row of lm.rows ?? []) {
+        const key = rowKey(row);
+        const other = byKey.get(key);
+        if (!other) { byKey.set(key, row); continue; }
+        const localDays = row?.days ?? {};
+        const remoteDays = other?.days ?? {};
+        const dayKeys = new Set<string>([...Object.keys(localDays), ...Object.keys(remoteDays)]);
+        const mergedDays: Record<string, any> = {};
+        for (const dk of dayKeys) {
+          const lv = localDays[dk];
+          const rv = remoteDays[dk];
+          if (lv == null || lv === "") { mergedDays[dk] = rv ?? lv; continue; }
+          if (rv == null || rv === "") { mergedDays[dk] = lv; continue; }
+          mergedDays[dk] = localActive ? lv : rv;
+        }
+        byKey.set(key, { ...other, ...row, days: mergedDays });
+      }
+      out[k] = { rows: Array.from(byKey.values()) };
+    }
+    return out;
+  };
+
   const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean, preferLocalRecords = false): AccountingState => {
     const unionIds = (a?: string[], b?: string[]) => Array.from(new Set([...(a ?? []), ...(b ?? [])]));
     const deletedIds = {
@@ -662,7 +705,7 @@ export default function Contabilita() {
     salaryPayDays: localActive ? (local.salaryPayDays ?? remote.salaryPayDays) : (remote.salaryPayDays ?? local.salaryPayDays),
     salaryCalc: localActive ? (local.salaryCalc ?? remote.salaryCalc) : (remote.salaryCalc ?? local.salaryCalc),
     salaryRates: localActive ? (local.salaryRates ?? remote.salaryRates) : (remote.salaryRates ?? local.salaryRates),
-    hoursLog: localActive ? (local.hoursLog ?? remote.hoursLog) : (remote.hoursLog ?? local.hoursLog),
+    hoursLog: mergeHoursLog(local.hoursLog as any, remote.hoursLog as any, localActive) as any,
     // Liste con id: merge per id (nessuna cancellazione di righe modificate altrove)
       movements: mergeById(local.movements, remote.movements ?? [], tMov, recent),
       fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix, recent),

@@ -49,7 +49,7 @@ export const useAdminTasks = () => {
     if (!user) return;
     load();
     const ch = supabase
-      .channel("admin_tasks_rt")
+      .channel(`admin_tasks_rt_${Math.random().toString(36).slice(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_tasks" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };

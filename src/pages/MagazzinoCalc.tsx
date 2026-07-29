@@ -876,6 +876,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const [stageW, setStageW] = useState<number>(0);
   const [stageH, setStageH] = useState<number>(0);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [verts, setVerts] = useState<Point[]>([]);
+  const [shapeMode, setShapeMode] = useState<"lati" | "punti">("punti");
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");

@@ -935,7 +935,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const selected = selectedId ? rolls.find((r) => r.id === selectedId) : undefined;
 
 
-  const customPoints = segmentsToPoints(segments);
+  const segPoints = segmentsToPoints(segments);
+  const customPoints = verts.length >= 3 ? verts : segPoints;
   const activePoints = customPoints.length >= 3
     ? customPoints
     : [{ x: 0, y: 0 }, { x: stageW, y: 0 }, { x: stageW, y: stageH }, { x: 0, y: stageH }];

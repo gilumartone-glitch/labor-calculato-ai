@@ -1577,6 +1577,8 @@ function RoomPointsEditor({ verts, setVerts, fallbackW, fallbackH, segPoints }: 
   const W = 720, H = 420, pad = 46;
   const [drag, setDrag] = useState<number | null>(null);
   const [snap, setSnap] = useState(0.1);
+  const [editSide, setEditSide] = useState<number | null>(null);
+  const [sideDraft, setSideDraft] = useState("");
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const pts = verts;

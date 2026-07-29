@@ -1220,7 +1220,16 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                   <Field label="Verso teli"><div className="h-10 flex items-center rounded-md border border-input bg-background px-3 text-[12px] font-medium">{direction === "vertical" ? "strisce in profondità" : "strisce in larghezza"}</div></Field>
                 </div>
 
-                <RoomSegmentsEditor segments={segments} setSegments={setSegments} />
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Forma sala</span>
+                  <div className="flex rounded-md border border-input overflow-hidden">
+                    <button type="button" onClick={() => setShapeMode("punti")} className={`h-9 px-3 text-[13px] font-semibold ${shapeMode === "punti" ? "bg-dept text-dept-foreground" : "bg-background"}`}>Disegno CAD (punti)</button>
+                    <button type="button" onClick={() => setShapeMode("lati")} className={`h-9 px-3 text-[13px] font-semibold border-l border-input ${shapeMode === "lati" ? "bg-dept text-dept-foreground" : "bg-background"}`}>Lati e angoli</button>
+                  </div>
+                </div>
+                {shapeMode === "punti"
+                  ? <RoomPointsEditor verts={verts} setVerts={setVerts} fallbackW={stageW} fallbackH={stageH} segPoints={segPoints} />
+                  : <RoomSegmentsEditor segments={segments} setSegments={setSegments} />}
                 <DanceNestingCanvas points={activePoints} customPoints={customPoints} roomW={stageW} roomH={stageH} rollWidth={selected.rollWidth} direction={direction} />
 
                 {calc ? (

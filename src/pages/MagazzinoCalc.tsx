@@ -1577,6 +1577,8 @@ function RoomPointsEditor({ verts, setVerts, fallbackW, fallbackH, segPoints }: 
   const W = 720, H = 420, pad = 46;
   const [drag, setDrag] = useState<number | null>(null);
   const [snap, setSnap] = useState(0.1);
+  const [editSide, setEditSide] = useState<number | null>(null);
+  const [sideDraft, setSideDraft] = useState("");
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const pts = verts;
@@ -1671,13 +1673,35 @@ function RoomPointsEditor({ verts, setVerts, fallbackW, fallbackH, segPoints }: 
               const sp = toSvg(p), sq = toSvg(q);
               const len = Math.hypot(q.x - p.x, q.y - p.y);
               const mx = (sp.x + sq.x) / 2, my = (sp.y + sq.y) / 2;
+              const editing = editSide === i;
               return (
                 <g key={`s${i}`}>
-                  <rect x={mx - 30} y={my - 12} width={60} height={22} rx={4} className="fill-background stroke-ink/20" />
-                  <text x={mx} y={my + 4} textAnchor="middle" className="fill-foreground" fontSize={14} fontWeight={700}>{fmt(len)} m</text>
+                  {editing ? (
+                    <foreignObject x={mx - 45} y={my - 17} width={90} height={34}>
+                      <input
+                        autoFocus
+                        type="number"
+                        step="0.01"
+                        value={sideDraft}
+                        onChange={(e) => setSideDraft(e.target.value)}
+                        onBlur={() => { const v = Number(sideDraft); if (Number.isFinite(v) && v > 0) setSideLength(i, v); setEditSide(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { const v = Number(sideDraft); if (Number.isFinite(v) && v > 0) setSideLength(i, v); setEditSide(null); }
+                          if (e.key === "Escape") setEditSide(null);
+                        }}
+                        className="w-full h-[32px] text-center text-[15px] font-bold rounded-md border-2 border-dept bg-background text-foreground outline-none"
+                      />
+                    </foreignObject>
+                  ) : (
+                    <g className="cursor-text" onPointerDown={(e) => { e.stopPropagation(); setSideDraft(String(Number(len.toFixed(2)))); setEditSide(i); }}>
+                      <rect x={mx - 34} y={my - 13} width={68} height={26} rx={5} className="fill-background stroke-dept/50" strokeWidth={1.5} />
+                      <text x={mx} y={my + 5} textAnchor="middle" className="fill-foreground" fontSize={14} fontWeight={700}>{fmt(len)} m</text>
+                    </g>
+                  )}
                 </g>
               );
             })}
+
             {pts.map((p, i) => {
               const s = toSvg(p);
               return (

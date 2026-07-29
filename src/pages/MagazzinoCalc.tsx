@@ -876,6 +876,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const [stageW, setStageW] = useState<number>(0);
   const [stageH, setStageH] = useState<number>(0);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [verts, setVerts] = useState<Point[]>([]);
+  const [shapeMode, setShapeMode] = useState<"lati" | "punti">("punti");
   const [direction, setDirection] = useState<StripDirection>("vertical");
   const [chosenColor, setChosenColor] = useState<string>("");
   const [tapeType, setTapeType] = useState<"danza" | "biadesivo">("danza");
@@ -888,6 +890,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     setStageW(0);
     setStageH(0);
     setSegments([]);
+    setVerts([]);
     setDirection("vertical");
     setChosenColor("");
     setTapeType("danza");
@@ -933,7 +936,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
   const selected = selectedId ? rolls.find((r) => r.id === selectedId) : undefined;
 
 
-  const customPoints = segmentsToPoints(segments);
+  const segPoints = segmentsToPoints(segments);
+  const customPoints = verts.length >= 3 ? verts : segPoints;
   const activePoints = customPoints.length >= 3
     ? customPoints
     : [{ x: 0, y: 0 }, { x: stageW, y: 0 }, { x: stageW, y: stageH }, { x: 0, y: stageH }];
@@ -1216,7 +1220,16 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                   <Field label="Verso teli"><div className="h-10 flex items-center rounded-md border border-input bg-background px-3 text-[12px] font-medium">{direction === "vertical" ? "strisce in profondità" : "strisce in larghezza"}</div></Field>
                 </div>
 
-                <RoomSegmentsEditor segments={segments} setSegments={setSegments} />
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Forma sala</span>
+                  <div className="flex rounded-md border border-input overflow-hidden">
+                    <button type="button" onClick={() => setShapeMode("punti")} className={`h-9 px-3 text-[13px] font-semibold ${shapeMode === "punti" ? "bg-dept text-dept-foreground" : "bg-background"}`}>Disegno CAD (punti)</button>
+                    <button type="button" onClick={() => setShapeMode("lati")} className={`h-9 px-3 text-[13px] font-semibold border-l border-input ${shapeMode === "lati" ? "bg-dept text-dept-foreground" : "bg-background"}`}>Lati e angoli</button>
+                  </div>
+                </div>
+                {shapeMode === "punti"
+                  ? <RoomPointsEditor verts={verts} setVerts={setVerts} fallbackW={stageW} fallbackH={stageH} segPoints={segPoints} />
+                  : <RoomSegmentsEditor segments={segments} setSegments={setSegments} />}
                 <DanceNestingCanvas points={activePoints} customPoints={customPoints} roomW={stageW} roomH={stageH} rollWidth={selected.rollWidth} direction={direction} />
 
                 {calc ? (
@@ -1556,6 +1569,155 @@ function RoomSegmentsEditor({ segments, setSegments }: { segments: Segment[]; se
     </div>
   );
 }
+
+/** Editor CAD: vertici trascinabili + misure numeriche (X, Y e lunghezza lato). */
+function RoomPointsEditor({ verts, setVerts, fallbackW, fallbackH, segPoints }: {
+  verts: Point[]; setVerts: (p: Point[]) => void; fallbackW: number; fallbackH: number; segPoints: Point[];
+}) {
+  const W = 720, H = 420, pad = 46;
+  const [drag, setDrag] = useState<number | null>(null);
+  const [snap, setSnap] = useState(0.1);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const pts = verts;
+  const xs = pts.length ? pts.map((p) => p.x) : [0, Math.max(fallbackW, 1)];
+  const ys = pts.length ? pts.map((p) => p.y) : [0, Math.max(fallbackH, 1)];
+  const minX = Math.min(...xs, 0), minY = Math.min(...ys, 0);
+  const w = Math.max(Math.max(...xs) - minX, 1), h = Math.max(Math.max(...ys) - minY, 1);
+  const scale = Math.min((W - pad * 2) / w, (H - pad * 2) / h);
+  const toSvg = (p: Point) => ({ x: pad + (p.x - minX) * scale, y: pad + (p.y - minY) * scale });
+  const toModel = (sx: number, sy: number) => ({ x: (sx - pad) / scale + minX, y: (sy - pad) / scale + minY });
+  const round = (v: number) => (snap > 0 ? Math.round(v / snap) * snap : v);
+
+  const setPoint = (i: number, patch: Partial<Point>) =>
+    setVerts(pts.map((p, k) => (k === i ? { x: Number((patch.x ?? p.x).toFixed(3)), y: Number((patch.y ?? p.y).toFixed(3)) } : p)));
+
+  const onMove = (e: React.PointerEvent) => {
+    if (drag == null || !svgRef.current) return;
+    const r = svgRef.current.getBoundingClientRect();
+    const sx = ((e.clientX - r.left) / r.width) * W;
+    const sy = ((e.clientY - r.top) / r.height) * H;
+    const m = toModel(sx, sy);
+    setPoint(drag, { x: round(m.x), y: round(m.y) });
+  };
+
+  const startRect = () => {
+    const a = Math.max(fallbackW, 1), b = Math.max(fallbackH, 1);
+    setVerts([{ x: 0, y: 0 }, { x: a, y: 0 }, { x: a, y: b }, { x: 0, y: b }]);
+  };
+  const fromSegments = () => { if (segPoints.length >= 3) setVerts(segPoints.map((p) => ({ x: Number(p.x.toFixed(3)), y: Number(p.y.toFixed(3)) }))); };
+
+  const addAfter = (i: number) => {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const mid = { x: Number(((a.x + b.x) / 2).toFixed(3)), y: Number(((a.y + b.y) / 2).toFixed(3)) };
+    setVerts([...pts.slice(0, i + 1), mid, ...pts.slice(i + 1)]);
+  };
+  const rm = (i: number) => setVerts(pts.filter((_, k) => k !== i));
+
+  /** Cambia la lunghezza del lato i→i+1 spostando il vertice successivo lungo la stessa direzione. */
+  const setSideLength = (i: number, len: number) => {
+    const a = pts[i], j = (i + 1) % pts.length, b = pts[j];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const cur = Math.hypot(dx, dy);
+    if (!cur || !Number.isFinite(len) || len <= 0) return;
+    const k = len / cur;
+    setPoint(j, { x: Number((a.x + dx * k).toFixed(3)), y: Number((a.y + dy * k).toFixed(3)) });
+  };
+
+  const area = polygonArea(pts);
+
+  return (
+    <div className="border-2 border-ink/15 rounded-sm bg-background">
+      <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+        <div className="font-mono text-[11px] uppercase tracking-widest">Disegno CAD sala · {pts.length} vertici{area > 0 ? ` · ${fmt(area)} m²` : ""}</div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">Snap</span>
+          <select value={snap} onChange={(e) => setSnap(Number(e.target.value))} className="h-8 rounded-md border border-input bg-background px-2 text-[12px]">
+            <option value={0}>libero</option>
+            <option value={0.05}>5 cm</option>
+            <option value={0.1}>10 cm</option>
+            <option value={0.25}>25 cm</option>
+            <option value={0.5}>50 cm</option>
+          </select>
+          <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={startRect}>Da rettangolo</Button>
+          <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={fromSegments} disabled={segPoints.length < 3}>Da lati</Button>
+          <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={() => setVerts([])}>Reset</Button>
+        </div>
+      </div>
+
+      {pts.length < 3 ? (
+        <div className="p-4 text-[13px] text-muted-foreground">
+          Nessun disegno a punti attivo. Parti da <strong>Da rettangolo</strong> (usa le misure sala) o <strong>Da lati</strong>, poi trascina i vertici o scrivi le misure esatte.
+        </div>
+      ) : (
+        <>
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${W} ${H}`}
+            className="w-full h-auto touch-none select-none"
+            onPointerMove={onMove}
+            onPointerUp={() => setDrag(null)}
+            onPointerLeave={() => setDrag(null)}
+          >
+            <defs>
+              <pattern id="cad-grid-edit" width="18" height="18" patternUnits="userSpaceOnUse">
+                <path d="M18 0H0V18" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.12" />
+              </pattern>
+            </defs>
+            <rect width={W} height={H} fill="url(#cad-grid-edit)" className="text-ink" />
+            <polygon points={pts.map((p) => { const s = toSvg(p); return `${s.x},${s.y}`; }).join(" ")} className="fill-dept-soft/40 stroke-dept" strokeWidth={2.5} />
+            {pts.map((p, i) => {
+              const q = pts[(i + 1) % pts.length];
+              const sp = toSvg(p), sq = toSvg(q);
+              const len = Math.hypot(q.x - p.x, q.y - p.y);
+              const mx = (sp.x + sq.x) / 2, my = (sp.y + sq.y) / 2;
+              return (
+                <g key={`s${i}`}>
+                  <rect x={mx - 30} y={my - 12} width={60} height={22} rx={4} className="fill-background stroke-ink/20" />
+                  <text x={mx} y={my + 4} textAnchor="middle" className="fill-foreground" fontSize={14} fontWeight={700}>{fmt(len)} m</text>
+                </g>
+              );
+            })}
+            {pts.map((p, i) => {
+              const s = toSvg(p);
+              return (
+                <g key={`p${i}`} onPointerDown={(e) => { e.preventDefault(); setDrag(i); }} className="cursor-move">
+                  <circle cx={s.x} cy={s.y} r={11} className={drag === i ? "fill-dept stroke-background" : "fill-background stroke-dept"} strokeWidth={3} />
+                  <text x={s.x} y={s.y + 5} textAnchor="middle" fontSize={12} fontWeight={800} className={drag === i ? "fill-background" : "fill-dept"}>{i + 1}</text>
+                </g>
+              );
+            })}
+          </svg>
+
+          <div className="p-3 space-y-1.5 border-t">
+            <div className="grid grid-cols-[34px,1fr,1fr,1fr,74px] gap-2 text-[11px] uppercase tracking-wider font-mono text-muted-foreground">
+              <div>#</div><div>X (m)</div><div>Y (m)</div><div>Lato → succ. (m)</div><div></div>
+            </div>
+            {pts.map((p, i) => {
+              const q = pts[(i + 1) % pts.length];
+              const len = Math.hypot(q.x - p.x, q.y - p.y);
+              return (
+                <div key={i} className="grid grid-cols-[34px,1fr,1fr,1fr,74px] gap-2 items-center">
+                  <div className="text-[13px] font-mono font-bold">{i + 1}</div>
+                  <Input type="number" step="0.01" value={p.x} onChange={(e) => setPoint(i, { x: Number(e.target.value) })} className="h-9 text-[13px]" />
+                  <Input type="number" step="0.01" value={p.y} onChange={(e) => setPoint(i, { y: Number(e.target.value) })} className="h-9 text-[13px]" />
+                  <Input type="number" step="0.01" value={Number(len.toFixed(2))} onChange={(e) => setSideLength(i, Number(e.target.value))} className="h-9 text-[13px]" />
+                  <div className="flex gap-1">
+                    <button onClick={() => addAfter(i)} className="text-ink/50 hover:text-dept p-1" title="Inserisci punto dopo"><Plus className="w-4 h-4" /></button>
+                    <button onClick={() => rm(i)} className="text-ink/50 hover:text-destructive p-1" title="Elimina punto" disabled={pts.length <= 3}><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="text-[12px] text-muted-foreground pt-1">Trascina i vertici sul disegno oppure inserisci le misure esatte. Modificando un lato si sposta il vertice successivo lungo la stessa direzione.</div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
 
 function DanceNestingCanvas({ points, customPoints, roomW, roomH, rollWidth, direction }: { points: Point[]; customPoints: Point[]; roomW: number; roomH: number; rollWidth: number; direction: StripDirection }) {
   const W = 720, H = 360, pad = 24;

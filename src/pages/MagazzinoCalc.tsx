@@ -890,6 +890,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     setStageW(0);
     setStageH(0);
     setSegments([]);
+    setVerts([]);
     setDirection("vertical");
     setChosenColor("");
     setTapeType("danza");

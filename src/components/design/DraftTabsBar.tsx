@@ -378,14 +378,30 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   useEffect(() => {
     if (!activeId || !user) return;
     let timer: number | null = null;
+    // Finestra di "idratazione": subito dopo il cambio scheda lo stato locale
+    // potrebbe non essere ancora allineato allo snapshot remoto: in quella
+    // finestra non salviamo, per non cancellare i dati (es. progetti condivisi).
+    const hydratedAt = Date.now();
     const persist = async () => {
       const snap = readLocalState();
+      const isEmpty = Object.keys(snap || {}).length === 0;
+      if (isEmpty) {
+        // Non sovrascrivere MAI un progetto con contenuto usando uno stato vuoto
+        const { data } = await supabase
+          .from("design_drafts")
+          .select("snapshot")
+          .eq("id", activeId)
+          .maybeSingle();
+        const remote = (data?.snapshot ?? {}) as Record<string, unknown>;
+        if (remote && Object.keys(remote).length > 0) return;
+      }
       await supabase
         .from("design_drafts")
         .update({ snapshot: snap as never })
         .eq("id", activeId);
     };
     const onUpdate = () => {
+      if (Date.now() - hydratedAt < 1500) return;
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(persist, 800);
     };
@@ -398,6 +414,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       if (timer) window.clearTimeout(timer);
     };
   }, [activeId, user]);
+
 
   // Cache nome della schedina attiva in localStorage (usato dal dialog "Crea commessa nel Flow")
   useEffect(() => {

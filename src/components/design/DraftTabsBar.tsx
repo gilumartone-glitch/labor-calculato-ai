@@ -384,22 +384,23 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     const hydratedAt = Date.now();
     const persist = async () => {
       const snap = readLocalState();
-      const isEmpty = Object.keys(snap || {}).length === 0;
-      if (isEmpty) {
-        // Non sovrascrivere MAI un progetto con contenuto usando uno stato vuoto
+      if (!snapshotHasContent(snap)) {
+        // Non sovrascrivere MAI un progetto che ha contenuto con uno stato
+        // vuoto o "scheletro" (es. scheda condivisa non ancora idratata).
         const { data } = await supabase
           .from("design_drafts")
           .select("snapshot")
           .eq("id", activeId)
           .maybeSingle();
         const remote = (data?.snapshot ?? {}) as Record<string, unknown>;
-        if (remote && Object.keys(remote).length > 0) return;
+        if (snapshotHasContent(remote)) return;
       }
       await supabase
         .from("design_drafts")
         .update({ snapshot: snap as never })
         .eq("id", activeId);
     };
+
     const onUpdate = () => {
       if (Date.now() - hydratedAt < 1500) return;
       if (timer) window.clearTimeout(timer);

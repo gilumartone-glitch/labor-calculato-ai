@@ -260,10 +260,11 @@ describe("Sfrido di lavorazione (nesting)", () => {
 
     expect(group.unplaced).toHaveLength(0);
     // Con il margine perimetrale predefinito da 10 mm l'area utile è
-    // 98×138 cm: servono 7 colonne × 5 righe = 35 lastre.
+    // 98×138 cm: lo split crea 35 pannelli; MaxRects combina i pannelli
+    // terminali più piccoli e usa 31 lastre fisiche.
     expect(group.items).toHaveLength(35);
-    expect(group.sheetsNeeded).toBe(35);
-    expect(group.totalAreaM2).toBeCloseTo(49, 5);
+    expect(group.sheetsNeeded).toBe(31);
+    expect(group.totalAreaM2).toBeCloseTo(43.4, 5);
   });
 
   it("suddivide in griglia 2D anche quando la lastra è scelta come override", () => {
@@ -303,7 +304,7 @@ describe("Sfrido di lavorazione (nesting)", () => {
     expect(group.format).toBe("lastra");
     expect(group.unplaced).toHaveLength(0);
     expect(group.items).toHaveLength(35);
-    expect(group.sheetsNeeded).toBe(35);
+    expect(group.sheetsNeeded).toBe(31);
   });
 
   it("pezzo 12,10 × 0,50 m su rotolo h 2 m → sfrido 1,50 × 12,10 = 18,15 m²", () => {

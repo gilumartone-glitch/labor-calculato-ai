@@ -1406,7 +1406,11 @@ const computeGroup = (
     wastePct,
     materialCostOptimized,
     materialCostInternal,
-    materialCostNaive: 0, // popolato dal chiamante per evitare ciclo di import
+    // Per i rotoli il confronto "senza nesting" è omogeneo: metri lineari che
+    // servirebbero mettendo ogni pezzo da solo × €/ml (+ sfrido iniziale + cuciture).
+    // Per le lastre resta 0 e viene popolato dal chiamante (evita cicli di import).
+    materialCostNaive:
+      format === "rotolo" ? naiveLengthM * sellPerMl + scrapCost + seamCost : 0,
     savings: 0,
     items,
     unplaced: unplaced.flatMap((u) =>

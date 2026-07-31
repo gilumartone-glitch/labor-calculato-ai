@@ -382,6 +382,7 @@ export type DepartmentState = {
       kerfMm?: number;
       perimeterMm?: number;
       skipPerimeter?: boolean;
+      forceSinglePiece?: boolean;
     };
   };
 };

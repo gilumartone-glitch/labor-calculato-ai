@@ -1312,14 +1312,16 @@ const computeGroup = (
       : 0;
 
   // Costo materiale ottimizzato base
-  // Per i ROTOLI: prezzo cliente = area effettiva pezzi (usedAreaM2) × €/mq di vendita.
+  // Per i ROTOLI: il cliente paga il materiale REALMENTE CONSUMATO, cioè i metri
+  // lineari di rullo impegnati × €/ml di vendita (equivalente ad area telo × €/mq).
   // Per le LASTRE: il calcolo viene fatto più sotto sul minimo lastra.
   const sellPerSqm = priceUnit === "mq"
     ? unitPrice
     : rollWidthM > 0 ? unitPrice / rollWidthM : 0;
+  const sellPerMl = priceUnit === "ml" ? unitPrice : unitPrice * rollWidthM;
   let materialCostOptimized =
     format === "rotolo"
-      ? usedAreaM2 * sellPerSqm
+      ? totalLengthM * sellPerMl
       : totalLengthM * unitPrice;
 
   // ---- Minimo lastre: 0,5 mq totali per ordine/materiale ----

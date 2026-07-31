@@ -489,9 +489,9 @@ const explodePieces = (
       materialFormat === "lastra" &&
       isRect &&
       rollWidthM > 0 &&
-      sheetHeightM > 0 &&
-      allowSplit
+      sheetHeightM > 0
     ) {
+
       const fitsAsIs = w <= rollWidthM + 1e-6 && h <= sheetHeightM + 1e-6;
       const fitsRotated =
         p.allowRotation && h <= rollWidthM + 1e-6 && w <= sheetHeightM + 1e-6;

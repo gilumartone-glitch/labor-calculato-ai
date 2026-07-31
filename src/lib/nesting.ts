@@ -1779,7 +1779,11 @@ export const computeNesting = (
       });
       g = pool[0];
     }
-    // Naive cost = somma materiale+cuciture come calcolato per-pezzo (× quantity)
+    // Naive cost = somma materiale+cuciture come calcolato per-pezzo (× quantity).
+    // IMPORTANTE: al costo per-pezzo va aggiunto lo SFRIDO INIZIALE del rotolo, che
+    // è dovuto comunque (con o senza nesting) ed è invece incluso in
+    // materialCostOptimized: senza questa aggiunta il confronto — e quindi il
+    // "risparmio" mostrato — sarebbe falsato.
     const naive = ps.reduce((s, p) => {
       const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
       return (
@@ -1788,7 +1792,7 @@ export const computeNesting = (
           pieceSeamTotal(p, catalog, customer)) *
           qty
       );
-    }, 0);
+    }, 0) + (g.scrapCost || 0);
     g.materialCostNaive = naive;
     g.savings = naive - g.materialCostOptimized;
     return g;

@@ -1118,24 +1118,74 @@ const bestRollVariant = (
     const sell = materialUnitCost(v.material, mode, customer);
     const sellPerSqm = priceUnit === "mq" ? sell : v.heightM > 0 ? sell / v.heightM : 0;
 
-    // Area realmente coperta dai pezzi su questa variante (lo split in teli affiancati
-    // può cambiarla leggermente da una larghezza all'altra).
+    // Materiale realmente consumato con questa altezza di rullo.
     const usedAreaM2 = raw.reduce((s, r) => s + r.w * r.h, 0);
     const scrapCost = skipInitialScrap ? 0 : 1.5 * v.heightM * purchasePerSqm * 1.3;
-    const clientCost = usedAreaM2 * sellPerSqm + scrapCost + seamLengthM * seamPricePerM;
+    const sellPerMl = priceUnit === "ml" ? sell : sellPerSqm * v.heightM;
+    const clientCost = lengthM * sellPerMl + scrapCost + seamLengthM * seamPricePerM;
     const consumedAreaM2 = (lengthM + (skipInitialScrap ? 0 : 1.5)) * v.heightM;
 
     const cand: Cand = { v, unplaced: packed.unplaced.length, clientCost, consumedAreaM2 };
+    // Criterio: 1) pezzi piazzati  2) MENO materiale consumato (l'altezza che
+    // "veste" il pezzo)  3) costo cliente  4) rullo più stretto.
     const better =
       !best ||
       cand.unplaced < best.unplaced ||
       (cand.unplaced === best.unplaced &&
-        (cand.clientCost < best.clientCost - 1e-3 ||
-          (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
-            (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
-              (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+        (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
+          (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+            (cand.clientCost < best.clientCost - 1e-3 ||
+              (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
                 cand.v.heightM < best.v.heightM)))));
     if (better) best = cand;
+    void usedAreaM2;
+  }
+  return best?.v ?? null;
+};
+
+/** Per un SINGOLO pezzo sceglie l'altezza di rullo che lo "veste" meglio:
+ *  minimizza il materiale consumato = teli affiancati × altezza rullo × lunghezza.
+ *  Se il pezzo è più alto di ogni rullo, il minimo cade naturalmente sulla soluzione
+ *  con teli cuciti in verticale. */
+const bestRollHeightForPiece = (
+  variants: { material: CatalogMaterial; heightM: number }[],
+  p: PieceLine,
+  perimeterM: number,
+): { material: CatalogMaterial; heightM: number } | null => {
+  const f = factorOf((p.dimUnit ?? "cm") as DimUnit);
+  const along0 = (Number(p.width) || 0) * f; // lungo il rotolo
+  const cross0 = (Number(p.height) || 0) * f; // attraverso il rotolo
+  if (along0 <= 0 || cross0 <= 0) return null;
+  const orientations =
+    p.allowRotation === false
+      ? [{ cross: cross0, along: along0 }]
+      : [
+          { cross: cross0, along: along0 },
+          { cross: along0, along: cross0 },
+        ];
+
+  let best:
+    | { v: { material: CatalogMaterial; heightM: number }; consumed: number; panels: number }
+    | null = null;
+  for (const v of variants) {
+    if (v.heightM <= 0) continue;
+    const usable = v.heightM - 2 * perimeterM;
+    if (usable <= 0) continue;
+    for (const o of orientations) {
+      const panels = Math.max(1, Math.ceil(o.cross / usable - 1e-9));
+      if (panels > 1 && p.allowSplit === false) continue;
+      const consumed = panels * v.heightM * o.along;
+      const cand = { v, consumed, panels };
+      if (
+        !best ||
+        cand.consumed < best.consumed - 1e-6 ||
+        (Math.abs(cand.consumed - best.consumed) <= 1e-6 &&
+          (cand.panels < best.panels ||
+            (cand.panels === best.panels && cand.v.heightM < best.v.heightM)))
+      ) {
+        best = cand;
+      }
+    }
   }
   return best?.v ?? null;
 };

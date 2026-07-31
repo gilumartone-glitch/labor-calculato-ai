@@ -1329,14 +1329,33 @@ const GroupSummary = ({
               <div className="label-cap mb-0.5">Area telo</div>
               <div className="tabular-nums">{fmt(group.totalAreaM2)} m²</div>
             </div>
-            <div>
-              <div className="label-cap mb-0.5">Costo "ingenuo"</div>
-              <div className="tabular-nums line-through opacity-60">{eur(group.materialCostNaive)}</div>
-            </div>
-            <div>
-              <div className="label-cap mb-0.5">Costo nesting</div>
-              <div className="tabular-nums font-semibold text-primary">{eur(group.materialCostOptimized)}</div>
-            </div>
+            {(() => {
+              const saves = group.materialCostNaive - group.materialCostOptimized > 0.005;
+              return (
+                <>
+                  <div>
+                    <div className="label-cap mb-0.5">Costo per pezzo</div>
+                    <div className={`tabular-nums ${saves ? "line-through opacity-60" : ""}`}>
+                      {eur(group.materialCostNaive)}
+                    </div>
+                    {!saves && (
+                      <div className="text-[10px] text-muted-foreground">senza nesting</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="label-cap mb-0.5">Costo nesting</div>
+                    <div className={`tabular-nums font-semibold ${saves ? "text-primary" : "text-ink"}`}>
+                      {eur(group.materialCostOptimized)}
+                    </div>
+                    {!saves && group.materialCostOptimized - group.materialCostNaive > 0.005 && (
+                      <div className="text-[10px] text-muted-foreground">
+                        +{eur(group.materialCostOptimized - group.materialCostNaive)} (sfrido iniziale/cuciture)
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
           {(group.widthUsagePct !== undefined || (group.lengthSavedM ?? 0) > 0.005) && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-[11px] border-t border-dashed border-ink/15 pt-2">

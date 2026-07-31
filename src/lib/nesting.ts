@@ -895,6 +895,101 @@ const shelfPack = (
   return { items, totalLengthM, unplaced };
 };
 
+/** Orientamenti ammessi di una unit sul rotolo.
+ *  Convenzione: `cross` = dimensione attraverso l'altezza del rotolo (x),
+ *  `along` = sviluppo lungo il rotolo (y). Naturale = h del pezzo attraverso il telo. */
+const rollUnitOrientations = (
+  u: PairedUnit,
+): { cross: number; along: number; swapped: boolean }[] => {
+  const canRotate = u.parts.every((p) => p.allowRotation) && Math.abs(u.w - u.h) > 1e-9;
+  const ors = [{ cross: u.h, along: u.w, swapped: false }];
+  if (canRotate) ors.push({ cross: u.w, along: u.h, swapped: true });
+  return ors;
+};
+
+/** Strip packing MaxRects (BSSF) su un telo di larghezza fissa e lunghezza illimitata.
+ *  Molto più compatto dello shelf/FFD: usa lo spazio residuo di ogni "riga" e può
+ *  mischiare pezzi ruotati e non ruotati. */
+const stripPack = (
+  units: PairedUnit[],
+  rollWidthM: number,
+): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  const maxLen =
+    units.reduce((s, u) => s + Math.max(u.w, u.h), 0) + 1;
+  const bin = mrNewBin(rollWidthM, Math.max(maxLen, 1));
+  const items: NestingPieceItem[] = [];
+  const unplaced: PairedUnit[] = [];
+  let totalLengthM = 0;
+
+  for (const u of units) {
+    const ors = rollUnitOrientations(u).filter((o) => o.cross <= rollWidthM + 1e-6);
+    if (ors.length === 0) {
+      unplaced.push(u);
+      continue;
+    }
+    let best: { rect: MRRect; score1: number; score2: number; swapped: boolean } | null = null;
+    for (const o of ors) {
+      const f = mrFindBSSF(bin.free, o.cross, o.along, bin.used);
+      if (!f) continue;
+      // Penalizzo i piazzamenti che allungano il telo oltre la lunghezza già usata.
+      const growth = Math.max(0, f.rect.y + o.along - totalLengthM);
+      const cand = { rect: f.rect, score1: growth * 1000 + f.score1, score2: f.score2, swapped: o.swapped };
+      if (
+        !best ||
+        cand.score1 < best.score1 - 1e-9 ||
+        (Math.abs(cand.score1 - best.score1) < 1e-9 && cand.score2 < best.score2)
+      ) {
+        best = cand;
+      }
+    }
+    if (!best) {
+      unplaced.push(u);
+      continue;
+    }
+    mrPlace(bin.free, best.rect);
+    bin.used.push(best.rect);
+    totalLengthM = Math.max(totalLengthM, best.rect.y + best.rect.h);
+    u.parts.forEach((part, idx) => {
+      const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
+      items.push({
+        pieceId: part.pieceId,
+        copy: part.copy,
+        label: part.label,
+        w: best!.rect.w,
+        h: best!.rect.h,
+        rotated: best!.swapped,
+        x: best!.rect.x,
+        y: best!.rect.y,
+        shape: part.shape,
+        widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
+        pairedWith:
+          u.parts.length === 2 ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy : undefined,
+        pairRole: u.parts.length === 2 ? role : undefined,
+      });
+    });
+  }
+
+  return { items, totalLengthM, unplaced };
+};
+
+/** Prova più strategie (shelf/FFD + strip MaxRects con vari ordinamenti) e
+ *  tiene il risultato che piazza più pezzi consumando meno rotolo. */
+const rollPackBest = (
+  units: PairedUnit[],
+  rollWidthM: number,
+): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  const candidates = [
+    shelfPack(units, rollWidthM),
+    ...sortedUnitVariants(units).map((sorted) => stripPack(sorted, rollWidthM)),
+    // ordinamento per lato "cross" naturale decrescente
+    stripPack([...units].sort((a, b) => b.h - a.h || b.w - a.w), rollWidthM),
+  ].filter((r) => !nestingItemsOverlap(r.items));
+  if (candidates.length === 0) return shelfPack(units, rollWidthM);
+  return candidates.sort(
+    (a, b) => a.unplaced.length - b.unplaced.length || a.totalLengthM - b.totalLengthM,
+  )[0];
+};
+
 /** Multi-sheet MaxRects (BSSF) packer: distribuisce le units su più fogli identici W×H.
  *  Ogni unit DEVE entrare in un singolo foglio (no spanning). I non-piazzabili
  *  finiscono in `unplaced`. Restituisce items con `sheetIndex` valorizzato.
@@ -979,6 +1074,50 @@ const multiSheetPack = (
     ?? packOnce(sortedUnitVariants(units)[0]);
 };
 
+/** Sceglie l'ALTEZZA DI ROTOLO migliore: prova a nestare i pezzi su ogni variante
+ *  disponibile e tiene quella che costa meno (lunghezza × altezza × €/mq), a parità
+ *  di pezzi piazzati. Vale solo per i tessuti (format = rotolo). */
+const bestRollVariant = (
+  variants: { material: CatalogMaterial; heightM: number }[],
+  pieces: PieceLine[],
+  catalog: Catalog,
+  pieceIndexMap: Map<string, number>,
+  hemMap?: Map<string, { addW: number; addH: number }>,
+): { material: CatalogMaterial; heightM: number } | null => {
+  if (variants.length < 2) return null;
+  if ((variants[0].material.format ?? "rotolo") !== "rotolo") return null;
+  const { perimeterM } = getNestingConfig(catalog);
+  const cutCount = pieces.filter((p) => p.priceMode === "cut").length;
+  const mode: "piece" | "cut" = cutCount >= pieces.length / 2 ? "cut" : "piece";
+
+  let best: { v: { material: CatalogMaterial; heightM: number }; unplaced: number; cost: number } | null = null;
+  for (const v of variants) {
+    if (v.heightM <= 0) continue;
+    const explodeW = Math.max(0.001, v.heightM - 2 * perimeterM);
+    const { items: raw } = explodePieces(pieces, pieceIndexMap, explodeW, "rotolo", 0, hemMap);
+    if (raw.length === 0) continue;
+    const packed = rollPackBest(pairShapes(raw), explodeW);
+    const lengthM = packed.totalLengthM + 2 * perimeterM;
+    if (lengthM <= 0) continue;
+    const purchase = mode === "piece" ? v.material.pricePiece : v.material.priceCut;
+    const priceUnit = materialPriceUnit(v.material);
+    const cost = priceUnit === "mq" ? lengthM * v.heightM * purchase : lengthM * purchase;
+    const cand = { v, unplaced: packed.unplaced.length, cost };
+    if (
+      !best ||
+      cand.unplaced < best.unplaced ||
+      (cand.unplaced === best.unplaced && cand.cost < best.cost - 1e-9) ||
+      (cand.unplaced === best.unplaced &&
+        Math.abs(cand.cost - best.cost) < 1e-9 &&
+        cand.v.heightM < best.v.heightM)
+    ) {
+      best = cand;
+    }
+  }
+  return best?.v ?? null;
+};
+
+
 /** Calcola un gruppo di nesting (un materiale + un set di pezzi). */
 const computeGroup = (
   key: string,
@@ -1000,7 +1139,10 @@ const computeGroup = (
     pieces[0].variantId ?? pieces[0].catalogMaterialId,
   );
   const hemMap = buildHemMap(pieces, catalog);
-  const picked = forcedVariant ?? pickRollVariant(variants, pieces, hemMap);
+  const picked =
+    forcedVariant ??
+    bestRollVariant(variants, pieces, catalog, pieceIndexMap, hemMap) ??
+    pickRollVariant(variants, pieces, hemMap);
 
   // Costo "ingenuo": somma del costo materiale di ogni pezzo (computePieceMaterial già esistente
   // gestisce teli + cuciture; lo riusiamo per coerenza)
@@ -1104,7 +1246,7 @@ const computeGroup = (
     totalLengthM = packed.sheetsUsed * sheetH;
   } else {
     const usableRoll = Math.max(0.001, rollWidthM - 2 * perimeterM);
-    const packed = shelfPack(units, usableRoll);
+    const packed = rollPackBest(units, usableRoll);
     items = shiftItems(packed.items);
     totalLengthM = packed.totalLengthM + 2 * perimeterM;
     unplaced = packed.unplaced;

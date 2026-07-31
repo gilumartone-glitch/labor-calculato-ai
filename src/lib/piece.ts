@@ -287,22 +287,19 @@ const planOrientation = (
       };
     }
 
-    if (!allowSplit) return null;
-
+    // LASTRE: un pezzo più grande della lastra va SEMPRE realizzato con più
+    // lastre affiancate (griglia colonne × righe), anche se marcato indivisibile:
+    // fisicamente non esiste alternativa.
     const split = sheetVariants
       .map((v) => {
         const { w, h } = sheetDimensionsMeters(v.material);
-        const panels = w > 0 ? Math.ceil(pieceWidthM / w) : Infinity;
-        return { ...v, sheetW: w, sheetH: h, panels, totalArea: panels * w * h };
+        const cols = w > 0 ? Math.ceil(pieceWidthM / w - 1e-6) : Infinity;
+        const rows = h > 0 ? Math.ceil(pieceHeightM / h - 1e-6) : Infinity;
+        const panels = cols * rows;
+        return { ...v, sheetW: w, sheetH: h, cols, rows, panels, totalArea: panels * w * h };
       })
-      .filter((v) =>
-        v.sheetW > 0 &&
-        v.sheetH > 0 &&
-        isFinite(v.panels) &&
-        v.panels > 1 &&
-        pieceHeightM <= v.sheetH + 1e-6,
-      )
-      .sort((a, b) => a.panels - b.panels || a.totalArea - b.totalArea || a.heightM - b.heightM);
+      .filter((v) => v.sheetW > 0 && v.sheetH > 0 && isFinite(v.panels) && v.panels > 1)
+      .sort((a, b) => a.totalArea - b.totalArea || a.panels - b.panels || a.heightM - b.heightM);
 
     if (split.length === 0) return null;
     const best = split[0];
@@ -312,9 +309,11 @@ const planOrientation = (
       panels: best.panels,
       panelLengthM: best.sheetH,
       totalMetersM: best.panels * best.sheetH,
-      seamLengthM: Math.max(0, best.panels - 1) * pieceHeightM,
+      seamLengthM:
+        Math.max(0, best.cols - 1) * pieceHeightM + Math.max(0, best.rows - 1) * pieceWidthM,
     };
   }
+
 
   const rollVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "rotolo");
   if (rollVariants.length > 0) {

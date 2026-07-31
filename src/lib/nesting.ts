@@ -1815,7 +1815,9 @@ export const computeNesting = (
     // --- ROTOLI: ogni pezzo va sull'altezza di rullo che lo "veste" meglio ---
     // Se nella stessa famiglia i pezzi preferiscono altezze diverse (es. teli h 800
     // e teli h 1100), il gruppo viene suddiviso in sottogruppi per altezza.
+    const forceSingle = !!(catalog as unknown as { __forceSinglePiece?: boolean }).__forceSinglePiece;
     const allRolls =
+      !forceSingle &&
       allVariants.length > 1 &&
       allVariants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
     if (allRolls) {

@@ -37,13 +37,13 @@ interface Props {
   initialNestingState?: {
     overrides?: Record<string, NestingFormatOverride | null>;
     mixedBins?: Record<string, NestingMixedBin[] | null>;
-    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean };
+    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean; forceSinglePiece?: boolean };
   };
   /** Notifica i cambiamenti di stato del nesting per persistenza nello snapshot. */
   onNestingStateChange?: (state: {
     overrides: Record<string, NestingFormatOverride | null>;
     mixedBins: Record<string, NestingMixedBin[] | null>;
-    settings: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean };
+    settings: { kerfMm: number; perimeterMm: number; skipPerimeter: boolean; forceSinglePiece?: boolean };
   }) => void;
 }
 
@@ -2215,6 +2215,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     kerfMm: 0,
     perimeterMm: 10,
     skipPerimeter: false,
+    forceSinglePiece: false,
   });
   /** Se il preventivo salvato contiene già le impostazioni di nesting (fresa/margine),
    *  le applico una volta al mount così l'operatore in produzione (che potrebbe avere
@@ -2223,11 +2224,12 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   useEffect(() => {
     if (settingsHydrated.current) return;
     const s = initialNestingState?.settings;
-    if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null)) {
+    if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null || s.forceSinglePiece != null)) {
       setNestSettings((prev) => ({
         kerfMm: s.kerfMm ?? prev.kerfMm,
         perimeterMm: s.perimeterMm ?? prev.perimeterMm,
         skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
+        forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
       }));
     }
     settingsHydrated.current = true;
@@ -2238,6 +2240,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   const deferredKerf = useDeferredValue(nestSettings.kerfMm);
   const deferredPerim = useDeferredValue(nestSettings.perimeterMm);
   const deferredSkip = useDeferredValue(nestSettings.skipPerimeter);
+  const deferredSingle = useDeferredValue(!!nestSettings.forceSinglePiece);
   /** Catalogo "effettivo" con i flag di nesting: viene usato per TUTTI i calcoli
    *  del pannello, così le impostazioni fresa/margine vengono applicate ovunque. */
   const effCatalog = useMemo<Catalog>(() => ({
@@ -2245,7 +2248,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
     __kerfMm: deferredKerf,
     __perimeterMarginMm: deferredPerim,
     __skipPerimeterMargin: deferredSkip,
-  }), [catalog, deferredKerf, deferredPerim, deferredSkip]);
+    __forceSinglePiece: deferredSingle,
+  }), [catalog, deferredKerf, deferredPerim, deferredSkip, deferredSingle]);
   const perimeterM = useMemo(() => getNestingConfig(effCatalog).perimeterM, [effCatalog]);
 
   const baseGroups = useMemo(
@@ -2282,10 +2286,11 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
         kerfMm: nestSettings.kerfMm,
         perimeterMm: nestSettings.perimeterMm,
         skipPerimeter: nestSettings.skipPerimeter,
+        forceSinglePiece: !!nestSettings.forceSinglePiece,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overrides, mixedBinsByGroup, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+  }, [overrides, mixedBinsByGroup, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter, nestSettings.forceSinglePiece]);
 
 
   /** Applico l'override (se presente) a ciascun gruppo. */
@@ -2428,6 +2433,16 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
               className="w-5 h-5 accent-primary"
             />
             <span className="text-sm font-semibold">Bypassa margine perimetro</span>
+          </label>
+
+          <label className="flex items-center gap-2 h-10 px-3 border-2 border-input rounded-md bg-background cursor-pointer" title="Se attivo, tutti i pezzi dello stesso materiale restano su un'unica pezza/altezza">
+            <input
+              type="checkbox"
+              checked={!!nestSettings.forceSinglePiece}
+              onChange={(e) => setNestSettings((s) => ({ ...s, forceSinglePiece: e.target.checked }))}
+              className="w-5 h-5 accent-primary"
+            />
+            <span className="text-sm font-semibold">Tutti i pezzi nella stessa pezza</span>
           </label>
 
           <div className="ml-auto flex items-center gap-2">

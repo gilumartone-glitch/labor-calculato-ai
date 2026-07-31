@@ -106,6 +106,9 @@ export type Catalog = {
   __perimeterMarginMm?: number;
   /** Se true, bypassa il margine perimetrale (resta solo la fresa tra i pezzi). */
   __skipPerimeterMargin?: boolean;
+  /** Se true, tutti i pezzi dello stesso materiale restano su UNA sola pezza/altezza
+   *  (niente suddivisione automatica in sottogruppi per altezza rullo). */
+  __forceSinglePiece?: boolean;
 };
 
 /* Stampa: catalogo voci per il reparto Stampa */
@@ -379,6 +382,7 @@ export type DepartmentState = {
       kerfMm?: number;
       perimeterMm?: number;
       skipPerimeter?: boolean;
+      forceSinglePiece?: boolean;
     };
   };
 };

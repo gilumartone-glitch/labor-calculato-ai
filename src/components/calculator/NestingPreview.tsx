@@ -512,7 +512,7 @@ type Props = {
   nestingState?: {
     overrides?: Record<string, NestingFormatOverride | null>;
     mixedBins?: Record<string, NestingMixedBin[] | null>;
-    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean };
+    settings?: { kerfMm?: number; perimeterMm?: number; skipPerimeter?: boolean; forceSinglePiece?: boolean };
   };
   customerType?: any;
 };
@@ -527,6 +527,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     kerfMm: 0,
     perimeterMm: 10,
     skipPerimeter: false,
+    forceSinglePiece: false,
   });
   // Le impostazioni fresa/margine hanno PRIORITÀ da nestingState (salvate col preventivo)
   // così l'operatore riproduce lo stesso layout DXF del designer anche se il suo
@@ -536,6 +537,7 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     kerfMm: savedSettings?.kerfMm ?? localNestSettings.kerfMm,
     perimeterMm: savedSettings?.perimeterMm ?? localNestSettings.perimeterMm,
     skipPerimeter: savedSettings?.skipPerimeter ?? localNestSettings.skipPerimeter,
+    forceSinglePiece: savedSettings?.forceSinglePiece ?? !!localNestSettings.forceSinglePiece,
   };
   const exportCfg = {
     kerfMm: nestSettings.kerfMm,
@@ -556,7 +558,8 @@ export const NestingPreview = ({ pieces, catalog, title = "Nesting", graphicOnly
     __kerfMm: nestSettings.kerfMm,
     __perimeterMarginMm: nestSettings.perimeterMm,
     __skipPerimeterMargin: nestSettings.skipPerimeter,
-  }) : catalog), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter]);
+    __forceSinglePiece: nestSettings.forceSinglePiece,
+  }) : catalog), [catalog, nestSettings.kerfMm, nestSettings.perimeterMm, nestSettings.skipPerimeter, nestSettings.forceSinglePiece]);
 
   const groups = useMemo(() => {
     if (!effCatalog || !pieces.length) return [] as NestingGroup[];

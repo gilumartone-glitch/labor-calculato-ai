@@ -895,6 +895,101 @@ const shelfPack = (
   return { items, totalLengthM, unplaced };
 };
 
+/** Orientamenti ammessi di una unit sul rotolo.
+ *  Convenzione: `cross` = dimensione attraverso l'altezza del rotolo (x),
+ *  `along` = sviluppo lungo il rotolo (y). Naturale = h del pezzo attraverso il telo. */
+const rollUnitOrientations = (
+  u: PairedUnit,
+): { cross: number; along: number; swapped: boolean }[] => {
+  const canRotate = u.parts.every((p) => p.allowRotation) && Math.abs(u.w - u.h) > 1e-9;
+  const ors = [{ cross: u.h, along: u.w, swapped: false }];
+  if (canRotate) ors.push({ cross: u.w, along: u.h, swapped: true });
+  return ors;
+};
+
+/** Strip packing MaxRects (BSSF) su un telo di larghezza fissa e lunghezza illimitata.
+ *  Molto più compatto dello shelf/FFD: usa lo spazio residuo di ogni "riga" e può
+ *  mischiare pezzi ruotati e non ruotati. */
+const stripPack = (
+  units: PairedUnit[],
+  rollWidthM: number,
+): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  const maxLen =
+    units.reduce((s, u) => s + Math.max(u.w, u.h), 0) + 1;
+  const bin = mrNewBin(rollWidthM, Math.max(maxLen, 1));
+  const items: NestingPieceItem[] = [];
+  const unplaced: PairedUnit[] = [];
+  let totalLengthM = 0;
+
+  for (const u of units) {
+    const ors = rollUnitOrientations(u).filter((o) => o.cross <= rollWidthM + 1e-6);
+    if (ors.length === 0) {
+      unplaced.push(u);
+      continue;
+    }
+    let best: { rect: MRRect; score1: number; score2: number; swapped: boolean } | null = null;
+    for (const o of ors) {
+      const f = mrFindBSSF(bin.free, o.cross, o.along, bin.used);
+      if (!f) continue;
+      // Penalizzo i piazzamenti che allungano il telo oltre la lunghezza già usata.
+      const growth = Math.max(0, f.rect.y + o.along - totalLengthM);
+      const cand = { rect: f.rect, score1: growth * 1000 + f.score1, score2: f.score2, swapped: o.swapped };
+      if (
+        !best ||
+        cand.score1 < best.score1 - 1e-9 ||
+        (Math.abs(cand.score1 - best.score1) < 1e-9 && cand.score2 < best.score2)
+      ) {
+        best = cand;
+      }
+    }
+    if (!best) {
+      unplaced.push(u);
+      continue;
+    }
+    mrPlace(bin.free, best.rect);
+    bin.used.push(best.rect);
+    totalLengthM = Math.max(totalLengthM, best.rect.y + best.rect.h);
+    u.parts.forEach((part, idx) => {
+      const role: "primary" | "secondary" = idx === 0 ? "primary" : "secondary";
+      items.push({
+        pieceId: part.pieceId,
+        copy: part.copy,
+        label: part.label,
+        w: best!.rect.w,
+        h: best!.rect.h,
+        rotated: best!.swapped,
+        x: best!.rect.x,
+        y: best!.rect.y,
+        shape: part.shape,
+        widthBottomM: part.shape === "trapezoid" ? part.widthBottomM : undefined,
+        pairedWith:
+          u.parts.length === 2 ? u.parts[1 - idx].pieceId + ":" + u.parts[1 - idx].copy : undefined,
+        pairRole: u.parts.length === 2 ? role : undefined,
+      });
+    });
+  }
+
+  return { items, totalLengthM, unplaced };
+};
+
+/** Prova più strategie (shelf/FFD + strip MaxRects con vari ordinamenti) e
+ *  tiene il risultato che piazza più pezzi consumando meno rotolo. */
+const rollPackBest = (
+  units: PairedUnit[],
+  rollWidthM: number,
+): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  const candidates = [
+    shelfPack(units, rollWidthM),
+    ...sortedUnitVariants(units).map((sorted) => stripPack(sorted, rollWidthM)),
+    // ordinamento per lato "cross" naturale decrescente
+    stripPack([...units].sort((a, b) => b.h - a.h || b.w - a.w), rollWidthM),
+  ].filter((r) => !nestingItemsOverlap(r.items));
+  if (candidates.length === 0) return shelfPack(units, rollWidthM);
+  return candidates.sort(
+    (a, b) => a.unplaced.length - b.unplaced.length || a.totalLengthM - b.totalLengthM,
+  )[0];
+};
+
 /** Multi-sheet MaxRects (BSSF) packer: distribuisce le units su più fogli identici W×H.
  *  Ogni unit DEVE entrare in un singolo foglio (no spanning). I non-piazzabili
  *  finiscono in `unplaced`. Restituisce items con `sheetIndex` valorizzato.

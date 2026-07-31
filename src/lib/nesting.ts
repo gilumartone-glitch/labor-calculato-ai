@@ -1165,7 +1165,7 @@ const computeGroup = (
   const hemMap = buildHemMap(pieces, catalog);
   const picked =
     forcedVariant ??
-    bestRollVariant(variants, pieces, catalog, pieceIndexMap, hemMap) ??
+    bestRollVariant(variants, pieces, catalog, pieceIndexMap, hemMap, customer) ??
     pickRollVariant(variants, pieces, hemMap);
 
   // Costo "ingenuo": somma del costo materiale di ogni pezzo (computePieceMaterial già esistente

@@ -229,6 +229,41 @@ describe("Sfrido di lavorazione (nesting)", () => {
     expect(group.unplaced).toHaveLength(0);
   });
 
+  it("suddivide 600×660 cm su lastre 100×140 cm in 30 lastre", () => {
+    const sheet: CatalogMaterial = {
+      ...makeRollMaterial(),
+      id: "sheet-100-140",
+      name: "Pannello laboratorio",
+      color: "Neutro",
+      format: "lastra",
+      baseWidth: "100",
+      height: "140",
+      heightUnit: "cm",
+      dimUnit: "cm",
+      priceUnit: "mq",
+    };
+    const catalog = makeCatalog([sheet]);
+    const piece = makePiece({
+      productName: sheet.name,
+      color: sheet.color,
+      width: 600,
+      height: 660,
+      dimUnit: "cm",
+      noMargins: true,
+      allowSplit: false,
+      allowRotation: true,
+      catalogMaterialId: sheet.id,
+      variantId: sheet.id,
+    });
+
+    const group = computeNesting([piece], catalog)[0];
+
+    expect(group.unplaced).toHaveLength(0);
+    expect(group.items).toHaveLength(30);
+    expect(group.sheetsNeeded).toBe(30);
+    expect(group.totalAreaM2).toBeCloseTo(42, 5);
+  });
+
   it("pezzo 12,10 × 0,50 m su rotolo h 2 m → sfrido 1,50 × 12,10 = 18,15 m²", () => {
     const catalog = makeCatalog([makeRollMaterial()]);
     const piece = makePiece();

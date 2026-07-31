@@ -1652,7 +1652,15 @@ export const recomputeGroupWithOverride = (
   const { perimeterM } = getNestingConfig(catalog);
   const usableW = Math.max(0.001, sheetW - 2 * perimeterM);
   const usableH = Math.max(0.001, sheetH - 2 * perimeterM);
-  const { items: raw } = explodePieces(pieces, pieceIndexMap, usableW, baseGroup.format, usableH, hemMap);
+  // L'override scelto dal catalogo rappresenta una lastra anche quando il gruppo
+  // originale era stato inizialmente classificato come rotolo. Il formato va
+  // deciso PRIMA dello split, altrimenti i pezzi più grandi in entrambe le
+  // direzioni non entrano mai nel ramo di suddivisione 2D delle lastre.
+  const overrideFormat: "lastra" | "rotolo" =
+    override.source === "catalog" || (override.quantity ?? 0) > 0
+      ? "lastra"
+      : baseGroup.format;
+  const { items: raw } = explodePieces(pieces, pieceIndexMap, usableW, overrideFormat, usableH, hemMap);
   const units = pairShapes(raw);
   const packedRaw = multiSheetPack(units, usableW, usableH);
   const items = perimeterM > 0
@@ -1705,14 +1713,6 @@ export const recomputeGroupWithOverride = (
     unitPricePerSqm = sellPerSqm;
   }
   const materialCostOptimized = totalAreaM2 * unitPricePerSqm;
-
-  // Format risultante: se l'utente ha specificato una quantità o sceglie esplicitamente
-  // una variante "lastra", consideriamo il calcolo come "lastra"; altrimenti
-  // manteniamo il formato originario del gruppo (rotolo o lastra).
-  const overrideFormat: "lastra" | "rotolo" =
-    override.source === "catalog" || (override.quantity ?? 0) > 0
-      ? "lastra"
-      : baseGroup.format;
 
   return {
     ...baseGroup,

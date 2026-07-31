@@ -1832,7 +1832,7 @@ export const computeNesting = (
         buckets.get(bk)!.pieces.push(p);
       }
       if (buckets.size > 1) {
-        return Array.from(buckets.entries()).map(([bk, b]) =>
+        const subs = Array.from(buckets.entries()).map(([bk, b]) =>
           finalize(
             computeGroup(
               `${k}#h${bk}`,
@@ -1846,6 +1846,12 @@ export const computeNesting = (
             b.pieces,
           ),
         );
+        // Solo se ogni pezzo trova posto nella sua altezza; altrimenti fallback
+        // al gruppo unico con scelta variante classica.
+        const allPlaced =
+          subs.every((s) => s.unplaced.length === 0 && s.items.length > 0) &&
+          Array.from(buckets.values()).reduce((s, b) => s + b.pieces.length, 0) === ps.length;
+        if (allPlaced) return subs;
       }
     }
 

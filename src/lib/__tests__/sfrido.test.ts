@@ -9,7 +9,7 @@ import {
   pieceMaterialTotal,
   pieceInitialScrapSellCost,
 } from "../piece";
-import { computeNesting } from "../nesting";
+import { buildPieceIndexMap, computeNesting, recomputeGroupWithOverride } from "../nesting";
 import { perimeterCost } from "../perimeter";
 import type {
   Catalog,
@@ -227,6 +227,84 @@ describe("Sfrido di lavorazione (nesting)", () => {
     expect(group.sheetWidthM).toBeCloseTo(6, 5);
     expect(group.sheetHeightM).toBeCloseTo(2.05, 5);
     expect(group.unplaced).toHaveLength(0);
+  });
+
+  it("suddivide 600×660 cm su lastre 100×140 cm considerando il margine perimetrale", () => {
+    const sheet: CatalogMaterial = {
+      ...makeRollMaterial(),
+      id: "sheet-100-140",
+      name: "Pannello laboratorio",
+      color: "Neutro",
+      format: "lastra",
+      baseWidth: "100",
+      height: "140",
+      heightUnit: "cm",
+      dimUnit: "cm",
+      priceUnit: "mq",
+    };
+    const catalog = makeCatalog([sheet]);
+    const piece = makePiece({
+      productName: sheet.name,
+      color: sheet.color,
+      width: 600,
+      height: 660,
+      dimUnit: "cm",
+      noMargins: true,
+      allowSplit: false,
+      allowRotation: true,
+      catalogMaterialId: sheet.id,
+      variantId: sheet.id,
+    });
+
+    const group = computeNesting([piece], catalog)[0];
+
+    expect(group.unplaced).toHaveLength(0);
+    // Con il margine perimetrale predefinito da 10 mm l'area utile è
+    // 98×138 cm: lo split crea 35 pannelli; MaxRects combina i pannelli
+    // terminali più piccoli e usa 31 lastre fisiche.
+    expect(group.items).toHaveLength(35);
+    expect(group.sheetsNeeded).toBe(31);
+    expect(group.totalAreaM2).toBeCloseTo(43.4, 5);
+  });
+
+  it("suddivide in griglia 2D anche quando la lastra è scelta come override", () => {
+    const sheet = makeRollMaterial({
+      id: "sheet-100-140-override",
+      name: "Pannello laboratorio",
+      color: "Neutro",
+      format: "lastra",
+      baseWidth: "100",
+      height: "140",
+      heightUnit: "cm",
+      dimUnit: "cm",
+    });
+    const catalog = makeCatalog([sheet]);
+    const piece = makePiece({
+      productName: sheet.name,
+      color: sheet.color,
+      width: 600,
+      height: 660,
+      dimUnit: "cm",
+      noMargins: true,
+      allowSplit: false,
+      allowRotation: true,
+      catalogMaterialId: sheet.id,
+      variantId: sheet.id,
+    });
+    const computed = computeNesting([piece], catalog)[0];
+    const legacyBase = { ...computed, format: "rotolo" as const };
+    const group = recomputeGroupWithOverride(
+      legacyBase,
+      [piece],
+      catalog,
+      { widthM: 1, heightM: 1.4, quantity: 0, source: "catalog" },
+      buildPieceIndexMap([piece]),
+    );
+
+    expect(group.format).toBe("lastra");
+    expect(group.unplaced).toHaveLength(0);
+    expect(group.items).toHaveLength(35);
+    expect(group.sheetsNeeded).toBe(31);
   });
 
   it("pezzo 12,10 × 0,50 m su rotolo h 2 m → sfrido 1,50 × 12,10 = 18,15 m²", () => {

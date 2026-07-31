@@ -1776,7 +1776,27 @@ export const computeNesting = (
     groups.get(k)!.push(p);
   }
 
-  return Array.from(groups.entries()).map(([k, ps]) => {
+  /** Completa un gruppo con il confronto "senza nesting". */
+  const finalize = (g: NestingGroup, ps: PieceLine[]): NestingGroup => {
+    // Per i rotoli il naive è già calcolato in computeGroup su base metri lineari
+    // (omogeneo al costo nesting). Per le lastre lo calcoliamo qui per-pezzo.
+    if (!(g.materialCostNaive > 0)) {
+      g.materialCostNaive =
+        ps.reduce((s, p) => {
+          const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+          return (
+            s +
+            (pieceMaterialTotal(p, catalog, customer) +
+              pieceSeamTotal(p, catalog, customer)) *
+              qty
+          );
+        }, 0) + (g.scrapCost || 0);
+    }
+    g.savings = g.materialCostNaive - g.materialCostOptimized;
+    return g;
+  };
+
+  return Array.from(groups.entries()).flatMap(([k, ps]): NestingGroup[] => {
     const label = `${ps[0].productName}${ps[0].color ? ` · ${ps[0].color}` : ""}${ps[0].fireproof ? ` · ${ps[0].fireproof}` : ""}`;
     // Provo TUTTE le varianti compatibili e tengo quella che produce meno sfrido
     // (a parità di pezzi piazzati). Se nessuna variante "perfetta" esiste, ricado
@@ -1790,6 +1810,44 @@ export const computeNesting = (
       ps[0].finish,
       ps[0].variantId ?? ps[0].catalogMaterialId,
     );
+
+    // --- ROTOLI: ogni pezzo va sull'altezza di rullo che lo "veste" meglio ---
+    // Se nella stessa famiglia i pezzi preferiscono altezze diverse (es. teli h 800
+    // e teli h 1100), il gruppo viene suddiviso in sottogruppi per altezza.
+    const allRolls =
+      allVariants.length > 1 &&
+      allVariants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
+    if (allRolls) {
+      const { perimeterM } = getNestingConfig(catalog);
+      const buckets = new Map<
+        string,
+        { v: { material: CatalogMaterial; heightM: number }; pieces: PieceLine[] }
+      >();
+      for (const p of ps) {
+        const v = bestRollHeightForPiece(allVariants, p, perimeterM);
+        if (!v) continue;
+        const bk = `${v.heightM}`;
+        if (!buckets.has(bk)) buckets.set(bk, { v, pieces: [] });
+        buckets.get(bk)!.pieces.push(p);
+      }
+      if (buckets.size > 1) {
+        return Array.from(buckets.entries()).map(([bk, b]) =>
+          finalize(
+            computeGroup(
+              `${k}#h${bk}`,
+              `${label} · h ${fmtHeightCm(b.v.heightM)} cm`,
+              b.pieces,
+              catalog,
+              pieceIndexMap,
+              customer,
+              b.v,
+            ),
+            b.pieces,
+          ),
+        );
+      }
+    }
+
     let g: NestingGroup;
     if (allVariants.length <= 1) {
       g = computeGroup(k, label, ps, catalog, pieceIndexMap, customer);
@@ -1835,23 +1893,7 @@ export const computeNesting = (
       });
       g = pool[0];
     }
-    // Naive cost = somma materiale+cuciture come calcolato per-pezzo (× quantity).
-    // IMPORTANTE: al costo per-pezzo va aggiunto lo SFRIDO INIZIALE del rotolo, che
-    // è dovuto comunque (con o senza nesting) ed è invece incluso in
-    // materialCostOptimized: senza questa aggiunta il confronto — e quindi il
-    // "risparmio" mostrato — sarebbe falsato.
-    const naive = ps.reduce((s, p) => {
-      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
-      return (
-        s +
-        (pieceMaterialTotal(p, catalog, customer) +
-          pieceSeamTotal(p, catalog, customer)) *
-          qty
-      );
-    }, 0) + (g.scrapCost || 0);
-    g.materialCostNaive = naive;
-    g.savings = naive - g.materialCostOptimized;
-    return g;
+    return [finalize(g, ps)];
   });
 };
 

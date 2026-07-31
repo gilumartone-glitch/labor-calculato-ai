@@ -1835,7 +1835,7 @@ export const computeNesting = (
           finalize(
             computeGroup(
               `${k}#h${bk}`,
-              `${label} · h ${fmtHeightCm(b.v.heightM)} cm`,
+              `${label} · h ${Math.round(b.v.heightM * 100)} cm`,
               b.pieces,
               catalog,
               pieceIndexMap,

@@ -1074,48 +1074,72 @@ const multiSheetPack = (
     ?? packOnce(sortedUnitVariants(units)[0]);
 };
 
-/** Sceglie l'ALTEZZA DI ROTOLO migliore: prova a nestare i pezzi su ogni variante
- *  disponibile e tiene quella che costa meno (lunghezza × altezza × €/mq), a parità
- *  di pezzi piazzati. Vale solo per i tessuti (format = rotolo). */
+/** Sceglie l'ALTEZZA DI ROTOLO migliore provando a nestare i pezzi su ogni variante.
+ *  Il criterio è lo STESSO costo che viene poi fatturato in `computeGroup`:
+ *    area pezzi × €/mq vendita + sfrido iniziale (1,5 m × altezza rullo × €/mq acquisto × 1,3) + cuciture.
+ *  A parità di costo cliente si preferisce la variante che consuma meno materiale
+ *  (metri lineari × altezza) e, in ultima istanza, il rullo più stretto.
+ *  Vale solo per i tessuti (format = rotolo). */
 const bestRollVariant = (
   variants: { material: CatalogMaterial; heightM: number }[],
   pieces: PieceLine[],
   catalog: Catalog,
   pieceIndexMap: Map<string, number>,
   hemMap?: Map<string, { addW: number; addH: number }>,
+  customer?: CustomerType,
 ): { material: CatalogMaterial; heightM: number } | null => {
   if (variants.length < 2) return null;
   if ((variants[0].material.format ?? "rotolo") !== "rotolo") return null;
   const { perimeterM } = getNestingConfig(catalog);
   const cutCount = pieces.filter((p) => p.priceMode === "cut").length;
   const mode: "piece" | "cut" = cutCount >= pieces.length / 2 ? "cut" : "piece";
+  const seamPricePerM = seamUnitPrice(catalog);
+  const skipInitialScrap = !!catalog.__skipInitialScrap;
 
-  let best: { v: { material: CatalogMaterial; heightM: number }; unplaced: number; cost: number } | null = null;
+  type Cand = {
+    v: { material: CatalogMaterial; heightM: number };
+    unplaced: number;
+    clientCost: number;
+    consumedAreaM2: number;
+  };
+  let best: Cand | null = null;
   for (const v of variants) {
     if (v.heightM <= 0) continue;
     const explodeW = Math.max(0.001, v.heightM - 2 * perimeterM);
-    const { items: raw } = explodePieces(pieces, pieceIndexMap, explodeW, "rotolo", 0, hemMap);
+    const { items: raw, seamLengthM } = explodePieces(pieces, pieceIndexMap, explodeW, "rotolo", 0, hemMap);
     if (raw.length === 0) continue;
     const packed = rollPackBest(pairShapes(raw), explodeW);
     const lengthM = packed.totalLengthM + 2 * perimeterM;
     if (lengthM <= 0) continue;
+
     const purchase = mode === "piece" ? v.material.pricePiece : v.material.priceCut;
     const priceUnit = materialPriceUnit(v.material);
-    const cost = priceUnit === "mq" ? lengthM * v.heightM * purchase : lengthM * purchase;
-    const cand = { v, unplaced: packed.unplaced.length, cost };
-    if (
+    const purchasePerSqm = priceUnit === "mq" ? purchase : v.heightM > 0 ? purchase / v.heightM : 0;
+    const sell = materialUnitCost(v.material, mode, customer);
+    const sellPerSqm = priceUnit === "mq" ? sell : v.heightM > 0 ? sell / v.heightM : 0;
+
+    // Area realmente coperta dai pezzi su questa variante (lo split in teli affiancati
+    // può cambiarla leggermente da una larghezza all'altra).
+    const usedAreaM2 = raw.reduce((s, r) => s + r.w * r.h, 0);
+    const scrapCost = skipInitialScrap ? 0 : 1.5 * v.heightM * purchasePerSqm * 1.3;
+    const clientCost = usedAreaM2 * sellPerSqm + scrapCost + seamLengthM * seamPricePerM;
+    const consumedAreaM2 = (lengthM + (skipInitialScrap ? 0 : 1.5)) * v.heightM;
+
+    const cand: Cand = { v, unplaced: packed.unplaced.length, clientCost, consumedAreaM2 };
+    const better =
       !best ||
       cand.unplaced < best.unplaced ||
-      (cand.unplaced === best.unplaced && cand.cost < best.cost - 1e-9) ||
       (cand.unplaced === best.unplaced &&
-        Math.abs(cand.cost - best.cost) < 1e-9 &&
-        cand.v.heightM < best.v.heightM)
-    ) {
-      best = cand;
-    }
+        (cand.clientCost < best.clientCost - 1e-3 ||
+          (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
+            (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
+              (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+                cand.v.heightM < best.v.heightM)))));
+    if (better) best = cand;
   }
   return best?.v ?? null;
 };
+
 
 
 /** Calcola un gruppo di nesting (un materiale + un set di pezzi). */

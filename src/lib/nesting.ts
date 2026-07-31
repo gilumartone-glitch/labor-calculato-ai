@@ -1246,7 +1246,7 @@ const computeGroup = (
     totalLengthM = packed.sheetsUsed * sheetH;
   } else {
     const usableRoll = Math.max(0.001, rollWidthM - 2 * perimeterM);
-    const packed = shelfPack(units, usableRoll);
+    const packed = rollPackBest(units, usableRoll);
     items = shiftItems(packed.items);
     totalLengthM = packed.totalLengthM + 2 * perimeterM;
     unplaced = packed.unplaced;

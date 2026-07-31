@@ -1173,7 +1173,8 @@ const bestRollHeightForPiece = (
     if (usable <= 0) continue;
     for (const o of orientations) {
       const panels = Math.max(1, Math.ceil(o.cross / usable - 1e-9));
-      if (panels > 1 && p.allowSplit === false) continue;
+      // Se il pezzo non è divisibile in teli cuciti, la variante deve contenerlo intero.
+      if (panels > 1 && p.allowSplit !== true) continue;
       const consumed = panels * v.heightM * o.along;
       const cand = { v, consumed, panels };
       if (

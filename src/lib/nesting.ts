@@ -1074,6 +1074,50 @@ const multiSheetPack = (
     ?? packOnce(sortedUnitVariants(units)[0]);
 };
 
+/** Sceglie l'ALTEZZA DI ROTOLO migliore: prova a nestare i pezzi su ogni variante
+ *  disponibile e tiene quella che costa meno (lunghezza × altezza × €/mq), a parità
+ *  di pezzi piazzati. Vale solo per i tessuti (format = rotolo). */
+const bestRollVariant = (
+  variants: { material: CatalogMaterial; heightM: number }[],
+  pieces: PieceLine[],
+  catalog: Catalog,
+  pieceIndexMap: Map<string, number>,
+  hemMap?: Map<string, { addW: number; addH: number }>,
+): { material: CatalogMaterial; heightM: number } | null => {
+  if (variants.length < 2) return null;
+  if ((variants[0].material.format ?? "rotolo") !== "rotolo") return null;
+  const { perimeterM } = getNestingConfig(catalog);
+  const cutCount = pieces.filter((p) => p.priceMode === "cut").length;
+  const mode: "piece" | "cut" = cutCount >= pieces.length / 2 ? "cut" : "piece";
+
+  let best: { v: { material: CatalogMaterial; heightM: number }; unplaced: number; cost: number } | null = null;
+  for (const v of variants) {
+    if (v.heightM <= 0) continue;
+    const explodeW = Math.max(0.001, v.heightM - 2 * perimeterM);
+    const { items: raw } = explodePieces(pieces, pieceIndexMap, explodeW, "rotolo", 0, hemMap);
+    if (raw.length === 0) continue;
+    const packed = rollPackBest(pairShapes(raw), explodeW);
+    const lengthM = packed.totalLengthM + 2 * perimeterM;
+    if (lengthM <= 0) continue;
+    const purchase = mode === "piece" ? v.material.pricePiece : v.material.priceCut;
+    const priceUnit = materialPriceUnit(v.material);
+    const cost = priceUnit === "mq" ? lengthM * v.heightM * purchase : lengthM * purchase;
+    const cand = { v, unplaced: packed.unplaced.length, cost };
+    if (
+      !best ||
+      cand.unplaced < best.unplaced ||
+      (cand.unplaced === best.unplaced && cand.cost < best.cost - 1e-9) ||
+      (cand.unplaced === best.unplaced &&
+        Math.abs(cand.cost - best.cost) < 1e-9 &&
+        cand.v.heightM < best.v.heightM)
+    ) {
+      best = cand;
+    }
+  }
+  return best?.v ?? null;
+};
+
+
 /** Calcola un gruppo di nesting (un materiale + un set di pezzi). */
 const computeGroup = (
   key: string,

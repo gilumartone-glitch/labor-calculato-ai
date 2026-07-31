@@ -1118,24 +1118,75 @@ const bestRollVariant = (
     const sell = materialUnitCost(v.material, mode, customer);
     const sellPerSqm = priceUnit === "mq" ? sell : v.heightM > 0 ? sell / v.heightM : 0;
 
-    // Area realmente coperta dai pezzi su questa variante (lo split in teli affiancati
-    // può cambiarla leggermente da una larghezza all'altra).
+    // Materiale realmente consumato con questa altezza di rullo.
     const usedAreaM2 = raw.reduce((s, r) => s + r.w * r.h, 0);
     const scrapCost = skipInitialScrap ? 0 : 1.5 * v.heightM * purchasePerSqm * 1.3;
-    const clientCost = usedAreaM2 * sellPerSqm + scrapCost + seamLengthM * seamPricePerM;
+    const sellPerMl = priceUnit === "ml" ? sell : sellPerSqm * v.heightM;
+    const clientCost = lengthM * sellPerMl + scrapCost + seamLengthM * seamPricePerM;
     const consumedAreaM2 = (lengthM + (skipInitialScrap ? 0 : 1.5)) * v.heightM;
 
     const cand: Cand = { v, unplaced: packed.unplaced.length, clientCost, consumedAreaM2 };
+    // Criterio: 1) pezzi piazzati  2) MENO materiale consumato (l'altezza che
+    // "veste" il pezzo)  3) costo cliente  4) rullo più stretto.
     const better =
       !best ||
       cand.unplaced < best.unplaced ||
       (cand.unplaced === best.unplaced &&
-        (cand.clientCost < best.clientCost - 1e-3 ||
-          (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
-            (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
-              (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+        (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
+          (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+            (cand.clientCost < best.clientCost - 1e-3 ||
+              (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
                 cand.v.heightM < best.v.heightM)))));
     if (better) best = cand;
+    void usedAreaM2;
+  }
+  return best?.v ?? null;
+};
+
+/** Per un SINGOLO pezzo sceglie l'altezza di rullo che lo "veste" meglio:
+ *  minimizza il materiale consumato = teli affiancati × altezza rullo × lunghezza.
+ *  Se il pezzo è più alto di ogni rullo, il minimo cade naturalmente sulla soluzione
+ *  con teli cuciti in verticale. */
+const bestRollHeightForPiece = (
+  variants: { material: CatalogMaterial; heightM: number }[],
+  p: PieceLine,
+  perimeterM: number,
+): { material: CatalogMaterial; heightM: number } | null => {
+  const f = factorOf((p.dimUnit ?? "cm") as DimUnit);
+  const along0 = (Number(p.width) || 0) * f; // lungo il rotolo
+  const cross0 = (Number(p.height) || 0) * f; // attraverso il rotolo
+  if (along0 <= 0 || cross0 <= 0) return null;
+  const orientations =
+    p.allowRotation === false
+      ? [{ cross: cross0, along: along0 }]
+      : [
+          { cross: cross0, along: along0 },
+          { cross: along0, along: cross0 },
+        ];
+
+  let best:
+    | { v: { material: CatalogMaterial; heightM: number }; consumed: number; panels: number }
+    | null = null;
+  for (const v of variants) {
+    if (v.heightM <= 0) continue;
+    const usable = v.heightM - 2 * perimeterM;
+    if (usable <= 0) continue;
+    for (const o of orientations) {
+      const panels = Math.max(1, Math.ceil(o.cross / usable - 1e-9));
+      // Se il pezzo non è divisibile in teli cuciti, la variante deve contenerlo intero.
+      if (panels > 1 && p.allowSplit !== true) continue;
+      const consumed = panels * v.heightM * o.along;
+      const cand = { v, consumed, panels };
+      if (
+        !best ||
+        cand.consumed < best.consumed - 1e-6 ||
+        (Math.abs(cand.consumed - best.consumed) <= 1e-6 &&
+          (cand.panels < best.panels ||
+            (cand.panels === best.panels && cand.v.heightM < best.v.heightM)))
+      ) {
+        best = cand;
+      }
+    }
   }
   return best?.v ?? null;
 };
@@ -1312,14 +1363,16 @@ const computeGroup = (
       : 0;
 
   // Costo materiale ottimizzato base
-  // Per i ROTOLI: prezzo cliente = area effettiva pezzi (usedAreaM2) × €/mq di vendita.
+  // Per i ROTOLI: il cliente paga il materiale REALMENTE CONSUMATO, cioè i metri
+  // lineari di rullo impegnati × €/ml di vendita (equivalente ad area telo × €/mq).
   // Per le LASTRE: il calcolo viene fatto più sotto sul minimo lastra.
   const sellPerSqm = priceUnit === "mq"
     ? unitPrice
     : rollWidthM > 0 ? unitPrice / rollWidthM : 0;
+  const sellPerMl = priceUnit === "ml" ? unitPrice : unitPrice * rollWidthM;
   let materialCostOptimized =
     format === "rotolo"
-      ? usedAreaM2 * sellPerSqm
+      ? totalLengthM * sellPerMl
       : totalLengthM * unitPrice;
 
   // ---- Minimo lastre: 0,5 mq totali per ordine/materiale ----
@@ -1404,7 +1457,11 @@ const computeGroup = (
     wastePct,
     materialCostOptimized,
     materialCostInternal,
-    materialCostNaive: 0, // popolato dal chiamante per evitare ciclo di import
+    // Per i rotoli il confronto "senza nesting" è omogeneo: metri lineari che
+    // servirebbero mettendo ogni pezzo da solo × €/ml (+ sfrido iniziale + cuciture).
+    // Per le lastre resta 0 e viene popolato dal chiamante (evita cicli di import).
+    materialCostNaive:
+      format === "rotolo" ? naiveLengthM * sellPerMl + scrapCost + seamCost : 0,
     savings: 0,
     items,
     unplaced: unplaced.flatMap((u) =>
@@ -1720,7 +1777,27 @@ export const computeNesting = (
     groups.get(k)!.push(p);
   }
 
-  return Array.from(groups.entries()).map(([k, ps]) => {
+  /** Completa un gruppo con il confronto "senza nesting". */
+  const finalize = (g: NestingGroup, ps: PieceLine[]): NestingGroup => {
+    // Per i rotoli il naive è già calcolato in computeGroup su base metri lineari
+    // (omogeneo al costo nesting). Per le lastre lo calcoliamo qui per-pezzo.
+    if (!(g.materialCostNaive > 0)) {
+      g.materialCostNaive =
+        ps.reduce((s, p) => {
+          const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+          return (
+            s +
+            (pieceMaterialTotal(p, catalog, customer) +
+              pieceSeamTotal(p, catalog, customer)) *
+              qty
+          );
+        }, 0) + (g.scrapCost || 0);
+    }
+    g.savings = g.materialCostNaive - g.materialCostOptimized;
+    return g;
+  };
+
+  return Array.from(groups.entries()).flatMap(([k, ps]): NestingGroup[] => {
     const label = `${ps[0].productName}${ps[0].color ? ` · ${ps[0].color}` : ""}${ps[0].fireproof ? ` · ${ps[0].fireproof}` : ""}`;
     // Provo TUTTE le varianti compatibili e tengo quella che produce meno sfrido
     // (a parità di pezzi piazzati). Se nessuna variante "perfetta" esiste, ricado
@@ -1734,6 +1811,50 @@ export const computeNesting = (
       ps[0].finish,
       ps[0].variantId ?? ps[0].catalogMaterialId,
     );
+
+    // --- ROTOLI: ogni pezzo va sull'altezza di rullo che lo "veste" meglio ---
+    // Se nella stessa famiglia i pezzi preferiscono altezze diverse (es. teli h 800
+    // e teli h 1100), il gruppo viene suddiviso in sottogruppi per altezza.
+    const allRolls =
+      allVariants.length > 1 &&
+      allVariants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
+    if (allRolls) {
+      const { perimeterM } = getNestingConfig(catalog);
+      const buckets = new Map<
+        string,
+        { v: { material: CatalogMaterial; heightM: number }; pieces: PieceLine[] }
+      >();
+      for (const p of ps) {
+        const v = bestRollHeightForPiece(allVariants, p, perimeterM);
+        if (!v) continue;
+        const bk = `${v.heightM}`;
+        if (!buckets.has(bk)) buckets.set(bk, { v, pieces: [] });
+        buckets.get(bk)!.pieces.push(p);
+      }
+      if (buckets.size > 1) {
+        const subs = Array.from(buckets.entries()).map(([bk, b]) =>
+          finalize(
+            computeGroup(
+              `${k}#h${bk}`,
+              `${label} · h ${Math.round(b.v.heightM * 100)} cm`,
+              b.pieces,
+              catalog,
+              pieceIndexMap,
+              customer,
+              b.v,
+            ),
+            b.pieces,
+          ),
+        );
+        // Solo se ogni pezzo trova posto nella sua altezza; altrimenti fallback
+        // al gruppo unico con scelta variante classica.
+        const allPlaced =
+          subs.every((s) => s.unplaced.length === 0 && s.items.length > 0) &&
+          Array.from(buckets.values()).reduce((s, b) => s + b.pieces.length, 0) === ps.length;
+        if (allPlaced) return subs;
+      }
+    }
+
     let g: NestingGroup;
     if (allVariants.length <= 1) {
       g = computeGroup(k, label, ps, catalog, pieceIndexMap, customer);
@@ -1779,23 +1900,7 @@ export const computeNesting = (
       });
       g = pool[0];
     }
-    // Naive cost = somma materiale+cuciture come calcolato per-pezzo (× quantity).
-    // IMPORTANTE: al costo per-pezzo va aggiunto lo SFRIDO INIZIALE del rotolo, che
-    // è dovuto comunque (con o senza nesting) ed è invece incluso in
-    // materialCostOptimized: senza questa aggiunta il confronto — e quindi il
-    // "risparmio" mostrato — sarebbe falsato.
-    const naive = ps.reduce((s, p) => {
-      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
-      return (
-        s +
-        (pieceMaterialTotal(p, catalog, customer) +
-          pieceSeamTotal(p, catalog, customer)) *
-          qty
-      );
-    }, 0) + (g.scrapCost || 0);
-    g.materialCostNaive = naive;
-    g.savings = naive - g.materialCostOptimized;
-    return g;
+    return [finalize(g, ps)];
   });
 };
 

@@ -88,12 +88,15 @@ Deno.serve(async (req) => {
         ? new URL(`${base}/index.php`)
         : new URL(`${base}/wp-json${routePath}`);
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
-      endpoint.searchParams.set('per_page', perPage);
-      endpoint.searchParams.set('page', pageOverride ?? page);
-      if (search) endpoint.searchParams.set('search', search);
-      if (category) endpoint.searchParams.set('category', category);
+      endpoint.searchParams.set('per_page', mode === 'categories' ? '100' : perPage);
+      endpoint.searchParams.set('page', pageOverride ?? (mode === 'categories' ? '1' : page));
+      if (mode !== 'categories') {
+        if (search) endpoint.searchParams.set('search', search);
+        if (category) endpoint.searchParams.set('category', category);
+      }
       return endpoint.toString();
     };
+
 
     const attempts = [
       { name: 'wc-query-auth', endpoint: buildAdminUrl(true), headers: browserHeaders },

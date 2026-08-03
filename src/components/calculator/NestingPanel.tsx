@@ -30,6 +30,8 @@ interface Props {
   pieces: PieceLine[];
   catalog: Catalog;
   customerType?: CustomerType;
+  /** Totale cliente del reparto già ricalcolato con il materiale del nesting. */
+  departmentTotal?: number;
   /** Se passata, abilita l'aggancio definitivo (prenotazione soft) ai pezzi del gruppo
    *  direttamente dal pannello di nesting. Riceve la nuova lista pieces da salvare. */
   onPiecesChange?: (pieces: PieceLine[]) => void;
@@ -2209,7 +2211,7 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[], pieces: PieceLine
 
 
 
-export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
+export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
   /** Impostazioni fresa + margine perimetrale (persistite in localStorage). */
   const [nestSettings, setNestSettings] = useLocalStorageState("nesting.settings.v1", {
     kerfMm: 0,
@@ -2220,21 +2222,26 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   /** Se il preventivo salvato contiene già le impostazioni di nesting (fresa/margine),
    *  le applico una volta al mount così l'operatore in produzione (che potrebbe avere
    *  localStorage vuoto → kerf 0) riproduce lo stesso layout DXF del designer. */
-  const settingsHydrated = useRef(false);
   useEffect(() => {
-    if (settingsHydrated.current) return;
     const s = initialNestingState?.settings;
     if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null || s.forceSinglePiece != null)) {
-      setNestSettings((prev) => ({
-        kerfMm: s.kerfMm ?? prev.kerfMm,
-        perimeterMm: s.perimeterMm ?? prev.perimeterMm,
-        skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
-        forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
-      }));
+      setNestSettings((prev) => {
+        const next = {
+          kerfMm: s.kerfMm ?? prev.kerfMm,
+          perimeterMm: s.perimeterMm ?? prev.perimeterMm,
+          skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
+          forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
+        };
+        return next.kerfMm === prev.kerfMm &&
+          next.perimeterMm === prev.perimeterMm &&
+          next.skipPerimeter === prev.skipPerimeter &&
+          next.forceSinglePiece === prev.forceSinglePiece
+          ? prev
+          : next;
+      });
     }
-    settingsHydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialNestingState?.settings]);
   /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
    *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
   const deferredKerf = useDeferredValue(nestSettings.kerfMm);
@@ -2264,6 +2271,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
   const [mixedBinsByGroup, setMixedBinsByGroup] = useState<Record<string, NestingMixedBin[] | null>>(
     () => initialNestingState?.mixedBins ?? {},
   );
+  /** Il preventivo può essere idratato o aggiornato dopo il mount del pannello.
+   *  Mantengo quindi override e formati misti allineati allo stato del reparto,
+   *  evitando che riepilogo e preview calcolino due layout differenti. */
+  useEffect(() => {
+    setOverrides(initialNestingState?.overrides ?? {});
+  }, [initialNestingState?.overrides]);
+  useEffect(() => {
+    setMixedBinsByGroup(initialNestingState?.mixedBins ?? {});
+  }, [initialNestingState?.mixedBins]);
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
   const diagnostics = useMemo(
     () => diagnoseNesting(pieces, effCatalog, customerType),
@@ -2375,8 +2391,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="label-cap mb-1">Costo materiale ottimizzato</div>
-          <div className="font-mono text-xl font-semibold tabular-nums">{eur(totalCost)}</div>
+          <div className="label-cap mb-1">Totale reparto con nesting</div>
+          <div className="font-mono text-xl font-semibold tabular-nums">
+            {eur(departmentTotal ?? totalCost)}
+          </div>
+          {departmentTotal != null && (
+            <div className="mt-1 text-sm font-semibold tabular-nums text-muted-foreground">
+              Materiale ottimizzato: {eur(totalCost)}
+            </div>
+          )}
           {totalSavings > 0.005 && (
             <div className="font-mono text-[10px] text-primary mt-0.5 inline-flex items-center gap-1 justify-end">
               <Sparkles className="w-3 h-3" />

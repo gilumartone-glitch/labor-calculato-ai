@@ -167,10 +167,26 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    // 1) Ottieni URL pubbliche: usa quelle fornite, oppure carica le slide
+    // 1) Ottieni URL raggiungibili da Meta.
+    // Il bucket marketing-attachments è privato: generiamo signed URL temporanee (Meta scarica subito l'immagine).
+    const BUCKET = 'marketing-attachments';
+    const signPath = async (path: string) => {
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
+      if (error || !data?.signedUrl) throw new Error('Signed URL fallita per ' + path + ': ' + (error?.message ?? 'sconosciuto'));
+      return data.signedUrl;
+    };
+    const pathFromStorageUrl = (u: string) => {
+      const m = u.match(new RegExp(`/${BUCKET}/(.+?)(\\?|$)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    };
+
     let publicUrls: string[] = [];
     if (imageUrls?.length) {
-      publicUrls = imageUrls;
+      // Le URL storiche possono essere pubbliche (bucket ora privato) o signed scadute: le rifirmiamo.
+      publicUrls = await Promise.all(imageUrls.map(async (u) => {
+        const path = pathFromStorageUrl(u);
+        return path ? await signPath(path) : u;
+      }));
     } else {
       for (let i = 0; i < slides!.length; i++) {
         const dataUrl = slides![i];
@@ -181,10 +197,9 @@ Deno.serve(async (req) => {
         const buf = new Uint8Array(bin.length);
         for (let k = 0; k < bin.length; k++) buf[k] = bin.charCodeAt(k);
         const path = `social/${Date.now()}-${i}.png`;
-        const up = await supabase.storage.from('marketing-attachments').upload(path, buf, { contentType: mime, upsert: true });
+        const up = await supabase.storage.from(BUCKET).upload(path, buf, { contentType: mime, upsert: true });
         if (up.error) throw new Error('Upload storage: ' + up.error.message);
-        const { data: pub } = supabase.storage.from('marketing-attachments').getPublicUrl(path);
-        publicUrls.push(pub.publicUrl);
+        publicUrls.push(await signPath(path));
       }
     }
 

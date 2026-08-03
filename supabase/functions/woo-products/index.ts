@@ -37,8 +37,11 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const search = (url.searchParams.get('search') ?? '').trim();
     const page = String(Math.max(1, Number(url.searchParams.get('page') ?? '1') || 1));
-    const perPage = String(Math.min(50, Math.max(1, Number(url.searchParams.get('per_page') ?? '20') || 20)));
+    const perPage = String(Math.min(100, Math.max(1, Number(url.searchParams.get('per_page') ?? '20') || 20)));
     const id = url.searchParams.get('id');
+    const category = (url.searchParams.get('category') ?? '').trim();
+    const mode = url.searchParams.get('mode') ?? 'products';
+    const fetchAll = url.searchParams.get('all') === '1';
 
     const base = baseUrl.replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
     const auth = 'Basic ' + btoa(`${ck}:${cs}`);
@@ -51,17 +54,24 @@ Deno.serve(async (req) => {
       Referer: `${base}/`,
     };
 
-    const buildAdminUrl = (withQueryCredentials: boolean, useRestRoute = false) => {
-      const routePath = `/wc/v3/products${id ? `/${encodeURIComponent(id)}` : ''}`;
+    const buildAdminUrl = (withQueryCredentials: boolean, useRestRoute = false, pageOverride?: string) => {
+      const routePath = mode === 'categories'
+        ? '/wc/v3/products/categories'
+        : `/wc/v3/products${id ? `/${encodeURIComponent(id)}` : ''}`;
       const endpoint = useRestRoute
         ? new URL(`${base}/index.php`)
         : new URL(`${base}/wp-json${routePath}`);
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
-      if (!id) {
+      if (mode === 'categories') {
+        endpoint.searchParams.set('per_page', '100');
+        endpoint.searchParams.set('hide_empty', 'true');
+        endpoint.searchParams.set('orderby', 'name');
+      } else if (!id) {
         endpoint.searchParams.set('per_page', perPage);
-        endpoint.searchParams.set('page', page);
+        endpoint.searchParams.set('page', pageOverride ?? page);
         endpoint.searchParams.set('status', 'publish');
         if (search) endpoint.searchParams.set('search', search);
+        if (category) endpoint.searchParams.set('category', category);
       }
       if (withQueryCredentials) {
         endpoint.searchParams.set('consumer_key', ck);
@@ -70,15 +80,16 @@ Deno.serve(async (req) => {
       return endpoint.toString();
     };
 
-    const buildStoreApiUrl = (useRestRoute = false) => {
-      const routePath = `/wc/store/v1/products`;
+    const buildStoreApiUrl = (useRestRoute = false, pageOverride?: string) => {
+      const routePath = mode === 'categories' ? `/wc/store/v1/products/categories` : `/wc/store/v1/products`;
       const endpoint = useRestRoute
         ? new URL(`${base}/index.php`)
         : new URL(`${base}/wp-json${routePath}`);
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
       endpoint.searchParams.set('per_page', perPage);
-      endpoint.searchParams.set('page', page);
+      endpoint.searchParams.set('page', pageOverride ?? page);
       if (search) endpoint.searchParams.set('search', search);
+      if (category) endpoint.searchParams.set('category', category);
       return endpoint.toString();
     };
 
@@ -102,7 +113,33 @@ Deno.serve(async (req) => {
 
       if (r.ok && !blocked) {
         const data = JSON.parse(text);
-        const out = Array.isArray(data) ? data.map(simplify) : simplify(data);
+        if (mode === 'categories') {
+          const cats = (Array.isArray(data) ? data : []).map((c: any) => ({
+            id: c.id, name: c.name, slug: c.slug, count: c.count ?? 0,
+          }));
+          return jsonResponse(cats);
+        }
+        let out = Array.isArray(data) ? data.map(simplify) : simplify(data);
+
+        if (fetchAll && Array.isArray(out) && !id) {
+          const acc = [...out];
+          let currentPage = 2;
+          while (acc.length % Number(perPage) === 0 && currentPage <= 20) {
+            const nextUrl = attempt.name.startsWith('wc-store')
+              ? buildStoreApiUrl(attempt.name.includes('restroute'), String(currentPage))
+              : buildAdminUrl(attempt.name.includes('query-auth'), attempt.name.includes('restroute'), String(currentPage));
+            const nr = await fetch(nextUrl, { headers: attempt.headers });
+            if (!nr.ok) break;
+            const ntext = await nr.text();
+            if (isFirewallChallenge(ntext)) break;
+            const ndata = JSON.parse(ntext);
+            if (!Array.isArray(ndata) || ndata.length === 0) break;
+            acc.push(...ndata.map(simplify));
+            if (ndata.length < Number(perPage)) break;
+            currentPage++;
+          }
+          out = acc;
+        }
         return jsonResponse(out);
       }
 

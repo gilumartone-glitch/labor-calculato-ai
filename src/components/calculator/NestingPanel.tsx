@@ -2225,12 +2225,20 @@ export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, o
   useEffect(() => {
     const s = initialNestingState?.settings;
     if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null || s.forceSinglePiece != null)) {
-      setNestSettings((prev) => ({
-        kerfMm: s.kerfMm ?? prev.kerfMm,
-        perimeterMm: s.perimeterMm ?? prev.perimeterMm,
-        skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
-        forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
-      }));
+      setNestSettings((prev) => {
+        const next = {
+          kerfMm: s.kerfMm ?? prev.kerfMm,
+          perimeterMm: s.perimeterMm ?? prev.perimeterMm,
+          skipPerimeter: s.skipPerimeter ?? prev.skipPerimeter,
+          forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
+        };
+        return next.kerfMm === prev.kerfMm &&
+          next.perimeterMm === prev.perimeterMm &&
+          next.skipPerimeter === prev.skipPerimeter &&
+          next.forceSinglePiece === prev.forceSinglePiece
+          ? prev
+          : next;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialNestingState?.settings]);

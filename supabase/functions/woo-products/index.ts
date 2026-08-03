@@ -64,9 +64,11 @@ Deno.serve(async (req) => {
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
       if (mode === 'categories') {
         endpoint.searchParams.set('per_page', '100');
-        endpoint.searchParams.set('hide_empty', 'true');
+        endpoint.searchParams.set('page', pageOverride ?? '1');
+        endpoint.searchParams.set('hide_empty', 'false');
         endpoint.searchParams.set('orderby', 'name');
       } else if (!id) {
+
         endpoint.searchParams.set('per_page', perPage);
         endpoint.searchParams.set('page', pageOverride ?? page);
         endpoint.searchParams.set('status', 'publish');

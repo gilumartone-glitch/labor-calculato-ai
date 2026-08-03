@@ -30,6 +30,8 @@ interface Props {
   pieces: PieceLine[];
   catalog: Catalog;
   customerType?: CustomerType;
+  /** Totale cliente del reparto già ricalcolato con il materiale del nesting. */
+  departmentTotal?: number;
   /** Se passata, abilita l'aggancio definitivo (prenotazione soft) ai pezzi del gruppo
    *  direttamente dal pannello di nesting. Riceve la nuova lista pieces da salvare. */
   onPiecesChange?: (pieces: PieceLine[]) => void;
@@ -2209,7 +2211,7 @@ export const exportNestingLabelsCsv = (groups: NestingGroup[], pieces: PieceLine
 
 
 
-export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
+export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, onPiecesChange, initialNestingState, onNestingStateChange }: Props) => {
   /** Impostazioni fresa + margine perimetrale (persistite in localStorage). */
   const [nestSettings, setNestSettings] = useLocalStorageState("nesting.settings.v1", {
     kerfMm: 0,
@@ -2375,8 +2377,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, onPiecesChange, in
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="label-cap mb-1">Costo materiale ottimizzato</div>
-          <div className="font-mono text-xl font-semibold tabular-nums">{eur(totalCost)}</div>
+          <div className="label-cap mb-1">Totale reparto con nesting</div>
+          <div className="font-mono text-xl font-semibold tabular-nums">
+            {eur(departmentTotal ?? totalCost)}
+          </div>
+          {departmentTotal != null && (
+            <div className="mt-1 text-sm font-semibold tabular-nums text-muted-foreground">
+              Materiale ottimizzato: {eur(totalCost)}
+            </div>
+          )}
           {totalSavings > 0.005 && (
             <div className="font-mono text-[10px] text-primary mt-0.5 inline-flex items-center gap-1 justify-end">
               <Sparkles className="w-3 h-3" />

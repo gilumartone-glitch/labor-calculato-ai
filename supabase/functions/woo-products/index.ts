@@ -102,11 +102,18 @@ Deno.serve(async (req) => {
 
         .map((it) => {
           const html: string = it.content?.rendered ?? '';
-          const srcs = Array.from(html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi))
-            .map((m: any) => m[1])
-            .filter((s: string) => /^https?:\/\//.test(s) && !/\.svg($|\?)/i.test(s))
-            .slice(0, 6);
+          const raw: string[] = [
+            ...Array.from(html.matchAll(/<img[^>]+?(?:data-lazy-src|data-src|src)=["']([^"']+)["']/gi)).map((m: any) => m[1]),
+            ...Array.from(html.matchAll(/(?:data-)?srcset=["']([^"']+)["']/gi))
+              .flatMap((m: any) => String(m[1]).split(',').map((s) => s.trim().split(' ')[0])),
+            ...Array.from(html.matchAll(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/gi)).map((m: any) => m[1]),
+            ...Array.from(html.matchAll(/data-bg(?:-image)?=["']([^"']+)["']/gi)).map((m: any) => m[1]),
+          ];
+          const srcs = Array.from(new Set(raw))
+            .filter((s: string) => /^https?:\/\//.test(s) && /\.(jpe?g|png|webp)(\?|$)/i.test(s))
+            .slice(0, 8);
           const name = stripHtml(it.title?.rendered ?? '');
+
           return {
             id: it.id,
             name,

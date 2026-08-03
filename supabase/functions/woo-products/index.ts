@@ -54,6 +54,80 @@ Deno.serve(async (req) => {
       Referer: `${base}/`,
     };
 
+    // Servizi = pagine WordPress (non prodotti WooCommerce)
+    if (mode === 'services') {
+      const EXCLUDE = /(termini|privacy|cookie|carrello|checkout|account|^home$|shop|portfolio|grazie|ricerca|wishlist)/i;
+      const wpFetch = async (path: string) => {
+        const r = await fetch(`${base}/wp-json/wp/v2/${path}`, { headers: browserHeaders });
+        if (!r.ok) return null;
+        const t = await r.text();
+        if (isFirewallChallenge(t)) return null;
+        try { return JSON.parse(t); } catch { return null; }
+      };
+
+      // 1) prendi gli slug dei servizi linkati dalla pagina "Servizi" del sito
+      const hub = await wpFetch('pages?slug=servizi-offerti&_fields=content');
+      const hubHtml: string = Array.isArray(hub) ? (hub[0]?.content?.rendered ?? '') : '';
+      const serviceSlugs = Array.from(
+        new Set(
+          Array.from(hubHtml.matchAll(/href="https?:\/\/[^"]*?\/([a-z0-9-]+)\/"/gi))
+            .map((m: any) => m[1])
+            .filter((s: string) => !/^(portfolio|categoria-prodotto|prodotto|shop|wp-content)$/i.test(s))
+        )
+      );
+
+      let items: any[] = [];
+      if (serviceSlugs.length) {
+        const chunk = serviceSlugs.slice(0, 60).join(',');
+        const bySlug = await wpFetch(`pages?per_page=100&status=publish&_fields=id,link,slug,title,excerpt,content&slug=${chunk}`);
+        if (Array.isArray(bySlug)) items = bySlug;
+      }
+
+      // 2) fallback: tutte le pagine del sito
+      if (!items.length) {
+        for (let p = 1; p <= 5; p++) {
+          const pdata = await wpFetch(
+            `pages?per_page=100&page=${p}&status=publish&_fields=id,link,slug,title,excerpt,content${search ? `&search=${encodeURIComponent(search)}` : ''}`
+          );
+          if (!Array.isArray(pdata) || pdata.length === 0) break;
+          items.push(...pdata);
+          if (pdata.length < 100) break;
+        }
+      }
+
+      const q = search.toLowerCase();
+      const services = items
+        .filter((it) => !EXCLUDE.test(`${it.slug ?? ''} ${it.title?.rendered ?? ''}`))
+        .filter((it) => !q || `${it.title?.rendered ?? ''} ${it.slug ?? ''}`.toLowerCase().includes(q))
+
+        .map((it) => {
+          const html: string = it.content?.rendered ?? '';
+          const srcs = Array.from(html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi))
+            .map((m: any) => m[1])
+            .filter((s: string) => /^https?:\/\//.test(s) && !/\.svg($|\?)/i.test(s))
+            .slice(0, 6);
+          const name = stripHtml(it.title?.rendered ?? '');
+          return {
+            id: it.id,
+            name,
+            slug: it.slug,
+            permalink: it.link,
+            price: '',
+            regular_price: '',
+            short_description: stripHtml(it.excerpt?.rendered ?? '').slice(0, 400),
+            description: stripHtml(html).slice(0, 4000),
+            images: srcs.map((src: string) => ({ src, alt: name })),
+            categories: ['Servizi'],
+            tags: [],
+            is_service: true,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, 'it'));
+
+      return jsonResponse(services);
+    }
+
+
     const buildAdminUrl = (withQueryCredentials: boolean, useRestRoute = false, pageOverride?: string) => {
       const routePath = mode === 'categories'
         ? '/wc/v3/products/categories'
@@ -72,9 +146,12 @@ Deno.serve(async (req) => {
         endpoint.searchParams.set('per_page', perPage);
         endpoint.searchParams.set('page', pageOverride ?? page);
         endpoint.searchParams.set('status', 'publish');
+        endpoint.searchParams.set('orderby', 'id');
+        endpoint.searchParams.set('order', 'asc');
         if (search) endpoint.searchParams.set('search', search);
         if (category) endpoint.searchParams.set('category', category);
       }
+
       if (withQueryCredentials) {
         endpoint.searchParams.set('consumer_key', ck);
         endpoint.searchParams.set('consumer_secret', cs);
@@ -145,9 +222,13 @@ Deno.serve(async (req) => {
         let out = Array.isArray(data) ? data.map(simplify) : simplify(data);
 
         if (fetchAll && Array.isArray(out) && !id) {
+          const seen = new Set<number>(out.map((p: any) => p.id));
           const acc = [...out];
+          const totalPages = Number(r.headers.get('x-wp-totalpages') ?? '0') || 0;
+          const maxPages = Math.min(totalPages || 100, 100);
           let currentPage = 2;
-          while (acc.length % Number(perPage) === 0 && currentPage <= 20) {
+          let emptyStreak = 0;
+          while (currentPage <= maxPages) {
             const nextUrl = attempt.name.startsWith('wc-store')
               ? buildStoreApiUrl(attempt.name.includes('restroute'), String(currentPage))
               : buildAdminUrl(attempt.name.includes('query-auth'), attempt.name.includes('restroute'), String(currentPage));
@@ -155,14 +236,23 @@ Deno.serve(async (req) => {
             if (!nr.ok) break;
             const ntext = await nr.text();
             if (isFirewallChallenge(ntext)) break;
-            const ndata = JSON.parse(ntext);
-            if (!Array.isArray(ndata) || ndata.length === 0) break;
-            acc.push(...ndata.map(simplify));
-            if (ndata.length < Number(perPage)) break;
+            let ndata: any;
+            try { ndata = JSON.parse(ntext); } catch { break; }
+            if (!Array.isArray(ndata) || ndata.length === 0) {
+              // qualche pagina può tornare vuota: continua ancora un po' se sappiamo il totale
+              if (totalPages && ++emptyStreak <= 2) { currentPage++; continue; }
+              break;
+            }
+            emptyStreak = 0;
+            for (const item of ndata.map(simplify)) {
+              if (!seen.has(item.id)) { seen.add(item.id); acc.push(item); }
+            }
             currentPage++;
+            if (!totalPages && ndata.length < Number(perPage)) break;
           }
           out = acc;
         }
+
         return jsonResponse(out);
       }
 

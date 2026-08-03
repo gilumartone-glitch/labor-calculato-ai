@@ -149,15 +149,29 @@ export const SocialPanel = () => {
     setLoading(true);
     setLoadError("");
     try {
-      const r = await wooFetch({
-        ...(q ? { search: q } : {}),
-        ...(cat ? { category: cat } : {}),
-        per_page: "100",
-        all: "1",
-      });
+      const isServices = cat === "__servizi__";
+      const r = await wooFetch(
+        isServices
+          ? { mode: "services", ...(q ? { search: q } : {}) }
+          : {
+              ...(q ? { search: q } : {}),
+              ...(cat ? { category: cat } : {}),
+              per_page: "100",
+              all: "1",
+            }
+      );
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Errore caricamento prodotti");
-      setProducts(Array.isArray(j) ? j : Array.isArray(j.products) ? j.products : []);
+      let list = Array.isArray(j) ? j : Array.isArray(j.products) ? j.products : [];
+      if (!cat) {
+        // includi anche i servizi (pagine del sito) nella vista "tutte le categorie"
+        try {
+          const rs = await wooFetch({ mode: "services", ...(q ? { search: q } : {}) });
+          const js = await rs.json();
+          if (Array.isArray(js)) list = [...js, ...list];
+        } catch { /* servizi opzionali */ }
+      }
+      setProducts(list);
       if (!Array.isArray(j) && j.warning) setLoadError(j.warning);
     } catch (e: any) {
       const message = e.message || "Errore";
@@ -168,6 +182,7 @@ export const SocialPanel = () => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => { loadProducts(); loadCategories(); }, []);
 
@@ -559,9 +574,11 @@ export const SocialPanel = () => {
             onChange={(e) => { setCategory(e.target.value); loadProducts(search, e.target.value); }}
           >
             <option value="">Tutte le categorie</option>
+            <option value="__servizi__">Servizi (pagine sito)</option>
             {categories.map((c) => (
               <option key={c.id} value={String(c.id)}>{c.name} ({c.count})</option>
             ))}
+
           </select>
           <Button size="sm" variant="outline" onClick={() => { setSearch(""); setCategory(""); loadProducts("", ""); }}>
             <RefreshCw className="w-4 h-4" />

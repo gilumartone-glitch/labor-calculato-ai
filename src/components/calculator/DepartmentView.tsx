@@ -98,14 +98,61 @@ export const DepartmentView = ({
   // ---- Nesting per gruppo materiale (per "Lastre per materiale" + sfrido addebitabile) ----
   // Uso un catalogo "uniforme": stessa logica per tutti i pezzi del gruppo.
   // Tappezzeria salta lo sfrido iniziale (coerente con la card pezzo).
+  // Il catalogo deve includere le STESSE impostazioni usate dal pannello Nesting
+  // (fresa, margine perimetrale, "tutti i pezzi nella stessa pezza"), altrimenti
+  // il totale del reparto non coincide col costo calcolato dal nesting.
+  const nestSettings = state.nestingState?.settings;
   const nestingCatalog = useMemo(
-    () => (deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog),
-    [deptKey, catalog],
+    () => ({
+      ...(deptKey === "tappezzeria" ? withoutInitialScrap(catalog) : catalog),
+      __kerfMm: nestSettings?.kerfMm ?? 0,
+      __perimeterMarginMm: nestSettings?.perimeterMm ?? 10,
+      __skipPerimeterMargin: !!nestSettings?.skipPerimeter,
+      __forceSinglePiece: !!nestSettings?.forceSinglePiece,
+    }),
+    [
+      deptKey,
+      catalog,
+      nestSettings?.kerfMm,
+      nestSettings?.perimeterMm,
+      nestSettings?.skipPerimeter,
+      nestSettings?.forceSinglePiece,
+    ],
   );
-  const nestingGroups = useMemo(
-    () => computeNesting(calcPieces, nestingCatalog, customerType),
-    [calcPieces, nestingCatalog, customerType],
-  );
+  // Applico anche override formato / bin misti scelti nel pannello Nesting.
+  const nestingOverrides = state.nestingState?.overrides ?? {};
+  const nestingMixedBins = state.nestingState?.mixedBins ?? {};
+  const nestingGroups = useMemo(() => {
+    const base = computeNesting(calcPieces, nestingCatalog, customerType);
+    const indexMap = buildPieceIndexMap(calcPieces);
+    const perimeterM = getNestingConfig(nestingCatalog).perimeterM;
+    return base.map((g) => {
+      const mb = nestingMixedBins[g.key];
+      if (mb && mb.length > 0) {
+        return recomputeGroupWithMixedBins(
+          g,
+          piecesOfGroup(calcPieces, g.key),
+          mb,
+          indexMap,
+          perimeterM,
+          nestingCatalog,
+        );
+      }
+      const ov = nestingOverrides[g.key];
+      if (!ov || !(ov.widthM > 0) || !(ov.heightM > 0)) return g;
+      const overridden = recomputeGroupWithOverride(
+        g,
+        piecesOfGroup(calcPieces, g.key),
+        nestingCatalog,
+        ov,
+        indexMap,
+        customerType,
+      );
+      if (ov.source === "catalog" && overridden.unplaced.length > 0 && g.unplaced.length === 0) return g;
+      return overridden;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calcPieces, nestingCatalog, customerType, state.nestingState?.overrides, state.nestingState?.mixedBins]);
   const chargeNestingScrap = state.nestingState?.chargeNestingScrap ?? {};
   // Gruppi su cui è possibile addebitare lo sfrido del nesting.
   // - LASTRA: sempre (lo sfrido per-lastra ha senso ovunque).

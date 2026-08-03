@@ -2222,9 +2222,7 @@ export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, o
   /** Se il preventivo salvato contiene già le impostazioni di nesting (fresa/margine),
    *  le applico una volta al mount così l'operatore in produzione (che potrebbe avere
    *  localStorage vuoto → kerf 0) riproduce lo stesso layout DXF del designer. */
-  const settingsHydrated = useRef(false);
   useEffect(() => {
-    if (settingsHydrated.current) return;
     const s = initialNestingState?.settings;
     if (s && (s.kerfMm != null || s.perimeterMm != null || s.skipPerimeter != null || s.forceSinglePiece != null)) {
       setNestSettings((prev) => ({
@@ -2234,9 +2232,8 @@ export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, o
         forceSinglePiece: s.forceSinglePiece ?? prev.forceSinglePiece,
       }));
     }
-    settingsHydrated.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialNestingState?.settings]);
   /** Applico ai calcoli i valori "ritardati": React li aggiorna a bassa priorità
    *  mentre l'utente digita, così i campi restano reattivi anche con molti pezzi. */
   const deferredKerf = useDeferredValue(nestSettings.kerfMm);
@@ -2266,6 +2263,15 @@ export const NestingPanel = ({ pieces, catalog, customerType, departmentTotal, o
   const [mixedBinsByGroup, setMixedBinsByGroup] = useState<Record<string, NestingMixedBin[] | null>>(
     () => initialNestingState?.mixedBins ?? {},
   );
+  /** Il preventivo può essere idratato o aggiornato dopo il mount del pannello.
+   *  Mantengo quindi override e formati misti allineati allo stato del reparto,
+   *  evitando che riepilogo e preview calcolino due layout differenti. */
+  useEffect(() => {
+    setOverrides(initialNestingState?.overrides ?? {});
+  }, [initialNestingState?.overrides]);
+  useEffect(() => {
+    setMixedBinsByGroup(initialNestingState?.mixedBins ?? {});
+  }, [initialNestingState?.mixedBins]);
   const indexMap = useMemo(() => buildPieceIndexMap(pieces), [pieces]);
   const diagnostics = useMemo(
     () => diagnoseNesting(pieces, effCatalog, customerType),

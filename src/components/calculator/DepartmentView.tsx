@@ -226,7 +226,8 @@ export const DepartmentView = ({
   const distributedMaterialByPieceId: Record<string, { total: number; single: number }> = {};
   if (canRedistribute) {
     for (const g of nestingGroups) {
-      if (g.format !== "rotolo") continue;
+      // Ridistribuisco il costo materiale del nesting per TUTTI i formati
+      // (rotoli e lastre): così il totale reparto coincide col costo nesting.
       const fabricPrice =
         (g.materialCostOptimized ?? 0) - (g.seamCost ?? 0) - (g.scrapCost ?? 0);
       const totalArea = g.usedAreaM2;

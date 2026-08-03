@@ -22,7 +22,14 @@ import {
   pieceMaterialTotal,
   pieceWorkBreakdown,
 } from "@/lib/piece";
-import { computeNesting, piecesOfGroup } from "@/lib/nesting";
+import {
+  computeNesting,
+  piecesOfGroup,
+  buildPieceIndexMap,
+  getNestingConfig,
+  recomputeGroupWithOverride,
+  recomputeGroupWithMixedBins,
+} from "@/lib/nesting";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { CustomerType, CUSTOMER_LABEL, priceMultiplier } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";

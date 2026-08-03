@@ -131,7 +131,31 @@ Deno.serve(async (req) => {
         })
         .sort((a, b) => a.name.localeCompare(b.name, 'it'));
 
+      // fallback immagini: leggi og:image / prime <img> dalla pagina pubblica
+      await Promise.all(
+        services
+          .filter((s) => s.images.length === 0)
+          .map(async (s) => {
+            try {
+              const pr = await fetch(s.permalink, { headers: browserHeaders });
+              if (!pr.ok) return;
+              const phtml = await pr.text();
+              if (isFirewallChallenge(phtml)) return;
+              const found = [
+                ...Array.from(phtml.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi)).map((m: any) => m[1]),
+                ...Array.from(phtml.matchAll(/<img[^>]+?(?:data-lazy-src|data-src|src)=["']([^"']+)["']/gi)).map((m: any) => m[1]),
+                ...Array.from(phtml.matchAll(/background-image\s*:\s*url\(["']?([^"')]+)["']?\)/gi)).map((m: any) => m[1]),
+              ];
+              s.images = Array.from(new Set(found))
+                .filter((u: string) => /^https?:\/\//.test(u) && /\.(jpe?g|png|webp)(\?|$)/i.test(u) && !/logo|icon|placeholder|avatar/i.test(u))
+                .slice(0, 8)
+                .map((src: string) => ({ src, alt: s.name }));
+            } catch { /* immagini opzionali */ }
+          })
+      );
+
       return jsonResponse(services);
+
     }
 
 

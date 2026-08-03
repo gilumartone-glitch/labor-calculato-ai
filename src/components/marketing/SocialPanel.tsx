@@ -45,6 +45,8 @@ export const SocialPanel = () => {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<WooProduct | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [categories, setCategories] = useState<{ id: number; name: string; slug: string; count: number }[]>([]);
+  const [category, setCategory] = useState("");
   const [tone, setTone] = useState("professionale, italiano, competente");
   const [extra, setExtra] = useState("");
   const [style, setStyle] = useState<"scene" | "clean" | "editorial">("editorial");
@@ -129,12 +131,30 @@ export const SocialPanel = () => {
     }
   };
 
-  const loadProducts = async (q = "") => {
+  const wooFetch = async (params: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString();
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woo-products${qs ? `?${qs}` : ""}`;
+    return fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } });
+  };
+
+  const loadCategories = async () => {
+    try {
+      const r = await wooFetch({ mode: "categories" });
+      const j = await r.json();
+      if (Array.isArray(j)) setCategories(j);
+    } catch { /* categorie opzionali */ }
+  };
+
+  const loadProducts = async (q = "", cat = category) => {
     setLoading(true);
     setLoadError("");
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woo-products${q ? `?search=${encodeURIComponent(q)}` : ""}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } });
+      const r = await wooFetch({
+        ...(q ? { search: q } : {}),
+        ...(cat ? { category: cat } : {}),
+        per_page: "100",
+        all: "1",
+      });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Errore caricamento prodotti");
       setProducts(Array.isArray(j) ? j : Array.isArray(j.products) ? j.products : []);
@@ -149,7 +169,7 @@ export const SocialPanel = () => {
     }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { loadProducts(); loadCategories(); }, []);
 
   const loadImg = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
@@ -532,6 +552,22 @@ export const SocialPanel = () => {
             <Search className="w-4 h-4" />
           </Button>
         </div>
+        <div className="flex items-center gap-2 mb-3">
+          <select
+            className="flex h-10 w-full rounded-sm border-2 border-ink/15 bg-background px-3 text-sm font-semibold"
+            value={category}
+            onChange={(e) => { setCategory(e.target.value); loadProducts(search, e.target.value); }}
+          >
+            <option value="">Tutte le categorie</option>
+            {categories.map((c) => (
+              <option key={c.id} value={String(c.id)}>{c.name} ({c.count})</option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" onClick={() => { setSearch(""); setCategory(""); loadProducts("", ""); }}>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="mb-2 text-xs font-semibold text-muted-foreground">{products.length} prodotti</div>
         {loadError && (
           <div className="mb-3 rounded-sm border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {loadError}

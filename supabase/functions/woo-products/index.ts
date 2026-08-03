@@ -64,9 +64,11 @@ Deno.serve(async (req) => {
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
       if (mode === 'categories') {
         endpoint.searchParams.set('per_page', '100');
-        endpoint.searchParams.set('hide_empty', 'true');
+        endpoint.searchParams.set('page', pageOverride ?? '1');
+        endpoint.searchParams.set('hide_empty', 'false');
         endpoint.searchParams.set('orderby', 'name');
       } else if (!id) {
+
         endpoint.searchParams.set('per_page', perPage);
         endpoint.searchParams.set('page', pageOverride ?? page);
         endpoint.searchParams.set('status', 'publish');
@@ -86,12 +88,15 @@ Deno.serve(async (req) => {
         ? new URL(`${base}/index.php`)
         : new URL(`${base}/wp-json${routePath}`);
       if (useRestRoute) endpoint.searchParams.set('rest_route', routePath);
-      endpoint.searchParams.set('per_page', perPage);
-      endpoint.searchParams.set('page', pageOverride ?? page);
-      if (search) endpoint.searchParams.set('search', search);
-      if (category) endpoint.searchParams.set('category', category);
+      endpoint.searchParams.set('per_page', mode === 'categories' ? '100' : perPage);
+      endpoint.searchParams.set('page', pageOverride ?? (mode === 'categories' ? '1' : page));
+      if (mode !== 'categories') {
+        if (search) endpoint.searchParams.set('search', search);
+        if (category) endpoint.searchParams.set('category', category);
+      }
       return endpoint.toString();
     };
+
 
     const attempts = [
       { name: 'wc-query-auth', endpoint: buildAdminUrl(true), headers: browserHeaders },
@@ -114,10 +119,28 @@ Deno.serve(async (req) => {
       if (r.ok && !blocked) {
         const data = JSON.parse(text);
         if (mode === 'categories') {
-          const cats = (Array.isArray(data) ? data : []).map((c: any) => ({
-            id: c.id, name: c.name, slug: c.slug, count: c.count ?? 0,
-          }));
+          const mapCat = (c: any) => ({ id: c.id, name: c.name, slug: c.slug, count: c.count ?? 0 });
+          const cats = (Array.isArray(data) ? data : []).map(mapCat);
+          // WooCommerce limita a 100 elementi per pagina: scarica tutte le pagine
+          let catPage = 2;
+          while (cats.length >= 100 * (catPage - 1) && catPage <= 20) {
+            const nextUrl = attempt.name.startsWith('wc-store')
+              ? buildStoreApiUrl(attempt.name.includes('restroute'), String(catPage))
+              : buildAdminUrl(attempt.name.includes('query-auth'), attempt.name.includes('restroute'), String(catPage));
+            const nr = await fetch(nextUrl, { headers: attempt.headers });
+            if (!nr.ok) break;
+            const ntext = await nr.text();
+            if (isFirewallChallenge(ntext)) break;
+            let ndata: any;
+            try { ndata = JSON.parse(ntext); } catch { break; }
+            if (!Array.isArray(ndata) || ndata.length === 0) break;
+            cats.push(...ndata.map(mapCat));
+            if (ndata.length < 100) break;
+            catPage++;
+          }
+          cats.sort((a, b) => a.name.localeCompare(b.name, 'it'));
           return jsonResponse(cats);
+
         }
         let out = Array.isArray(data) ? data.map(simplify) : simplify(data);
 

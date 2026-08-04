@@ -1914,7 +1914,15 @@ export const computeNesting = (
       pool.sort((a, b) => {
         const aHasSeams = (a.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
         const bHasSeams = (b.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
-        if (aHasSeams !== bHasSeams) return aHasSeams - bHasSeams;
+        // Preferisco l'assenza di cuciture, MA non a qualunque prezzo: se la
+        // variante con cuciture costa almeno il 10% in meno, vince il costo.
+        if (aHasSeams !== bHasSeams) {
+          const noSeam = aHasSeams === 0 ? a : b;
+          const seam = aHasSeams === 0 ? b : a;
+          const cheaper = seam.materialCostOptimized < noSeam.materialCostOptimized * 0.9;
+          if (!cheaper) return aHasSeams - bHasSeams;
+          return aHasSeams === 0 ? 1 : -1;
+        }
         const dCost = a.materialCostOptimized - b.materialCostOptimized;
         if (Math.abs(dCost) > 1e-3) return dCost;
         const dWaste = a.wastePct - b.wastePct;

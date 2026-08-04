@@ -1145,14 +1145,17 @@ const bestRollVariant = (
   return best?.v ?? null;
 };
 
-/** Per un SINGOLO pezzo sceglie l'altezza di rullo che lo "veste" meglio:
- *  minimizza il materiale consumato = teli affiancati × altezza rullo × lunghezza.
- *  Se il pezzo è più alto di ogni rullo, il minimo cade naturalmente sulla soluzione
- *  con teli cuciti in verticale. */
+/** Per un SINGOLO pezzo sceglie l'altezza di rullo migliore:
+ *  valuta TUTTE le orientazioni (compresa la rotazione, se consentita) e
+ *  minimizza il COSTO CLIENTE reale (metri lineari consumati × €/ml a quella
+ *  altezza). A parità di costo preferisce meno materiale consumato, meno teli
+ *  cuciti e infine il rullo più alto. */
 const bestRollHeightForPiece = (
   variants: { material: CatalogMaterial; heightM: number }[],
   p: PieceLine,
   perimeterM: number,
+  mode: "piece" | "cut" = "piece",
+  customer?: CustomerType,
 ): { material: CatalogMaterial; heightM: number } | null => {
   const f = factorOf((p.dimUnit ?? "cm") as DimUnit);
   const along0 = (Number(p.width) || 0) * f; // lungo il rotolo
@@ -1167,32 +1170,45 @@ const bestRollHeightForPiece = (
         ];
 
   let best:
-    | { v: { material: CatalogMaterial; heightM: number }; consumed: number; panels: number }
+    | {
+        v: { material: CatalogMaterial; heightM: number };
+        cost: number;
+        consumed: number;
+        panels: number;
+      }
     | null = null;
   for (const v of variants) {
     if (v.heightM <= 0) continue;
     const usable = v.heightM - 2 * perimeterM;
     if (usable <= 0) continue;
+    // €/ml a questa altezza di rullo
+    const sell = materialUnitCost(v.material, mode, customer);
+    const priceUnit = materialPriceUnit(v.material);
+    const sellPerMl = priceUnit === "ml" ? sell : sell * v.heightM;
     for (const o of orientations) {
       const panels = Math.max(1, Math.ceil(o.cross / usable - 1e-9));
       // Se il pezzo non è divisibile in teli cuciti, la variante deve contenerlo intero.
       if (panels > 1 && p.allowSplit !== true) continue;
+      const lengthM = panels * (o.along + 2 * perimeterM);
       const consumed = panels * v.heightM * o.along;
-      const cand = { v, consumed, panels };
+      const cost = sellPerMl > 0 ? lengthM * sellPerMl : consumed;
+      const cand = { v, cost, consumed, panels };
       if (
         !best ||
-        cand.consumed < best.consumed - 1e-6 ||
-        (Math.abs(cand.consumed - best.consumed) <= 1e-6 &&
-          (cand.panels < best.panels ||
-            (cand.panels === best.panels && cand.v.heightM > best.v.heightM)))
+        cand.cost < best.cost - 1e-3 ||
+        (Math.abs(cand.cost - best.cost) <= 1e-3 &&
+          (cand.consumed < best.consumed - 1e-6 ||
+            (Math.abs(cand.consumed - best.consumed) <= 1e-6 &&
+              (cand.panels < best.panels ||
+                (cand.panels === best.panels && cand.v.heightM > best.v.heightM)))))
       ) {
         best = cand;
       }
-
     }
   }
   return best?.v ?? null;
 };
+
 
 
 

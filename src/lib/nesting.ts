@@ -1184,10 +1184,11 @@ const bestRollHeightForPiece = (
         cand.consumed < best.consumed - 1e-6 ||
         (Math.abs(cand.consumed - best.consumed) <= 1e-6 &&
           (cand.panels < best.panels ||
-            (cand.panels === best.panels && cand.v.heightM < best.v.heightM)))
+            (cand.panels === best.panels && cand.v.heightM > best.v.heightM)))
       ) {
         best = cand;
       }
+
     }
   }
   return best?.v ?? null;

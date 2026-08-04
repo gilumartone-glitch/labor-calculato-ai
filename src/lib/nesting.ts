@@ -1841,12 +1841,14 @@ export const computeNesting = (
       allVariants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
     if (allRolls) {
       const { perimeterM } = getNestingConfig(catalog);
+      const cutCount0 = ps.filter((p) => p.priceMode === "cut").length;
+      const modeAll: "piece" | "cut" = cutCount0 >= ps.length / 2 ? "cut" : "piece";
       const buckets = new Map<
         string,
         { v: { material: CatalogMaterial; heightM: number }; pieces: PieceLine[] }
       >();
       for (const p of ps) {
-        const v = bestRollHeightForPiece(allVariants, p, perimeterM);
+        const v = bestRollHeightForPiece(allVariants, p, perimeterM, modeAll, customer);
         if (!v) continue;
         const bk = `${v.heightM}`;
         if (!buckets.has(bk)) buckets.set(bk, { v, pieces: [] });

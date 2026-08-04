@@ -1126,19 +1126,21 @@ const bestRollVariant = (
     const consumedAreaM2 = (lengthM + (skipInitialScrap ? 0 : 1.5)) * v.heightM;
 
     const cand: Cand = { v, unplaced: packed.unplaced.length, clientCost, consumedAreaM2 };
-    // Criterio: 1) pezzi piazzati  2) MENO materiale consumato (l'altezza che
-    // "veste" il pezzo)  3) costo cliente  4) rullo più stretto.
+    // Criterio: 1) pezzi piazzati  2) COSTO CLIENTE più basso (è quello che
+    // conta davvero)  3) meno materiale consumato  4) a parità, il rullo PIÙ
+    // ALTO (meno cuciture / più margine di lavoro).
     const better =
       !best ||
       cand.unplaced < best.unplaced ||
       (cand.unplaced === best.unplaced &&
-        (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
-          (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
-            (cand.clientCost < best.clientCost - 1e-3 ||
-              (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
-                cand.v.heightM < best.v.heightM)))));
+        (cand.clientCost < best.clientCost - 1e-3 ||
+          (Math.abs(cand.clientCost - best.clientCost) <= 1e-3 &&
+            (cand.consumedAreaM2 < best.consumedAreaM2 - 1e-6 ||
+              (Math.abs(cand.consumedAreaM2 - best.consumedAreaM2) <= 1e-6 &&
+                cand.v.heightM > best.v.heightM)))));
     if (better) best = cand;
     void usedAreaM2;
+
   }
   return best?.v ?? null;
 };

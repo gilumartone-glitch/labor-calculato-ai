@@ -1178,6 +1178,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
         />
       ) : mode === "ordine_nastri" ? (
         <ManualMagazzinoOrderForm
+          key="ordine-nastri"
           sourceLabel="Nastri"
           categoryKey="nastri"
           suggestions={[

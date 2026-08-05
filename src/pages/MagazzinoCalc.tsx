@@ -1163,6 +1163,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
 
       {mode === "ordine" ? (
         <ManualMagazzinoOrderForm
+          key="ordine-danza"
           sourceLabel="Tappeto danza"
           categoryKey="danza"
           suggestions={[

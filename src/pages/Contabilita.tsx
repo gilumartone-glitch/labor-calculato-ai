@@ -2789,6 +2789,7 @@ type DayDetail = {
   paidH: number;
   hourlyRate: number;
   baseAmount: number;
+  trasfertaBonus: number;
   isHoliday: boolean;
   amount: number;
 };
@@ -2822,6 +2823,7 @@ const computeSalaryForRow = (
   const hourlyRate = Number(dip?.hourly_rate) || 0;
   const contractH = Math.max(0, Number(dip?.contract_hours_per_day) || 8);
   const OVERTIME_RATE = 5;
+  const TRASFERTA_BONUS = 20;
   const breakdown: DayDetail[] = [];
   let totale = 0;
   let tNormalH = 0, tOvertimeH = 0, tPaidH = 0;
@@ -2859,9 +2861,11 @@ const computeSalaryForRow = (
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
+    // Bonus trasferta: +20 € per ogni giornata con almeno un segmento di trasferta
+    const trasfertaBonus = hadTrasferta ? TRASFERTA_BONUS : 0;
     // Le ore festive/domenica sono già conteggiate al pari delle ordinarie: nessun raddoppio automatico.
-    const amount = baseAmount;
-    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
+    const amount = baseAmount + trasfertaBonus;
+    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, trasfertaBonus, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;
     tOvertimeH += overtimeH;
@@ -3402,6 +3406,7 @@ const BreakdownDialog = ({ data, year, month, onClose }: { data: ComputedSalary 
                     <td className="px-2 py-1 text-right font-mono">{d.paidH.toFixed(1)}</td>
                     <td className="px-2 py-1 text-right font-mono font-semibold">
                       {eur(d.amount)}
+                      {d.trasfertaBonus > 0 && <div className="text-[9px] text-blue-700">+{eur(d.trasfertaBonus)} trasferta</div>}
                       {d.isHoliday && d.baseAmount !== d.amount && <div className="text-[9px] text-muted-foreground">(base {eur(d.baseAmount)})</div>}
                     </td>
                   </tr>

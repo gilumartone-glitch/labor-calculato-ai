@@ -2789,6 +2789,7 @@ type DayDetail = {
   paidH: number;
   hourlyRate: number;
   baseAmount: number;
+  trasfertaBonus: number;
   isHoliday: boolean;
   amount: number;
 };

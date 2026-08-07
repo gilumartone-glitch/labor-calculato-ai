@@ -3406,6 +3406,7 @@ const BreakdownDialog = ({ data, year, month, onClose }: { data: ComputedSalary 
                     <td className="px-2 py-1 text-right font-mono">{d.paidH.toFixed(1)}</td>
                     <td className="px-2 py-1 text-right font-mono font-semibold">
                       {eur(d.amount)}
+                      {d.trasfertaBonus > 0 && <div className="text-[9px] text-blue-700">+{eur(d.trasfertaBonus)} trasferta</div>}
                       {d.isHoliday && d.baseAmount !== d.amount && <div className="text-[9px] text-muted-foreground">(base {eur(d.baseAmount)})</div>}
                     </td>
                   </tr>

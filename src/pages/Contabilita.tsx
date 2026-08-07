@@ -2859,9 +2859,11 @@ const computeSalaryForRow = (
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
     const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
+    // Bonus trasferta: +20 € per ogni giornata con almeno un segmento di trasferta
+    const trasfertaBonus = hadTrasferta ? TRASFERTA_BONUS : 0;
     // Le ore festive/domenica sono già conteggiate al pari delle ordinarie: nessun raddoppio automatico.
-    const amount = baseAmount;
-    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, isHoliday, amount });
+    const amount = baseAmount + trasfertaBonus;
+    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, trasfertaBonus, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;
     tOvertimeH += overtimeH;

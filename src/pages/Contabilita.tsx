@@ -2823,6 +2823,7 @@ const computeSalaryForRow = (
   const hourlyRate = Number(dip?.hourly_rate) || 0;
   const contractH = Math.max(0, Number(dip?.contract_hours_per_day) || 8);
   const OVERTIME_RATE = 5;
+  const TRASFERTA_BONUS = 20;
   const breakdown: DayDetail[] = [];
   let totale = 0;
   let tNormalH = 0, tOvertimeH = 0, tPaidH = 0;

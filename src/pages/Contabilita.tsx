@@ -1135,8 +1135,9 @@ export default function Contabilita() {
   const salaryMonthTotals = (month: number) => {
     const rows = salaries.filter((s) => s.month === month);
     const cassa = rows.reduce((sum, s) => sum + cassaBancaOfSalary(s) + s.cassaContanti, 0);
+    // Competenza = stipendio pieno del mese (banca + contanti)
     const competenza = rows.reduce(
-      (sum, s) => sum + (bonificoOfSalary(s) - cassaBancaOfSalary(s)) + (contantiOfSalary(s) - s.cassaContanti),
+      (sum, s) => sum + bonificoOfSalary(s) + contantiOfSalary(s),
       0,
     );
     return { cassa, competenza, totale: rows.reduce((sum, s) => sum + s.totale, 0) };
@@ -1161,7 +1162,8 @@ export default function Contabilita() {
         let competenzaTot = 0;
         monthSalaries.forEach((s) => {
           cassaTot += cassaBancaOfSalary(s) + s.cassaContanti;
-          competenzaTot += (bonificoOfSalary(s) - cassaBancaOfSalary(s)) + (contantiOfSalary(s) - s.cassaContanti);
+          // Competenza = stipendio pieno (banca + contanti) del mese
+          competenzaTot += bonificoOfSalary(s) + contantiOfSalary(s);
         });
         cassaTot = cents(cassaTot);
         competenzaTot = cents(competenzaTot);

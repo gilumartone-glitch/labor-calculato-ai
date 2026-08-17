@@ -1132,14 +1132,13 @@ export default function Contabilita() {
   const contantiOfSalary = (s: Salary) => (s.sc ? s.cassaContanti : s.totale - s.bonifico);
   const bonificoOfSalary = (s: Salary) => (s.sc ? s.totale - contantiOfSalary(s) : s.bonifico);
   const cassaBancaOfSalary = (s: Salary) => (s.sc ? bonificoOfSalary(s) : s.cassaBanca);
+  const competenzaOfSalary = (s: Salary) =>
+    (bonificoOfSalary(s) - cassaBancaOfSalary(s)) + (contantiOfSalary(s) - s.cassaContanti);
   const salaryMonthTotals = (month: number) => {
     const rows = salaries.filter((s) => s.month === month);
     const cassa = rows.reduce((sum, s) => sum + cassaBancaOfSalary(s) + s.cassaContanti, 0);
-    // Competenza = stipendio pieno del mese (banca + contanti)
-    const competenza = rows.reduce(
-      (sum, s) => sum + bonificoOfSalary(s) + contantiOfSalary(s),
-      0,
-    );
+    // Competenza = sola quota ancora di competenza, escluso quanto già registrato in cassa.
+    const competenza = rows.reduce((sum, s) => sum + competenzaOfSalary(s), 0);
     return { cassa, competenza, totale: rows.reduce((sum, s) => sum + s.totale, 0) };
   };
   const avgProcessedTotale = useMemo(() => {
@@ -1162,8 +1161,8 @@ export default function Contabilita() {
         let competenzaTot = 0;
         monthSalaries.forEach((s) => {
           cassaTot += cassaBancaOfSalary(s) + s.cassaContanti;
-          // Competenza = stipendio pieno (banca + contanti) del mese
-          competenzaTot += bonificoOfSalary(s) + contantiOfSalary(s);
+          // Somma soltanto banca e contanti rimasti nella colonna Competenza.
+          competenzaTot += competenzaOfSalary(s);
         });
         cassaTot = cents(cassaTot);
         competenzaTot = cents(competenzaTot);

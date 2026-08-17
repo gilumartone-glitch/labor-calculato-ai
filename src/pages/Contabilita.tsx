@@ -1129,9 +1129,11 @@ export default function Contabilita() {
   const salaries = state.salaries ?? [];
   const processedFlags = state.salariesProcessed ?? [];
   const payDates = state.salaryPayDates ?? defaultSalaryPayDates();
-  const contantiOfSalary = (s: Salary) => (s.sc ? s.cassaContanti : s.totale - s.bonifico);
-  const bonificoOfSalary = (s: Salary) => (s.sc ? s.totale - contantiOfSalary(s) : s.bonifico);
-  const cassaBancaOfSalary = (s: Salary) => (s.sc ? bonificoOfSalary(s) : s.cassaBanca);
+  // Devono rispecchiare esattamente le colonne mostrate in "Stipendi per mese".
+  // Anche con i contanti sbloccati (sc), bonifico e valori di cassa restano quelli inseriti.
+  const contantiOfSalary = (s: Salary) => (s.sc ? s.contanti : s.totale - s.bonifico);
+  const bonificoOfSalary = (s: Salary) => s.bonifico;
+  const cassaBancaOfSalary = (s: Salary) => s.cassaBanca;
   const competenzaOfSalary = (s: Salary) =>
     (bonificoOfSalary(s) - cassaBancaOfSalary(s)) + (contantiOfSalary(s) - s.cassaContanti);
   const salaryMonthTotals = (month: number) => {

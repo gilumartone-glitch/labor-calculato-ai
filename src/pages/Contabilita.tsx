@@ -3118,6 +3118,23 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useSavedRows, savedRowsForMonth, computedRows, dipendenti, salaries, openMonth]);
 
+  // Allinea i totali salvati a quelli ricalcolati dalle ore: senza questo i
+  // movimenti virtuali (cassa/competenza) usavano importi obsoleti e non
+  // corrispondevano ai totali mostrati in tabella.
+  useEffect(() => {
+    if (!useSavedRows) return;
+    const patches = new Map<string, number>();
+    displayRows.forEach(({ computed, salary }) => {
+      if (salary.sc) return;
+      const fresh = Math.round((Number(computed.totale) || 0) * 100) / 100;
+      const stored = Math.round((Number(salary.totale) || 0) * 100) / 100;
+      if (fresh !== stored) patches.set(salary.id, fresh);
+    });
+    if (patches.size === 0) return;
+    setSalaries(salaries.map((s) => patches.has(s.id) ? { ...s, totale: patches.get(s.id)! } : s));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayRows, useSavedRows]);
+
 
   const persistRow = (c: ComputedSalary, patch: Partial<Salary>) => {
     const existing = salaries.find((s) => s.month === openMonth && s.name.trim().toLowerCase() === c.name.trim().toLowerCase());

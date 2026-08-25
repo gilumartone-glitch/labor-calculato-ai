@@ -46,13 +46,42 @@ export const useAdminTasks = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
+    const reload = () => {
+      void load();
+    };
+
+    const reloadWhenVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+
     load();
     const ch = supabase
       .channel(`admin_tasks_rt_${Math.random().toString(36).slice(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_tasks" }, () => load())
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const notification = payload.new as { type?: string } | null;
+          if (notification?.type?.startsWith("task_")) reload();
+        }
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+
+    window.addEventListener("focus", reload);
+    document.addEventListener("visibilitychange", reloadWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", reload);
+      document.removeEventListener("visibilitychange", reloadWhenVisible);
+      supabase.removeChannel(ch);
+    };
   }, [user, load]);
 
   const create = useCallback(async (payload: Partial<AdminTask>) => {

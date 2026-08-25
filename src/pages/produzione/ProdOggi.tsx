@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarClock, ArrowLeft, ArrowRight, User, AlertTriangle, ListChecks } from "lucide-react";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
@@ -71,80 +71,116 @@ export default function ProdOggi() {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-
-      // 1) Sub-ordini dove sono operatore (assignee, in operator_ids, o coordinator del sub)
-      const subsOperatorQ = await supabase
-        .from("production_sub_orders")
-        .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
-        .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
-        .neq("status", "completato")
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .limit(500);
-
-      // 2) Ordini di cui sono responsabile (coordinator o creator) → fetch tutti i loro sub
-      const myOrdersQ = await supabase
-        .from("production_orders")
-        .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
-        .or(`coordinator_id.eq.${user.id},created_by.eq.${user.id}`)
-        .limit(500);
-      const coordOrderIds = (myOrdersQ.data ?? []).map((o: any) => o.id);
-      const subsCoordQ = coordOrderIds.length
-        ? await supabase
-            .from("production_sub_orders")
-            .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
-            .in("order_id", coordOrderIds)
-            .neq("status", "completato")
-            .limit(500)
-        : { data: [] as Sub[] };
-
-      // Merge: dedup by id, prefer "operator" role (visto direttamente) altrimenti "coordinator"
-      const map = new Map<string, Sub>();
-      for (const s of (subsOperatorQ.data ?? []) as Sub[]) map.set(s.id, s);
-      for (const s of (subsCoordQ.data ?? []) as Sub[]) if (!map.has(s.id)) map.set(s.id, s);
-      const allSubs = Array.from(map.values());
-
-      const orderIds = Array.from(new Set(allSubs.map((s) => s.order_id)));
-      const ordersQ = orderIds.length
-        ? await supabase
-            .from("production_orders")
-            .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
-            .in("id", orderIds)
-        : { data: [] as Order[] };
-
-      const orderMap: Record<string, Order> = {};
-      for (const o of (ordersQ.data ?? []) as Order[]) orderMap[o.id] = o;
-
-      const commIds = Array.from(new Set(
-        Object.values(orderMap).map((o) => o.source_commessa_id).filter((x): x is string => !!x)
-      ));
-      const commQ = commIds.length
-        ? await supabase.from("commesse").select("id, data_scadenza").in("id", commIds)
-        : { data: [] as { id: string; data_scadenza: string | null }[] };
-      const dlMap: Record<string, string | null> = {};
-      for (const c of (commQ.data ?? []) as { id: string; data_scadenza: string | null }[]) dlMap[c.id] = c.data_scadenza;
-
-      // Carica i profili degli assegnatari per mostrare i nomi
-      const assigneeIds = Array.from(new Set(allSubs.map((s) => s.assignee_id).filter((x): x is string => !!x)));
-      const profMap: Record<string, Profile> = {};
-      if (assigneeIds.length > 0) {
-        const profsQ = await supabase.from("profiles").select("id, display_name").in("id", assigneeIds);
-        for (const p of (profsQ.data ?? []) as Profile[]) profMap[p.id] = p;
-      }
-
-      if (cancelled) return;
-      setSubs(allSubs);
-      setOrders(orderMap);
-      setDeadlines(dlMap);
-      setProfiles(profMap);
+  const loadAssignedWork = useCallback(async (showLoading = true) => {
+    if (!user) {
+      setSubs([]);
+      setOrders({});
+      setDeadlines({});
+      setProfiles({});
       setLoading(false);
-    })();
-    return () => { cancelled = true; };
+      return;
+    }
+
+    if (showLoading) setLoading(true);
+
+    // 1) Sub-ordini dove sono operatore (assignee, in operator_ids, o coordinator del sub)
+    const subsOperatorQ = await supabase
+      .from("production_sub_orders")
+      .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
+      .or(`assignee_id.eq.${user.id},operator_ids.cs.{${user.id}},coordinator_id.eq.${user.id}`)
+      .neq("status", "completato")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(500);
+
+    // 2) Ordini di cui sono responsabile (coordinator o creator) → fetch tutti i loro sub
+    const myOrdersQ = await supabase
+      .from("production_orders")
+      .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
+      .or(`coordinator_id.eq.${user.id},created_by.eq.${user.id}`)
+      .limit(500);
+    const coordOrderIds = (myOrdersQ.data ?? []).map((o: any) => o.id);
+    const subsCoordQ = coordOrderIds.length
+      ? await supabase
+          .from("production_sub_orders")
+          .select("id, code, dept, status, order_id, due_date, assignee_id, operator_ids, coordinator_id, start_date, end_date")
+          .in("order_id", coordOrderIds)
+          .neq("status", "completato")
+          .limit(500)
+      : { data: [] as Sub[] };
+
+    // Merge: dedup by id, prefer "operator" role (visto direttamente) altrimenti "coordinator"
+    const map = new Map<string, Sub>();
+    for (const s of (subsOperatorQ.data ?? []) as Sub[]) map.set(s.id, s);
+    for (const s of (subsCoordQ.data ?? []) as Sub[]) if (!map.has(s.id)) map.set(s.id, s);
+    const allSubs = Array.from(map.values());
+
+    const orderIds = Array.from(new Set(allSubs.map((s) => s.order_id)));
+    const ordersQ = orderIds.length
+      ? await supabase
+          .from("production_orders")
+          .select("id, code, cliente, status, source_commessa_id, coordinator_id, created_by")
+          .in("id", orderIds)
+      : { data: [] as Order[] };
+
+    const orderMap: Record<string, Order> = {};
+    for (const o of (ordersQ.data ?? []) as Order[]) orderMap[o.id] = o;
+
+    const commIds = Array.from(new Set(
+      Object.values(orderMap).map((o) => o.source_commessa_id).filter((x): x is string => !!x)
+    ));
+    const commQ = commIds.length
+      ? await supabase.from("commesse").select("id, data_scadenza").in("id", commIds)
+      : { data: [] as { id: string; data_scadenza: string | null }[] };
+    const dlMap: Record<string, string | null> = {};
+    for (const c of (commQ.data ?? []) as { id: string; data_scadenza: string | null }[]) dlMap[c.id] = c.data_scadenza;
+
+    // Carica i profili degli assegnatari per mostrare i nomi
+    const assigneeIds = Array.from(new Set(allSubs.map((s) => s.assignee_id).filter((x): x is string => !!x)));
+    const profMap: Record<string, Profile> = {};
+    if (assigneeIds.length > 0) {
+      const profsQ = await supabase.from("profiles").select("id, display_name").in("id", assigneeIds);
+      for (const p of (profsQ.data ?? []) as Profile[]) profMap[p.id] = p;
+    }
+
+    setSubs(allSubs);
+    setOrders(orderMap);
+    setDeadlines(dlMap);
+    setProfiles(profMap);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const reload = (showLoading = false) => {
+      if (!cancelled) void loadAssignedWork(showLoading);
+    };
+    const reloadWhenVisible = () => {
+      if (document.visibilityState === "visible") reload(false);
+    };
+    const reloadOnFocus = () => reload(false);
+
+    reload(true);
+
+    if (!user) return () => { cancelled = true; };
+
+    const ch = supabase
+      .channel(`prod_oggi_rt_${user.id}_${Math.random().toString(36).slice(2, 8)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => reload(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, () => reload(false))
+      .on("postgres_changes", { event: "*", schema: "public", table: "commesse" }, () => reload(false))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` }, () => reload(false))
+      .subscribe();
+
+    window.addEventListener("focus", reloadOnFocus);
+    document.addEventListener("visibilitychange", reloadWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", reloadOnFocus);
+      document.removeEventListener("visibilitychange", reloadWhenVisible);
+      supabase.removeChannel(ch);
+    };
+  }, [user, loadAssignedWork]);
 
   // Calcola data effettiva per ciascun sub: nelle "Mie Attività" conta prima l'inizio lavorazione,
   // poi la consegna. Così un lavoro assegnato oggi non resta nascosto solo perché consegna la settimana dopo.

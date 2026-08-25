@@ -2259,6 +2259,11 @@ export type Database = {
         | "ordine_rimandato"
         | "magazzino_da_preparare"
         | "sub_sbloccato"
+        | "task_assegnato"
+        | "task_sbloccato"
+        | "task_completato"
+        | "task_scaduto"
+        | "task_mention"
       prod_order_status:
         | "nuovo"
         | "in_corso"
@@ -2501,6 +2506,11 @@ export const Constants = {
         "ordine_rimandato",
         "magazzino_da_preparare",
         "sub_sbloccato",
+        "task_assegnato",
+        "task_sbloccato",
+        "task_completato",
+        "task_scaduto",
+        "task_mention",
       ],
       prod_order_status: [
         "nuovo",

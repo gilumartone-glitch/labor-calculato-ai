@@ -157,6 +157,7 @@ export default function ProdOggi() {
     const reloadWhenVisible = () => {
       if (document.visibilityState === "visible") reload(false);
     };
+    const reloadOnFocus = () => reload(false);
 
     reload(true);
 
@@ -170,12 +171,12 @@ export default function ProdOggi() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` }, () => reload(false))
       .subscribe();
 
-    window.addEventListener("focus", () => reload(false));
+    window.addEventListener("focus", reloadOnFocus);
     document.addEventListener("visibilitychange", reloadWhenVisible);
 
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", () => reload(false));
+      window.removeEventListener("focus", reloadOnFocus);
       document.removeEventListener("visibilitychange", reloadWhenVisible);
       supabase.removeChannel(ch);
     };

@@ -192,8 +192,8 @@ export default function ProdOggi() {
     const undated: Activity[] = [];
     for (const activity of activities) {
       const dl = activity.date;
-      if (!dl) { undated.push(s); continue; }
-      if (dl < today && dl < weekStartIso) { overdue.push(s); continue; }
+      if (!dl) { undated.push(activity); continue; }
+      if (dl < today && dl < weekStartIso) { overdue.push(activity); continue; }
       if (dl >= weekStartIso && dl <= weekEndIso) {
         // Sub in ritardo ma all'interno della settimana: mostrali nel giorno
         if (byDay[dl]) byDay[dl].push(activity);

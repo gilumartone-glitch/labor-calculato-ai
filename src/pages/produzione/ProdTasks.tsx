@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,21 @@ const ProdTasks = () => {
   const [editing, setEditing] = useState<AdminTask | null>(null);
   const [catFilter, setCatFilter] = useState<TaskCategory | "all">("all");
   const [q, setQ] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const taskId = searchParams.get("task");
+    if (!taskId || loading) return;
+    const found = tasks.find((t) => t.id === taskId);
+    if (!found) return;
+    setEditing(found);
+    setOpenDialog(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("task");
+      return next;
+    }, { replace: true });
+  }, [loading, searchParams, setSearchParams, tasks]);
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {

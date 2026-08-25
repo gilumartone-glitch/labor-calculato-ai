@@ -78,7 +78,7 @@ const App = () => (
             <Route path="/contabilita" element={<RouteGuard page="contabilita"><Contabilita /></RouteGuard>} />
             <Route path="/produzione" element={<RouteGuard page="produzione"><ProdDashboard /></RouteGuard>} />
             <Route path="/produzione/board" element={<RouteGuard page="produzione"><ProdBoard /></RouteGuard>} />
-            <Route path="/produzione/oggi" element={<RouteGuard page="produzione"><ProdOggi /></RouteGuard>} />
+            <Route path="/produzione/oggi" element={<RouteGuard page="flow"><ProdOggi /></RouteGuard>} />
             <Route path="/produzione/magazzino" element={<RouteGuard page="produzione"><ProdInventory /></RouteGuard>} />
             <Route path="/produzione/trova-materiale" element={<RouteGuard page="produzione"><ProdFindMaterial /></RouteGuard>} />
             <Route path="/produzione/chat" element={<RouteGuard page="produzione"><ProdChat /></RouteGuard>} />
@@ -87,7 +87,7 @@ const App = () => (
             <Route path="/produzione/acquisti" element={<RouteGuard page="produzione"><ProdAcquisti /></RouteGuard>} />
             <Route path="/produzione/amministrazione" element={<RouteGuard page="produzione"><ProdAmministrazione /></RouteGuard>} />
             <Route path="/produzione/log" element={<RouteGuard page="produzione"><ProdLog /></RouteGuard>} />
-            <Route path="/produzione/tasks" element={<RouteGuard page="produzione"><ProdTasks /></RouteGuard>} />
+            <Route path="/produzione/tasks" element={<RouteGuard page="flow"><ProdTasks /></RouteGuard>} />
             <Route path="/admin/utenti" element={<AdminUsers />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarClock, ArrowLeft, ArrowRight, User, AlertTriangle } from "lucide-react";
+import { CalendarClock, ArrowLeft, ArrowRight, User, AlertTriangle, ListChecks } from "lucide-react";
 import { ProdLayout } from "@/components/produzione/ProdLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AdminTask, useAdminTasks } from "@/hooks/useAdminTasks";
 import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdSubStatus } from "@/lib/produzione/types";
 import { urgencyBadge } from "@/lib/urgency";
 import { Button } from "@/components/ui/button";
 import { userColor } from "@/lib/user-color";
+import { TASK_CATEGORY_META, TASK_PRIORITY_META, TASK_STATUS_LABEL } from "@/lib/tasks/constants";
 
 type Sub = {
   id: string;
@@ -35,6 +37,10 @@ type Order = {
 
 type Profile = { id: string; display_name: string | null };
 
+type Activity =
+  | { kind: "sub"; id: string; date: string | null; sub: Sub }
+  | { kind: "task"; id: string; date: string | null; task: AdminTask };
+
 const todayIso = () => {
   const d = new Date(); d.setHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
@@ -58,6 +64,7 @@ const WEEKDAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "
 
 export default function ProdOggi() {
   const { user } = useAuth();
+  const { tasks, loading: tasksLoading } = useAdminTasks();
   const [subs, setSubs] = useState<Sub[]>([]);
   const [orders, setOrders] = useState<Record<string, Order>>({});
   const [deadlines, setDeadlines] = useState<Record<string, string | null>>({});
@@ -144,6 +151,19 @@ export default function ProdOggi() {
   const subDate = (s: Sub): string | null =>
     s.start_date ?? s.due_date ?? s.end_date ?? deadlines[orders[s.order_id]?.source_commessa_id ?? ""] ?? null;
 
+  const taskDate = (t: AdminTask): string | null => {
+    const raw = t.start_at ?? t.due_at;
+    return raw ? raw.slice(0, 10) : null;
+  };
+
+  const myTasks = useMemo(() => {
+    if (!user) return [];
+    return tasks.filter((t) => {
+      if (t.status === "completato" || t.status === "annullato") return false;
+      return t.responsible_id === user.id || (t.assignee_ids ?? []).includes(user.id);
+    });
+  }, [tasks, user]);
+
   // Settimana corrente navigabile (lun → dom)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const weekDays = useMemo(() => {
@@ -156,30 +176,36 @@ export default function ProdOggi() {
   const weekStartIso = isoOf(weekDays[0]);
   const weekEndIso = isoOf(weekDays[6]);
 
+  const activities = useMemo<Activity[]>(() => {
+    const subActivities: Activity[] = subs.map((sub) => ({ kind: "sub", id: sub.id, date: subDate(sub), sub }));
+    const taskActivities: Activity[] = myTasks.map((task) => ({ kind: "task", id: task.id, date: taskDate(task), task }));
+    return [...subActivities, ...taskActivities];
+  }, [subs, myTasks, orders, deadlines]);
+
   // Raggruppa per giorno della settimana corrente + in ritardo + successivi
   const { byDay, overdue, future, undated } = useMemo(() => {
     const today = todayIso();
-    const byDay: Record<string, Sub[]> = {};
+    const byDay: Record<string, Activity[]> = {};
     for (const d of weekDays) byDay[isoOf(d)] = [];
-    const overdue: Sub[] = [];
-    const future: Sub[] = [];
-    const undated: Sub[] = [];
-    for (const s of subs) {
-      const dl = subDate(s);
+    const overdue: Activity[] = [];
+    const future: Activity[] = [];
+    const undated: Activity[] = [];
+    for (const activity of activities) {
+      const dl = activity.date;
       if (!dl) { undated.push(s); continue; }
       if (dl < today && dl < weekStartIso) { overdue.push(s); continue; }
       if (dl >= weekStartIso && dl <= weekEndIso) {
         // Sub in ritardo ma all'interno della settimana: mostrali nel giorno
-        if (byDay[dl]) byDay[dl].push(s);
-        else overdue.push(s);
+        if (byDay[dl]) byDay[dl].push(activity);
+        else overdue.push(activity);
       } else if (dl > weekEndIso) {
-        future.push(s);
+        future.push(activity);
       } else {
-        overdue.push(s);
+        overdue.push(activity);
       }
     }
     return { byDay, overdue, future, undated };
-  }, [subs, weekDays, weekStartIso, weekEndIso, orders, deadlines]);
+  }, [activities, weekDays, weekStartIso, weekEndIso]);
 
   // L'utente è OPERATORE di questa lavorazione, o solo RESPONSABILE?
   const myRole = (s: Sub): "operator" | "coordinator" => {
@@ -189,7 +215,7 @@ export default function ProdOggi() {
     return "coordinator";
   };
 
-  const renderCard = (s: Sub) => {
+  const renderSubCard = (s: Sub) => {
     const o = orders[s.order_id];
     const dl = subDate(s);
     const u = urgencyBadge(dl, { done: false });
@@ -250,6 +276,55 @@ export default function ProdOggi() {
     );
   };
 
+  const renderTaskCard = (t: AdminTask) => {
+    const M = TASK_CATEGORY_META[t.category];
+    const Icon = M.icon;
+    const prio = TASK_PRIORITY_META[t.priority];
+    const dl = taskDate(t);
+    const u = urgencyBadge(dl, { done: false });
+    return (
+      <Link
+        key={t.id}
+        to={`/produzione/tasks?task=${t.id}`}
+        className="block border rounded-sm overflow-hidden transition-colors hover:brightness-95 bg-paper border-ink/20"
+        title="Apri dettaglio task"
+      >
+        <div className="bg-primary/10 px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5 border-b border-ink/10">
+          <ListChecks className="w-4 h-4 shrink-0 text-primary" />
+          <span className="font-display font-extrabold uppercase tracking-wide text-[14px] xl:text-[12px] leading-none truncate">
+            Task
+          </span>
+          {u && (
+            <span className={`ml-auto text-[10px] xl:text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded-sm border ${u.cls}`}>
+              {u.label}
+            </span>
+          )}
+        </div>
+        <div className="p-2.5 xl:p-1.5 space-y-2 xl:space-y-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className={`inline-flex items-center gap-1 text-[11px] xl:text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${M.bg} ${M.color}`}>
+              <Icon className="w-3.5 h-3.5" />{M.label}
+            </div>
+            <span className={`text-[11px] xl:text-[10px] py-0 px-1.5 border rounded ${prio.className}`}>{prio.label}</span>
+          </div>
+          <div className="text-[17px] xl:text-[13px] font-bold leading-tight line-clamp-2">
+            {t.title}
+          </div>
+          {t.description && <div className="text-[13px] xl:text-[11px] text-muted-foreground line-clamp-2">{t.description}</div>}
+          <div className="flex items-center justify-between gap-1.5 pt-0.5">
+            <span className="font-mono text-[11px] xl:text-[10px] font-bold bg-ink text-paper px-1.5 py-0.5 rounded-sm">
+              {TASK_STATUS_LABEL[t.status]}
+            </span>
+            {dl && <span className="text-[11px] xl:text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{new Date(dl).toLocaleDateString("it-IT")}</span>}
+          </div>
+        </div>
+      </Link>
+    );
+  };
+
+  const renderActivity = (activity: Activity) =>
+    activity.kind === "sub" ? renderSubCard(activity.sub) : renderTaskCard(activity.task);
+
 
   const goPrevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); };
   const goNextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); };
@@ -269,7 +344,7 @@ export default function ProdOggi() {
               Le mie Attività
             </h1>
             <div className="text-[11px] text-muted-foreground mt-1">
-              Le lavorazioni assegnate a te, divise per giorno della settimana.
+              Lavorazioni e task assegnati a te, divisi per giorno della settimana.
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
@@ -291,7 +366,7 @@ export default function ProdOggi() {
           <div className="font-mono text-xs uppercase tracking-wider text-ink/70">{weekRangeLabel}</div>
         </div>
 
-        {loading ? (
+        {loading || tasksLoading ? (
           <div className="text-sm text-muted-foreground">Caricamento…</div>
         ) : (
           <>
@@ -305,7 +380,7 @@ export default function ProdOggi() {
                   </h2>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {overdue.map(renderCard)}
+                  {overdue.map(renderActivity)}
                 </div>
               </section>
             )}
@@ -345,7 +420,7 @@ export default function ProdOggi() {
                       {items.length === 0 ? (
                         <div className="text-[11px] text-muted-foreground italic text-center py-3">—</div>
                       ) : (
-                        items.map(renderCard)
+                        items.map(renderActivity)
                       )}
                     </div>
                   </section>
@@ -360,7 +435,7 @@ export default function ProdOggi() {
                   Settimane successive · {future.length}
                 </h2>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {future.map(renderCard)}
+                  {future.map(renderActivity)}
                 </div>
               </section>
             )}
@@ -372,12 +447,12 @@ export default function ProdOggi() {
                   Senza data · {undated.length}
                 </h2>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {undated.map(renderCard)}
+                  {undated.map(renderActivity)}
                 </div>
               </section>
             )}
 
-            {subs.length === 0 && (
+            {activities.length === 0 && (
               <div className="border-2 border-dashed border-ink/20 rounded-sm p-8 text-center text-sm text-muted-foreground italic">
                 Nessuna attività assegnata. Goditi la pausa.
               </div>

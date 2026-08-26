@@ -223,7 +223,7 @@ export const DepartmentView = ({
   const isTappezzeria = deptKey === "tappezzeria";
   const bypassRedistribution = !!state.nestingState?.bypassRedistribution;
   const canRedistribute = isTappezzeria && !bypassRedistribution;
-  const distributedMaterialByPieceId: Record<string, { total: number; single: number }> = {};
+  const distributedMaterialByPieceId: Record<string, { total: number; single: number; metersTotal: number }> = {};
   if (canRedistribute) {
     for (const g of nestingGroups) {
       // Ridistribuisco il costo materiale del nesting per TUTTI i formati
@@ -232,6 +232,10 @@ export const DepartmentView = ({
         (g.materialCostOptimized ?? 0) - (g.seamCost ?? 0) - (g.scrapCost ?? 0);
       const totalArea = g.usedAreaM2;
       if (fabricPrice <= 0 || totalArea <= 0) continue;
+      // Metri lineari realmente srotolati dal nesting per il gruppo: vengono
+      // ripartiti come il costo, così in card si vede quanto tessuto consuma
+      // davvero il pezzo (non la sola stima teorica per-pezzo).
+      const groupMeters = g.format === "rotolo" ? (g.totalLengthM ?? 0) : 0;
       // Area per pezzo (già con margini, dal nesting) — somma di tutte le copie.
       const areaByPiece = new Map<string, number>();
       for (const it of g.items) {
@@ -241,15 +245,23 @@ export const DepartmentView = ({
         );
       }
       for (const [pid, a] of areaByPiece) {
-        const total = fabricPrice * (a / totalArea);
+        const share = a / totalArea;
+        const total = fabricPrice * share;
           const piece = calcPieces.find((p) => p.id === pid);
         const qty = Math.max(1, Math.floor(Number(piece?.quantity) || 1));
-        distributedMaterialByPieceId[pid] = { total, single: total / qty };
+        distributedMaterialByPieceId[pid] = {
+          total,
+          single: total / qty,
+          metersTotal: groupMeters * share,
+        };
       }
     }
   }
   const getMaterialOverride = (pieceId: string): number | null =>
     distributedMaterialByPieceId[pieceId]?.single ?? null;
+  const getMaterialMetersOverride = (pieceId: string): number | null =>
+    distributedMaterialByPieceId[pieceId]?.metersTotal ?? null;
+
 
   // Costo materiale effettivo per il pezzo (totale = tutte le copie), rispettando
   // l'eventuale override di ridistribuzione nesting. Include ancora l'eventuale
@@ -1159,6 +1171,8 @@ export const DepartmentView = ({
                                 extraSurcharge={nestingScrapByPieceId[p.id] ?? 0}
                                 extraSurchargeLabel="Sfrido lastre"
                                 materialCostOverrideSingle={getMaterialOverride(p.id)}
+                                materialMetersOverrideTotal={getMaterialMetersOverride(p.id)}
+
                                 onChange={(line) =>
                                   setState({
                                     ...state,

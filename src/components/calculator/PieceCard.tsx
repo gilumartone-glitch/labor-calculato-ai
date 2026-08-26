@@ -50,6 +50,11 @@ interface Props {
    *  La distribuzione è proporzionale all'area (con margini) del pezzo sul
    *  totale del gruppo materiale. */
   materialCostOverrideSingle?: number | null;
+  /** TAPPEZZERIA — metri lineari di tessuto attribuiti al pezzo dal nesting
+   *  (tutte le copie). Serve a mostrare in card il consumo reale corrispondente
+   *  alla quota di costo ridistribuita. */
+  materialMetersOverrideTotal?: number | null;
+
   /** Se true, il campo Quantità (Qt) prende il focus al mount. Usato per il
    *  pezzo appena creato: l'utente scrive subito il numero di pezzi. */
   autoFocusQty?: boolean;
@@ -69,7 +74,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, autoFocusQty = false, onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, materialMetersOverrideTotal = null, autoFocusQty = false, onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const isTappezzeria = dept === "tappezzeria";
   // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati
@@ -1363,15 +1368,33 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">Tessuto totale</div>
-                    <div className="font-mono tabular-nums font-semibold">
-                      {fmtM(totalMetersQtyM)} m
-                    </div>
-                    {isRollNested && qty > 1 && (
-                      <div className="font-mono text-[9px] text-muted-foreground">
-                        per {qty} pz
-                      </div>
+                    {hasMatOverride && (materialMetersOverrideTotal ?? 0) > 0 ? (
+                      <>
+                        <div className="font-mono tabular-nums font-semibold text-primary">
+                          {fmtM(materialMetersOverrideTotal as number)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          quota nesting · {qty > 1 ? `per ${qty} pz · ` : ""}
+                          rullo {fmtM(mat.rollWidthM)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          singolo: {fmtM(totalMetersQtyM)} m
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-mono tabular-nums font-semibold">
+                          {fmtM(totalMetersQtyM)} m
+                        </div>
+                        {isRollNested && qty > 1 && (
+                          <div className="font-mono text-[11px] text-muted-foreground">
+                            per {qty} pz
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
+
                 </>
               );
             })()}

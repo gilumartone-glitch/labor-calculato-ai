@@ -50,6 +50,11 @@ interface Props {
    *  La distribuzione è proporzionale all'area (con margini) del pezzo sul
    *  totale del gruppo materiale. */
   materialCostOverrideSingle?: number | null;
+  /** TAPPEZZERIA — metri lineari di tessuto attribuiti al pezzo dal nesting
+   *  (tutte le copie). Serve a mostrare in card il consumo reale corrispondente
+   *  alla quota di costo ridistribuita. */
+  materialMetersOverrideTotal?: number | null;
+
   /** Se true, il campo Quantità (Qt) prende il focus al mount. Usato per il
    *  pezzo appena creato: l'utente scrive subito il numero di pezzi. */
   autoFocusQty?: boolean;

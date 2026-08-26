@@ -319,10 +319,11 @@ export default function ProdOggi() {
     const dl = taskDate(t);
     const u = urgencyBadge(dl, { done: false });
     return (
-      <Link
+      <button
         key={t.id}
-        to={`/produzione/tasks?task=${t.id}`}
-        className="block border rounded-sm overflow-hidden transition-colors hover:brightness-95 bg-paper border-ink/20"
+        type="button"
+        onClick={() => setDetailTask(t)}
+        className="text-left w-full block border rounded-sm overflow-hidden transition-colors hover:brightness-95 bg-paper border-ink/20"
         title="Apri dettaglio task"
       >
         <div className="bg-primary/10 px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5 border-b border-ink/10">

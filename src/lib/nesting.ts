@@ -565,19 +565,26 @@ const explodePieces = (
       }
     }
 
+    // ROTOLI senza rotazione: l'altezza del tessuto deve coprire l'ALTEZZA del
+    // pezzo, quindi sull'asse trasversale va h e lo sviluppo lungo il rotolo è w.
+    const lockRollOrientation =
+      materialFormat === "rotolo" && isRect && !p.allowRotation;
+    const itemW = lockRollOrientation ? h : w;
+    const itemH = lockRollOrientation ? w : h;
     for (let c = 0; c < qty; c++) {
       items.push({
         pieceId: p.id,
         copy: c,
         label: qty > 1 ? `${baseLabel}·${c + 1}/${qty}` : baseLabel,
         shape: p.shape ?? "rect",
-        w,
-        h,
-        widthBottomM,
+        w: itemW,
+        h: itemH,
+        widthBottomM: lockRollOrientation ? itemW : widthBottomM,
         allowRotation: !!p.allowRotation,
         realArea: real,
       });
     }
+
   }
   return { items, seamLengthM };
 };

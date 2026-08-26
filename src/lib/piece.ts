@@ -612,14 +612,32 @@ export const computePieceMaterial = (
     return { cost: working + scrap, scrap, scrapSell };
   };
 
+  // Costo (vendita) di un piano rotolo, usato per scegliere la variante migliore.
+  const planCostFor = (
+    m: CatalogMaterial,
+    rollWidthM: number,
+    totalMetersM: number,
+  ): number | null => {
+    const u = catalog.__skipInitialScrap
+      ? materialUnitCost(m, "cut")
+      : materialUnitCost(m, piece.priceMode, customer);
+    if (!(u > 0)) return null;
+    return materialPriceUnit(m) === "mq"
+      ? totalMetersM * rollWidthM * u
+      : totalMetersM * u;
+  };
+
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
   const allowSplit = piece.allowSplit === true;
-  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit);
+  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit, planCostFor);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
   const rotationAllowed = !!piece.allowRotation;
-  const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM, allowSplit) : null;
+  const rotatedRaw = rotationAllowed
+    ? planOrientation(variants, pieceHM, pieceWM, allowSplit, planCostFor)
+    : null;
   const rotated = rotatedRaw;
+
 
   type FullPlan = {
     plan: OrientationPlan;

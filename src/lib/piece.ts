@@ -752,8 +752,13 @@ export const computePieceMaterial = (
   const initialScrapCost = best.internalScrap; // costo interno sfrido
   const seamCost = best.seamCost;
   const purchaseCost = best.internalCost; // costo interno totale
-  const effectivePieceWidthM = best.rotated ? pieceHM : pieceWM;
-  const effectivePieceHeightM = best.rotated ? pieceWM : pieceHM;
+  // Dimensione trasversale (occupata sull'altezza del tessuto) e sviluppo.
+  // Per i rotoli il piano naturale mette l'ALTEZZA del pezzo sull'altezza del
+  // tessuto, quindi i ruoli si invertono rispetto alle lastre.
+  const crossIsHeight = rollOnly ? !best.rotated : best.rotated;
+  const effectivePieceWidthM = crossIsHeight ? pieceHM : pieceWM;
+  const effectivePieceHeightM = crossIsHeight ? pieceWM : pieceHM;
+
 
   return {
     material,

@@ -1357,11 +1357,23 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 <>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">N. teli</div>
-                    <div className="font-mono tabular-nums">
-                      {shelves} × {fmtM(mat.panelLengthM)} m
-                    </div>
+                    {hasMatOverride && (materialMetersOverrideTotal ?? 0) > 0 ? (
+                      <>
+                        <div className="font-mono tabular-nums">
+                          {shelves} ×{" "}
+                          {fmtM((materialMetersOverrideTotal as number) / Math.max(1, shelves))} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          quota nesting (teorico: {fmtM(mat.panelLengthM)} m)
+                        </div>
+                      </>
+                    ) : (
+                      <div className="font-mono tabular-nums">
+                        {shelves} × {fmtM(mat.panelLengthM)} m
+                      </div>
+                    )}
                     {isRollNested && qty > 1 && (
-                      <div className="font-mono text-[9px] text-muted-foreground">
+                      <div className="font-mono text-[11px] text-muted-foreground">
                         {piecesPerShelf} pz/telo × {shelves} teli = {qty} pz
                       </div>
                     )}

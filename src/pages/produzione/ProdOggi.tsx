@@ -8,6 +8,7 @@ import { AdminTask, useAdminTasks } from "@/hooks/useAdminTasks";
 import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdSubStatus } from "@/lib/produzione/types";
 import { urgencyBadge } from "@/lib/urgency";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { userColor } from "@/lib/user-color";
 import { TASK_CATEGORY_META, TASK_PRIORITY_META, TASK_STATUS_LABEL } from "@/lib/tasks/constants";
 
@@ -549,7 +550,7 @@ export default function ProdOggi() {
                   {detailTask.responsible_id && (
                     <div>
                       <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Responsabile</div>
-                      <div>{nameOf(detailTask.responsible_id)}</div>
+                      <div>{profiles[detailTask.responsible_id]?.display_name ?? "—"}</div>
                     </div>
                   )}
 

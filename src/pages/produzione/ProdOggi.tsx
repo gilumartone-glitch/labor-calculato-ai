@@ -65,6 +65,7 @@ const WEEKDAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "
 export default function ProdOggi() {
   const { user } = useAuth();
   const { tasks, loading: tasksLoading } = useAdminTasks();
+  const [detailTask, setDetailTask] = useState<AdminTask | null>(null);
   const [subs, setSubs] = useState<Sub[]>([]);
   const [orders, setOrders] = useState<Record<string, Order>>({});
   const [deadlines, setDeadlines] = useState<Record<string, string | null>>({});

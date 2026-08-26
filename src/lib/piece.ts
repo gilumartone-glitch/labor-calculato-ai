@@ -261,7 +261,15 @@ const planOrientation = (
   pieceWidthM: number,
   pieceHeightM: number,
   allowSplit: boolean,
+  /** Costo del piano (vendita) per confrontare varianti di rotolo diverse.
+   *  Se non fornito (o se restituisce null) si ricade sul criterio "meno metri". */
+  planCost?: (
+    material: CatalogMaterial,
+    rollWidthM: number,
+    totalMetersM: number,
+  ) => number | null,
 ): OrientationPlan | null => {
+
   if (variants.length === 0 || pieceWidthM <= 0 || pieceHeightM <= 0) return null;
 
   const sheetVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "lastra");

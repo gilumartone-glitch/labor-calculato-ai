@@ -8,6 +8,7 @@ import { AdminTask, useAdminTasks } from "@/hooks/useAdminTasks";
 import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdSubStatus } from "@/lib/produzione/types";
 import { urgencyBadge } from "@/lib/urgency";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { userColor } from "@/lib/user-color";
 import { TASK_CATEGORY_META, TASK_PRIORITY_META, TASK_STATUS_LABEL } from "@/lib/tasks/constants";
 
@@ -65,6 +66,7 @@ const WEEKDAYS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "
 export default function ProdOggi() {
   const { user } = useAuth();
   const { tasks, loading: tasksLoading } = useAdminTasks();
+  const [detailTask, setDetailTask] = useState<AdminTask | null>(null);
   const [subs, setSubs] = useState<Sub[]>([]);
   const [orders, setOrders] = useState<Record<string, Order>>({});
   const [deadlines, setDeadlines] = useState<Record<string, string | null>>({});
@@ -319,10 +321,11 @@ export default function ProdOggi() {
     const dl = taskDate(t);
     const u = urgencyBadge(dl, { done: false });
     return (
-      <Link
+      <button
         key={t.id}
-        to={`/produzione/tasks?task=${t.id}`}
-        className="block border rounded-sm overflow-hidden transition-colors hover:brightness-95 bg-paper border-ink/20"
+        type="button"
+        onClick={() => setDetailTask(t)}
+        className="text-left w-full block border rounded-sm overflow-hidden transition-colors hover:brightness-95 bg-paper border-ink/20"
         title="Apri dettaglio task"
       >
         <div className="bg-primary/10 px-3 py-2 xl:px-2 xl:py-1.5 flex items-center gap-2 xl:gap-1.5 border-b border-ink/10">
@@ -354,7 +357,7 @@ export default function ProdOggi() {
             {dl && <span className="text-[11px] xl:text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{new Date(dl).toLocaleDateString("it-IT")}</span>}
           </div>
         </div>
-      </Link>
+      </button>
     );
   };
 
@@ -496,6 +499,87 @@ export default function ProdOggi() {
           </>
         )}
       </div>
+
+      <Dialog open={!!detailTask} onOpenChange={(o) => !o && setDetailTask(null)}>
+        <DialogContent className="max-w-lg">
+          {detailTask && (() => {
+            const M = TASK_CATEGORY_META[detailTask.category];
+            const Icon = M.icon;
+            const prio = TASK_PRIORITY_META[detailTask.priority];
+            const dl = taskDate(detailTask);
+            const u = urgencyBadge(dl, { done: detailTask.status === "completato" });
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-display font-extrabold leading-tight pr-6">
+                    {detailTask.title}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-[15px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold uppercase px-2 py-1 rounded ${M.bg} ${M.color}`}>
+                      <Icon className="w-4 h-4" />{M.label}
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-1 border rounded ${prio.className}`}>{prio.label}</span>
+                    <span className="text-xs font-mono font-bold uppercase bg-ink text-paper px-2 py-1 rounded-sm">
+                      {TASK_STATUS_LABEL[detailTask.status]}
+                    </span>
+                    {u && (
+                      <span className={`text-xs font-mono uppercase font-bold px-2 py-1 rounded-sm border ${u.cls}`}>{u.label}</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Inizio</div>
+                      <div className="font-mono">{detailTask.start_at ? new Date(detailTask.start_at).toLocaleDateString("it-IT") : "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Scadenza</div>
+                      <div className="font-mono">{detailTask.due_at ? new Date(detailTask.due_at).toLocaleDateString("it-IT") : "—"}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Descrizione</div>
+                    <div className="whitespace-pre-wrap border border-ink/15 rounded-sm p-2 bg-muted/30 min-h-[48px]">
+                      {detailTask.description || "Nessuna descrizione."}
+                    </div>
+                  </div>
+
+                  {detailTask.responsible_id && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Responsabile</div>
+                      <div>{profiles[detailTask.responsible_id]?.display_name ?? "—"}</div>
+                    </div>
+                  )}
+
+                  {detailTask.checklist?.length > 0 && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Checklist</div>
+                      <ul className="space-y-1 mt-1">
+                        {detailTask.checklist.map((c) => (
+                          <li key={c.id} className="flex items-start gap-2">
+                            <span className="font-mono">{c.done ? "☑" : "☐"}</span>
+                            <span className={c.done ? "line-through text-muted-foreground" : ""}>{c.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="outline" onClick={() => setDetailTask(null)}>Chiudi</Button>
+                    <Button asChild>
+                      <Link to={`/produzione/tasks?task=${detailTask.id}`}>Apri e modifica</Link>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </ProdLayout>
   );
 

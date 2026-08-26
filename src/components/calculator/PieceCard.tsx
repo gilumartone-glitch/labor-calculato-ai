@@ -1353,18 +1353,30 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               const totalMetersQtyM = isRollNested
                 ? shelves * mat.panelLengthM
                 : mat.totalMetersM;
+              // Metri realmente attribuiti dal nesting (quota di gruppo).
+              const nestedMeters = (materialMetersOverrideTotal ?? 0) > 0
+                ? (materialMetersOverrideTotal as number)
+                : null;
+              // Il numero di teli deve essere coerente con i metri attribuiti:
+              // se il nesting assegna più metri della lunghezza teorica di un
+              // telo, i teli sono più di uno.
+              const nestedShelves = nestedMeters != null && mat.panelLengthM > 0
+                ? Math.max(1, Math.round(nestedMeters / mat.panelLengthM))
+                : shelves;
+              const nestedPerShelf = nestedMeters != null
+                ? nestedMeters / Math.max(1, nestedShelves)
+                : mat.panelLengthM;
               return (
                 <>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">N. teli</div>
-                    {hasMatOverride && (materialMetersOverrideTotal ?? 0) > 0 ? (
+                    {nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums">
-                          {shelves} ×{" "}
-                          {fmtM((materialMetersOverrideTotal as number) / Math.max(1, shelves))} m
+                          {nestedShelves} × {fmtM(nestedPerShelf)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          quota nesting (teorico: {fmtM(mat.panelLengthM)} m)
+                          quota nesting (teorico: {shelves} × {fmtM(mat.panelLengthM)} m)
                         </div>
                       </>
                     ) : (
@@ -1380,10 +1392,10 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">Tessuto totale</div>
-                    {hasMatOverride && (materialMetersOverrideTotal ?? 0) > 0 ? (
+                    {nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums font-semibold text-primary">
-                          {fmtM(materialMetersOverrideTotal as number)} m
+                          {fmtM(nestedMeters)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
                           quota nesting · {qty > 1 ? `per ${qty} pz · ` : ""}
@@ -1394,6 +1406,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                         </div>
                       </>
                     ) : (
+
                       <>
                         <div className="font-mono tabular-nums font-semibold">
                           {fmtM(totalMetersQtyM)} m

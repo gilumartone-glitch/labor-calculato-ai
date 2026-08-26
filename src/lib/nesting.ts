@@ -397,11 +397,11 @@ const explodePieces = (
 
       const orientations: Orientation[] = [
         {
-          // default: la larghezza finale del pezzo viene coperta con più teli
-          // affiancati; ogni telo sviluppa l'altezza del pezzo lungo il rotolo.
-          crossM: w,
-          alongM: h,
-          panels: Math.max(1, Math.ceil(w / rollWidthM)),
+          // default: l'ALTEZZA del tessuto copre l'altezza del pezzo; se non
+          // basta si affiancano più teli, ognuno sviluppato sulla larghezza.
+          crossM: h,
+          alongM: w,
+          panels: Math.max(1, Math.ceil(h / rollWidthM)),
         },
       ];
 
@@ -409,11 +409,12 @@ const explodePieces = (
         orientations.push({
           // ruotato: scambio i lati, ma le cuciture restano sempre verticali
           // e i teli si affiancano comunque sui lati.
-          crossM: h,
-          alongM: w,
-          panels: Math.max(1, Math.ceil(h / rollWidthM)),
+          crossM: w,
+          alongM: h,
+          panels: Math.max(1, Math.ceil(w / rollWidthM)),
         });
       }
+
 
       // Scelgo l'orientamento che consuma MENO rotolo: stima ≈ panels × alongM.
       // Preferisco SEMPRE l'orientamento senza cuciture (1 solo telo) quando esiste,

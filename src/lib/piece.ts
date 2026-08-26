@@ -627,16 +627,25 @@ export const computePieceMaterial = (
       : totalMetersM * u;
   };
 
-  // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
+  // Piano naturale: il rullo copre l'ALTEZZA del pezzo, i teli si affiancano
+  // sulla larghezza. Per i ROTOLI quindi la dimensione trasversale (vincolata
+  // dall'altezza del tessuto) è l'altezza del pezzo, e lo sviluppo lungo il
+  // rotolo è la larghezza. Solo con la rotazione attiva si può invertire.
   const allowSplit = piece.allowSplit === true;
-  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit, planCostFor);
+  const rollOnly =
+    variants.length > 0 &&
+    variants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
+  const naturalCrossM = rollOnly ? pieceHM : pieceWM;
+  const naturalAlongM = rollOnly ? pieceWM : pieceHM;
+  const natural = planOrientation(variants, naturalCrossM, naturalAlongM, allowSplit, planCostFor);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
   const rotationAllowed = !!piece.allowRotation;
   const rotatedRaw = rotationAllowed
-    ? planOrientation(variants, pieceHM, pieceWM, allowSplit, planCostFor)
+    ? planOrientation(variants, naturalAlongM, naturalCrossM, allowSplit, planCostFor)
     : null;
   const rotated = rotatedRaw;
+
 
 
   type FullPlan = {

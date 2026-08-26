@@ -699,21 +699,30 @@ export const computePieceMaterial = (
   // es. 4,50 × 12,10 su rotolo h 2 m => 3 teli lunghi 12,10 m,
   // mai 7 teli lunghi 4,50 m. Questa scelta viene prima del prezzo perché
   // il materiale del pezzo si vende sui mq effettivi, mentre gli sfridi sono voci separate.
+  // In Tappezzeria (__skipInitialScrap) invece il tessuto si paga a metri lineari
+  // realmente consumati: qui vince SEMPRE il piano più economico, altrimenti
+  // ruotare il pezzo poteva far salire il prezzo pur usando meno materiale.
+  const costFirst = !!catalog.__skipInitialScrap;
   plans.sort((a, b) => {
     const aRoll = (a.plan.material.format ?? "rotolo") === "rotolo";
     const bRoll = (b.plan.material.format ?? "rotolo") === "rotolo";
-    if (aRoll && bRoll && a.plan.panels !== b.plan.panels) {
+    if (!costFirst && aRoll && bRoll && a.plan.panels !== b.plan.panels) {
       return a.plan.panels - b.plan.panels;
     }
-    if (aRoll && bRoll && a.plan.panelLengthM !== b.plan.panelLengthM) {
+    if (!costFirst && aRoll && bRoll && a.plan.panelLengthM !== b.plan.panelLengthM) {
       return b.plan.panelLengthM - a.plan.panelLengthM;
     }
 
     const costDiff = a.cost - b.cost;
     if (Math.abs(costDiff) > 0.000001) return costDiff;
 
+    if (aRoll && bRoll && a.plan.totalMetersM !== b.plan.totalMetersM) {
+      return a.plan.totalMetersM - b.plan.totalMetersM;
+    }
+
     return a.rotated === b.rotated ? 0 : a.rotated ? 1 : -1;
   });
+
   const best = plans[0];
   const material = best.plan.material;
   const rollWidthM = best.plan.rollWidthM;

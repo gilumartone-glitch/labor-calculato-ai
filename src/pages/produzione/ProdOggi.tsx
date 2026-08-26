@@ -498,6 +498,87 @@ export default function ProdOggi() {
           </>
         )}
       </div>
+
+      <Dialog open={!!detailTask} onOpenChange={(o) => !o && setDetailTask(null)}>
+        <DialogContent className="max-w-lg">
+          {detailTask && (() => {
+            const M = TASK_CATEGORY_META[detailTask.category];
+            const Icon = M.icon;
+            const prio = TASK_PRIORITY_META[detailTask.priority];
+            const dl = taskDate(detailTask);
+            const u = urgencyBadge(dl, { done: detailTask.status === "completato" });
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-display font-extrabold leading-tight pr-6">
+                    {detailTask.title}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-[15px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold uppercase px-2 py-1 rounded ${M.bg} ${M.color}`}>
+                      <Icon className="w-4 h-4" />{M.label}
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-1 border rounded ${prio.className}`}>{prio.label}</span>
+                    <span className="text-xs font-mono font-bold uppercase bg-ink text-paper px-2 py-1 rounded-sm">
+                      {TASK_STATUS_LABEL[detailTask.status]}
+                    </span>
+                    {u && (
+                      <span className={`text-xs font-mono uppercase font-bold px-2 py-1 rounded-sm border ${u.cls}`}>{u.label}</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Inizio</div>
+                      <div className="font-mono">{detailTask.start_at ? new Date(detailTask.start_at).toLocaleDateString("it-IT") : "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Scadenza</div>
+                      <div className="font-mono">{detailTask.due_at ? new Date(detailTask.due_at).toLocaleDateString("it-IT") : "—"}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Descrizione</div>
+                    <div className="whitespace-pre-wrap border border-ink/15 rounded-sm p-2 bg-muted/30 min-h-[48px]">
+                      {detailTask.description || "Nessuna descrizione."}
+                    </div>
+                  </div>
+
+                  {detailTask.responsible_id && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Responsabile</div>
+                      <div>{nameOf(detailTask.responsible_id)}</div>
+                    </div>
+                  )}
+
+                  {detailTask.checklist?.length > 0 && (
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Checklist</div>
+                      <ul className="space-y-1 mt-1">
+                        {detailTask.checklist.map((c) => (
+                          <li key={c.id} className="flex items-start gap-2">
+                            <span className="font-mono">{c.done ? "☑" : "☐"}</span>
+                            <span className={c.done ? "line-through text-muted-foreground" : ""}>{c.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="outline" onClick={() => setDetailTask(null)}>Chiudi</Button>
+                    <Button asChild>
+                      <Link to={`/produzione/tasks?task=${detailTask.id}`}>Apri e modifica</Link>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </ProdLayout>
   );
 

@@ -326,7 +326,8 @@ const planOrientation = (
   const rollVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "rotolo");
   if (rollVariants.length > 0) {
     const sorted = [...rollVariants].sort((a, b) => a.heightM - b.heightM);
-    const cheapest = sorted.reduce<OrientationPlan | null>((best, current) => {
+    type Scored = { plan: OrientationPlan; cost: number | null };
+    const cheapest = sorted.reduce<Scored | null>((best, current) => {
       const panels = Math.max(1, Math.ceil(pieceWidthM / current.heightM));
       if (!allowSplit && panels > 1) return best;
       const plan: OrientationPlan = {
@@ -337,22 +338,36 @@ const planOrientation = (
         totalMetersM: panels * pieceHeightM,
         seamLengthM: Math.max(0, panels - 1) * pieceHeightM,
       };
+      const rawCost = planCost
+        ? planCost(current.material, current.heightM, plan.totalMetersM)
+        : null;
+      const cost = rawCost !== null && rawCost > 0 ? rawCost : null;
+      const candidate: Scored = { plan, cost };
 
-      if (!best) return plan;
-      if (plan.totalMetersM !== best.totalMetersM) {
-        return plan.totalMetersM < best.totalMetersM ? plan : best;
+      if (!best) return candidate;
+      // Criterio primario: COSTO reale del materiale. Un rotolo più alto consuma
+      // meno metri lineari ma costa molto di più al metro: senza questo confronto
+      // il sistema poteva scegliere un piano più caro pur usando meno metri.
+      if (candidate.cost !== null && best.cost !== null) {
+        if (Math.abs(candidate.cost - best.cost) > 0.000001) {
+          return candidate.cost < best.cost ? candidate : best;
+        }
+      } else if (candidate.cost !== null || best.cost !== null) {
+        return candidate.cost !== null ? candidate : best;
       }
-      if (plan.panels !== best.panels) {
-        return plan.panels < best.panels ? plan : best;
+      if (plan.totalMetersM !== best.plan.totalMetersM) {
+        return plan.totalMetersM < best.plan.totalMetersM ? candidate : best;
       }
-      // A parità di metri lineari e numero di teli, preferisco il rotolo
-      // PIÙ STRETTO sufficiente: meno sfrido in altezza e costo materiale
-      // più basso (i rotoli più alti costano di più al m).
-      return plan.rollWidthM < best.rollWidthM ? plan : best;
+      if (plan.panels !== best.plan.panels) {
+        return plan.panels < best.plan.panels ? candidate : best;
+      }
+      // A parità di costo/metri/teli, preferisco il rotolo PIÙ STRETTO sufficiente.
+      return plan.rollWidthM < best.plan.rollWidthM ? candidate : best;
     }, null);
 
-    return cheapest;
+    return cheapest ? cheapest.plan : null;
   }
+
 
   // Fallback legacy per materiali non-rotolo.
   const single = variants.find((v) => v.heightM >= pieceHeightM);

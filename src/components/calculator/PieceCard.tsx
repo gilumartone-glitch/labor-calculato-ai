@@ -1368,15 +1368,33 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">Tessuto totale</div>
-                    <div className="font-mono tabular-nums font-semibold">
-                      {fmtM(totalMetersQtyM)} m
-                    </div>
-                    {isRollNested && qty > 1 && (
-                      <div className="font-mono text-[9px] text-muted-foreground">
-                        per {qty} pz
-                      </div>
+                    {hasMatOverride && (materialMetersOverrideTotal ?? 0) > 0 ? (
+                      <>
+                        <div className="font-mono tabular-nums font-semibold text-primary">
+                          {fmtM(materialMetersOverrideTotal as number)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          quota nesting · {qty > 1 ? `per ${qty} pz · ` : ""}
+                          rullo {fmtM(mat.rollWidthM)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          singolo: {fmtM(totalMetersQtyM)} m
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-mono tabular-nums font-semibold">
+                          {fmtM(totalMetersQtyM)} m
+                        </div>
+                        {isRollNested && qty > 1 && (
+                          <div className="font-mono text-[11px] text-muted-foreground">
+                            per {qty} pz
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
+
                 </>
               );
             })()}

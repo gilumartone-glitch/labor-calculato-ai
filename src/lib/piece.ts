@@ -261,7 +261,15 @@ const planOrientation = (
   pieceWidthM: number,
   pieceHeightM: number,
   allowSplit: boolean,
+  /** Costo del piano (vendita) per confrontare varianti di rotolo diverse.
+   *  Se non fornito (o se restituisce null) si ricade sul criterio "meno metri". */
+  planCost?: (
+    material: CatalogMaterial,
+    rollWidthM: number,
+    totalMetersM: number,
+  ) => number | null,
 ): OrientationPlan | null => {
+
   if (variants.length === 0 || pieceWidthM <= 0 || pieceHeightM <= 0) return null;
 
   const sheetVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "lastra");
@@ -318,7 +326,8 @@ const planOrientation = (
   const rollVariants = variants.filter((v) => (v.material.format ?? "rotolo") === "rotolo");
   if (rollVariants.length > 0) {
     const sorted = [...rollVariants].sort((a, b) => a.heightM - b.heightM);
-    const cheapest = sorted.reduce<OrientationPlan | null>((best, current) => {
+    type Scored = { plan: OrientationPlan; cost: number | null };
+    const cheapest = sorted.reduce<Scored | null>((best, current) => {
       const panels = Math.max(1, Math.ceil(pieceWidthM / current.heightM));
       if (!allowSplit && panels > 1) return best;
       const plan: OrientationPlan = {
@@ -329,22 +338,36 @@ const planOrientation = (
         totalMetersM: panels * pieceHeightM,
         seamLengthM: Math.max(0, panels - 1) * pieceHeightM,
       };
+      const rawCost = planCost
+        ? planCost(current.material, current.heightM, plan.totalMetersM)
+        : null;
+      const cost = rawCost !== null && rawCost > 0 ? rawCost : null;
+      const candidate: Scored = { plan, cost };
 
-      if (!best) return plan;
-      if (plan.totalMetersM !== best.totalMetersM) {
-        return plan.totalMetersM < best.totalMetersM ? plan : best;
+      if (!best) return candidate;
+      // Criterio primario: COSTO reale del materiale. Un rotolo più alto consuma
+      // meno metri lineari ma costa molto di più al metro: senza questo confronto
+      // il sistema poteva scegliere un piano più caro pur usando meno metri.
+      if (candidate.cost !== null && best.cost !== null) {
+        if (Math.abs(candidate.cost - best.cost) > 0.000001) {
+          return candidate.cost < best.cost ? candidate : best;
+        }
+      } else if (candidate.cost !== null || best.cost !== null) {
+        return candidate.cost !== null ? candidate : best;
       }
-      if (plan.panels !== best.panels) {
-        return plan.panels < best.panels ? plan : best;
+      if (plan.totalMetersM !== best.plan.totalMetersM) {
+        return plan.totalMetersM < best.plan.totalMetersM ? candidate : best;
       }
-      // A parità di metri lineari e numero di teli, preferisco il rotolo
-      // PIÙ STRETTO sufficiente: meno sfrido in altezza e costo materiale
-      // più basso (i rotoli più alti costano di più al m).
-      return plan.rollWidthM < best.rollWidthM ? plan : best;
+      if (plan.panels !== best.plan.panels) {
+        return plan.panels < best.plan.panels ? candidate : best;
+      }
+      // A parità di costo/metri/teli, preferisco il rotolo PIÙ STRETTO sufficiente.
+      return plan.rollWidthM < best.plan.rollWidthM ? candidate : best;
     }, null);
 
-    return cheapest;
+    return cheapest ? cheapest.plan : null;
   }
+
 
   // Fallback legacy per materiali non-rotolo.
   const single = variants.find((v) => v.heightM >= pieceHeightM);
@@ -589,14 +612,32 @@ export const computePieceMaterial = (
     return { cost: working + scrap, scrap, scrapSell };
   };
 
+  // Costo (vendita) di un piano rotolo, usato per scegliere la variante migliore.
+  const planCostFor = (
+    m: CatalogMaterial,
+    rollWidthM: number,
+    totalMetersM: number,
+  ): number | null => {
+    const u = catalog.__skipInitialScrap
+      ? materialUnitCost(m, "cut")
+      : materialUnitCost(m, piece.priceMode, customer);
+    if (!(u > 0)) return null;
+    return materialPriceUnit(m) === "mq"
+      ? totalMetersM * rollWidthM * u
+      : totalMetersM * u;
+  };
+
   // Piano naturale: il rullo copre l'altezza del pezzo, i teli si affiancano sulla larghezza
   const allowSplit = piece.allowSplit === true;
-  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit);
+  const natural = planOrientation(variants, pieceWM, pieceHM, allowSplit, planCostFor);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.
   const rotationAllowed = !!piece.allowRotation;
-  const rotatedRaw = rotationAllowed ? planOrientation(variants, pieceHM, pieceWM, allowSplit) : null;
+  const rotatedRaw = rotationAllowed
+    ? planOrientation(variants, pieceHM, pieceWM, allowSplit, planCostFor)
+    : null;
   const rotated = rotatedRaw;
+
 
   type FullPlan = {
     plan: OrientationPlan;
@@ -658,21 +699,30 @@ export const computePieceMaterial = (
   // es. 4,50 × 12,10 su rotolo h 2 m => 3 teli lunghi 12,10 m,
   // mai 7 teli lunghi 4,50 m. Questa scelta viene prima del prezzo perché
   // il materiale del pezzo si vende sui mq effettivi, mentre gli sfridi sono voci separate.
+  // In Tappezzeria (__skipInitialScrap) invece il tessuto si paga a metri lineari
+  // realmente consumati: qui vince SEMPRE il piano più economico, altrimenti
+  // ruotare il pezzo poteva far salire il prezzo pur usando meno materiale.
+  const costFirst = !!catalog.__skipInitialScrap;
   plans.sort((a, b) => {
     const aRoll = (a.plan.material.format ?? "rotolo") === "rotolo";
     const bRoll = (b.plan.material.format ?? "rotolo") === "rotolo";
-    if (aRoll && bRoll && a.plan.panels !== b.plan.panels) {
+    if (!costFirst && aRoll && bRoll && a.plan.panels !== b.plan.panels) {
       return a.plan.panels - b.plan.panels;
     }
-    if (aRoll && bRoll && a.plan.panelLengthM !== b.plan.panelLengthM) {
+    if (!costFirst && aRoll && bRoll && a.plan.panelLengthM !== b.plan.panelLengthM) {
       return b.plan.panelLengthM - a.plan.panelLengthM;
     }
 
     const costDiff = a.cost - b.cost;
     if (Math.abs(costDiff) > 0.000001) return costDiff;
 
+    if (aRoll && bRoll && a.plan.totalMetersM !== b.plan.totalMetersM) {
+      return a.plan.totalMetersM - b.plan.totalMetersM;
+    }
+
     return a.rotated === b.rotated ? 0 : a.rotated ? 1 : -1;
   });
+
   const best = plans[0];
   const material = best.plan.material;
   const rollWidthM = best.plan.rollWidthM;

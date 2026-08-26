@@ -355,7 +355,7 @@ export default function ProdOggi() {
             {dl && <span className="text-[11px] xl:text-[10px] font-mono uppercase tracking-wider text-ink/70 truncate">{new Date(dl).toLocaleDateString("it-IT")}</span>}
           </div>
         </div>
-      </Link>
+      </button>
     );
   };
 

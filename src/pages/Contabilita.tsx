@@ -3238,7 +3238,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             const savedForMonth = salaries.filter((s) => s.month === i);
             const hm = hoursLog[`${pY}-${pM}`] ?? { rows: [] };
             const tot = processed[i] && savedForMonth.length > 0
-              ? savedForMonth.reduce((sum, s) => sum + (Number(s.totale) || 0), 0)
+              ? savedForMonth.reduce((sum, s) => sum + (s.sc ? (Number(s.bonifico) || 0) + (Number(s.contanti) || 0) : (Number(s.totale) || 0)), 0)
               : hm.rows.reduce((sum, r) => {
                 const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
                 return sum + computeSalaryForRow(r, dip, pY, pM).totale;

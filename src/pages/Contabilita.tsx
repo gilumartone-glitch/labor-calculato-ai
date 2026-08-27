@@ -3273,6 +3273,34 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             )}
           </div>
         </div>
+        {(() => {
+          const saldati = monthTotals.cassaBanca + monthTotals.cassaContanti;
+          const daSaldare = monthTotals.compBanca + monthTotals.compContanti;
+          const diff = Math.round((monthTotals.totale - saldati - daSaldare) * 100) / 100;
+          return (
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2">
+                <div className="label-cap text-foreground">Totale stipendi {MONTHS[openMonth]}</div>
+                <div className="font-mono text-lg font-bold">{eur(monthTotals.totale)}</div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div className="label-cap text-foreground">Saldati (cassa banca + contanti)</div>
+                <div className="font-mono text-lg font-bold">{eur(saldati)}</div>
+                <div className="text-[11px] text-muted-foreground">{eur(monthTotals.cassaBanca)} banca · {eur(monthTotals.cassaContanti)} contanti</div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div className="label-cap text-foreground">Da saldare (competenza)</div>
+                <div className="font-mono text-lg font-bold">{eur(daSaldare)}</div>
+                <div className="text-[11px] text-muted-foreground">{eur(monthTotals.compBanca)} banca · {eur(monthTotals.compContanti)} contanti</div>
+              </div>
+              {diff !== 0 && (
+                <div className="sm:col-span-3 rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  Attenzione: saldati + da saldare non corrispondono al totale (differenza {eur(diff)}).
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs">
             <thead>

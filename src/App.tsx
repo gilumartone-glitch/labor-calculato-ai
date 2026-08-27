@@ -82,7 +82,7 @@ const App = () => (
             <Route path="/produzione/magazzino" element={<RouteGuard page="produzione"><ProdInventory /></RouteGuard>} />
             <Route path="/produzione/trova-materiale" element={<RouteGuard page="produzione"><ProdFindMaterial /></RouteGuard>} />
             <Route path="/produzione/chat" element={<RouteGuard page="produzione"><ProdChat /></RouteGuard>} />
-            <Route path="/produzione/logistica" element={<RouteGuard page="produzione"><ProdLogistica /></RouteGuard>} />
+            <Route path="/produzione/logistica" element={<RouteGuard page="logistica"><ProdLogistica /></RouteGuard>} />
             <Route path="/produzione/preparazione" element={<RouteGuard page="produzione"><ProdPreparazione /></RouteGuard>} />
             <Route path="/produzione/acquisti" element={<RouteGuard page="produzione"><ProdAcquisti /></RouteGuard>} />
             <Route path="/produzione/amministrazione" element={<RouteGuard page="produzione"><ProdAmministrazione /></RouteGuard>} />

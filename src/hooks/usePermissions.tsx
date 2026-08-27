@@ -44,10 +44,15 @@ export const usePermissions = () => {
 
   const can = (page: PageKey, required: Level = "read") => {
     if (state.isAdmin) return true;
-    const lvl = state.perms[page] ?? "none";
-    if (required === "read") return lvl === "read" || lvl === "write";
-    if (required === "write") return lvl === "write";
-    return true;
+    const meets = (lvl: Level) => {
+      if (required === "read") return lvl === "read" || lvl === "write";
+      if (required === "write") return lvl === "write";
+      return true;
+    };
+    if (meets(state.perms[page] ?? "none")) return true;
+    // La Logistica è accessibile anche a chi ha i permessi di Produzione.
+    if (page === "logistica") return meets(state.perms["produzione"] ?? "none");
+    return false;
   };
 
   const isAmministrazione = state.isAdmin || (state.settori ?? []).includes("amministrazione");

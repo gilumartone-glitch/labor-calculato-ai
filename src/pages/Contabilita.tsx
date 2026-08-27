@@ -1134,6 +1134,8 @@ export default function Contabilita() {
   const contantiOfSalary = (s: Salary) => (s.sc ? s.contanti : s.totale - s.bonifico);
   const bonificoOfSalary = (s: Salary) => s.bonifico;
   const cassaBancaOfSalary = (s: Salary) => s.cassaBanca;
+  // Totale coerente con la tabella: con split manuale (sc) il totale è bonifico + contanti.
+  const totaleOfSalary = (s: Salary) => (s.sc ? s.bonifico + s.contanti : s.totale);
   const competenzaOfSalary = (s: Salary) =>
     (bonificoOfSalary(s) - cassaBancaOfSalary(s)) + (contantiOfSalary(s) - s.cassaContanti);
   const salaryMonthTotals = (month: number) => {
@@ -1141,7 +1143,7 @@ export default function Contabilita() {
     const cassa = rows.reduce((sum, s) => sum + cassaBancaOfSalary(s) + s.cassaContanti, 0);
     // Competenza = sola quota ancora di competenza, escluso quanto già registrato in cassa.
     const competenza = rows.reduce((sum, s) => sum + competenzaOfSalary(s), 0);
-    return { cassa, competenza, totale: rows.reduce((sum, s) => sum + s.totale, 0) };
+    return { cassa, competenza, totale: rows.reduce((sum, s) => sum + totaleOfSalary(s), 0) };
   };
   const avgProcessedTotale = useMemo(() => {
     const processedMonths: number[] = [];
@@ -3236,7 +3238,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             const savedForMonth = salaries.filter((s) => s.month === i);
             const hm = hoursLog[`${pY}-${pM}`] ?? { rows: [] };
             const tot = processed[i] && savedForMonth.length > 0
-              ? savedForMonth.reduce((sum, s) => sum + (Number(s.totale) || 0), 0)
+              ? savedForMonth.reduce((sum, s) => sum + (s.sc ? (Number(s.bonifico) || 0) + (Number(s.contanti) || 0) : (Number(s.totale) || 0)), 0)
               : hm.rows.reduce((sum, r) => {
                 const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
                 return sum + computeSalaryForRow(r, dip, pY, pM).totale;
@@ -3271,6 +3273,34 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
             )}
           </div>
         </div>
+        {(() => {
+          const saldati = monthTotals.cassaBanca + monthTotals.cassaContanti;
+          const daSaldare = monthTotals.compBanca + monthTotals.compContanti;
+          const diff = Math.round((monthTotals.totale - saldati - daSaldare) * 100) / 100;
+          return (
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border-2 border-dept bg-dept-soft/30 px-3 py-2">
+                <div className="label-cap text-foreground">Totale stipendi {MONTHS[openMonth]}</div>
+                <div className="font-mono text-lg font-bold">{eur(monthTotals.totale)}</div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div className="label-cap text-foreground">Saldati (cassa banca + contanti)</div>
+                <div className="font-mono text-lg font-bold">{eur(saldati)}</div>
+                <div className="text-[11px] text-muted-foreground">{eur(monthTotals.cassaBanca)} banca · {eur(monthTotals.cassaContanti)} contanti</div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                <div className="label-cap text-foreground">Da saldare (competenza)</div>
+                <div className="font-mono text-lg font-bold">{eur(daSaldare)}</div>
+                <div className="text-[11px] text-muted-foreground">{eur(monthTotals.compBanca)} banca · {eur(monthTotals.compContanti)} contanti</div>
+              </div>
+              {diff !== 0 && (
+                <div className="sm:col-span-3 rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  Attenzione: saldati + da saldare non corrispondono al totale (differenza {eur(diff)}).
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs">
             <thead>

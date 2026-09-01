@@ -3,6 +3,7 @@ import { convertLength, DimUnit } from "./perimeter";
 import { materialUnitCost } from "./material-match";
 import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice } from "./piece";
 import { CustomerType } from "./pricing";
+import { withCatalogOrientation } from "@/lib/piece-catalog";
 
 /**
  * Nesting di pezzi su un telo (rullo) di larghezza fissa.
@@ -1792,10 +1793,11 @@ const computeMixedLastraGroup = (
 
 /** Raggruppa i pezzi per (productName|color|fireproof) e calcola un nesting per ciascuno. */
 export const computeNesting = (
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   customer?: CustomerType,
 ): NestingGroup[] => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const valid = pieces.filter(
     (p) => p.productName && (p.width || 0) > 0 && (p.height || 0) > 0,
   );
@@ -1958,12 +1960,13 @@ export const computeNesting = (
  */
 export const recomputeGroupWithOverride = (
   baseGroup: NestingGroup,
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   override: NestingFormatOverride,
   pieceIndexMap: Map<string, number>,
   customer?: CustomerType,
 ): NestingGroup => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const sheetW = override.widthM;
   const sheetH = override.heightM;
   if (sheetW <= 0 || sheetH <= 0) return baseGroup;
@@ -2376,10 +2379,11 @@ export type NestingDiagnostic = {
 };
 
 export const diagnoseNesting = (
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   customer?: CustomerType,
 ): NestingDiagnostic[] => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const valid = pieces.filter(
     (p) => p.productName && (p.width || 0) > 0 && (p.height || 0) > 0,
   );

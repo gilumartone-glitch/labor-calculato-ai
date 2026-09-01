@@ -2,6 +2,7 @@ import { Catalog, PieceLine, PerimeterLine, CatalogMaterial } from "@/components
 import { materialUnitCost } from "./material-match";
 import { perimeterCost, convertLength, DimUnit, pieceAreaM2 } from "./perimeter";
 import { CustomerType } from "./pricing";
+import { resolveHeightOrientation } from "@/lib/piece-catalog";
 
 const pieceAreaM2Local = (piece: PieceLine) =>
   pieceAreaM2({
@@ -455,6 +456,8 @@ export const computePieceMaterial = (
   catalog: Catalog,
   customer?: CustomerType,
 ): PieceMaterialBreakdown => {
+  // Orientamento altezza: deciso nel LISTINO (per prodotto), default orizzontale.
+  const pieceHeightHorizontal = resolveHeightOrientation(piece, catalog) === "horizontal";
   // dimensioni base del pezzo in metri
   const baseW = convertLength(piece.width || 0, piece.dimUnit, "m");
   const baseH = convertLength(piece.height || 0, piece.dimUnit, "m");
@@ -556,7 +559,7 @@ export const computePieceMaterial = (
       // prima erano invertite, quindi 450×320 veniva valutato come 320×450.
       // `heightOrientation: "horizontal"` => l'altezza del pezzo si sviluppa
       // LUNGO il rotolo e la larghezza attraversa il rullo.
-      const horizH = piece.heightOrientation === "horizontal";
+      const horizH = pieceHeightHorizontal;
       const planCrossM = (isRot !== horizH) ? pieceWM : pieceHM;
       const planAlongM = (isRot !== horizH) ? pieceHM : pieceWM;
       // Nesting interno alla card: più copie dello stesso pezzo possono
@@ -613,7 +616,7 @@ export const computePieceMaterial = (
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
       // `heightOrientation: "horizontal"` => l'altezza del pezzo si sviluppa
       // LUNGO il rotolo e la larghezza attraversa il rullo.
-      const horizH = piece.heightOrientation === "horizontal";
+      const horizH = pieceHeightHorizontal;
       const planCrossM = (isRot !== horizH) ? pieceWM : pieceHM;
       const planAlongM = (isRot !== horizH) ? pieceHM : pieceWM;
       const nested = rollQuantityNestingPlan(
@@ -669,7 +672,7 @@ export const computePieceMaterial = (
   const rollOnly =
     variants.length > 0 &&
     variants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
-  const heightHorizontal = piece.heightOrientation === "horizontal";
+  const heightHorizontal = pieceHeightHorizontal;
   const naturalCrossM = rollOnly ? (heightHorizontal ? pieceWM : pieceHM) : pieceWM;
   const naturalAlongM = rollOnly ? (heightHorizontal ? pieceHM : pieceWM) : pieceHM;
   const natural = planOrientation(variants, naturalCrossM, naturalAlongM, allowSplit, planCostFor);

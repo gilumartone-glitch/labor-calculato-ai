@@ -117,6 +117,17 @@ describe("Sfrido di lavorazione (nesting)", () => {
     expect(breakdown.panels).toBe(2);
     expect(breakdown.panelLengthM).toBeCloseTo(4.5, 5);
     expect(round2(pieceMaterialTotal(piece, catalog) * 2)).toBe(round2(13.5 * 31.3));
+
+    const nestingCatalog = {
+      ...catalog,
+      __perimeterMarginMm: 0,
+      __skipPerimeterMargin: true,
+    } as Catalog;
+    const group = computeNesting([piece], nestingCatalog)[0];
+    expect(group.unplaced).toHaveLength(0);
+    expect(group.items).toHaveLength(4);
+    expect(group.totalLengthM).toBeCloseTo(13.5, 5);
+    expect(round2(group.materialCostOptimized)).toBe(round2(13.5 * 31.3));
   });
 
   it("Lavorazione €/pz (es. squadratura) viene conteggiata anche senza quantità impostata (default 1 pz)", () => {

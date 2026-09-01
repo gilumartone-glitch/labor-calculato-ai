@@ -230,6 +230,10 @@ export type PieceLine = {
   customWorks?: { id: string; name: string; price: number }[];
   /** Permetti al sistema di ruotare il tessuto (scambiando trama/ordito) per risparmiare */
   allowRotation?: boolean;
+  /** Orientamento dell'ALTEZZA del pezzo sul tessuto quando la rotazione è
+   *  disattivata: "vertical" (default) = l'altezza del tessuto copre l'altezza
+   *  del pezzo; "horizontal" = l'altezza del pezzo si sviluppa lungo il rotolo. */
+  heightOrientation?: "vertical" | "horizontal";
   /** Se true, il sistema può spezzare il pezzo in più pannelli affiancati
    *  (con cuciture verticali su rotolo, o lastre giuntate). Default false:
    *  il pezzo DEVE entrare interamente nelle misure della lastra/rullo;

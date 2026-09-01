@@ -14,6 +14,7 @@ import {
   pieceCustomWorksTotal,
   piecePrintTotal,
   pieceLeftoverScrapSellCost,
+  rollQuantityNestingPlan,
   MARGIN_WIDTH_CM,
   MARGIN_HEIGHT_CM,
 } from "@/lib/piece";
@@ -1344,14 +1345,22 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 mat.rollWidthM > 0 &&
                 mat.pieceWidthM > 0 &&
                 mat.pieceWidthM <= mat.rollWidthM;
-              const piecesPerShelf = isRollNested
+              const quantityPlan = (mat.material?.format ?? "rotolo") === "rotolo"
+                ? rollQuantityNestingPlan(
+                    mat.pieceWidthM,
+                    mat.rollWidthM,
+                    mat.panelLengthM,
+                    qty,
+                  )
+                : { panels: mat.panels, totalMetersM: mat.totalMetersM };
+              const piecesPerShelf = isRollNested && mat.pieceWidthM <= mat.rollWidthM
                 ? Math.max(1, Math.floor(mat.rollWidthM / mat.pieceWidthM))
                 : 1;
-              const shelves = isRollNested
-                ? Math.ceil(qty / piecesPerShelf)
+              const shelves = isRollNested || mat.pieceWidthM > mat.rollWidthM
+                ? quantityPlan.panels
                 : mat.panels;
-              const totalMetersQtyM = isRollNested
-                ? shelves * mat.panelLengthM
+              const totalMetersQtyM = isRollNested || mat.pieceWidthM > mat.rollWidthM
+                ? quantityPlan.totalMetersM
                 : mat.totalMetersM;
               // Metri realmente attribuiti dal nesting (quota di gruppo).
               const nestedMeters = (materialMetersOverrideTotal ?? 0) > 0

@@ -8,6 +8,7 @@ import {
   pieceTotal,
   pieceMaterialTotal,
   pieceInitialScrapSellCost,
+  rollQuantityNestingPlan,
 } from "../piece";
 import { buildPieceIndexMap, computeNesting, recomputeGroupWithOverride } from "../nesting";
 import { perimeterCost } from "../perimeter";
@@ -82,6 +83,42 @@ const makePiece = (overrides: Partial<PieceLine> = {}): PieceLine => ({
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 describe("Sfrido di lavorazione (nesting)", () => {
+  it("accorpa gli avanzi di 2 pezzi 450×320 cm in 3 teli da 450 cm su rotolo h 300", () => {
+    const plan = rollQuantityNestingPlan(3.2, 3, 4.5, 2);
+
+    expect(plan.panels).toBe(3);
+    expect(plan.totalMetersM).toBeCloseTo(13.5, 5);
+
+    const material = makeRollMaterial({
+      id: "super-buio-300",
+      name: "SUPER BUIO",
+      color: "",
+      height: "300",
+      heightUnit: "cm",
+      dimUnit: "cm",
+      priceUnit: "ml",
+      priceCut: 31.3,
+      pricePiece: 31.3,
+    });
+    const catalog = { ...makeCatalog([material]), __skipInitialScrap: true } as Catalog;
+    const piece = makePiece({
+      productName: "SUPER BUIO",
+      color: "",
+      width: 450,
+      height: 320,
+      dimUnit: "cm",
+      quantity: 2,
+      allowRotation: false,
+      allowSplit: true,
+    });
+    const breakdown = computePieceMaterial(piece, catalog);
+
+    expect(breakdown.feasible).toBe(true);
+    expect(breakdown.panels).toBe(2);
+    expect(breakdown.panelLengthM).toBeCloseTo(4.5, 5);
+    expect(round2(pieceMaterialTotal(piece, catalog) * 2)).toBe(round2(13.5 * 31.3));
+  });
+
   it("Lavorazione €/pz (es. squadratura) viene conteggiata anche senza quantità impostata (default 1 pz)", () => {
     const op: CatalogPerimeterOp = {
       id: "op-squad",

@@ -160,6 +160,42 @@ export type PieceMaterialBreakdown = {
   reason?: string;
 };
 
+/**
+ * Nesting di più copie identiche su un rotolo.
+ *
+ * Se una copia supera l'altezza del rotolo, ogni copia genera dei teli pieni
+ * più un'eventuale fascia residua. Le fasce residue delle diverse copie devono
+ * essere accorpate sullo stesso telo, non moltiplicate come piani indipendenti.
+ * Esempio: 2 pezzi larghi 3,20 m su rotolo h 3,00 m = 2 teli pieni + un telo
+ * che contiene entrambe le fasce da 0,20 m = 3 teli totali.
+ */
+export const rollQuantityNestingPlan = (
+  pieceCrossM: number,
+  rollWidthM: number,
+  panelLengthM: number,
+  quantity: number,
+): { panels: number; totalMetersM: number } => {
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+  if (!(pieceCrossM > 0) || !(rollWidthM > 0) || !(panelLengthM > 0)) {
+    return { panels: 0, totalMetersM: 0 };
+  }
+
+  if (pieceCrossM <= rollWidthM + 1e-9) {
+    const piecesPerPanel = Math.max(1, Math.floor((rollWidthM + 1e-9) / pieceCrossM));
+    const panels = Math.ceil(qty / piecesPerPanel);
+    return { panels, totalMetersM: panels * panelLengthM };
+  }
+
+  const fullPanelsPerPiece = Math.floor(pieceCrossM / rollWidthM + 1e-9);
+  const remainderM = Math.max(0, pieceCrossM - fullPanelsPerPiece * rollWidthM);
+  const fullPanels = fullPanelsPerPiece * qty;
+  const remainderPanels = remainderM > 1e-9
+    ? Math.ceil((remainderM * qty) / rollWidthM - 1e-9)
+    : 0;
+  const panels = fullPanels + remainderPanels;
+  return { panels, totalMetersM: panels * panelLengthM };
+};
+
 /** Converte l'altezza del rullo (string + unit) in metri. */
 const materialDimUnit = (m: CatalogMaterial): DimUnit =>
   (["mm", "cm", "m"] as const).includes((m.dimUnit || m.heightUnit) as DimUnit)
@@ -523,21 +559,16 @@ export const computePieceMaterial = (
       // qty (questo helper restituisce il costo per singola copia, che il
       // chiamante moltiplicherà nuovamente × qty).
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
-      // BUGFIX: se il pezzo è più largo del rullo servono più teli per coprirlo.
-      // In quel caso usiamo i metri lineari totali calcolati dal piano (plan.totalMetersM)
-      // invece di assumere che il pezzo entri nella larghezza del rullo.
-      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
-        if (priceUnit === "ml") return plan.totalMetersM * unit;
-        // priceUnit === "mq": area effettivamente consumata dai teli
-        return plan.totalMetersM * plan.rollWidthM * unit;
-      }
-      const piecesPerShelf =
-        plan.rollWidthM > 0 && planPieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
-          : 1;
-      const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * planPieceHM;
-      return (nestedTotalMetersM * unit) / qty;
+      const nested = rollQuantityNestingPlan(
+        planPieceWM,
+        plan.rollWidthM,
+        planPieceHM,
+        qty,
+      );
+      const nestedCost = priceUnit === "ml"
+        ? nested.totalMetersM * unit
+        : nested.totalMetersM * plan.rollWidthM * unit;
+      return nestedCost / qty;
     }
     if (format === "rotolo" && priceUnit === "mq") {
       const areaM2 = pieceWM * pieceHM;
@@ -576,22 +607,16 @@ export const computePieceMaterial = (
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
       const planPieceWM = isRot ? pieceHM : pieceWM;
       const planPieceHM = isRot ? pieceWM : pieceHM;
-      // BUGFIX coerente con clientCostForPlan: pezzi più larghi del rullo
-      // richiedono più teli — usa plan.totalMetersM invece di pieceHM.
-      if (plan.rollWidthM > 0 && planPieceWM > plan.rollWidthM) {
-        const cost =
-          priceUnit === "ml"
-            ? plan.totalMetersM * purchase
-            : plan.totalMetersM * plan.rollWidthM * purchase;
-        return { cost, scrap: 0, scrapSell: 0 };
-      }
-      const piecesPerShelf =
-        plan.rollWidthM > 0 && planPieceWM > 0
-          ? Math.max(1, Math.floor(plan.rollWidthM / planPieceWM))
-          : 1;
-      const shelves = Math.ceil(qty / piecesPerShelf);
-      const nestedTotalMetersM = shelves * planPieceHM;
-      return { cost: (nestedTotalMetersM * purchase) / qty, scrap: 0, scrapSell: 0 };
+      const nested = rollQuantityNestingPlan(
+        planPieceWM,
+        plan.rollWidthM,
+        planPieceHM,
+        qty,
+      );
+      const nestedCost = priceUnit === "ml"
+        ? nested.totalMetersM * purchase
+        : nested.totalMetersM * plan.rollWidthM * purchase;
+      return { cost: nestedCost / qty, scrap: 0, scrapSell: 0 };
     }
     if (format !== "rotolo" || plan.rollWidthM <= 0) {
       // Lastra (o fallback) — il costo interno è area × €/mq oppure metri × €/ml.

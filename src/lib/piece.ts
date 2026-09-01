@@ -554,8 +554,11 @@ export const computePieceMaterial = (
       // Per i rotoli il piano naturale usa H attraverso il rullo e W lungo
       // il rullo. Queste dimensioni devono restare coerenti con planOrientation:
       // prima erano invertite, quindi 450×320 veniva valutato come 320×450.
-      const planCrossM = isRot ? pieceWM : pieceHM;
-      const planAlongM = isRot ? pieceHM : pieceWM;
+      // `heightOrientation: "horizontal"` => l'altezza del pezzo si sviluppa
+      // LUNGO il rotolo e la larghezza attraversa il rullo.
+      const horizH = piece.heightOrientation === "horizontal";
+      const planCrossM = (isRot !== horizH) ? pieceWM : pieceHM;
+      const planAlongM = (isRot !== horizH) ? pieceHM : pieceWM;
       // Nesting interno alla card: più copie dello stesso pezzo possono
       // affiancarsi sulla larghezza del rotolo. Calcoliamo i metri lineari
       // totali del rotolo necessari per TUTTE le copie e poi dividiamo per
@@ -608,8 +611,11 @@ export const computePieceMaterial = (
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && !!catalog.__skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
-      const planCrossM = isRot ? pieceWM : pieceHM;
-      const planAlongM = isRot ? pieceHM : pieceWM;
+      // `heightOrientation: "horizontal"` => l'altezza del pezzo si sviluppa
+      // LUNGO il rotolo e la larghezza attraversa il rullo.
+      const horizH = piece.heightOrientation === "horizontal";
+      const planCrossM = (isRot !== horizH) ? pieceWM : pieceHM;
+      const planAlongM = (isRot !== horizH) ? pieceHM : pieceWM;
       const nested = rollQuantityNestingPlan(
         planCrossM,
         plan.rollWidthM,
@@ -663,8 +669,9 @@ export const computePieceMaterial = (
   const rollOnly =
     variants.length > 0 &&
     variants.every((v) => (v.material.format ?? "rotolo") === "rotolo");
-  const naturalCrossM = rollOnly ? pieceHM : pieceWM;
-  const naturalAlongM = rollOnly ? pieceWM : pieceHM;
+  const heightHorizontal = piece.heightOrientation === "horizontal";
+  const naturalCrossM = rollOnly ? (heightHorizontal ? pieceWM : pieceHM) : pieceWM;
+  const naturalAlongM = rollOnly ? (heightHorizontal ? pieceHM : pieceWM) : pieceHM;
   const natural = planOrientation(variants, naturalCrossM, naturalAlongM, allowSplit, planCostFor);
   // Rotazione consentita se il pezzo lo permette. Anche con più copie identiche
   // la singola copia può essere ruotata: la quantità moltiplica poi il costo.

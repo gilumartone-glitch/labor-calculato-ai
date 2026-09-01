@@ -395,13 +395,18 @@ const explodePieces = (
         panels: number;
       };
 
+      // Se il pezzo è impostato con altezza ORIZZONTALE, l'altezza si sviluppa
+      // lungo il rotolo e la larghezza attraversa il rullo.
+      const heightHorizontal = p.heightOrientation === "horizontal";
+      const natCrossM = heightHorizontal ? w : h;
+      const natAlongM = heightHorizontal ? h : w;
       const orientations: Orientation[] = [
         {
-          // default: l'ALTEZZA del tessuto copre l'altezza del pezzo; se non
-          // basta si affiancano più teli, ognuno sviluppato sulla larghezza.
-          crossM: h,
-          alongM: w,
-          panels: Math.max(1, Math.ceil(h / rollWidthM)),
+          // default: l'ALTEZZA del tessuto copre l'altezza del pezzo (o la
+          // larghezza, se l'altezza è impostata orizzontale).
+          crossM: natCrossM,
+          alongM: natAlongM,
+          panels: Math.max(1, Math.ceil(natCrossM / rollWidthM)),
         },
       ];
 
@@ -409,9 +414,9 @@ const explodePieces = (
         orientations.push({
           // ruotato: scambio i lati, ma le cuciture restano sempre verticali
           // e i teli si affiancano comunque sui lati.
-          crossM: w,
-          alongM: h,
-          panels: Math.max(1, Math.ceil(w / rollWidthM)),
+          crossM: natAlongM,
+          alongM: natCrossM,
+          panels: Math.max(1, Math.ceil(natAlongM / rollWidthM)),
         });
       }
 
@@ -571,8 +576,9 @@ const explodePieces = (
     // pezzo, quindi sull'asse trasversale va h e lo sviluppo lungo il rotolo è w.
     const lockRollOrientation =
       materialFormat === "rotolo" && isRect && !p.allowRotation;
-    const itemW = lockRollOrientation ? h : w;
-    const itemH = lockRollOrientation ? w : h;
+    const lockHeightHorizontal = p.heightOrientation === "horizontal";
+    const itemW = lockRollOrientation ? (lockHeightHorizontal ? w : h) : w;
+    const itemH = lockRollOrientation ? (lockHeightHorizontal ? h : w) : h;
     for (let c = 0; c < qty; c++) {
       items.push({
         pieceId: p.id,

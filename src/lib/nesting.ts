@@ -573,13 +573,17 @@ const explodePieces = (
       }
     }
 
-    // ROTOLI senza rotazione: l'altezza del tessuto deve coprire l'ALTEZZA del
-    // pezzo, quindi sull'asse trasversale va h e lo sviluppo lungo il rotolo è w.
+    // ROTOLI senza rotazione: il packer usa la convenzione `h` = dimensione che
+    // ATTRAVERSA l'altezza del rotolo, `w` = sviluppo lungo il rotolo.
+    // - altezza pezzo ORIZZONTALE (default): l'altezza si sviluppa lungo il
+    //   rotolo → cross = larghezza pezzo, along = altezza pezzo.
+    // - altezza pezzo VERTICALE: cross = altezza pezzo, along = larghezza.
     const lockRollOrientation =
       materialFormat === "rotolo" && isRect && !p.allowRotation;
     const lockHeightHorizontal = p.heightOrientation !== "vertical";
-    const itemW = lockRollOrientation ? (lockHeightHorizontal ? w : h) : w;
-    const itemH = lockRollOrientation ? (lockHeightHorizontal ? h : w) : h;
+    const itemW = lockRollOrientation ? (lockHeightHorizontal ? h : w) : w;
+    const itemH = lockRollOrientation ? (lockHeightHorizontal ? w : h) : h;
+
     for (let c = 0; c < qty; c++) {
       items.push({
         pieceId: p.id,

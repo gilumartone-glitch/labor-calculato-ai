@@ -20,6 +20,7 @@ import {
 } from "@/lib/piece";
 import { TechnicalDrawing, DrawingSide } from "./TechnicalDrawing";
 import { CustomerType, priceMultiplier } from "@/lib/pricing";
+import { resolveHeightOrientation } from "@/lib/piece-catalog";
 
 interface Props {
   index: number;

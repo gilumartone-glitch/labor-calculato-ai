@@ -236,6 +236,14 @@ export const DepartmentView = ({
       // ripartiti come il costo, così in card si vede quanto tessuto consuma
       // davvero il pezzo (non la sola stima teorica per-pezzo).
       const groupMeters = g.format === "rotolo" ? (g.totalLengthM ?? 0) : 0;
+      // Metri lineari per pezzo: NON proporzionali all'area (sbagliato quando
+      // il pezzo occupa da solo una fascia del rotolo), ma calcolati con una
+      // scansione lungo il rotolo: ogni tratto di lunghezza viene ripartito
+      // tra i pezzi realmente presenti in quel tratto, in proporzione alla
+      // larghezza occupata. Un pezzo da solo su 9 m → 9 m.
+      const metersByPiece = groupMeters > 0
+        ? allocateRollMetersByPiece(g.items, groupMeters)
+        : null;
       // Area per pezzo (già con margini, dal nesting) — somma di tutte le copie.
       const areaByPiece = new Map<string, number>();
       for (const it of g.items) {
@@ -252,8 +260,9 @@ export const DepartmentView = ({
         distributedMaterialByPieceId[pid] = {
           total,
           single: total / qty,
-          metersTotal: groupMeters * share,
+          metersTotal: metersByPiece?.get(pid) ?? groupMeters * share,
         };
+
       }
     }
   }

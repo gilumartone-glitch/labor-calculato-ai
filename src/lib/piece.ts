@@ -551,8 +551,11 @@ export const computePieceMaterial = (
     // lo sfrido iniziale e vendiamo il rotolo a metri lineari reali usati.
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && !!catalog.__skipInitialScrap) {
-      const planPieceWM = isRot ? pieceHM : pieceWM;
-      const planPieceHM = isRot ? pieceWM : pieceHM;
+      // Per i rotoli il piano naturale usa H attraverso il rullo e W lungo
+      // il rullo. Queste dimensioni devono restare coerenti con planOrientation:
+      // prima erano invertite, quindi 450×320 veniva valutato come 320×450.
+      const planCrossM = isRot ? pieceWM : pieceHM;
+      const planAlongM = isRot ? pieceHM : pieceWM;
       // Nesting interno alla card: più copie dello stesso pezzo possono
       // affiancarsi sulla larghezza del rotolo. Calcoliamo i metri lineari
       // totali del rotolo necessari per TUTTE le copie e poi dividiamo per
@@ -560,9 +563,9 @@ export const computePieceMaterial = (
       // chiamante moltiplicherà nuovamente × qty).
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
       const nested = rollQuantityNestingPlan(
-        planPieceWM,
+        planCrossM,
         plan.rollWidthM,
-        planPieceHM,
+        planAlongM,
         qty,
       );
       const nestedCost = priceUnit === "ml"
@@ -605,12 +608,12 @@ export const computePieceMaterial = (
     const skipInitialScrap = !!catalog.__skipInitialScrap || noPrintNoScrap;
     if (format === "rotolo" && !!catalog.__skipInitialScrap) {
       const qty = Math.max(1, Math.floor(Number(piece.quantity) || 1));
-      const planPieceWM = isRot ? pieceHM : pieceWM;
-      const planPieceHM = isRot ? pieceWM : pieceHM;
+      const planCrossM = isRot ? pieceWM : pieceHM;
+      const planAlongM = isRot ? pieceHM : pieceWM;
       const nested = rollQuantityNestingPlan(
-        planPieceWM,
+        planCrossM,
         plan.rollWidthM,
-        planPieceHM,
+        planAlongM,
         qty,
       );
       const nestedCost = priceUnit === "ml"

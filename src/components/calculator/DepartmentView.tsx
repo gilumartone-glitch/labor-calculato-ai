@@ -60,7 +60,47 @@ interface DepartmentViewProps {
   activeSubProjectId?: string | null;
 }
 
+/** Ripartisce i metri lineari di un rotolo tra i pezzi: scansione lungo la
+ *  lunghezza, ogni tratto è diviso tra i pezzi presenti in proporzione alla
+ *  larghezza occupata. Un pezzo da solo su un tratto prende tutta la lunghezza. */
+const allocateRollMetersByPiece = (
+  items: { pieceId: string; x: number; y: number; w: number; h: number }[],
+  totalLengthM: number,
+): Map<string, number> => {
+  const out = new Map<string, number>();
+  if (!(totalLengthM > 0) || items.length === 0) return out;
+  const cuts = new Set<number>([0, totalLengthM]);
+  for (const it of items) {
+    cuts.add(Math.max(0, Math.min(totalLengthM, it.y)));
+    cuts.add(Math.max(0, Math.min(totalLengthM, it.y + it.h)));
+  }
+  const xs = [...cuts].sort((a, b) => a - b);
+  let uncovered = 0;
+  for (let i = 0; i < xs.length - 1; i++) {
+    const a = xs[i];
+    const b = xs[i + 1];
+    const seg = b - a;
+    if (seg <= 1e-9) continue;
+    const mid = (a + b) / 2;
+    const present = items.filter((it) => it.y <= mid && it.y + it.h >= mid && it.w > 0);
+    const wSum = present.reduce((s, it) => s + it.w, 0);
+    if (present.length === 0 || wSum <= 0) {
+      uncovered += seg;
+      continue;
+    }
+    for (const it of present) {
+      out.set(it.pieceId, (out.get(it.pieceId) ?? 0) + seg * (it.w / wSum));
+    }
+  }
+  if (uncovered > 1e-9) {
+    const tot = [...out.values()].reduce((s, v) => s + v, 0);
+    if (tot > 0) for (const [k, v] of out) out.set(k, v + uncovered * (v / tot));
+  }
+  return out;
+};
+
 export const DepartmentView = ({
+
   deptKey, deptLabel, description, catalog, setCatalog,
   state, setState, templateUrl, templateName, customerType, labCatalog, labPieces = [],
   subProjects = [], activeSubProjectId = null,
@@ -236,6 +276,14 @@ export const DepartmentView = ({
       // ripartiti come il costo, così in card si vede quanto tessuto consuma
       // davvero il pezzo (non la sola stima teorica per-pezzo).
       const groupMeters = g.format === "rotolo" ? (g.totalLengthM ?? 0) : 0;
+      // Metri lineari per pezzo: NON proporzionali all'area (sbagliato quando
+      // il pezzo occupa da solo una fascia del rotolo), ma calcolati con una
+      // scansione lungo il rotolo: ogni tratto di lunghezza viene ripartito
+      // tra i pezzi realmente presenti in quel tratto, in proporzione alla
+      // larghezza occupata. Un pezzo da solo su 9 m → 9 m.
+      const metersByPiece = groupMeters > 0
+        ? allocateRollMetersByPiece(g.items, groupMeters)
+        : null;
       // Area per pezzo (già con margini, dal nesting) — somma di tutte le copie.
       const areaByPiece = new Map<string, number>();
       for (const it of g.items) {
@@ -252,8 +300,9 @@ export const DepartmentView = ({
         distributedMaterialByPieceId[pid] = {
           total,
           single: total / qty,
-          metersTotal: groupMeters * share,
+          metersTotal: metersByPiece?.get(pid) ?? groupMeters * share,
         };
+
       }
     }
   }

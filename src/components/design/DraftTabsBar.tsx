@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2, Users2 } from "lucide-react";
+import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2, Users2, ChevronDown, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ShareDraftDialog } from "./ShareDraftDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -293,6 +294,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -1001,6 +1004,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
 
   if (!user) return null;
 
+  const activeDraft = drafts.find((d) => d.id === activeId) ?? null;
+  const visibleDrafts = pickerQuery.trim()
+    ? drafts.filter((d) => d.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
+    : drafts;
+
   return (
     <>
       <div className="border-b-2 border-ink/20 bg-paper">
@@ -1012,86 +1020,145 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           ) : (
-            <div className="flex items-center gap-1 flex-wrap max-h-[96px] overflow-y-auto pr-1">
-              {drafts.map((d) => {
-                const isActive = d.id === activeId;
-                const isRenaming = renamingId === d.id;
-                return (
-                  <div
-                    key={d.id}
-                    className={`inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-sm border-2 transition-colors ${
-                      isActive
-                        ? "bg-ink text-paper border-ink"
-                        : "bg-background border-ink/20 text-ink/70 hover:border-ink/50"
-                    }`}
-                  >
-                    {isRenaming ? (
-                      <input
-                        ref={renameInputRef}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={commitRename}
-                        onKeyDown={onRenameKey}
-                        className="bg-transparent border-b border-current text-xs font-semibold px-1 w-32 focus:outline-none"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => switchTo(d.id)}
-                        onDoubleClick={() => startRename(d)}
-                        title="Doppio click per rinominare"
-                        className="text-xs font-semibold px-1"
-                      >
-                        {d.name}
-                      </button>
-                    )}
-                    {!isRenaming && (
-                      <button
-                        type="button"
-                        onClick={() => startRename(d)}
-                        title="Rinomina"
-                        className="w-5 h-5 grid place-items-center opacity-60 hover:opacity-100"
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                    {!isRenaming && d.user_id === user.id && (
-                      <button
-                        type="button"
-                        onClick={() => setShareDraftId(d.id)}
-                        title="Condividi progetto"
-                        className="w-5 h-5 grid place-items-center opacity-60 hover:opacity-100"
-                      >
-                        <Users2 className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                    {!isRenaming && d.user_id !== user.id && (
-                      <span
-                        title="Progetto condiviso con te"
-                        className="w-5 h-5 grid place-items-center opacity-70 text-primary"
-                      >
-                        <Users2 className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => closeDraft(d.id)}
-                      title="Chiudi scheda"
-                      className="w-5 h-5 grid place-items-center opacity-60 hover:opacity-100 hover:text-destructive"
+            <div className="flex items-center gap-2 min-w-0">
+              {/* Scheda attiva */}
+              {activeDraft ? (
+                <div className="inline-flex items-center gap-1 pl-3 pr-1 py-1.5 rounded-sm border-2 border-ink bg-ink text-paper max-w-[46vw] sm:max-w-[320px]">
+                  {renamingId === activeDraft.id ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={onRenameKey}
+                      className="bg-transparent border-b border-current text-sm font-semibold px-1 w-40 focus:outline-none"
+                    />
+                  ) : (
+                    <span
+                      className="text-sm font-bold truncate"
+                      title={activeDraft.name}
+                      onDoubleClick={() => startRename(activeDraft)}
                     >
-                      <X className="w-3 h-3" />
-                    </button>
+                      {activeDraft.name}
+                    </span>
+                  )}
+                  {renamingId !== activeDraft.id && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startRename(activeDraft)}
+                        title="Rinomina"
+                        className="w-6 h-6 grid place-items-center opacity-70 hover:opacity-100"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      {activeDraft.user_id === user.id && (
+                        <button
+                          type="button"
+                          onClick={() => setShareDraftId(activeDraft.id)}
+                          title="Condividi progetto"
+                          className="w-6 h-6 grid place-items-center opacity-70 hover:opacity-100"
+                        >
+                          <Users2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => closeDraft(activeDraft.id)}
+                        title="Chiudi scheda"
+                        className="w-6 h-6 grid place-items-center opacity-70 hover:opacity-100 hover:text-destructive"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">Nessuna scheda aperta</span>
+              )}
+
+              {/* Selettore compatto di tutte le schede */}
+              <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border-2 border-ink/25 rounded-sm text-xs uppercase tracking-wider font-bold text-ink/70 hover:border-ink hover:text-ink transition-colors"
+                    title="Tutte le schede progetto"
+                  >
+                    Schede
+                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-sm bg-ink/10">{drafts.length}</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[min(92vw,420px)] p-2">
+                  <div className="relative mb-2">
+                    <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={pickerQuery}
+                      onChange={(e) => setPickerQuery(e.target.value)}
+                      placeholder="Cerca scheda…"
+                      className="pl-7 h-9 text-sm"
+                    />
                   </div>
-                );
-              })}
+                  <div className="max-h-[300px] overflow-y-auto space-y-1">
+                    {visibleDrafts.length === 0 && (
+                      <div className="text-sm text-muted-foreground px-2 py-3">Nessun risultato</div>
+                    )}
+                    {visibleDrafts.map((d) => (
+                      <div
+                        key={d.id}
+                        className={`group flex items-center gap-1 rounded-sm border-2 px-2 py-1.5 ${
+                          d.id === activeId ? "border-ink bg-ink/5" : "border-transparent hover:bg-muted"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            switchTo(d.id);
+                            setPickerOpen(false);
+                          }}
+                          className="flex-1 min-w-0 text-left text-sm font-semibold truncate"
+                          title={d.name}
+                        >
+                          {d.name}
+                        </button>
+                        {d.user_id !== user.id && (
+                          <span title="Condiviso con te" className="text-primary">
+                            <Users2 className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPickerOpen(false);
+                            startRename(d);
+                          }}
+                          title="Rinomina"
+                          className="w-6 h-6 grid place-items-center opacity-60 hover:opacity-100"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => closeDraft(d.id)}
+                          title="Chiudi scheda"
+                          className="w-6 h-6 grid place-items-center opacity-60 hover:opacity-100 hover:text-destructive"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               <button
                 type="button"
                 onClick={addDraft}
                 title="Nuova scheda"
-                className="inline-flex items-center gap-1 px-2 py-1 border-2 border-dashed border-ink/30 rounded-sm text-[11px] uppercase tracking-wider font-bold text-ink/60 hover:border-primary hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-dashed border-ink/30 rounded-sm text-xs uppercase tracking-wider font-bold text-ink/60 hover:border-primary hover:text-primary transition-colors"
               >
-                <Plus className="w-3 h-3" /> Nuovo
+                <Plus className="w-3.5 h-3.5" /> Nuovo
               </button>
             </div>
           )}

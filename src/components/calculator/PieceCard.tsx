@@ -129,6 +129,9 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
     line.materialFromLab && labCatalog
       ? { ...catalog, materials: labCatalog.materials }
       : catalog;
+  /** Orientamento altezza deciso nel listino (default orizzontale). */
+  const catalogHeightOrientation = resolveHeightOrientation(line, materialCatalog);
+
   const shape: PieceShape = line.shape ?? "rect";
   type StampaSubTab = "stampa" | "taglio" | "perimetrale" | "altre";
   const [stampaTab, setStampaTab] = useState<StampaSubTab>("stampa");

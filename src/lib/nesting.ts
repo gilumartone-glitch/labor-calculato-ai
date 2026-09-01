@@ -398,7 +398,7 @@ const explodePieces = (
 
       // Se il pezzo è impostato con altezza ORIZZONTALE, l'altezza si sviluppa
       // lungo il rotolo e la larghezza attraversa il rullo.
-      const heightHorizontal = p.heightOrientation === "horizontal";
+      const heightHorizontal = p.heightOrientation !== "vertical";
       const natCrossM = heightHorizontal ? w : h;
       const natAlongM = heightHorizontal ? h : w;
       const orientations: Orientation[] = [
@@ -577,7 +577,7 @@ const explodePieces = (
     // pezzo, quindi sull'asse trasversale va h e lo sviluppo lungo il rotolo è w.
     const lockRollOrientation =
       materialFormat === "rotolo" && isRect && !p.allowRotation;
-    const lockHeightHorizontal = p.heightOrientation === "horizontal";
+    const lockHeightHorizontal = p.heightOrientation !== "vertical";
     const itemW = lockRollOrientation ? (lockHeightHorizontal ? w : h) : w;
     const itemH = lockRollOrientation ? (lockHeightHorizontal ? h : w) : h;
     for (let c = 0; c < qty; c++) {
@@ -2088,6 +2088,7 @@ export const buildPieceIndexMap = (pieces: PieceLine[]): Map<string, number> => 
  *  base) — l'obiettivo principale è la PREVIEW visiva. */
 export const recomputeGroupWithMixedBins = (
   baseGroup: NestingGroup,
+  // eslint-disable-next-line prefer-const
   pieces: PieceLine[],
   bins: NestingMixedBin[],
   pieceIndexMap: Map<string, number>,
@@ -2101,6 +2102,7 @@ export const recomputeGroupWithMixedBins = (
   const perimeterM: number = typeof perimeterMOrCatalog === "number"
     ? perimeterMOrCatalog
     : (catalog ? getNestingConfig(catalog).perimeterM : 0);
+  pieces = withCatalogOrientation(pieces, catalog);
   // hemMap con kerf: garantisce spaziatura fresa tra pezzi anche nel path mixed bins,
   // altrimenti il DXF esportato risulta senza spazio tra i pannelli.
   const hemMap = catalog ? buildHemMap(pieces, catalog) : undefined;

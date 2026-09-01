@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2, Users2 } from "lucide-react";
+import { Plus, X, Send, Pencil, Loader2, Check, History, RotateCcw, Trash2, Users2, ChevronDown, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ShareDraftDialog } from "./ShareDraftDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

@@ -463,11 +463,13 @@ const explodePieces = (
             copy: c,
             label: best.panels > 1 ? `${copyLabel}~${s + 1}/${best.panels}` : copyLabel,
             shape: "rect",
-            // X = pannello affiancato nel verso dell'altezza rotolo
-            w: panelCrossM,
-            // Y = sviluppo lungo il rotolo, uguale per tutti i pannelli
-            h: best.alongM,
-            widthBottomM: panelCrossM,
+            // Il roll packer interpreta h come misura trasversale al rotolo
+            // e w come sviluppo. Manteniamo questa convenzione anche per i
+            // pannelli già splittati, così le fasce residue di copie diverse
+            // possono essere accorpate nello stesso telo.
+            w: best.alongM,
+            h: panelCrossM,
+            widthBottomM: best.alongM,
             // L'orientamento è già risolto qui: niente rotazioni successive,
             // così le cuciture restano sempre verticali.
             allowRotation: false,

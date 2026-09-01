@@ -1004,6 +1004,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
 
   if (!user) return null;
 
+  const activeDraft = drafts.find((d) => d.id === activeId) ?? null;
+  const visibleDrafts = pickerQuery.trim()
+    ? drafts.filter((d) => d.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
+    : drafts;
+
   return (
     <>
       <div className="border-b-2 border-ink/20 bg-paper">

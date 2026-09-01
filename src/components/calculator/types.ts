@@ -24,6 +24,11 @@ export type CatalogMaterial = {
   thickness?: string;
   /** Finitura della variante: Opaca, Lucida, Satinata, Specchio, Metallizzata, Spazzolata, ... */
   finish?: string;
+  /** ROTOLI: se true, l'altezza del pezzo deve essere coperta dall'ALTEZZA del
+   *  tessuto (orientamento "verticale"). Se false/assente (default) l'altezza del
+   *  pezzo si sviluppa LUNGO il rotolo (orientamento "orizzontale").
+   *  Si imposta nel listino, per prodotto. */
+  verticalHeight?: boolean;
   /** Unità di prezzo d'acquisto: "mq" (€/m²) o "ml" (€/metro lineare) */
   priceUnit?: "mq" | "ml";
   /** Lastra: base in unità `dimUnit`. */
@@ -233,6 +238,8 @@ export type PieceLine = {
   /** Orientamento dell'ALTEZZA del pezzo sul tessuto quando la rotazione è
    *  disattivata: "vertical" (default) = l'altezza del tessuto copre l'altezza
    *  del pezzo; "horizontal" = l'altezza del pezzo si sviluppa lungo il rotolo. */
+  /** DERIVATO dal listino (CatalogMaterial.verticalHeight) — non impostabile
+   *  dalla progettazione. Mantenuto sul pezzo come valore runtime/snapshot. */
   heightOrientation?: "vertical" | "horizontal";
   /** Se true, il sistema può spezzare il pezzo in più pannelli affiancati
    *  (con cuciture verticali su rotolo, o lastre giuntate). Default false:

@@ -57,6 +57,8 @@ type ProductForm = {
   dimUnit: string;
   /** Unità in cui sono espressi i prezzi d'acquisto: mq o ml */
   priceUnit: "mq" | "ml";
+  /** ROTOLI: se true, l'altezza dei pezzi va coperta dall'altezza del tessuto. */
+  verticalHeight: boolean;
   variants: Variant[];
 };
 
@@ -80,6 +82,7 @@ const emptyForm = (): ProductForm => ({
   format: "rotolo",
   dimUnit: "cm",
   priceUnit: "ml",
+  verticalHeight: false,
   variants: [newVariant()],
 });
 
@@ -166,6 +169,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
       format: fmt,
       dimUnit: first?.dimUnit || first?.heightUnit || "cm",
       priceUnit: (first?.priceUnit as "mq" | "ml") || "ml",
+      verticalHeight: !!first?.verticalHeight,
       variants: g.items.map((m) => ({
         id: m.id,
         color: m.color,
@@ -242,6 +246,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
       thickness: v.thickness.trim(),
       finish: v.finish.trim(),
       priceUnit: form.priceUnit,
+      verticalHeight: form.format === "rotolo" ? form.verticalHeight : false,
       baseWidth: form.format === "lastra" ? v.dim1.trim() : "",
       rollLength: form.format === "rotolo" ? v.dim1.trim() : "",
       dimUnit: form.dimUnit,
@@ -664,6 +669,23 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                 ))}
               </div>
             </div>
+            {form.format === "rotolo" && (
+              <div>
+                <label className="label-cap block mb-1">Altezza pezzo</label>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, verticalHeight: !form.verticalHeight })}
+                  title="Se attivo, l'altezza dei pezzi deve essere coperta dall'altezza del tessuto (verticale). Se disattivo (default), l'altezza si sviluppa lungo il rotolo (orizzontale)."
+                  className={`w-full px-2 py-1.5 border rounded-sm text-[11px] uppercase tracking-wider font-bold transition-colors ${
+                    form.verticalHeight
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-ink/40 text-ink/60 hover:border-ink hover:text-ink"
+                  }`}
+                >
+                  {form.verticalHeight ? "Verticale" : "Orizzontale (default)"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Varianti */}

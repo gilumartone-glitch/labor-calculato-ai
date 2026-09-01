@@ -3,6 +3,7 @@ import { convertLength, DimUnit } from "./perimeter";
 import { materialUnitCost } from "./material-match";
 import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice } from "./piece";
 import { CustomerType } from "./pricing";
+import { withCatalogOrientation } from "@/lib/piece-catalog";
 
 /**
  * Nesting di pezzi su un telo (rullo) di larghezza fissa.
@@ -397,7 +398,7 @@ const explodePieces = (
 
       // Se il pezzo è impostato con altezza ORIZZONTALE, l'altezza si sviluppa
       // lungo il rotolo e la larghezza attraversa il rullo.
-      const heightHorizontal = p.heightOrientation === "horizontal";
+      const heightHorizontal = p.heightOrientation !== "vertical";
       const natCrossM = heightHorizontal ? w : h;
       const natAlongM = heightHorizontal ? h : w;
       const orientations: Orientation[] = [
@@ -576,7 +577,7 @@ const explodePieces = (
     // pezzo, quindi sull'asse trasversale va h e lo sviluppo lungo il rotolo è w.
     const lockRollOrientation =
       materialFormat === "rotolo" && isRect && !p.allowRotation;
-    const lockHeightHorizontal = p.heightOrientation === "horizontal";
+    const lockHeightHorizontal = p.heightOrientation !== "vertical";
     const itemW = lockRollOrientation ? (lockHeightHorizontal ? w : h) : w;
     const itemH = lockRollOrientation ? (lockHeightHorizontal ? h : w) : h;
     for (let c = 0; c < qty; c++) {
@@ -1792,10 +1793,11 @@ const computeMixedLastraGroup = (
 
 /** Raggruppa i pezzi per (productName|color|fireproof) e calcola un nesting per ciascuno. */
 export const computeNesting = (
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   customer?: CustomerType,
 ): NestingGroup[] => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const valid = pieces.filter(
     (p) => p.productName && (p.width || 0) > 0 && (p.height || 0) > 0,
   );
@@ -1958,12 +1960,13 @@ export const computeNesting = (
  */
 export const recomputeGroupWithOverride = (
   baseGroup: NestingGroup,
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   override: NestingFormatOverride,
   pieceIndexMap: Map<string, number>,
   customer?: CustomerType,
 ): NestingGroup => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const sheetW = override.widthM;
   const sheetH = override.heightM;
   if (sheetW <= 0 || sheetH <= 0) return baseGroup;
@@ -2085,6 +2088,7 @@ export const buildPieceIndexMap = (pieces: PieceLine[]): Map<string, number> => 
  *  base) — l'obiettivo principale è la PREVIEW visiva. */
 export const recomputeGroupWithMixedBins = (
   baseGroup: NestingGroup,
+  // eslint-disable-next-line prefer-const
   pieces: PieceLine[],
   bins: NestingMixedBin[],
   pieceIndexMap: Map<string, number>,
@@ -2098,6 +2102,7 @@ export const recomputeGroupWithMixedBins = (
   const perimeterM: number = typeof perimeterMOrCatalog === "number"
     ? perimeterMOrCatalog
     : (catalog ? getNestingConfig(catalog).perimeterM : 0);
+  pieces = withCatalogOrientation(pieces, catalog);
   // hemMap con kerf: garantisce spaziatura fresa tra pezzi anche nel path mixed bins,
   // altrimenti il DXF esportato risulta senza spazio tra i pannelli.
   const hemMap = catalog ? buildHemMap(pieces, catalog) : undefined;
@@ -2376,10 +2381,11 @@ export type NestingDiagnostic = {
 };
 
 export const diagnoseNesting = (
-  pieces: PieceLine[],
+  piecesRaw: PieceLine[],
   catalog: Catalog,
   customer?: CustomerType,
 ): NestingDiagnostic[] => {
+  const pieces = withCatalogOrientation(piecesRaw, catalog);
   const valid = pieces.filter(
     (p) => p.productName && (p.width || 0) > 0 && (p.height || 0) > 0,
   );

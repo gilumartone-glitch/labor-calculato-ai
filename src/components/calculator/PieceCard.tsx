@@ -952,38 +952,19 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <div className="mt-1 font-mono text-[10px] text-muted-foreground">
               {line.allowRotation
                 ? "Il sistema sceglie l'orientamento più economico."
-                : line.heightOrientation === "horizontal"
+                : catalogHeightOrientation === "horizontal"
                   ? "Altezza ORIZZONTALE: l'altezza del pezzo si sviluppa lungo il rotolo, la larghezza attraversa il tessuto."
                   : "Altezza VERTICALE: l'altezza del tessuto deve coprire l'altezza del pezzo. Le cuciture restano sempre verticali."}
             </div>
 
-            <label className="label-cap block mt-3 mb-1">Altezza pezzo</label>
-            <div className="flex border-2 border-ink/40 rounded-sm overflow-hidden">
-              <button
-                type="button"
-                onClick={() => onChange({ ...line, heightOrientation: "vertical" })}
-                className={`flex-1 px-2 py-2 text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                  (line.heightOrientation ?? "vertical") === "vertical"
-                    ? "bg-ink text-paper"
-                    : "text-ink/60 hover:text-ink"
-                }`}
-                title="L'altezza del pezzo è coperta dall'altezza del tessuto (default)"
-              >
-                Verticale
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange({ ...line, heightOrientation: "horizontal" })}
-                className={`flex-1 px-2 py-2 text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                  line.heightOrientation === "horizontal"
-                    ? "bg-ink text-paper"
-                    : "text-ink/60 hover:text-ink"
-                }`}
-                title="L'altezza del pezzo si sviluppa lungo il rotolo: attraverso il tessuto passa la larghezza"
-              >
-                Orizzontale
-              </button>
+            <label className="label-cap block mt-3 mb-1">Altezza pezzo (dal listino)</label>
+            <div className="px-3 py-2 border-2 border-ink/20 rounded-sm bg-muted/40 text-[11px] uppercase tracking-wider font-bold text-ink/70">
+              {catalogHeightOrientation === "vertical" ? "Verticale" : "Orizzontale"}
             </div>
+            <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+              Si imposta nel listino, per prodotto.
+            </div>
+
         </div>
 
         <div className="col-span-6 md:col-span-2">

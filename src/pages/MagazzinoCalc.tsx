@@ -1222,7 +1222,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
             {!selected ? <div className="text-[12px] text-muted-foreground">Seleziona o crea un tappeto nel listino.</div> : (
               <>
                 <div className="flex items-center justify-between gap-3 flex-wrap text-[12px]">
-                  <div>Tappeto: <strong>{selected.name}</strong> · spess. {fmt(selected.thicknessMm)} mm · rotolo {fmt(selected.rollLength)} × {fmt(selected.rollWidth)} m</div>
+                  <div>Tappeto: <strong>{selected.name}</strong> · spess. {fmt(selected.thicknessMm)} mm · rotolo {fmt(selected.rollLength)} × {fmt(selected.rollWidth)} m{(selected.rollLengths ?? []).length > 0 ? ` · pezze disponibili: ${[selected.rollLength, ...(selected.rollLengths ?? [])].map((n) => fmt(n)).join(" / ")} m` : ""}</div>
                   <Button size="sm" variant="outline" className="h-8" onClick={() => setDirection((d) => d === "vertical" ? "horizontal" : "vertical")}><RotateCw className="w-3.5 h-3.5 mr-1" />Ruota teli</Button>
                 </div>
                 {(selected.colors?.length ?? 0) > 0 && <ChipSelector label="Colore" values={selected.colors ?? []} value={chosenColor} onChange={setChosenColor} />}

@@ -962,17 +962,16 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const cutSurcharge = 1.2;
     const cutStep = 5;
     const w = selected.rollWidth;
-    const L = selected.rollLength;
-
-    // Ogni FASCIA richiede `along` metri continui (non spezzabili tra rotoli, salvo along>L).
-    // Da un rotolo intero possiamo ricavare floor(L/along) fasce (se along<=L).
-    const stripsPerRoll = along > 0 && along <= L ? Math.floor(L / along) : 0;
-    const wholePerStripIfBigger = along > L ? Math.ceil(along / L) : 0; // se la fascia non entra in 1 rotolo
+    /** Lunghezze rotolo disponibili per questo prodotto (alcuni articoli sono
+     *  forniti in pezze diverse: es. 20 m oppure 15 m). */
+    const lengths = Array.from(
+      new Set([selected.rollLength, ...(selected.rollLengths ?? [])].map(Number).filter((n) => n > 0)),
+    ).sort((a, c) => a - c);
 
     const ceilToStep = (m: number) => (m > 0 ? Math.ceil(m / cutStep) * cutStep : 0);
 
     type Opt = {
-      key: string; label: string;
+      key: string; label: string; rollLen: number;
       wholeRolls: number; cutMeters: number;
       purchasedM: number; purchasedSqm: number; price: number;
       wholePrice: number; cutPrice: number;
@@ -981,12 +980,12 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const options: Opt[] = [];
     const wholeUnit = unit;
     const cutUnit = unit * cutSurcharge;
-    const makeOpt = (key: string, label: string, wholeRolls: number, cutMeters: number): Opt => {
+    const makeOpt = (L: number, key: string, label: string, wholeRolls: number, cutMeters: number): Opt => {
       const wholePrice = wholeRolls * L * w * wholeUnit;
       const cutPrice = cutMeters * w * cutUnit;
       const purchasedM = wholeRolls * L + cutMeters;
       return {
-        key, label, wholeRolls, cutMeters,
+        key, label, rollLen: L, wholeRolls, cutMeters,
         purchasedM, purchasedSqm: purchasedM * w,
         price: wholePrice + cutPrice,
         wholePrice, cutPrice, wholeUnit, cutUnit,
@@ -995,41 +994,46 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
 
     // Vincolo fisico: un singolo pezzo "al taglio" non può superare la lunghezza
     // del rotolo (L). Una fascia non si può spezzare tra due pezzi.
-    // → cutMeters valido solo se cutMeters <= L E contiene fasce intere
-    //   (cutMeters / along >= numero fasce richieste sul taglio).
-
-    if (along <= L && stripsPerRoll >= 1) {
-      // A) Solo rotoli interi
-      {
-        const wholeRolls = Math.ceil(strips / stripsPerRoll);
-        options.push(makeOpt("whole", `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi`, wholeRolls, 0));
-      }
-      // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
-      {
-        const cutMeters = ceilToStep(strips * along);
-        if (cutMeters > 0 && cutMeters <= L) {
-          options.push(makeOpt("cut", `${fmt(cutMeters)} m al taglio`, 0, cutMeters));
+    let stripsPerRoll = 0;
+    for (const L of lengths) {
+      const suffix = lengths.length > 1 ? ` · pezza ${fmt(L)} m` : "";
+      // Ogni FASCIA richiede `along` metri continui.
+      const spr = along > 0 && along <= L ? Math.floor(L / along) : 0;
+      if (spr > stripsPerRoll) stripsPerRoll = spr;
+      if (along <= L && spr >= 1) {
+        // A) Solo rotoli interi
+        {
+          const wholeRolls = Math.ceil(strips / spr);
+          options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi${suffix}`, wholeRolls, 0));
         }
+        // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
+        {
+          const cutMeters = ceilToStep(strips * along);
+          if (cutMeters > 0 && cutMeters <= L) {
+            options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
+          }
+        }
+        // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
+        const maxWholeRolls = Math.floor(strips / spr);
+        for (let K = 1; K <= maxWholeRolls; K++) {
+          const stripsRemain = strips - K * spr;
+          if (stripsRemain <= 0) continue;
+          const cutMeters = ceilToStep(stripsRemain * along);
+          if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
+          options.push(makeOpt(
+            L,
+            `mix-${L}-${K}`,
+            `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
+            K, cutMeters,
+          ));
+        }
+      } else if (along > L) {
+        // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
+        const wholeRolls = Math.ceil(along / L) * strips;
+        options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotoli interi${suffix}`, wholeRolls, 0));
       }
-      // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
-      const maxWholeRolls = Math.floor(strips / stripsPerRoll);
-      for (let K = 1; K <= maxWholeRolls; K++) {
-        const stripsRemain = strips - K * stripsPerRoll;
-        if (stripsRemain <= 0) continue;
-        const cutMeters = ceilToStep(stripsRemain * along);
-        if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
-        options.push(makeOpt(
-          `mix-${K}`,
-          `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio`,
-          K, cutMeters,
-        ));
-      }
-    } else if (along > L) {
-      // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
-      const perStrip = wholePerStripIfBigger;
-      const wholeRolls = perStrip * strips;
-      options.push(makeOpt("whole", `${wholeRolls} rotoli interi`, wholeRolls, 0));
     }
+
 
     const cheapest = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
     const chosen = chosenOptionKey ? options.find((o) => o.key === chosenOptionKey) ?? cheapest : cheapest;

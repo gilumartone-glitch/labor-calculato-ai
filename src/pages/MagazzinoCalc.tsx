@@ -1109,7 +1109,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const unitPrice = Number(selected.pricePerSqm ?? 0);
     const cutSurcharge = 1.2;
     const w = selected.rollWidth;
-    const L = selected.rollLength;
+    const L = calc.best.rollLen || selected.rollLength;
     const newLines: CartLine[] = [];
     if (calc.best.wholeRolls > 0) {
       // prezzo per rotolo intero = L × w × prezzo/m²

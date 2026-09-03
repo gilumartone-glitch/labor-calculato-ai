@@ -26,6 +26,9 @@ type DanceRoll = {
   thicknessMm: number;
   rollWidth: number;
   rollLength: number;
+  /** Altre lunghezze pezza disponibili per lo stesso articolo (es. 20 e 15 m). */
+  rollLengths?: number[];
+
   colors: string[];
   pricePerSqm?: number;
   note?: string;

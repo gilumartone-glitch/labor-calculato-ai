@@ -26,6 +26,9 @@ type DanceRoll = {
   thicknessMm: number;
   rollWidth: number;
   rollLength: number;
+  /** Altre lunghezze pezza disponibili per lo stesso articolo (es. 20 e 15 m). */
+  rollLengths?: number[];
+
   colors: string[];
   pricePerSqm?: number;
   note?: string;
@@ -114,6 +117,10 @@ const hydrate = (raw: unknown): MagState => {
         thicknessMm: Number(r.thicknessMm ?? 0),
         rollWidth: Number(r.rollWidth ?? 0),
         rollLength: Number(r.rollLength ?? 0),
+        rollLengths: Array.isArray(r.rollLengths)
+          ? r.rollLengths.map((n: any) => Number(n)).filter((n: number) => n > 0)
+          : [],
+
         colors: Array.isArray(r.colors) ? r.colors : (r.color ? [String(r.color)] : []),
         pricePerSqm: r.pricePerSqm != null
           ? Number(r.pricePerSqm)
@@ -962,17 +969,16 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const cutSurcharge = 1.2;
     const cutStep = 5;
     const w = selected.rollWidth;
-    const L = selected.rollLength;
-
-    // Ogni FASCIA richiede `along` metri continui (non spezzabili tra rotoli, salvo along>L).
-    // Da un rotolo intero possiamo ricavare floor(L/along) fasce (se along<=L).
-    const stripsPerRoll = along > 0 && along <= L ? Math.floor(L / along) : 0;
-    const wholePerStripIfBigger = along > L ? Math.ceil(along / L) : 0; // se la fascia non entra in 1 rotolo
+    /** Lunghezze rotolo disponibili per questo prodotto (alcuni articoli sono
+     *  forniti in pezze diverse: es. 20 m oppure 15 m). */
+    const lengths = Array.from(
+      new Set([selected.rollLength, ...(selected.rollLengths ?? [])].map(Number).filter((n) => n > 0)),
+    ).sort((a, c) => a - c);
 
     const ceilToStep = (m: number) => (m > 0 ? Math.ceil(m / cutStep) * cutStep : 0);
 
     type Opt = {
-      key: string; label: string;
+      key: string; label: string; rollLen: number;
       wholeRolls: number; cutMeters: number;
       purchasedM: number; purchasedSqm: number; price: number;
       wholePrice: number; cutPrice: number;
@@ -981,12 +987,12 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const options: Opt[] = [];
     const wholeUnit = unit;
     const cutUnit = unit * cutSurcharge;
-    const makeOpt = (key: string, label: string, wholeRolls: number, cutMeters: number): Opt => {
+    const makeOpt = (L: number, key: string, label: string, wholeRolls: number, cutMeters: number): Opt => {
       const wholePrice = wholeRolls * L * w * wholeUnit;
       const cutPrice = cutMeters * w * cutUnit;
       const purchasedM = wholeRolls * L + cutMeters;
       return {
-        key, label, wholeRolls, cutMeters,
+        key, label, rollLen: L, wholeRolls, cutMeters,
         purchasedM, purchasedSqm: purchasedM * w,
         price: wholePrice + cutPrice,
         wholePrice, cutPrice, wholeUnit, cutUnit,
@@ -995,41 +1001,46 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
 
     // Vincolo fisico: un singolo pezzo "al taglio" non può superare la lunghezza
     // del rotolo (L). Una fascia non si può spezzare tra due pezzi.
-    // → cutMeters valido solo se cutMeters <= L E contiene fasce intere
-    //   (cutMeters / along >= numero fasce richieste sul taglio).
-
-    if (along <= L && stripsPerRoll >= 1) {
-      // A) Solo rotoli interi
-      {
-        const wholeRolls = Math.ceil(strips / stripsPerRoll);
-        options.push(makeOpt("whole", `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi`, wholeRolls, 0));
-      }
-      // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
-      {
-        const cutMeters = ceilToStep(strips * along);
-        if (cutMeters > 0 && cutMeters <= L) {
-          options.push(makeOpt("cut", `${fmt(cutMeters)} m al taglio`, 0, cutMeters));
+    let stripsPerRoll = 0;
+    for (const L of lengths) {
+      const suffix = lengths.length > 1 ? ` · pezza ${fmt(L)} m` : "";
+      // Ogni FASCIA richiede `along` metri continui.
+      const spr = along > 0 && along <= L ? Math.floor(L / along) : 0;
+      if (spr > stripsPerRoll) stripsPerRoll = spr;
+      if (along <= L && spr >= 1) {
+        // A) Solo rotoli interi
+        {
+          const wholeRolls = Math.ceil(strips / spr);
+          options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi${suffix}`, wholeRolls, 0));
         }
+        // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
+        {
+          const cutMeters = ceilToStep(strips * along);
+          if (cutMeters > 0 && cutMeters <= L) {
+            options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
+          }
+        }
+        // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
+        const maxWholeRolls = Math.floor(strips / spr);
+        for (let K = 1; K <= maxWholeRolls; K++) {
+          const stripsRemain = strips - K * spr;
+          if (stripsRemain <= 0) continue;
+          const cutMeters = ceilToStep(stripsRemain * along);
+          if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
+          options.push(makeOpt(
+            L,
+            `mix-${L}-${K}`,
+            `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
+            K, cutMeters,
+          ));
+        }
+      } else if (along > L) {
+        // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
+        const wholeRolls = Math.ceil(along / L) * strips;
+        options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotoli interi${suffix}`, wholeRolls, 0));
       }
-      // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
-      const maxWholeRolls = Math.floor(strips / stripsPerRoll);
-      for (let K = 1; K <= maxWholeRolls; K++) {
-        const stripsRemain = strips - K * stripsPerRoll;
-        if (stripsRemain <= 0) continue;
-        const cutMeters = ceilToStep(stripsRemain * along);
-        if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
-        options.push(makeOpt(
-          `mix-${K}`,
-          `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio`,
-          K, cutMeters,
-        ));
-      }
-    } else if (along > L) {
-      // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
-      const perStrip = wholePerStripIfBigger;
-      const wholeRolls = perStrip * strips;
-      options.push(makeOpt("whole", `${wholeRolls} rotoli interi`, wholeRolls, 0));
     }
+
 
     const cheapest = options.length > 0 ? options.reduce((a, c) => (c.price < a.price ? c : a)) : null;
     const chosen = chosenOptionKey ? options.find((o) => o.key === chosenOptionKey) ?? cheapest : cheapest;
@@ -1098,7 +1109,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const unitPrice = Number(selected.pricePerSqm ?? 0);
     const cutSurcharge = 1.2;
     const w = selected.rollWidth;
-    const L = selected.rollLength;
+    const L = calc.best.rollLen || selected.rollLength;
     const newLines: CartLine[] = [];
     if (calc.best.wholeRolls > 0) {
       // prezzo per rotolo intero = L × w × prezzo/m²
@@ -1211,7 +1222,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
             {!selected ? <div className="text-[12px] text-muted-foreground">Seleziona o crea un tappeto nel listino.</div> : (
               <>
                 <div className="flex items-center justify-between gap-3 flex-wrap text-[12px]">
-                  <div>Tappeto: <strong>{selected.name}</strong> · spess. {fmt(selected.thicknessMm)} mm · rotolo {fmt(selected.rollLength)} × {fmt(selected.rollWidth)} m</div>
+                  <div>Tappeto: <strong>{selected.name}</strong> · spess. {fmt(selected.thicknessMm)} mm · rotolo {fmt(selected.rollLength)} × {fmt(selected.rollWidth)} m{(selected.rollLengths ?? []).length > 0 ? ` · pezze disponibili: ${[selected.rollLength, ...(selected.rollLengths ?? [])].map((n) => fmt(n)).join(" / ")} m` : ""}</div>
                   <Button size="sm" variant="outline" className="h-8" onClick={() => setDirection((d) => d === "vertical" ? "horizontal" : "vertical")}><RotateCw className="w-3.5 h-3.5 mr-1" />Ruota teli</Button>
                 </div>
                 {(selected.colors?.length ?? 0) > 0 && <ChipSelector label="Colore" values={selected.colors ?? []} value={chosenColor} onChange={setChosenColor} />}
@@ -1249,14 +1260,14 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                         <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
                       </div>
                       <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
-                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(calc.best?.rollLen ?? selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
                         <span className="block mt-0.5 italic">Clicca un'opzione per selezionarla manualmente.</span>
                       </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
                           const isSelected = o === calc.best;
                           const isCheapest = o === calc.cheapest;
-                          const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
+                          const wholeSqm = o.wholeRolls * o.rollLen * selected.rollWidth;
                           const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
                             <button
@@ -1276,7 +1287,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                               <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
                                 {o.wholeRolls > 0 && (
                                   <div className="flex items-center justify-between gap-3">
-                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(selected.rollLength)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
+                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(o.rollLen)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
                                     <span className="tabular-nums">{eur(o.wholePrice)}</span>
                                   </div>
                                 )}
@@ -1390,6 +1401,17 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                         <Field label="Spessore (mm)"><Input type="number" step="0.1" value={r.thicknessMm || ""} onChange={(e) => updateRoll(r.id, { thicknessMm: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Altezza rotolo (m)"><Input type="number" step="0.1" value={r.rollWidth || ""} onChange={(e) => updateRoll(r.id, { rollWidth: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <Field label="Lunghezza rotolo (m)"><Input type="number" step="0.1" value={r.rollLength || ""} onChange={(e) => updateRoll(r.id, { rollLength: Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
+                        <Field label="Altre lunghezze pezza (m)">
+                          <Input
+                            value={(r.rollLengths ?? []).join(", ")}
+                            onChange={(e) => updateRoll(r.id, {
+                              rollLengths: e.target.value.split(/[,;\s]+/).map((x) => Number(x.replace(",", "."))).filter((n) => n > 0),
+                            })}
+                            placeholder="es. 20, 15"
+                            className="h-8 text-[12px]"
+                          />
+                        </Field>
+
                         <Field label="Prezzo / m² (€)"><Input type="number" step="0.01" value={r.pricePerSqm ?? ""} onChange={(e) => updateRoll(r.id, { pricePerSqm: e.target.value === "" ? undefined : Number(e.target.value) })} className="h-8 text-[12px]" /></Field>
                         <div className="col-span-full"><ChipsEditor label="Colori disponibili" values={r.colors ?? []} onChange={(colors) => updateRoll(r.id, { colors })} placeholder="es. Nero, Grigio, Rosso" /></div>
                       </div>

@@ -1260,14 +1260,14 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                         <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
                       </div>
                       <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
-                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(calc.best?.rollLen ?? selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
                         <span className="block mt-0.5 italic">Clicca un'opzione per selezionarla manualmente.</span>
                       </div>
                       <div className="divide-y">
                         {calc.options.map((o, i) => {
                           const isSelected = o === calc.best;
                           const isCheapest = o === calc.cheapest;
-                          const wholeSqm = o.wholeRolls * selected.rollLength * selected.rollWidth;
+                          const wholeSqm = o.wholeRolls * o.rollLen * selected.rollWidth;
                           const cutSqm = o.cutMeters * selected.rollWidth;
                           return (
                             <button
@@ -1287,7 +1287,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                               <div className="mt-1.5 pl-1 space-y-0.5 text-[11px] font-mono text-muted-foreground">
                                 {o.wholeRolls > 0 && (
                                   <div className="flex items-center justify-between gap-3">
-                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(selected.rollLength)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
+                                    <span>· {o.wholeRolls} rotolo{o.wholeRolls === 1 ? "" : "i"} intero{o.wholeRolls === 1 ? "" : "i"} mt {fmt(o.rollLen)}×{fmt(selected.rollWidth)} = {fmt(wholeSqm)} m² @ {eur(o.wholeUnit)}/m²</span>
                                     <span className="tabular-nums">{eur(o.wholePrice)}</span>
                                   </div>
                                 )}

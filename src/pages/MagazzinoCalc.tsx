@@ -117,6 +117,10 @@ const hydrate = (raw: unknown): MagState => {
         thicknessMm: Number(r.thicknessMm ?? 0),
         rollWidth: Number(r.rollWidth ?? 0),
         rollLength: Number(r.rollLength ?? 0),
+        rollLengths: Array.isArray(r.rollLengths)
+          ? r.rollLengths.map((n: any) => Number(n)).filter((n: number) => n > 0)
+          : [],
+
         colors: Array.isArray(r.colors) ? r.colors : (r.color ? [String(r.color)] : []),
         pricePerSqm: r.pricePerSqm != null
           ? Number(r.pricePerSqm)

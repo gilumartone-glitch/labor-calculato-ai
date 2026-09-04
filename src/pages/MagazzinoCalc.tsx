@@ -1321,7 +1321,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                       <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
-                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
+                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`teli: ${calc.stripLens.map((s) => fmt(s)).join(" + ")} m`} />
                       <KPI label="Superficie sala" value={`${fmt(calc.surface)} m²`} hint={`sfrido ${fmt(calc.leftover)} m`} />
                       <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint={`taglio +${Math.round((calc.cutSurcharge - 1) * 100)}% (${eur(calc.unitPrice * calc.cutSurcharge)}/m²)`} />
                     </div>

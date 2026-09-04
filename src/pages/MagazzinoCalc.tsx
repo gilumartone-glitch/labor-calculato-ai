@@ -1155,7 +1155,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const tapeOversize = sortedPieces.some((p) => p > tapeRollLen);
 
     return {
-      strips, totalLen, along, rollsNeeded,
+      strips, totalLen, along, rollsNeeded, stripLens, maxStrip,
       leftover: Math.max(0, totalCovered - totalLen),
       surface, bounds: b,
       unitPrice: unit,

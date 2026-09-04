@@ -143,8 +143,16 @@ type AccountingState = {
   };
 };
 
-const STORAGE_KEY = "officina:contabilita-cassa:v22";
-const LOCAL_SAVED_AT_KEY = `${STORAGE_KEY}:saved_at`;
+const BASE_STORAGE_KEY = "officina:contabilita-cassa:v22";
+/** Anno "storico": usa le chiavi originali per non perdere i dati esistenti. */
+const BASE_YEAR = 2026;
+const YEAR_PREF_KEY = "officina:contabilita:anno";
+/** Anno attualmente aperto: le funzioni di persistenza lo usano come default. */
+let ACTIVE_YEAR = BASE_YEAR;
+const setActiveYear = (y: number) => { ACTIVE_YEAR = y; };
+const storageKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? BASE_STORAGE_KEY : `${BASE_STORAGE_KEY}:${year}`;
+const savedAtKeyFor = (year: number = ACTIVE_YEAR) => `${storageKeyFor(year)}:saved_at`;
+const remoteKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? "main" : `main-${year}`;
 const LEGACY_STORAGE_KEYS = ["officina:contabilita-cassa:v21", "officina:contabilita-cassa:v20"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const OPENING_CASH_2025 = 96259.6;

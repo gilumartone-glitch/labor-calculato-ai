@@ -375,7 +375,7 @@ const initialState = (): AccountingState => ({
 
 const defaultProcessedFlags = () => [true, true, true, true, false, false, false, false, false, false, false, false];
 const isCompleteDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-const salaryPayDateFor = (monthIndex: number, day = 28, year = new Date().getFullYear()) =>
+const salaryPayDateFor = (monthIndex: number, day = 28, year = ACTIVE_YEAR) =>
   `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(sanitizePayDay(day)).padStart(2, "0")}`;
 const defaultSalaryPayDates = () => Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i));
 const sanitizePayDay = (n: unknown): number => {

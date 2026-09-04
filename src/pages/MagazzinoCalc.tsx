@@ -322,6 +322,53 @@ const roomBounds = (points: Point[], fW: number, fH: number) => {
   const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
   return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), minX: Math.min(...xs), minY: Math.min(...ys) };
 };
+
+/** Calcolo ANALITICO dei teli: per ogni fascia (banda larga `rollWidth`) misura
+ *  l'estensione reale del poligono della sala lungo il verso del telo, invece di
+ *  usare il "vuoto per pieno" del rettangolo di ingombro. */
+const stripSpans = (points: Point[], direction: "vertical" | "horizontal", rollWidth: number, fW: number, fH: number): number[] => {
+  const b = roomBounds(points, fW, fH);
+  const across = direction === "vertical" ? b.w : b.h;
+  if (!(rollWidth > 0) || !(across > 0)) return [];
+  const n = Math.ceil(across - 1e-9 > 0 ? across / rollWidth : 0);
+  if (points.length < 3) {
+    const along = direction === "vertical" ? b.h : b.w;
+    return Array.from({ length: n }, () => along);
+  }
+  const minAcross = direction === "vertical" ? b.minX : b.minY;
+  // intersezioni della retta (perpendicolare alle fasce) col poligono
+  const crossings = (c: number): number[] => {
+    const out: number[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], d = points[(i + 1) % points.length];
+      const a1 = direction === "vertical" ? a.x : a.y;
+      const d1 = direction === "vertical" ? d.x : d.y;
+      const a2 = direction === "vertical" ? a.y : a.x;
+      const d2 = direction === "vertical" ? d.y : d.x;
+      if (a1 === d1) { if (Math.abs(a1 - c) < 1e-9) { out.push(a2, d2); } continue; }
+      const t = (c - a1) / (d1 - a1);
+      if (t >= -1e-9 && t <= 1 + 1e-9) out.push(a2 + t * (d2 - a2));
+    }
+    return out;
+  };
+  const SAMPLES = 25;
+  const spans: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const c0 = minAcross + i * rollWidth;
+    const c1 = Math.min(minAcross + (i + 1) * rollWidth, minAcross + across);
+    let lo = Infinity, hi = -Infinity;
+    for (let s = 0; s <= SAMPLES; s++) {
+      const c = c0 + ((c1 - c0) * s) / SAMPLES;
+      const cc = Math.min(Math.max(c, c0 + 1e-6), c1 - 1e-6);
+      const xs = crossings(cc);
+      if (xs.length === 0) continue;
+      lo = Math.min(lo, Math.min(...xs));
+      hi = Math.max(hi, Math.max(...xs));
+    }
+    spans.push(hi > lo ? Number((hi - lo).toFixed(3)) : 0);
+  }
+  return spans.filter((v) => v > 0.001);
+};
 const segmentsToPoints = (segs: Segment[]): Point[] => {
   if (segs.length === 0) return [];
   const pts: Point[] = [{ x: 0, y: 0 }];

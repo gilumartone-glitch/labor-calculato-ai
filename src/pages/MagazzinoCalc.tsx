@@ -1008,10 +1008,13 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const b = roomBounds(activePoints, stageW, stageH);
     if (b.w <= 0 || b.h <= 0) return null;
     const surface = customPoints.length >= 3 ? polygonArea(customPoints) : b.w * b.h;
-    const across = direction === "vertical" ? b.w : b.h;
     const along = direction === "vertical" ? b.h : b.w;
-    const strips = Math.ceil(across / selected.rollWidth);
-    const totalLen = strips * along;
+    // Calcolo ANALITICO: lunghezza reale di OGNI telo (no vuoto per pieno)
+    const spans = stripSpans(activePoints, direction, selected.rollWidth, stageW, stageH);
+    const stripLens = spans.length > 0 ? spans : [];
+    const strips = stripLens.length;
+    const totalLen = stripLens.reduce((a, c) => a + c, 0);
+    const maxStrip = strips > 0 ? Math.max(...stripLens) : 0;
     const unit = Number(selected.pricePerSqm ?? 0);
     const cutSurcharge = 1.2;
     const cutStep = 5;

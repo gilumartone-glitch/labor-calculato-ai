@@ -1362,9 +1362,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
               {!isAdmin && canEditHours && <Button size="sm" variant={stipendiSub === "contanti" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>}
               {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
             </div>
-            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} />}
-            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} />}
-            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
+            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} />}
+            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} defaultYear={year} />}
+            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} defaultYear={year} />}
           </div>
         )}
         {tab === "grafici" && (
@@ -3012,10 +3012,10 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
 
 // Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
 // Non mostra totali, bonifici, cassa. Non permette modifiche.
-const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog }) => {
+const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog, defaultYear }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog; defaultYear?: number }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
-  const [year, setYear] = useState<number>(now.getFullYear());
+  const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
 
   useEffect(() => {
@@ -3137,10 +3137,10 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
 
 
 
-const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean }) => {
+const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin, defaultYear }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean; defaultYear?: number }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
-  const [year, setYear] = useState<number>(now.getFullYear());
+  const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [breakdownFor, setBreakdownFor] = useState<ComputedSalary | null>(null);
   const [historyFor, setHistoryFor] = useState<{ name: string; dipendenteId?: string } | null>(null);

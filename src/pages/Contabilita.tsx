@@ -586,7 +586,24 @@ const sortForStableJson = (value: unknown): unknown => {
 
 const serializeAccountingState = (value: AccountingState) => JSON.stringify(sortForStableJson(normalizeState(value)));
 
+const AVAILABLE_YEARS = [2026, 2027];
+
 export default function Contabilita() {
+  const [year, setYear] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(YEAR_PREF_KEY));
+      if (AVAILABLE_YEARS.includes(saved)) return saved;
+    } catch { /* ignore */ }
+    return BASE_YEAR;
+  });
+  useEffect(() => { try { localStorage.setItem(YEAR_PREF_KEY, String(year)); } catch { /* ignore */ } }, [year]);
+  // Deve essere impostato prima del render del contenuto: le funzioni di
+  // persistenza leggono l'anno attivo a livello di modulo.
+  setActiveYear(year);
+  return <ContabilitaYear key={year} year={year} onYearChange={setYear} />;
+}
+
+function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (y: number) => void }) {
   const { isAdmin, isAmministrazione } = usePermissions();
   const canEditHours = isAdmin || isAmministrazione;
   const [state, setState] = useState<AccountingState>(() => loadStoredState());

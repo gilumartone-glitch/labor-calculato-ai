@@ -143,8 +143,16 @@ type AccountingState = {
   };
 };
 
-const STORAGE_KEY = "officina:contabilita-cassa:v22";
-const LOCAL_SAVED_AT_KEY = `${STORAGE_KEY}:saved_at`;
+const BASE_STORAGE_KEY = "officina:contabilita-cassa:v22";
+/** Anno "storico": usa le chiavi originali per non perdere i dati esistenti. */
+const BASE_YEAR = 2026;
+const YEAR_PREF_KEY = "officina:contabilita:anno";
+/** Anno attualmente aperto: le funzioni di persistenza lo usano come default. */
+let ACTIVE_YEAR = BASE_YEAR;
+const setActiveYear = (y: number) => { ACTIVE_YEAR = y; };
+const storageKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? BASE_STORAGE_KEY : `${BASE_STORAGE_KEY}:${year}`;
+const savedAtKeyFor = (year: number = ACTIVE_YEAR) => `${storageKeyFor(year)}:saved_at`;
+const remoteKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? "main" : `main-${year}`;
 const LEGACY_STORAGE_KEYS = ["officina:contabilita-cassa:v21", "officina:contabilita-cassa:v20"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const OPENING_CASH_2025 = 96259.6;
@@ -367,7 +375,7 @@ const initialState = (): AccountingState => ({
 
 const defaultProcessedFlags = () => [true, true, true, true, false, false, false, false, false, false, false, false];
 const isCompleteDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-const salaryPayDateFor = (monthIndex: number, day = 28, year = new Date().getFullYear()) =>
+const salaryPayDateFor = (monthIndex: number, day = 28, year = ACTIVE_YEAR) =>
   `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(sanitizePayDay(day)).padStart(2, "0")}`;
 const defaultSalaryPayDates = () => Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i));
 const sanitizePayDay = (n: unknown): number => {
@@ -446,13 +454,73 @@ const normalizeState = (saved: Partial<AccountingState>): AccountingState => {
   };
 };
 
-const loadStoredState = (): AccountingState => {
+/** Stato di partenza per un anno nuovo: nessun seed, solo riporti dall'anno precedente. */
+const carryOverStateFromPreviousYear = (year: number): AccountingState => {
+  const empty: AccountingState = normalizeState({
+    openingCash: 0,
+    movements: [],
+    fixedExpenses: [],
+    salaries: [],
+    salariesProcessed: Array.from({ length: 12 }, () => false),
+    salaryPayDates: Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i, 28, year)),
+    hoursLog: {},
+  });
+  let prev: AccountingState | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKeyFor(year - 1));
+    if (raw) prev = normalizeState(JSON.parse(raw) as Partial<AccountingState>);
+  } catch { /* nessun anno precedente leggibile */ }
+  if (!prev) return empty;
+
+  const acconto = (m: CashMovement) => Math.max(0, Math.min(Number(m.acconto || 0), m.amount));
+  // Cassa finale dell'anno precedente = apertura + incassato - pagato (compresi stipendi in cassa).
+  let cash = prev.openingCash;
+  for (const m of prev.movements) {
+    const paid = m.status === "cassa" ? m.amount : acconto(m);
+    cash += m.type === "entrata" ? paid : -paid;
+  }
+  const processed = prev.salariesProcessed ?? [];
+  for (const s of prev.salaries ?? []) {
+    if (processed[s.month]) cash -= (s.cassaBanca || 0) + (s.cassaContanti || 0);
+  }
+
+  // Residui: tutto ciò che era ancora in competenza viene riportato a gennaio del nuovo anno.
+  const residui: CashMovement[] = prev.movements
+    .filter((m) => m.status === "previsto" && !m.id.startsWith("__"))
+    .map((m, i) => {
+      const day = (m.date || "").slice(8, 10) || "15";
+      const monthIdx = Number((m.date || "").slice(5, 7)) - 1;
+      const label = MONTHS[monthIdx] ? ` (residuo ${MONTHS[monthIdx]} ${year - 1})` : ` (residuo ${year - 1})`;
+      return normalizeMovement({
+        ...m,
+        id: `carry-${year}-${i}-${m.id}`,
+        date: `${year}-01-${day}`,
+        description: `${m.description}${label}`,
+        amount: Math.max(0, m.amount - acconto(m)),
+        acconto: 0,
+      });
+    })
+    .filter((m) => m.amount > 0);
+
+  return normalizeState({
+    ...empty,
+    openingCash: Math.round(cash * 100) / 100,
+    movements: residui,
+    fixedExpenses: (prev.fixedExpenses ?? []).map((e) => ({ ...e })),
+    salaryRates: prev.salaryRates ?? [],
+    contacts: prev.contacts ?? [],
+    goals: prev.goals,
+  });
+};
+
+const loadStoredState = (year: number = ACTIVE_YEAR): AccountingState => {
+  try {
+    const raw = localStorage.getItem(storageKeyFor(year));
     if (raw) return normalizeState(JSON.parse(raw) as Partial<AccountingState>);
   } catch {
     // continua sui dati legacy o seed sotto
   }
+  if (year !== BASE_YEAR) return carryOverStateFromPreviousYear(year);
   for (const key of LEGACY_STORAGE_KEYS) {
     try {
       const raw = localStorage.getItem(key);
@@ -473,14 +541,14 @@ const loadStoredState = (): AccountingState => {
 
 const writeLocalState = (next: AccountingState, savedAt = Date.now()) => {
   const serialized = JSON.stringify(next);
-  localStorage.setItem(STORAGE_KEY, serialized);
-  localStorage.setItem(LOCAL_SAVED_AT_KEY, String(savedAt));
+  localStorage.setItem(storageKeyFor(), serialized);
+  localStorage.setItem(savedAtKeyFor(), String(savedAt));
   return serialized;
 };
 
 const readLocalSavedAt = () => {
   try {
-    const n = Number(localStorage.getItem(LOCAL_SAVED_AT_KEY) || 0);
+    const n = Number(localStorage.getItem(savedAtKeyFor()) || 0);
     return Number.isFinite(n) ? n : 0;
   } catch {
     return 0;
@@ -492,7 +560,7 @@ const persistState = (next: AccountingState, notify = false) => {
     writeLocalState(next);
   } catch {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKeyFor());
       writeLocalState(next);
     } catch {
       if (notify) toast.error("Salvataggio non riuscito");
@@ -518,7 +586,24 @@ const sortForStableJson = (value: unknown): unknown => {
 
 const serializeAccountingState = (value: AccountingState) => JSON.stringify(sortForStableJson(normalizeState(value)));
 
+const AVAILABLE_YEARS = [2026, 2027];
+
 export default function Contabilita() {
+  const [year, setYear] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(YEAR_PREF_KEY));
+      if (AVAILABLE_YEARS.includes(saved)) return saved;
+    } catch { /* ignore */ }
+    return BASE_YEAR;
+  });
+  useEffect(() => { try { localStorage.setItem(YEAR_PREF_KEY, String(year)); } catch { /* ignore */ } }, [year]);
+  // Deve essere impostato prima del render del contenuto: le funzioni di
+  // persistenza leggono l'anno attivo a livello di modulo.
+  setActiveYear(year);
+  return <ContabilitaYear key={year} year={year} onYearChange={setYear} />;
+}
+
+function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (y: number) => void }) {
   const { isAdmin, isAmministrazione } = usePermissions();
   const canEditHours = isAdmin || isAmministrazione;
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
@@ -564,7 +649,7 @@ export default function Contabilita() {
   const [wizardOpen, setWizardOpen] = useState(false);
 
   // ===== Sync realtime con Supabase (chiave 'main') =====
-  const REMOTE_KEY = "main";
+  const REMOTE_KEY = remoteKeyFor(year);
   const REMOTE_SAVE_DEBOUNCE_MS = 500;
   const lastRemoteRef = useRef<string>("");
   const remoteLoadedRef = useRef(false);
@@ -1234,7 +1319,12 @@ export default function Contabilita() {
         <div className="w-full px-3 md:px-6 flex flex-wrap items-center justify-between gap-3 py-3 md:py-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="grid h-10 w-10 place-items-center rounded-sm bg-dept text-dept-foreground"><Landmark className="h-5 w-5" /></div>
-            <div className="min-w-0"><h1 className="font-display text-lg md:text-2xl font-semibold leading-tight truncate">Contabilità</h1><p className="hidden md:block text-xs uppercase tracking-[0.2em] text-muted-foreground">Entrate, uscite, scadenze, fissi e previsionale</p></div>
+            <div className="min-w-0"><h1 className="font-display text-lg md:text-2xl font-semibold leading-tight truncate">Contabilità {year}</h1><p className="hidden md:block text-xs uppercase tracking-[0.2em] text-muted-foreground">Entrate, uscite, scadenze, fissi e previsionale</p></div>
+            <div className="flex items-center gap-1 rounded-md border-2 border-dept bg-paper p-1">
+              {AVAILABLE_YEARS.map((y) => (
+                <Button key={y} size="sm" variant={y === year ? "default" : "ghost"} className="h-8 px-3 text-sm font-semibold" onClick={() => onYearChange(y)}>{y}</Button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 items-center"><AdminUsersLink variant="outline" /><Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title={history.length === 0 ? "Niente da annullare" : `Annulla (${history.length})`}><Undo2 className="h-4 w-4" /><span className="hidden sm:inline">Annulla{history.length > 0 ? ` (${history.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={redo} disabled={future.length === 0} title={future.length === 0 ? "Niente da rifare" : `Avanti (${future.length})`}><Redo2 className="h-4 w-4" /><span className="hidden sm:inline">Avanti{future.length > 0 ? ` (${future.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={() => setSnapshotsOpen(true)} title="Versioni precedenti (ripristino)"><History className="h-4 w-4" /><span className="hidden sm:inline">Versioni</span></Button><div className={`flex items-center gap-1.5 text-xs ${saveStatus === "error" ? "text-destructive" : "text-muted-foreground"}`} title="Salvataggio automatico in tempo reale">{saveStatus === "saving" ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Salvataggio…</span></>) : saveStatus === "error" ? (<><X className="h-3.5 w-3.5" /><span className="hidden sm:inline">Non salvato</span></>) : (<><Check className="h-3.5 w-3.5 text-green-600" /><span className="hidden sm:inline">Salvato</span></>)}</div></div>
         </div>
@@ -1272,9 +1362,9 @@ export default function Contabilita() {
               {!isAdmin && canEditHours && <Button size="sm" variant={stipendiSub === "contanti" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>}
               {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
             </div>
-            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} />}
-            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} />}
-            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} />}
+            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} />}
+            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} defaultYear={year} />}
+            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} defaultYear={year} />}
           </div>
         )}
         {tab === "grafici" && (
@@ -2922,10 +3012,10 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
 
 // Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
 // Non mostra totali, bonifici, cassa. Non permette modifiche.
-const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog }) => {
+const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog, defaultYear }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog; defaultYear?: number }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
-  const [year, setYear] = useState<number>(now.getFullYear());
+  const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
 
   useEffect(() => {
@@ -3047,10 +3137,10 @@ const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog }: { sal
 
 
 
-const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean }) => {
+const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin, defaultYear }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean; defaultYear?: number }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
-  const [year, setYear] = useState<number>(now.getFullYear());
+  const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [breakdownFor, setBreakdownFor] = useState<ComputedSalary | null>(null);
   const [historyFor, setHistoryFor] = useState<{ name: string; dipendenteId?: string } | null>(null);

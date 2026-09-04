@@ -96,11 +96,12 @@ type Props = {
   hoursLog: HoursLog;
   setHoursLog: (next: HoursLog) => void;
   canEdit: boolean;
+  defaultYear?: number;
 };
 
-export const HoursLogView = ({ hoursLog, setHoursLog, canEdit }: Props) => {
+export const HoursLogView = ({ hoursLog, setHoursLog, canEdit, defaultYear }: Props) => {
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
+  const [year, setYear] = useState(defaultYear ?? now.getFullYear());
   const [activeMonth, setActiveMonth] = useState<number>(now.getMonth());
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [statsFor, setStatsFor] = useState<{ name: string; dipendenteId?: string } | null>(null);

@@ -1051,43 +1051,63 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
 
     // Vincolo fisico: un singolo pezzo "al taglio" non può superare la lunghezza
     // del rotolo (L). Una fascia non si può spezzare tra due pezzi.
+    // Ogni fascia ha la sua lunghezza REALE (stripLens) → bin packing FFD.
+    const sortedStrips = [...stripLens].sort((a, c) => c - a);
+    const packRolls = (lens: number[], L: number): number => {
+      const bins: number[] = [];
+      for (const len of lens) {
+        if (len > L) { bins.push(0); continue; } // fascia più lunga del rotolo
+        let placed = false;
+        for (let i = 0; i < bins.length; i++) { if (bins[i] >= len - 1e-9) { bins[i] -= len; placed = true; break; } }
+        if (!placed) bins.push(L - len);
+      }
+      return bins.length;
+    };
     let stripsPerRoll = 0;
     for (const L of lengths) {
       const suffix = lengths.length > 1 ? ` · pezza ${fmt(L)} m` : "";
-      // Ogni FASCIA richiede `along` metri continui.
-      const spr = along > 0 && along <= L ? Math.floor(L / along) : 0;
+      const spr = maxStrip > 0 && maxStrip <= L ? Math.floor(L / maxStrip) : 0;
       if (spr > stripsPerRoll) stripsPerRoll = spr;
-      if (along <= L && spr >= 1) {
-        // A) Solo rotoli interi
-        {
-          const wholeRolls = Math.ceil(strips / spr);
-          options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi${suffix}`, wholeRolls, 0));
-        }
-        // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
-        {
-          const cutMeters = ceilToStep(strips * along);
-          if (cutMeters > 0 && cutMeters <= L) {
-            options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
-          }
-        }
-        // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
-        const maxWholeRolls = Math.floor(strips / spr);
-        for (let K = 1; K <= maxWholeRolls; K++) {
-          const stripsRemain = strips - K * spr;
-          if (stripsRemain <= 0) continue;
-          const cutMeters = ceilToStep(stripsRemain * along);
-          if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
-          options.push(makeOpt(
-            L,
-            `mix-${L}-${K}`,
-            `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
-            K, cutMeters,
-          ));
-        }
-      } else if (along > L) {
-        // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
-        const wholeRolls = Math.ceil(along / L) * strips;
+      if (strips === 0) continue;
+      const oversize = sortedStrips.filter((s) => s > L);
+      if (oversize.length > 0) {
+        // Almeno una fascia supera la pezza: serve più di un rotolo per fascia
+        const wholeRolls = oversize.reduce((a, s) => a + Math.ceil(s / L), 0) + packRolls(sortedStrips.filter((s) => s <= L), L);
         options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotoli interi${suffix}`, wholeRolls, 0));
+        continue;
+      }
+      // A) Solo rotoli interi (packing reale delle fasce)
+      {
+        const wholeRolls = packRolls(sortedStrips, L);
+        options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} inter${wholeRolls === 1 ? "o" : "i"}${suffix}`, wholeRolls, 0));
+      }
+      // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
+      {
+        const cutMeters = ceilToStep(totalLen);
+        if (cutMeters > 0 && cutMeters <= L) {
+          options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
+        }
+      }
+      // C) Mix: K rotoli interi (fasce più lunghe) + 1 pezzo al taglio per il resto
+      const maxWholeRolls = packRolls(sortedStrips, L);
+      for (let K = 1; K < maxWholeRolls; K++) {
+        // riempi K rotoli con le fasce più lunghe possibili
+        const bins: number[] = Array.from({ length: K }, () => L);
+        const remain: number[] = [];
+        for (const len of sortedStrips) {
+          let placed = false;
+          for (let i = 0; i < K; i++) { if (bins[i] >= len - 1e-9) { bins[i] -= len; placed = true; break; } }
+          if (!placed) remain.push(len);
+        }
+        if (remain.length === 0) continue;
+        const cutMeters = ceilToStep(remain.reduce((a, c) => a + c, 0));
+        if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
+        options.push(makeOpt(
+          L,
+          `mix-${L}-${K}`,
+          `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
+          K, cutMeters,
+        ));
       }
     }
 

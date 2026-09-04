@@ -1126,13 +1126,15 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     });
     const perimeter = sideLengths.reduce((a, b) => a + b, 0);
     const junctionCount = Math.max(0, strips - 1);
-    const tapeJunctions = junctionCount * along;
+    // Ogni giunzione è lunga quanto la sovrapposizione reale delle due fasce adiacenti
+    const junctionLens: number[] = Array.from({ length: junctionCount }, (_, i) => Math.min(stripLens[i], stripLens[i + 1]));
+    const tapeJunctions = junctionLens.reduce((a, c) => a + c, 0);
     const tapeMeters = perimeter + tapeJunctions;
     const tapeRollLen = tapeType === "danza" ? 33 : 25;
-    // Pezzi da tagliare: lati + giunzioni (ognuna lunga `along`)
+    // Pezzi da tagliare: lati + giunzioni (lunghezza reale di ciascuna)
     const tapePieces: number[] = [
       ...sideLengths.filter((s) => s > 0),
-      ...Array(junctionCount).fill(along),
+      ...junctionLens.filter((s) => s > 0),
     ];
     // First-Fit Decreasing bin packing nei rotoli
     const sortedPieces = [...tapePieces].sort((a, b) => b - a);

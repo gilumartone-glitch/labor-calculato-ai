@@ -454,13 +454,73 @@ const normalizeState = (saved: Partial<AccountingState>): AccountingState => {
   };
 };
 
-const loadStoredState = (): AccountingState => {
+/** Stato di partenza per un anno nuovo: nessun seed, solo riporti dall'anno precedente. */
+const carryOverStateFromPreviousYear = (year: number): AccountingState => {
+  const empty: AccountingState = normalizeState({
+    openingCash: 0,
+    movements: [],
+    fixedExpenses: [],
+    salaries: [],
+    salariesProcessed: Array.from({ length: 12 }, () => false),
+    salaryPayDates: Array.from({ length: 12 }, (_, i) => salaryPayDateFor(i, 28, year)),
+    hoursLog: {},
+  });
+  let prev: AccountingState | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKeyFor(year - 1));
+    if (raw) prev = normalizeState(JSON.parse(raw) as Partial<AccountingState>);
+  } catch { /* nessun anno precedente leggibile */ }
+  if (!prev) return empty;
+
+  const acconto = (m: CashMovement) => Math.max(0, Math.min(Number(m.acconto || 0), m.amount));
+  // Cassa finale dell'anno precedente = apertura + incassato - pagato (compresi stipendi in cassa).
+  let cash = prev.openingCash;
+  for (const m of prev.movements) {
+    const paid = m.status === "cassa" ? m.amount : acconto(m);
+    cash += m.type === "entrata" ? paid : -paid;
+  }
+  const processed = prev.salariesProcessed ?? [];
+  for (const s of prev.salaries ?? []) {
+    if (processed[s.month]) cash -= (s.cassaBanca || 0) + (s.cassaContanti || 0);
+  }
+
+  // Residui: tutto ciò che era ancora in competenza viene riportato a gennaio del nuovo anno.
+  const residui: CashMovement[] = prev.movements
+    .filter((m) => m.status === "previsto" && !m.id.startsWith("__"))
+    .map((m, i) => {
+      const day = (m.date || "").slice(8, 10) || "15";
+      const monthIdx = Number((m.date || "").slice(5, 7)) - 1;
+      const label = MONTHS[monthIdx] ? ` (residuo ${MONTHS[monthIdx]} ${year - 1})` : ` (residuo ${year - 1})`;
+      return normalizeMovement({
+        ...m,
+        id: `carry-${year}-${i}-${m.id}`,
+        date: `${year}-01-${day}`,
+        description: `${m.description}${label}`,
+        amount: Math.max(0, m.amount - acconto(m)),
+        acconto: 0,
+      });
+    })
+    .filter((m) => m.amount > 0);
+
+  return normalizeState({
+    ...empty,
+    openingCash: Math.round(cash * 100) / 100,
+    movements: residui,
+    fixedExpenses: (prev.fixedExpenses ?? []).map((e) => ({ ...e })),
+    salaryRates: prev.salaryRates ?? [],
+    contacts: prev.contacts ?? [],
+    goals: prev.goals,
+  });
+};
+
+const loadStoredState = (year: number = ACTIVE_YEAR): AccountingState => {
+  try {
+    const raw = localStorage.getItem(storageKeyFor(year));
     if (raw) return normalizeState(JSON.parse(raw) as Partial<AccountingState>);
   } catch {
     // continua sui dati legacy o seed sotto
   }
+  if (year !== BASE_YEAR) return carryOverStateFromPreviousYear(year);
   for (const key of LEGACY_STORAGE_KEYS) {
     try {
       const raw = localStorage.getItem(key);
@@ -481,14 +541,14 @@ const loadStoredState = (): AccountingState => {
 
 const writeLocalState = (next: AccountingState, savedAt = Date.now()) => {
   const serialized = JSON.stringify(next);
-  localStorage.setItem(STORAGE_KEY, serialized);
-  localStorage.setItem(LOCAL_SAVED_AT_KEY, String(savedAt));
+  localStorage.setItem(storageKeyFor(), serialized);
+  localStorage.setItem(savedAtKeyFor(), String(savedAt));
   return serialized;
 };
 
 const readLocalSavedAt = () => {
   try {
-    const n = Number(localStorage.getItem(LOCAL_SAVED_AT_KEY) || 0);
+    const n = Number(localStorage.getItem(savedAtKeyFor()) || 0);
     return Number.isFinite(n) ? n : 0;
   } catch {
     return 0;
@@ -500,7 +560,7 @@ const persistState = (next: AccountingState, notify = false) => {
     writeLocalState(next);
   } catch {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKeyFor());
       writeLocalState(next);
     } catch {
       if (notify) toast.error("Salvataggio non riuscito");

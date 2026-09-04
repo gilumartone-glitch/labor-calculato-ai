@@ -322,6 +322,53 @@ const roomBounds = (points: Point[], fW: number, fH: number) => {
   const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
   return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), minX: Math.min(...xs), minY: Math.min(...ys) };
 };
+
+/** Calcolo ANALITICO dei teli: per ogni fascia (banda larga `rollWidth`) misura
+ *  l'estensione reale del poligono della sala lungo il verso del telo, invece di
+ *  usare il "vuoto per pieno" del rettangolo di ingombro. */
+const stripSpans = (points: Point[], direction: "vertical" | "horizontal", rollWidth: number, fW: number, fH: number): number[] => {
+  const b = roomBounds(points, fW, fH);
+  const across = direction === "vertical" ? b.w : b.h;
+  if (!(rollWidth > 0) || !(across > 0)) return [];
+  const n = Math.ceil(across - 1e-9 > 0 ? across / rollWidth : 0);
+  if (points.length < 3) {
+    const along = direction === "vertical" ? b.h : b.w;
+    return Array.from({ length: n }, () => along);
+  }
+  const minAcross = direction === "vertical" ? b.minX : b.minY;
+  // intersezioni della retta (perpendicolare alle fasce) col poligono
+  const crossings = (c: number): number[] => {
+    const out: number[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], d = points[(i + 1) % points.length];
+      const a1 = direction === "vertical" ? a.x : a.y;
+      const d1 = direction === "vertical" ? d.x : d.y;
+      const a2 = direction === "vertical" ? a.y : a.x;
+      const d2 = direction === "vertical" ? d.y : d.x;
+      if (a1 === d1) { if (Math.abs(a1 - c) < 1e-9) { out.push(a2, d2); } continue; }
+      const t = (c - a1) / (d1 - a1);
+      if (t >= -1e-9 && t <= 1 + 1e-9) out.push(a2 + t * (d2 - a2));
+    }
+    return out;
+  };
+  const SAMPLES = 25;
+  const spans: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const c0 = minAcross + i * rollWidth;
+    const c1 = Math.min(minAcross + (i + 1) * rollWidth, minAcross + across);
+    let lo = Infinity, hi = -Infinity;
+    for (let s = 0; s <= SAMPLES; s++) {
+      const c = c0 + ((c1 - c0) * s) / SAMPLES;
+      const cc = Math.min(Math.max(c, c0 + 1e-6), c1 - 1e-6);
+      const xs = crossings(cc);
+      if (xs.length === 0) continue;
+      lo = Math.min(lo, Math.min(...xs));
+      hi = Math.max(hi, Math.max(...xs));
+    }
+    spans.push(hi > lo ? Number((hi - lo).toFixed(3)) : 0);
+  }
+  return spans.filter((v) => v > 0.001);
+};
 const segmentsToPoints = (segs: Segment[]): Point[] => {
   if (segs.length === 0) return [];
   const pts: Point[] = [{ x: 0, y: 0 }];
@@ -961,10 +1008,13 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const b = roomBounds(activePoints, stageW, stageH);
     if (b.w <= 0 || b.h <= 0) return null;
     const surface = customPoints.length >= 3 ? polygonArea(customPoints) : b.w * b.h;
-    const across = direction === "vertical" ? b.w : b.h;
     const along = direction === "vertical" ? b.h : b.w;
-    const strips = Math.ceil(across / selected.rollWidth);
-    const totalLen = strips * along;
+    // Calcolo ANALITICO: lunghezza reale di OGNI telo (no vuoto per pieno)
+    const spans = stripSpans(activePoints, direction, selected.rollWidth, stageW, stageH);
+    const stripLens = spans.length > 0 ? spans : [];
+    const strips = stripLens.length;
+    const totalLen = stripLens.reduce((a, c) => a + c, 0);
+    const maxStrip = strips > 0 ? Math.max(...stripLens) : 0;
     const unit = Number(selected.pricePerSqm ?? 0);
     const cutSurcharge = 1.2;
     const cutStep = 5;
@@ -1001,43 +1051,63 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
 
     // Vincolo fisico: un singolo pezzo "al taglio" non può superare la lunghezza
     // del rotolo (L). Una fascia non si può spezzare tra due pezzi.
+    // Ogni fascia ha la sua lunghezza REALE (stripLens) → bin packing FFD.
+    const sortedStrips = [...stripLens].sort((a, c) => c - a);
+    const packRolls = (lens: number[], L: number): number => {
+      const bins: number[] = [];
+      for (const len of lens) {
+        if (len > L) { bins.push(0); continue; } // fascia più lunga del rotolo
+        let placed = false;
+        for (let i = 0; i < bins.length; i++) { if (bins[i] >= len - 1e-9) { bins[i] -= len; placed = true; break; } }
+        if (!placed) bins.push(L - len);
+      }
+      return bins.length;
+    };
     let stripsPerRoll = 0;
     for (const L of lengths) {
       const suffix = lengths.length > 1 ? ` · pezza ${fmt(L)} m` : "";
-      // Ogni FASCIA richiede `along` metri continui.
-      const spr = along > 0 && along <= L ? Math.floor(L / along) : 0;
+      const spr = maxStrip > 0 && maxStrip <= L ? Math.floor(L / maxStrip) : 0;
       if (spr > stripsPerRoll) stripsPerRoll = spr;
-      if (along <= L && spr >= 1) {
-        // A) Solo rotoli interi
-        {
-          const wholeRolls = Math.ceil(strips / spr);
-          options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} interi${suffix}`, wholeRolls, 0));
-        }
-        // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
-        {
-          const cutMeters = ceilToStep(strips * along);
-          if (cutMeters > 0 && cutMeters <= L) {
-            options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
-          }
-        }
-        // C) Mix: K rotoli interi + 1 pezzo al taglio per le fasce restanti (≤ L)
-        const maxWholeRolls = Math.floor(strips / spr);
-        for (let K = 1; K <= maxWholeRolls; K++) {
-          const stripsRemain = strips - K * spr;
-          if (stripsRemain <= 0) continue;
-          const cutMeters = ceilToStep(stripsRemain * along);
-          if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
-          options.push(makeOpt(
-            L,
-            `mix-${L}-${K}`,
-            `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
-            K, cutMeters,
-          ));
-        }
-      } else if (along > L) {
-        // Fascia più lunga del rotolo: ogni fascia richiede ceil(along/L) rotoli
-        const wholeRolls = Math.ceil(along / L) * strips;
+      if (strips === 0) continue;
+      const oversize = sortedStrips.filter((s) => s > L);
+      if (oversize.length > 0) {
+        // Almeno una fascia supera la pezza: serve più di un rotolo per fascia
+        const wholeRolls = oversize.reduce((a, s) => a + Math.ceil(s / L), 0) + packRolls(sortedStrips.filter((s) => s <= L), L);
         options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotoli interi${suffix}`, wholeRolls, 0));
+        continue;
+      }
+      // A) Solo rotoli interi (packing reale delle fasce)
+      {
+        const wholeRolls = packRolls(sortedStrips, L);
+        options.push(makeOpt(L, `whole-${L}`, `${wholeRolls} rotolo${wholeRolls === 1 ? "" : "i"} inter${wholeRolls === 1 ? "o" : "i"}${suffix}`, wholeRolls, 0));
+      }
+      // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
+      {
+        const cutMeters = ceilToStep(totalLen);
+        if (cutMeters > 0 && cutMeters <= L) {
+          options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
+        }
+      }
+      // C) Mix: K rotoli interi (fasce più lunghe) + 1 pezzo al taglio per il resto
+      const maxWholeRolls = packRolls(sortedStrips, L);
+      for (let K = 1; K < maxWholeRolls; K++) {
+        // riempi K rotoli con le fasce più lunghe possibili
+        const bins: number[] = Array.from({ length: K }, () => L);
+        const remain: number[] = [];
+        for (const len of sortedStrips) {
+          let placed = false;
+          for (let i = 0; i < K; i++) { if (bins[i] >= len - 1e-9) { bins[i] -= len; placed = true; break; } }
+          if (!placed) remain.push(len);
+        }
+        if (remain.length === 0) continue;
+        const cutMeters = ceilToStep(remain.reduce((a, c) => a + c, 0));
+        if (cutMeters > L) continue; // pezzo unico al taglio non può superare L
+        options.push(makeOpt(
+          L,
+          `mix-${L}-${K}`,
+          `${K} rotolo${K === 1 ? "" : "i"} intero${K === 1 ? "" : "i"} + ${fmt(cutMeters)} m al taglio${suffix}`,
+          K, cutMeters,
+        ));
       }
     }
 
@@ -1056,13 +1126,15 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     });
     const perimeter = sideLengths.reduce((a, b) => a + b, 0);
     const junctionCount = Math.max(0, strips - 1);
-    const tapeJunctions = junctionCount * along;
+    // Ogni giunzione è lunga quanto la sovrapposizione reale delle due fasce adiacenti
+    const junctionLens: number[] = Array.from({ length: junctionCount }, (_, i) => Math.min(stripLens[i], stripLens[i + 1]));
+    const tapeJunctions = junctionLens.reduce((a, c) => a + c, 0);
     const tapeMeters = perimeter + tapeJunctions;
     const tapeRollLen = tapeType === "danza" ? 33 : 25;
-    // Pezzi da tagliare: lati + giunzioni (ognuna lunga `along`)
+    // Pezzi da tagliare: lati + giunzioni (lunghezza reale di ciascuna)
     const tapePieces: number[] = [
       ...sideLengths.filter((s) => s > 0),
-      ...Array(junctionCount).fill(along),
+      ...junctionLens.filter((s) => s > 0),
     ];
     // First-Fit Decreasing bin packing nei rotoli
     const sortedPieces = [...tapePieces].sort((a, b) => b - a);
@@ -1083,7 +1155,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
     const tapeOversize = sortedPieces.some((p) => p > tapeRollLen);
 
     return {
-      strips, totalLen, along, rollsNeeded,
+      strips, totalLen, along, rollsNeeded, stripLens, maxStrip,
       leftover: Math.max(0, totalCovered - totalLen),
       surface, bounds: b,
       unitPrice: unit,
@@ -1249,7 +1321,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                       <KPI label="Strisce / teli" value={`${calc.strips}`} hint={`passo ${fmt(selected.rollWidth)} m`} />
-                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`${calc.strips} × ${fmt(direction === "vertical" ? calc.bounds.h : calc.bounds.w)} m`} />
+                      <KPI label="Metri lineari" value={`${fmt(calc.totalLen)} m`} hint={`teli: ${calc.stripLens.map((s) => fmt(s)).join(" + ")} m`} />
                       <KPI label="Superficie sala" value={`${fmt(calc.surface)} m²`} hint={`sfrido ${fmt(calc.leftover)} m`} />
                       <KPI label="Prezzo unitario" value={`${eur(calc.unitPrice)}/m²`} hint={`taglio +${Math.round((calc.cutSurcharge - 1) * 100)}% (${eur(calc.unitPrice * calc.cutSurcharge)}/m²)`} />
                     </div>
@@ -1260,7 +1332,7 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
                         <span className="text-muted-foreground normal-case tracking-normal">taglio in multipli di {calc.cutStep} m · +{Math.round((calc.cutSurcharge - 1) * 100)}% al m²</span>
                       </div>
                       <div className="px-3 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground">
-                        Servono <strong className="text-foreground">{calc.strips} fasce da {fmt(calc.along)} m</strong> · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(calc.best?.rollLen ?? selected.rollLength)} m si ricavano ${calc.stripsPerRoll} fasce` : ""}
+                        Servono <strong className="text-foreground">{calc.strips} fasce</strong> di lunghezza reale {calc.stripLens.map((s, i) => `T${i + 1} ${fmt(s)} m`).join(" · ")} · totale {fmt(calc.totalLen)} m lineari × {fmt(selected.rollWidth)} m{calc.stripsPerRoll > 1 ? ` · da 1 rotolo da ${fmt(calc.best?.rollLen ?? selected.rollLength)} m si ricavano fino a ${calc.stripsPerRoll} fasce` : ""}
                         <span className="block mt-0.5 italic">Clicca un'opzione per selezionarla manualmente.</span>
                       </div>
                       <div className="divide-y">

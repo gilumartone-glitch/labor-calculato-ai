@@ -1084,7 +1084,8 @@ function DanceSection({ rolls, setRolls, tapes, setTapes, scopeKey }: { rolls: D
       // B) Solo al taglio: tutte le fasce su un unico pezzo, valido solo se ≤ L
       {
         const cutMeters = ceilToStep(totalLen);
-        if (cutMeters > 0 && cutMeters <= L) {
+        // Un taglio pari (o superiore) alla pezza intera NON ha senso: è un rotolo intero.
+        if (cutMeters > 0 && cutMeters < L) {
           options.push(makeOpt(L, `cut-${L}`, `${fmt(cutMeters)} m al taglio${suffix}`, 0, cutMeters));
         }
       }

@@ -2331,7 +2331,8 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
   const viewExpectedIn = rangeActive ? rangeTotals.expectedIn : r.expectedIn;
   const viewExpectedOut = rangeActive ? rangeTotals.expectedOut : r.expectedOut;
   const viewExpectedSaldo = rangeActive ? rangeExpectedSaldo : r.expectedSaldo;
-  const viewForecast = rangeActive ? currentCash + rangeExpectedSaldo : r.runningForecast;
+  // Con filtro attivo la cassa prevista considera SOLO le uscite previste (nessuna entrata prevista)
+  const viewForecast = rangeActive ? currentCash - rangeTotals.expectedOut : r.runningForecast;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const toggleSelected = (id: string) => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });

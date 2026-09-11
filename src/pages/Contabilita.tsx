@@ -2569,9 +2569,14 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       toast.success(`${newOnes.length} movimenti caricati in ${r.month} (${updated}). Cassa non modificata.`);
     } catch { toast.error("Errore lettura file"); }
   };
-  const renderRow = (m: CashMovement, opts?: { indent?: boolean; inlinePaid?: boolean }) => {
+  const renderRow = (m: CashMovement, opts?: { indent?: boolean; inlinePaid?: boolean; forceSelect?: boolean }) => {
     const isEditing = editingId === m.id;
     const isVirtual = m.id.startsWith("__");
+    const showSelect = selectionMode || !!opts?.forceSelect;
+    const showInlinePaid = !!opts?.inlinePaid && !selectionMode;
+    const cols = showSelect
+      ? (showInlinePaid ? "lg:grid-cols-[24px_110px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]")
+      : (showInlinePaid ? "lg:grid-cols-[110px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]");
     const togglePaid = (checked: boolean) => {
       if (isVirtual) return;
       if (checked && m.status !== "cassa") {
@@ -2583,8 +2588,8 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     };
     return (
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
-        <div className={`grid gap-0 md:grid-cols-2 ${selectionMode ? "lg:grid-cols-[24px_92px_minmax(180px,1fr)_88px]" : opts?.inlinePaid ? "lg:grid-cols-[110px_92px_minmax(180px,1fr)_88px]" : "lg:grid-cols-[92px_minmax(180px,1fr)_88px]"} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
-          {selectionMode && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
+        <div className={`grid gap-0 md:grid-cols-2 ${cols} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
+          {showSelect && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-4 w-4 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
           {opts?.inlinePaid && !selectionMode && (
             <label className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-1.5 text-[11px] font-medium ${m.status === "cassa" ? "text-dept" : "text-muted-foreground"}`} title="Pagato (sposta in cassa con data odierna)">
               <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept" checked={m.status === "cassa"} onChange={(e) => togglePaid(e.target.checked)} />

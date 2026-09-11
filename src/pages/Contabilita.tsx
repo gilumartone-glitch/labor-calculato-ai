@@ -1244,6 +1244,8 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     const cents = (n: number) => Math.round(n * 100) / 100;
     for (let i = 0; i < 12; i++) {
       const dateStr = sanitizeSalaryPayDate(payDates[i], i);
+      // Gli stipendi in competenza sono sempre datati al 15 del mese.
+      const competenzaDateStr = salaryPayDateFor(i, 15);
       if (processedFlags[i]) {
         const monthSalaries = salaries.filter((s) => s.month === i);
         let cassaTot = 0;

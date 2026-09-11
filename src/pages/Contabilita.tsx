@@ -2366,7 +2366,47 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     setSelectedIds(new Set());
     toast.success(`${toUpdate.size} voci messe in competenza`);
   };
-  const exitSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); };
+  const [moveDateOpen, setMoveDateOpen] = useState(false);
+  const [moveDateValue, setMoveDateValue] = useState("");
+  const bulkMoveDate = (iso: string) => {
+    if (!isCompleteDate(iso)) return;
+    const toUpdate = new Set(selectedInMonth);
+    if (toUpdate.size === 0) return;
+    setMovements((prev) => prev.map((m) => toUpdate.has(m.id) ? normalizeMovement({ ...m, date: iso }) : m));
+    setSelectedIds(new Set());
+    setMoveDateOpen(false);
+    toast.success(`${toUpdate.size} date spostate al ${iso.split("-").reverse().join("/")}`);
+  };
+  const bulkShiftDays = (days: number) => {
+    const toUpdate = new Set(selectedInMonth);
+    if (toUpdate.size === 0) return;
+    setMovements((prev) => prev.map((m) => {
+      if (!toUpdate.has(m.id)) return m;
+      const d = new Date(`${m.date.slice(0, 10)}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return m;
+      d.setDate(d.getDate() + days);
+      return normalizeMovement({ ...m, date: d.toISOString().slice(0, 10) });
+    }));
+    toast.success(`${toUpdate.size} date spostate di ${days > 0 ? "+" : ""}${days} giorni`);
+  };
+  const bulkShiftMonths = (months: number) => {
+    const toUpdate = new Set(selectedInMonth);
+    if (toUpdate.size === 0) return;
+    setMovements((prev) => prev.map((m) => {
+      if (!toUpdate.has(m.id)) return m;
+      const iso = m.date.slice(0, 10);
+      const d = new Date(`${iso}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return m;
+      const day = d.getDate();
+      d.setDate(1);
+      d.setMonth(d.getMonth() + months);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, lastDay));
+      return normalizeMovement({ ...m, date: d.toISOString().slice(0, 10) });
+    }));
+    toast.success(`${toUpdate.size} date spostate di ${months > 0 ? "+" : ""}${months} mesi`);
+  };
+  const exitSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); setMoveDateOpen(false); };
   const selectAllInMonth = () => setSelectedIds(new Set(monthRealIds));
   const [openGroup, setOpenGroup] = useState<{ label: string; ids: string[]; type: MovementType; status: MovementStatus } | null>(null);
   const [groupRenameDraft, setGroupRenameDraft] = useState("");

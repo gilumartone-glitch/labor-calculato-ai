@@ -19,6 +19,8 @@ export type StepDateInputProps = {
   /** Chiamato quando l'utente preme Invio o OK con valore valido. */
   onConfirm?: () => void;
   autoFocus?: boolean;
+  /** Conferma automaticamente appena la data è completa e valida (senza premere OK/Invio). */
+  liveCommit?: boolean;
 };
 
 const isValidDate = (y: number, m: number, d: number) => {
@@ -43,6 +45,7 @@ export const StepDateInput = ({
   showOk = true,
   onConfirm,
   autoFocus,
+  liveCommit,
 }: StepDateInputProps) => {
   const initial = parseIso(value);
   const [d, setD] = useState(initial.d);
@@ -86,6 +89,17 @@ export const StepDateInput = ({
     }
   };
 
+  const liveTry = (nd: string, nm: string, ny: string) => {
+    if (!liveCommit) return;
+    const dn = Number(nd);
+    const mn = Number(nm);
+    const yn = Number(ny.length === 2 ? "20" + ny : ny);
+    if (nd.length < 1 || nm.length < 1 || (ny.length !== 2 && ny.length !== 4)) return;
+    if (!isValidDate(yn, mn, dn)) return;
+    const iso = `${String(yn).padStart(4, "0")}-${String(mn).padStart(2, "0")}-${String(dn).padStart(2, "0")}`;
+    if (iso !== value) onCommit(iso);
+  };
+
   const onlyDigits = (s: string, max: number) => s.replace(/\D/g, "").slice(0, max);
 
   const cellBase = "h-9 w-full rounded-md border border-input bg-background px-1.5 text-center font-mono text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring";
@@ -105,6 +119,7 @@ export const StepDateInput = ({
         onChange={(e) => {
           const v = onlyDigits(e.target.value, 2);
           setD(v);
+          liveTry(v, mo, y);
           if (v.length === 2) mRef.current?.focus();
         }}
         onKeyDown={(e) => {
@@ -127,6 +142,7 @@ export const StepDateInput = ({
         onChange={(e) => {
           const v = onlyDigits(e.target.value, 2);
           setMo(v);
+          liveTry(d, v, y);
           if (v.length === 2) yRef.current?.focus();
         }}
         onKeyDown={(e) => {
@@ -151,6 +167,7 @@ export const StepDateInput = ({
         onChange={(e) => {
           const v = onlyDigits(e.target.value, 4);
           setY(v);
+          liveTry(d, mo, v);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); confirm(); }

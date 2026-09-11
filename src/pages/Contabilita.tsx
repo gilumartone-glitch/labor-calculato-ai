@@ -1260,9 +1260,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         // Mese "elaborato": la quota cassa diventa un'uscita di cassa reale,
         // la competenza resta come previsto.
         if (cassaTot !== 0) out.push({ id: `__sal-cassa-${i}`, date: dateStr, description: `Stipendi ${MONTHS[i]}`, category: "Stipendi", paymentMethod: "F", type: "uscita", status: "cassa", amount: cassaTot });
-        if (competenzaTot !== 0) out.push({ id: `__sal-prev-${i}`, date: dateStr, description: `Stipendi ${MONTHS[i]} (competenza)`, category: "Stipendi", paymentMethod: "F", type: "uscita", status: "previsto", amount: competenzaTot });
+        if (competenzaTot !== 0) out.push({ id: `__sal-prev-${i}`, date: competenzaDateStr, description: `Stipendi ${MONTHS[i]} (competenza)`, category: "Stipendi", paymentMethod: "F", type: "uscita", status: "previsto", amount: competenzaTot });
       } else {
-        if (avgProcessedTotale > 0) out.push({ id: `__sal-avg-${i}`, date: dateStr, description: `Stipendi ${MONTHS[i]} (media stimata)`, category: "Stipendi", paymentMethod: "F", type: "uscita", status: "previsto", amount: avgProcessedTotale });
+        if (avgProcessedTotale > 0) out.push({ id: `__sal-avg-${i}`, date: competenzaDateStr, description: `Stipendi ${MONTHS[i]} (media stimata)`, category: "Stipendi", paymentMethod: "F", type: "uscita", status: "previsto", amount: avgProcessedTotale });
       }
     }
     return out;

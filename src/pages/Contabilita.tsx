@@ -2590,7 +2590,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       <div key={m.id} className={`border-b border-border pb-0.5 text-sm last:border-b-0 ${opts?.indent ? "pl-4 bg-muted/20" : ""}`}>
         <div className={`grid gap-0 md:grid-cols-2 ${cols} lg:items-center ${isVirtual ? "bg-dept-soft/20" : ""}`}>
           {showSelect && <input type="checkbox" aria-label="Seleziona" disabled={isVirtual} className="h-4 w-4 cursor-pointer accent-dept disabled:opacity-30" checked={selectedIds.has(m.id)} onChange={() => toggleSelected(m.id)} />}
-          {opts?.inlinePaid && !selectionMode && (
+          {showInlinePaid && (
             <label className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-1.5 text-[11px] font-medium ${m.status === "cassa" ? "text-dept" : "text-muted-foreground"}`} title="Pagato (sposta in cassa con data odierna)">
               <input type="checkbox" disabled={isVirtual} className="h-3.5 w-3.5 cursor-pointer accent-dept" checked={m.status === "cassa"} onChange={(e) => togglePaid(e.target.checked)} />
               {m.status === "cassa" ? "Pagato" : "Pagare"}

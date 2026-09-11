@@ -2321,6 +2321,17 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
   const rangeCoverage = r.runningCash - rangeTotals.expectedOut;
   // Cassa prevista del mese = saldo previsionale a fine mese
   const rangeForecastCoverage = r.runningForecast - rangeTotals.expectedOut;
+  // Con filtro data attivo, i riquadri sotto mostrano SOLO l'intervallo scelto,
+  // usando la cassa effettiva di oggi come base per la cassa prevista.
+  const periodLabel = rangeActive ? `${from || "…"} → ${to || "…"}` : r.month;
+  const viewCashIn = rangeActive ? rangeTotals.cashIn : r.cashIn;
+  const viewCashOut = rangeActive ? rangeTotals.cashOut : r.cashOut;
+  const viewCashSaldo = rangeActive ? rangeCashSaldo : r.cashSaldo;
+  const viewCash = rangeActive ? currentCash : r.runningCash;
+  const viewExpectedIn = rangeActive ? rangeTotals.expectedIn : r.expectedIn;
+  const viewExpectedOut = rangeActive ? rangeTotals.expectedOut : r.expectedOut;
+  const viewExpectedSaldo = rangeActive ? rangeExpectedSaldo : r.expectedSaldo;
+  const viewForecast = rangeActive ? currentCash + rangeExpectedSaldo : r.runningForecast;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const toggleSelected = (id: string) => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });

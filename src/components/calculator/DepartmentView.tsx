@@ -263,7 +263,14 @@ export const DepartmentView = ({
   const isTappezzeria = deptKey === "tappezzeria";
   const bypassRedistribution = !!state.nestingState?.bypassRedistribution;
   const canRedistribute = isTappezzeria && !bypassRedistribution;
-  const distributedMaterialByPieceId: Record<string, { total: number; single: number; metersTotal: number }> = {};
+  const distributedMaterialByPieceId: Record<string, {
+    total: number;
+    single: number;
+    metersTotal: number;
+    panels?: number;
+    panelsMetersTotal?: number;
+    panelLengthM?: number;
+  }> = {};
   if (canRedistribute) {
     for (const g of nestingGroups) {
       // Ridistribuisco il costo materiale del nesting per TUTTI i formati

@@ -229,6 +229,10 @@ export type PieceLine = {
   printOpId?: string | null;
   /** Quantità di copie identiche del pezzo (default 1). Moltiplica tutti i costi. */
   quantity?: number;
+  /** RICCHEZZA (%) — arricciatura tendaggi. 0 = nessuna ricchezza (default).
+   *  La base del pezzo viene maggiorata di questa percentuale, aumentando
+   *  tessuto e lavorazioni. Es. 100 = base doppia, 50 = base × 1,5. */
+  fullnessPct?: number;
   /** Lavorazioni perimetrali applicate (riusano CatalogPerimeterOp + lati) */
   perimeters: { id: string; opId: string; sides: PerimeterSide[]; quantity?: number }[];
   /** Lavorazioni libere "una tantum": nome + prezzo forfettario inseriti al volo */

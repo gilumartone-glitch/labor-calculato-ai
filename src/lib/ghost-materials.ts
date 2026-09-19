@@ -1,7 +1,7 @@
 import { Catalog, DepartmentKey, MaterialLine, PieceLine } from "@/components/calculator/types";
 import { CustomerType, priceMultiplier } from "@/lib/pricing";
 import { convertLength } from "@/lib/perimeter";
-import { computePieceMaterial } from "@/lib/piece";
+import { computePieceMaterial, pieceFullnessFactor } from "@/lib/piece";
 import { uid } from "@/lib/format";
 
 /** Margini extra (cm) richiesti quando un pezzo prende il materiale dal Laboratorio.

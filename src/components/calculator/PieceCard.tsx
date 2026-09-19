@@ -56,6 +56,9 @@ interface Props {
    *  (tutte le copie). Serve a mostrare in card il consumo reale corrispondente
    *  alla quota di costo ridistribuita. */
   materialMetersOverrideTotal?: number | null;
+  /** TAPPEZZERIA — teli REALI del pezzo secondo il nesting: numero di pannelli
+   *  affiancati (cuciture verticali) e lunghezza del telo più lungo. */
+  nestingPanels?: { panels: number; panelLengthM: number; metersTotal: number } | null;
 
   /** Se true, il campo Quantità (Qt) prende il focus al mount. Usato per il
    *  pezzo appena creato: l'utente scrive subito il numero di pezzi. */

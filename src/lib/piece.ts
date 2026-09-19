@@ -39,6 +39,41 @@ const pieceAreaM2Local = (piece: PieceLine) =>
 export const MARGIN_WIDTH_CM = 0;
 export const MARGIN_HEIGHT_CM = 0;
 
+/* ============================================================
+ * RICCHEZZA (arricciatura tendaggi)
+ * La percentuale moltiplica la BASE del pezzo: 100% = 1× (nessuna
+ * ricchezza aggiuntiva), 200% = base doppia, 50% = base × 1,5.
+ * Conseguenze: più tessuto, più cuciture, più lavorazioni perimetrali
+ * (che dipendono dalla base) e lavorazioni forfettarie proporzionali.
+ * ============================================================ */
+
+/** Fattore moltiplicativo derivato dalla ricchezza (default 1). */
+export const pieceFullnessFactor = (piece: PieceLine): number => {
+  const p = Number(piece.fullnessPct);
+  if (!isFinite(p) || p <= 0) return 1;
+  return 1 + p / 100;
+};
+
+/** Ritorna il pezzo con la base (e le lavorazioni forfettarie) maggiorate
+ *  dalla ricchezza. Il clone ha `fullnessPct: 0` per evitare doppie
+ *  applicazioni nelle funzioni annidate. */
+export const withFullness = (piece: PieceLine): PieceLine => {
+  const f = pieceFullnessFactor(piece);
+  if (f === 1) return piece;
+  return {
+    ...piece,
+    fullnessPct: 0,
+    width: (Number(piece.width) || 0) * f,
+    widthBottom:
+      piece.widthBottom != null ? (Number(piece.widthBottom) || 0) * f : piece.widthBottom,
+    customWorks: (piece.customWorks ?? []).map((w) => ({
+      ...w,
+      price: (Number(w.price) || 0) * f,
+    })),
+  };
+};
+
+
 /**
  * Allowance (cm) di tessuto richiesto sul lato in cui è applicata una specifica
  * lavorazione perimetrale. Match per nome (case-insensitive) sul prefisso.
@@ -456,6 +491,8 @@ export const computePieceMaterial = (
   catalog: Catalog,
   customer?: CustomerType,
 ): PieceMaterialBreakdown => {
+  // Ricchezza: maggiora la base del pezzo prima di ogni calcolo.
+  piece = withFullness(piece);
   // Orientamento altezza: deciso nel LISTINO (per prodotto), default orizzontale.
   const pieceHeightHorizontal = resolveHeightOrientation(piece, catalog) === "horizontal";
   // dimensioni base del pezzo in metri
@@ -846,11 +883,12 @@ export const pieceSeamTotal = (
 
 /** Costo lavorazioni perimetrali del pezzo (esclude cucitura tra teli, che è separata). */
 export const piecePerimetersTotal = (
-  piece: PieceLine,
+  pieceIn: PieceLine,
   catalog: Catalog,
   customer?: CustomerType,
-): number =>
-  piece.perimeters.reduce((acc, pp) => {
+): number => {
+  const piece = withFullness(pieceIn);
+  return piece.perimeters.reduce((acc, pp) => {
     const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
     if (!op) return acc;
     const virt: PerimeterLine = {
@@ -876,9 +914,11 @@ export const piecePerimetersTotal = (
     virtShaped.widthBottom = piece.widthBottom;
     return acc + perimeterCost(virtShaped, customer);
   }, 0);
+};
 
 /** Costo stampa (€/mq × area reale, in base alla forma). */
-export const piecePrintTotal = (piece: PieceLine, catalog: Catalog): number => {
+export const piecePrintTotal = (pieceIn: PieceLine, catalog: Catalog): number => {
+  const piece = withFullness(pieceIn);
   if (!piece.printOpId) return 0;
   const op = (catalog.printOps ?? []).find((p) => p.id === piece.printOpId);
   if (!op) return 0;
@@ -888,7 +928,9 @@ export const piecePrintTotal = (piece: PieceLine, catalog: Catalog): number => {
 
 /** Costo lavorazioni libere (forfettarie) inserite sul pezzo. */
 export const pieceCustomWorksTotal = (piece: PieceLine): number =>
-  (piece.customWorks ?? []).reduce((acc, w) => acc + (Number(w.price) || 0), 0);
+  (piece.customWorks ?? []).reduce((acc, w) => acc + (Number(w.price) || 0), 0) *
+  pieceFullnessFactor(piece);
+
 
 /** Subtotale lavorazioni del pezzo (perimetrali + cuciture inter-telo). */
 export const pieceWorkTotal = (
@@ -940,7 +982,8 @@ export const pieceWorkBreakdown = (
     scrap: 0,
     total: 0,
   };
-  for (const pp of piece.perimeters) {
+  const pf = withFullness(piece);
+  for (const pp of pf.perimeters) {
     const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
     if (!op) continue;
     const virt: PerimeterLine = {
@@ -952,17 +995,17 @@ export const pieceWorkBreakdown = (
       priceUnit: op.priceUnit ?? "m",
       color: op.color,
       sides: pp.sides,
-      width: piece.width,
-      height: piece.height,
-      dimUnit: piece.dimUnit,
+      width: pf.width,
+      height: pf.height,
+      dimUnit: pf.dimUnit,
       quantity: pp.quantity,
     };
     const virtShaped = virt as PerimeterLine & {
       shape?: typeof piece.shape;
       widthBottom?: number;
     };
-    virtShaped.shape = piece.shape;
-    virtShaped.widthBottom = piece.widthBottom;
+    virtShaped.shape = pf.shape;
+    virtShaped.widthBottom = pf.widthBottom;
     const cost = perimeterCost(virtShaped, customer);
     const cat = (op.category ?? "perimetrale") as keyof Pick<
       PieceWorkBreakdown,

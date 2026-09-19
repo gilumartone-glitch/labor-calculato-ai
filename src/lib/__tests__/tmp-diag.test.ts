@@ -10,7 +10,7 @@ const cat: Catalog = {
 const p: PieceLine = {
   id:"p1", productName:"Tela", color:"", fireproof:"", matchedHeight:"300", matchedHeightUnit:"cm",
   catalogMaterialId:"m1", variantId:"m1", priceMode:"cut", materialQty:0,
-  width:200, height:2000, dimUnit:"cm", shape:"rect", quantity:1, perimeters:[],
+  width:200, height:2030, dimUnit:"cm", shape:"rect", quantity:1, perimeters:[],
   allowRotation:false, allowSplit:true, fullnessPct:80, manualMargins:true, marginExtraWCm:0, marginExtraHCm:0,
 };
 describe("x", () => { it("y", () => {

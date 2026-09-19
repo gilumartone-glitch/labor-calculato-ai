@@ -263,7 +263,14 @@ export const DepartmentView = ({
   const isTappezzeria = deptKey === "tappezzeria";
   const bypassRedistribution = !!state.nestingState?.bypassRedistribution;
   const canRedistribute = isTappezzeria && !bypassRedistribution;
-  const distributedMaterialByPieceId: Record<string, { total: number; single: number; metersTotal: number }> = {};
+  const distributedMaterialByPieceId: Record<string, {
+    total: number;
+    single: number;
+    metersTotal: number;
+    panels?: number;
+    panelsMetersTotal?: number;
+    panelLengthM?: number;
+  }> = {};
   if (canRedistribute) {
     for (const g of nestingGroups) {
       // Ridistribuisco il costo materiale del nesting per TUTTI i formati
@@ -286,21 +293,37 @@ export const DepartmentView = ({
         : null;
       // Area per pezzo (già con margini, dal nesting) — somma di tutte le copie.
       const areaByPiece = new Map<string, number>();
+      // Teli REALI usati dal pezzo: ogni item del nesting è un telo/pannello
+      // (le divisioni con cucitura sono sempre verticali → pannelli affiancati).
+      const panelsByPiece = new Map<string, { panels: number; alongTotalM: number; maxAlongM: number }>();
       for (const it of g.items) {
         areaByPiece.set(
           it.pieceId,
           (areaByPiece.get(it.pieceId) ?? 0) + it.w * it.h,
         );
+        if (g.format === "rotolo") {
+          const prev = panelsByPiece.get(it.pieceId) ?? { panels: 0, alongTotalM: 0, maxAlongM: 0 };
+          // Nel packer dei rotoli `h` è lo sviluppo lungo il rotolo.
+          panelsByPiece.set(it.pieceId, {
+            panels: prev.panels + 1,
+            alongTotalM: prev.alongTotalM + it.h,
+            maxAlongM: Math.max(prev.maxAlongM, it.h),
+          });
+        }
       }
       for (const [pid, a] of areaByPiece) {
         const share = a / totalArea;
         const total = fabricPrice * share;
           const piece = calcPieces.find((p) => p.id === pid);
         const qty = Math.max(1, Math.floor(Number(piece?.quantity) || 1));
+        const pan = panelsByPiece.get(pid);
         distributedMaterialByPieceId[pid] = {
           total,
           single: total / qty,
           metersTotal: metersByPiece?.get(pid) ?? groupMeters * share,
+          panels: pan?.panels,
+          panelsMetersTotal: pan?.alongTotalM,
+          panelLengthM: pan?.maxAlongM,
         };
 
       }
@@ -310,6 +333,11 @@ export const DepartmentView = ({
     distributedMaterialByPieceId[pieceId]?.single ?? null;
   const getMaterialMetersOverride = (pieceId: string): number | null =>
     distributedMaterialByPieceId[pieceId]?.metersTotal ?? null;
+  const getNestingPanels = (pieceId: string) => {
+    const d = distributedMaterialByPieceId[pieceId];
+    if (!d || !d.panels || !d.panelLengthM) return null;
+    return { panels: d.panels, panelLengthM: d.panelLengthM, metersTotal: d.panelsMetersTotal ?? 0 };
+  };
 
 
   // Costo materiale effettivo per il pezzo (totale = tutte le copie), rispettando
@@ -1221,6 +1249,7 @@ export const DepartmentView = ({
                                 extraSurchargeLabel="Sfrido lastre"
                                 materialCostOverrideSingle={getMaterialOverride(p.id)}
                                 materialMetersOverrideTotal={getMaterialMetersOverride(p.id)}
+                                nestingPanels={getNestingPanels(p.id)}
 
                                 onChange={(line) =>
                                   setState({

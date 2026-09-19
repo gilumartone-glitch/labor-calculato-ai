@@ -56,6 +56,9 @@ interface Props {
    *  (tutte le copie). Serve a mostrare in card il consumo reale corrispondente
    *  alla quota di costo ridistribuita. */
   materialMetersOverrideTotal?: number | null;
+  /** TAPPEZZERIA — teli REALI del pezzo secondo il nesting: numero di pannelli
+   *  affiancati (cuciture verticali) e lunghezza del telo più lungo. */
+  nestingPanels?: { panels: number; panelLengthM: number; metersTotal: number } | null;
 
   /** Se true, il campo Quantità (Qt) prende il focus al mount. Usato per il
    *  pezzo appena creato: l'utente scrive subito il numero di pezzi. */
@@ -76,7 +79,7 @@ const priceUnitOf = (m: Catalog["materials"][number] | null): "mq" | "ml" => {
   return unit === "mq" || unit === "m²" || unit === "m2" ? "mq" : "ml";
 };
 
-export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, materialMetersOverrideTotal = null, autoFocusQty = false, onChange, onRemove }: Props) => {
+export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog, labPieces = [], scrapDeducted = false, extraSurcharge = 0, extraSurchargeLabel = "Sfrido lastre", materialCostOverrideSingle = null, materialMetersOverrideTotal = null, nestingPanels = null, autoFocusQty = false, onChange, onRemove }: Props) => {
   const isStampa = dept === "stampa";
   const isTappezzeria = dept === "tappezzeria";
   // In Tappezzeria i margini di abbondanza sono SEMPRE manuali (mai derivati
@@ -1435,9 +1438,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               const nestedMeters = (materialMetersOverrideTotal ?? 0) > 0
                 ? (materialMetersOverrideTotal as number)
                 : null;
-              // Il numero di teli deve essere coerente con i metri attribuiti:
-              // se il nesting assegna più metri della lunghezza teorica di un
-              // telo, i teli sono più di uno.
+              // Teli REALI dal nesting (pannelli affiancati con cucitura
+              // verticale). Se disponibili hanno la precedenza: sono i teli
+              // che l'operatore taglia davvero.
+              const realPanels = nestingPanels && nestingPanels.panels > 0 ? nestingPanels : null;
+              // Fallback: numero di teli coerente con i metri attribuiti.
               const nestedShelves = nestedMeters != null && mat.panelLengthM > 0
                 ? Math.max(1, Math.round(nestedMeters / mat.panelLengthM))
                 : shelves;
@@ -1448,7 +1453,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 <>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">N. teli</div>
-                    {nestedMeters != null ? (
+                    {realPanels != null ? (
+                      <>
+                        <div className="font-mono tabular-nums">
+                          {realPanels.panels} × {fmtM(realPanels.panelLengthM)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          teli dal nesting · tot {fmtM(realPanels.metersTotal)} m
+                        </div>
+                      </>
+                    ) : nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums">
                           {nestedShelves} × {fmtM(nestedPerShelf)} m
@@ -1473,14 +1487,15 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                     {nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums font-semibold text-primary">
-                          {fmtM(nestedMeters)} m
+                          {fmtM(realPanels ? realPanels.metersTotal : nestedMeters)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          quota nesting · {qty > 1 ? `per ${qty} pz · ` : ""}
+                          {realPanels ? "teli dal nesting" : "quota nesting"} ·{" "}
+                          {qty > 1 ? `per ${qty} pz · ` : ""}
                           rullo {fmtM(mat.rollWidthM)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          singolo: {fmtM(totalMetersQtyM)} m
+                          {realPanels ? `quota costo: ${fmtM(nestedMeters)} m` : `singolo: ${fmtM(totalMetersQtyM)} m`}
                         </div>
                       </>
                     ) : (

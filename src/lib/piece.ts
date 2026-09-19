@@ -39,6 +39,41 @@ const pieceAreaM2Local = (piece: PieceLine) =>
 export const MARGIN_WIDTH_CM = 0;
 export const MARGIN_HEIGHT_CM = 0;
 
+/* ============================================================
+ * RICCHEZZA (arricciatura tendaggi)
+ * La percentuale moltiplica la BASE del pezzo: 100% = 1× (nessuna
+ * ricchezza aggiuntiva), 200% = base doppia, 50% = base × 1,5.
+ * Conseguenze: più tessuto, più cuciture, più lavorazioni perimetrali
+ * (che dipendono dalla base) e lavorazioni forfettarie proporzionali.
+ * ============================================================ */
+
+/** Fattore moltiplicativo derivato dalla ricchezza (default 1). */
+export const pieceFullnessFactor = (piece: PieceLine): number => {
+  const p = Number(piece.fullnessPct);
+  if (!isFinite(p) || p <= 0) return 1;
+  return 1 + p / 100;
+};
+
+/** Ritorna il pezzo con la base (e le lavorazioni forfettarie) maggiorate
+ *  dalla ricchezza. Il clone ha `fullnessPct: 0` per evitare doppie
+ *  applicazioni nelle funzioni annidate. */
+export const withFullness = (piece: PieceLine): PieceLine => {
+  const f = pieceFullnessFactor(piece);
+  if (f === 1) return piece;
+  return {
+    ...piece,
+    fullnessPct: 0,
+    width: (Number(piece.width) || 0) * f,
+    widthBottom:
+      piece.widthBottom != null ? (Number(piece.widthBottom) || 0) * f : piece.widthBottom,
+    customWorks: (piece.customWorks ?? []).map((w) => ({
+      ...w,
+      price: (Number(w.price) || 0) * f,
+    })),
+  };
+};
+
+
 /**
  * Allowance (cm) di tessuto richiesto sul lato in cui è applicata una specifica
  * lavorazione perimetrale. Match per nome (case-insensitive) sul prefisso.

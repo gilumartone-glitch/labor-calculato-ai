@@ -1,7 +1,7 @@
 import { Catalog, CatalogMaterial, PieceLine, PieceShape } from "@/components/calculator/types";
 import { convertLength, DimUnit } from "./perimeter";
 import { materialUnitCost } from "./material-match";
-import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice } from "./piece";
+import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice, pieceFullnessFactor } from "./piece";
 import { CustomerType } from "./pricing";
 import { withCatalogOrientation } from "@/lib/piece-catalog";
 

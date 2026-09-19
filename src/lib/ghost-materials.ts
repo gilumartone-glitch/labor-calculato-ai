@@ -1,7 +1,7 @@
 import { Catalog, DepartmentKey, MaterialLine, PieceLine } from "@/components/calculator/types";
 import { CustomerType, priceMultiplier } from "@/lib/pricing";
 import { convertLength } from "@/lib/perimeter";
-import { computePieceMaterial } from "@/lib/piece";
+import { computePieceMaterial, pieceFullnessFactor } from "@/lib/piece";
 import { uid } from "@/lib/format";
 
 /** Margini extra (cm) richiesti quando un pezzo prende il materiale dal Laboratorio.
@@ -41,7 +41,9 @@ export const buildGhostMaterialsForLab = (
       if (!variant) return;
 
       // Dimensioni del pezzo + margini extra Lab (totali, NON per lato)
-      const baseW = convertLength(piece.width || 0, piece.dimUnit, "m");
+      // Ricchezza: maggiora solo la base del pezzo.
+      const rich = pieceFullnessFactor(piece);
+      const baseW = convertLength(piece.width || 0, piece.dimUnit, "m") * rich;
       const baseH = convertLength(piece.height || 0, piece.dimUnit, "m");
       if (baseW <= 0 || baseH <= 0) return;
       const wM = baseW + LAB_EXTRA_WIDTH_CM / 100;
@@ -60,6 +62,8 @@ export const buildGhostMaterialsForLab = (
         dimUnit: "m",
         quantity: 1,
         noMargins: true,
+        // ricchezza già applicata in wM: evita la doppia moltiplicazione
+        fullnessPct: 0,
       };
       const breakdown = computePieceMaterial(labPiece, labCatalog, labCustomer);
       const quantity = breakdown.feasible

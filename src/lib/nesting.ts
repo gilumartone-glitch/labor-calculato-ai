@@ -1,7 +1,7 @@
 import { Catalog, CatalogMaterial, PieceLine, PieceShape } from "@/components/calculator/types";
 import { convertLength, DimUnit } from "./perimeter";
 import { materialUnitCost } from "./material-match";
-import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice } from "./piece";
+import { MARGIN_WIDTH_CM, MARGIN_HEIGHT_CM, pieceMaterialTotal, pieceSeamTotal, pieceHemAllowanceM, seamUnitPrice, pieceFullnessFactor } from "./piece";
 import { CustomerType } from "./pricing";
 import { withCatalogOrientation } from "@/lib/piece-catalog";
 
@@ -178,15 +178,17 @@ export type NestingMixedSheet = {
 /** Area reale (m²) della forma del pezzo INCLUSI i margini di lavorazione e l'allowance per orli. */
 const realAreaWithMarginsM2 = (p: PieceLine, hem: { addW: number; addH: number } = { addW: 0, addH: 0 }): number => {
   const f = factorOf(p.dimUnit);
+  // Ricchezza: maggiora SOLO la base (larghezza) del pezzo.
+  const rich = pieceFullnessFactor(p);
   const mW = p.noMargins ? 0 : MARGIN_WIDTH_CM / 100;
   const mH = p.noMargins ? 0 : MARGIN_HEIGHT_CM / 100;
-  const wM = (p.width || 0) * f + mW + hem.addW;
+  const wM = (p.width || 0) * f * rich + mW + hem.addW;
   const hM = (p.height || 0) * f + mH + hem.addH;
   if (wM <= 0 || hM <= 0) return 0;
   const shape = p.shape ?? "rect";
   if (shape === "triangle") return (wM * hM) / 2;
   if (shape === "trapezoid") {
-    const wbBase = (p.widthBottom || p.width || 0) * f;
+    const wbBase = (p.widthBottom || p.width || 0) * f * rich;
     const wbM = wbBase + mW + hem.addW;
     return ((wM + wbM) * hM) / 2;
   }
@@ -196,15 +198,16 @@ const realAreaWithMarginsM2 = (p: PieceLine, hem: { addW: number; addH: number }
 /** Bounding box del pezzo + margini + orli in metri */
 const bboxM = (p: PieceLine, hem: { addW: number; addH: number } = { addW: 0, addH: 0 }): { w: number; h: number; widthBottomM: number } => {
   const f = factorOf(p.dimUnit);
+  const rich = pieceFullnessFactor(p);
   const mW = p.noMargins ? 0 : MARGIN_WIDTH_CM / 100;
   const mH = p.noMargins ? 0 : MARGIN_HEIGHT_CM / 100;
   // Bordo di sicurezza 2 cm per lato (totale +4 cm su base e altezza), applicato
   // SEMPRE — anche se p.noMargins è true — perché serve per garantire che la
   // lastra contenga il pezzo con tolleranza.
   const safety = 2 * NESTING_SAFETY_BORDER_M;
-  const w = (p.width || 0) * f + mW + hem.addW + safety;
+  const w = (p.width || 0) * f * rich + mW + hem.addW + safety;
   const h = (p.height || 0) * f + mH + hem.addH + safety;
-  const wb = ((p.widthBottom ?? p.width) || 0) * f + mW + hem.addW + safety;
+  const wb = ((p.widthBottom ?? p.width) || 0) * f * rich + mW + hem.addW + safety;
   return { w, h, widthBottomM: wb };
 };
 

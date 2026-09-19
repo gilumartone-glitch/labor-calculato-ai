@@ -982,7 +982,8 @@ export const pieceWorkBreakdown = (
     scrap: 0,
     total: 0,
   };
-  for (const pp of piece.perimeters) {
+  const pf = withFullness(piece);
+  for (const pp of pf.perimeters) {
     const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
     if (!op) continue;
     const virt: PerimeterLine = {
@@ -994,17 +995,17 @@ export const pieceWorkBreakdown = (
       priceUnit: op.priceUnit ?? "m",
       color: op.color,
       sides: pp.sides,
-      width: piece.width,
-      height: piece.height,
-      dimUnit: piece.dimUnit,
+      width: pf.width,
+      height: pf.height,
+      dimUnit: pf.dimUnit,
       quantity: pp.quantity,
     };
     const virtShaped = virt as PerimeterLine & {
       shape?: typeof piece.shape;
       widthBottom?: number;
     };
-    virtShaped.shape = piece.shape;
-    virtShaped.widthBottom = piece.widthBottom;
+    virtShaped.shape = pf.shape;
+    virtShaped.widthBottom = pf.widthBottom;
     const cost = perimeterCost(virtShaped, customer);
     const cat = (op.category ?? "perimetrale") as keyof Pick<
       PieceWorkBreakdown,

@@ -1031,9 +1031,12 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 <span className="text-sm font-bold">%</span>
               </div>
             </div>
-            <div className="mt-1 font-mono text-[12px] text-muted-foreground">
+            <div className="mt-1 font-mono text-[13px] text-muted-foreground">
               {(Number(line.fullnessPct) || 0) > 0
-                ? `Base maggiorata ×${(1 + (Number(line.fullnessPct) || 0) / 100).toFixed(2)} — aumentano tessuto e lavorazioni.`
+                ? `Pezzo calcolato ${(
+                    (Number(line.width) || 0) *
+                    (1 + (Number(line.fullnessPct) || 0) / 100)
+                  ).toFixed(1)} × ${Number(line.height) || 0} ${line.dimUnit} — solo la larghezza aumenta; crescono tessuto e lavorazioni.`
                 : "Nessuna ricchezza: il pezzo usa la base inserita."}
             </div>
           </div>

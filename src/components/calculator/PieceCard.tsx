@@ -993,54 +993,59 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             </div>
         </div>
 
-        {isTappezzeria && (
-          <div className="col-span-12">
-            <label className="label-cap block mb-1">Ricchezza</label>
-            <div className="flex flex-wrap items-center gap-2">
-              {[0, 50, 70, 80, 100, 200].map((p) => {
-                const active = (Number(line.fullnessPct) || 0) === p;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => onChange({ ...line, fullnessPct: p })}
-                    className={`px-4 py-2 border-2 rounded-sm text-sm uppercase tracking-wider font-bold transition-colors ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-ink/40 text-ink/70 hover:border-ink hover:text-ink"
-                    }`}
-                  >
-                    {p === 0 ? "Nessuna" : `${p}%`}
-                  </button>
-                );
-              })}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-ink/40 rounded-sm">
-                <span className="text-sm uppercase tracking-wider font-bold text-ink/70">
-                  Custom
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={5}
-                  value={Number(line.fullnessPct) || 0}
-                  onChange={(e) =>
-                    onChange({ ...line, fullnessPct: Math.max(0, Number(e.target.value) || 0) })
-                  }
-                  className="input-bare w-24 bg-paper text-base font-mono text-right"
-                />
-                <span className="text-sm font-bold">%</span>
+        {isTappezzeria && (() => {
+          const rich = Number(line.fullnessPct) || 0;
+          const presets = [0, 50, 70, 80, 100, 200];
+          const isCustom = !presets.includes(rich);
+          return (
+            <div className="col-span-12 md:col-span-6">
+              <label className="label-cap block mb-1">Ricchezza</label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={isCustom ? "custom" : String(rich)}
+                  onChange={(e) => {
+                    if (e.target.value === "custom") {
+                      onChange({ ...line, fullnessPct: rich > 0 ? rich : 120 });
+                    } else {
+                      onChange({ ...line, fullnessPct: Number(e.target.value) });
+                    }
+                  }}
+                  className="input-bare bg-paper text-base font-semibold"
+                >
+                  <option value="0">Nessuna</option>
+                  <option value="50">50%</option>
+                  <option value="70">70%</option>
+                  <option value="80">80%</option>
+                  <option value="100">100%</option>
+                  <option value="200">200%</option>
+                  <option value="custom">Personalizzata…</option>
+                </select>
+                {isCustom && (
+                  <div className="inline-flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step={5}
+                      value={rich}
+                      onChange={(e) =>
+                        onChange({ ...line, fullnessPct: Math.max(0, Number(e.target.value) || 0) })
+                      }
+                      className="input-bare w-24 bg-paper text-base font-mono text-right"
+                    />
+                    <span className="text-base font-bold">%</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-1 font-mono text-[13px] text-muted-foreground">
+                {rich > 0
+                  ? `Pezzo calcolato ${((Number(line.width) || 0) * (1 + rich / 100)).toFixed(1)} × ${
+                      Number(line.height) || 0
+                    } ${line.dimUnit} — solo la larghezza aumenta.`
+                  : "Nessuna ricchezza: il pezzo usa la base inserita."}
               </div>
             </div>
-            <div className="mt-1 font-mono text-[13px] text-muted-foreground">
-              {(Number(line.fullnessPct) || 0) > 0
-                ? `Pezzo calcolato ${(
-                    (Number(line.width) || 0) *
-                    (1 + (Number(line.fullnessPct) || 0) / 100)
-                  ).toFixed(1)} × ${Number(line.height) || 0} ${line.dimUnit} — solo la larghezza aumenta; crescono tessuto e lavorazioni.`
-                : "Nessuna ricchezza: il pezzo usa la base inserita."}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {!isStampa && (
           <div className="col-span-12">

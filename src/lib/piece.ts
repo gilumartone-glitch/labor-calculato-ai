@@ -883,11 +883,12 @@ export const pieceSeamTotal = (
 
 /** Costo lavorazioni perimetrali del pezzo (esclude cucitura tra teli, che è separata). */
 export const piecePerimetersTotal = (
-  piece: PieceLine,
+  pieceIn: PieceLine,
   catalog: Catalog,
   customer?: CustomerType,
-): number =>
-  piece.perimeters.reduce((acc, pp) => {
+): number => {
+  const piece = withFullness(pieceIn);
+  return piece.perimeters.reduce((acc, pp) => {
     const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
     if (!op) return acc;
     const virt: PerimeterLine = {
@@ -913,9 +914,11 @@ export const piecePerimetersTotal = (
     virtShaped.widthBottom = piece.widthBottom;
     return acc + perimeterCost(virtShaped, customer);
   }, 0);
+};
 
 /** Costo stampa (€/mq × area reale, in base alla forma). */
-export const piecePrintTotal = (piece: PieceLine, catalog: Catalog): number => {
+export const piecePrintTotal = (pieceIn: PieceLine, catalog: Catalog): number => {
+  const piece = withFullness(pieceIn);
   if (!piece.printOpId) return 0;
   const op = (catalog.printOps ?? []).find((p) => p.id === piece.printOpId);
   if (!op) return 0;
@@ -925,7 +928,9 @@ export const piecePrintTotal = (piece: PieceLine, catalog: Catalog): number => {
 
 /** Costo lavorazioni libere (forfettarie) inserite sul pezzo. */
 export const pieceCustomWorksTotal = (piece: PieceLine): number =>
-  (piece.customWorks ?? []).reduce((acc, w) => acc + (Number(w.price) || 0), 0);
+  (piece.customWorks ?? []).reduce((acc, w) => acc + (Number(w.price) || 0), 0) *
+  pieceFullnessFactor(piece);
+
 
 /** Subtotale lavorazioni del pezzo (perimetrali + cuciture inter-telo). */
 export const pieceWorkTotal = (

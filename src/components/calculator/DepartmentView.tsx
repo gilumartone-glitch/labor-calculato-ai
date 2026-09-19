@@ -1249,6 +1249,7 @@ export const DepartmentView = ({
                                 extraSurchargeLabel="Sfrido lastre"
                                 materialCostOverrideSingle={getMaterialOverride(p.id)}
                                 materialMetersOverrideTotal={getMaterialMetersOverride(p.id)}
+                                nestingPanels={getNestingPanels(p.id)}
 
                                 onChange={(line) =>
                                   setState({

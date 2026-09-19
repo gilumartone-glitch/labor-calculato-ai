@@ -1438,9 +1438,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               const nestedMeters = (materialMetersOverrideTotal ?? 0) > 0
                 ? (materialMetersOverrideTotal as number)
                 : null;
-              // Il numero di teli deve essere coerente con i metri attribuiti:
-              // se il nesting assegna più metri della lunghezza teorica di un
-              // telo, i teli sono più di uno.
+              // Teli REALI dal nesting (pannelli affiancati con cucitura
+              // verticale). Se disponibili hanno la precedenza: sono i teli
+              // che l'operatore taglia davvero.
+              const realPanels = nestingPanels && nestingPanels.panels > 0 ? nestingPanels : null;
+              // Fallback: numero di teli coerente con i metri attribuiti.
               const nestedShelves = nestedMeters != null && mat.panelLengthM > 0
                 ? Math.max(1, Math.round(nestedMeters / mat.panelLengthM))
                 : shelves;
@@ -1451,7 +1453,16 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 <>
                   <div className="col-span-6 md:col-span-2">
                     <div className="label-cap mb-0.5">N. teli</div>
-                    {nestedMeters != null ? (
+                    {realPanels != null ? (
+                      <>
+                        <div className="font-mono tabular-nums">
+                          {realPanels.panels} × {fmtM(realPanels.panelLengthM)} m
+                        </div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          teli dal nesting · tot {fmtM(realPanels.metersTotal)} m
+                        </div>
+                      </>
+                    ) : nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums">
                           {nestedShelves} × {fmtM(nestedPerShelf)} m

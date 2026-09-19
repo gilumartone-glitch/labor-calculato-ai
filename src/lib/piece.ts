@@ -1073,7 +1073,7 @@ export const pieceTotal = (
   // (materiale + lavorazioni + sfridi) con areaM2 × qty × override.
   const override = Number(piece.priceOverridePerSqm ?? 0);
   if (override > 0) {
-    const area = pieceAreaM2Local(piece);
+    const area = pieceAreaM2Local(withFullness(piece));
     return area * pieceQty(piece) * override;
   }
   // Lo sfrido (1,5 m linerai) si applica una sola volta per pezzo, non per copia.

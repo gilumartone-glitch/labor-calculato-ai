@@ -1487,14 +1487,15 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                     {nestedMeters != null ? (
                       <>
                         <div className="font-mono tabular-nums font-semibold text-primary">
-                          {fmtM(nestedMeters)} m
+                          {fmtM(realPanels ? realPanels.metersTotal : nestedMeters)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          quota nesting · {qty > 1 ? `per ${qty} pz · ` : ""}
+                          {realPanels ? "teli dal nesting" : "quota nesting"} ·{" "}
+                          {qty > 1 ? `per ${qty} pz · ` : ""}
                           rullo {fmtM(mat.rollWidthM)} m
                         </div>
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          singolo: {fmtM(totalMetersQtyM)} m
+                          {realPanels ? `quota costo: ${fmtM(nestedMeters)} m` : `singolo: ${fmtM(totalMetersQtyM)} m`}
                         </div>
                       </>
                     ) : (

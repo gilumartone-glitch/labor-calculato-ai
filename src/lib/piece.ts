@@ -491,6 +491,8 @@ export const computePieceMaterial = (
   catalog: Catalog,
   customer?: CustomerType,
 ): PieceMaterialBreakdown => {
+  // Ricchezza: maggiora la base del pezzo prima di ogni calcolo.
+  piece = withFullness(piece);
   // Orientamento altezza: deciso nel LISTINO (per prodotto), default orizzontale.
   const pieceHeightHorizontal = resolveHeightOrientation(piece, catalog) === "horizontal";
   // dimensioni base del pezzo in metri

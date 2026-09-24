@@ -129,6 +129,9 @@ interface CreateCommessaButtonProps {
   subProjectId?: string | null;
   /** Nome leggibile del sub-progetto (usato per titolo e note). */
   subProjectName?: string;
+  /** Numeri Passepartout dal preventivo */
+  ppQuote?: string;
+  ppOrder?: string;
 }
 
 export const CreateCommessaButton = ({
@@ -145,6 +148,8 @@ export const CreateCommessaButton = ({
   hideWarehouseShortcut = false,
   subProjectId = null,
   subProjectName,
+  ppQuote = "",
+  ppOrder = "",
 }: CreateCommessaButtonProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -504,7 +509,9 @@ export const CreateCommessaButton = ({
         snapshot: productionSnapshot as never,
         created_by: user.id,
         responsabile_id: generalManager || null,
-      }).select("id").single();
+        pp_preventivo: (refType === "PR" && refNumber.trim()) || ppQuote.trim() || null,
+        pp_ordine: (refType === "OC" && refNumber.trim()) || ppOrder.trim() || null,
+      } as never).select("id").single();
       if (error) throwFlowError("creazione_commessa", "commesse", error);
       const commessaId = createdCommessa.id;
 

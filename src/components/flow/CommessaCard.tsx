@@ -188,6 +188,21 @@ export const CommessaCard = ({ commessa, onOpen, onDelete, canDelete = false, co
             )}
           </div>
 
+          {(commessa.pp_preventivo || commessa.pp_ordine) && (
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {commessa.pp_preventivo && (
+                <span className="px-2 py-0.5 rounded-sm border-2 border-primary/50 bg-primary/10 text-primary text-xs font-mono font-bold">
+                  PR {commessa.pp_preventivo}
+                </span>
+              )}
+              {commessa.pp_ordine && (
+                <span className="px-2 py-0.5 rounded-sm border-2 border-ink/60 bg-ink text-paper text-xs font-mono font-bold">
+                  OC {commessa.pp_ordine}
+                </span>
+              )}
+            </div>
+          )}
+
           {commessa.cliente && (
             <div className="text-[11px] text-ink/70 mb-1.5 truncate">
               <span className="font-mono text-[9px] uppercase tracking-wider text-ink/40 mr-1">cliente</span>

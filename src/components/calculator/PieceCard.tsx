@@ -113,17 +113,31 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // Risincronizza quando cambia esternamente (es. Reset, sync da Lab),
   // ma NON sovrascrivere se la stringa locale rappresenta già lo stesso numero
   // (altrimenti digitare "0," o "1." azzera il campo durante l'input).
+  // Mentre l'utente sta scrivendo in un campo (focus) o c'è un valore ancora
+  // in coda, NON riscrivere il campo con il valore "vecchio" che torna dal
+  // padre: era la causa dei numeri cancellati scrivendo veloce.
+  const editingFieldRef = useRef<string | null>(null);
+  const isBusy = (k: keyof PieceLine) =>
+    editingFieldRef.current === k || k in pendingLinePatchRef.current;
   useEffect(() => {
+    if (isBusy("width")) return;
     setWidthStr((prev) => (parseNum(prev) === (line.width ?? 0) ? prev : fmtNum(line.width)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.width]);
   useEffect(() => {
+    if (isBusy("height")) return;
     setHeightStr((prev) => (parseNum(prev) === (line.height ?? 0) ? prev : fmtNum(line.height)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.height]);
   useEffect(() => {
+    if (isBusy("widthBottom")) return;
     setWidthBottomStr((prev) => (parseNum(prev) === (line.widthBottom ?? 0) ? prev : fmtNum(line.widthBottom)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.widthBottom]);
   useEffect(() => {
+    if (isBusy("quantity")) return;
     setQtyStr((prev) => (parseQtyStr(prev) === Math.max(1, Math.floor(Number(line.quantity) || 1)) ? prev : fmtQty(line.quantity)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.quantity]);
   /** Catalogo da cui leggere materiali/varianti per QUESTO pezzo.
    *  Se il pezzo preleva il materiale dal Laboratorio, usiamo i materiali del

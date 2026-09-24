@@ -1002,12 +1002,28 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     }
   };
 
+  const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
+  const otherOwnerKey = Array.from(new Set(drafts.map((d) => d.user_id).filter((id) => id !== user?.id))).sort().join(",");
+  useEffect(() => {
+    if (!otherOwnerKey) return;
+    supabase.from("profiles").select("id, display_name").in("id", otherOwnerKey.split(",")).then(({ data }) => {
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((p: any) => { if (p.display_name) m[p.id] = p.display_name; });
+      setOwnerNames((prev) => ({ ...prev, ...m }));
+    });
+  }, [otherOwnerKey]);
+
   if (!user) return null;
 
+  const ownerName = (uid: string) => ownerNames[uid] || "altro utente";
   const activeDraft = drafts.find((d) => d.id === activeId) ?? null;
-  const visibleDrafts = pickerQuery.trim()
+  const filteredDrafts = pickerQuery.trim()
     ? drafts.filter((d) => d.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
     : drafts;
+  const myDrafts = filteredDrafts.filter((d) => d.user_id === user.id);
+  const sharedDrafts = filteredDrafts.filter((d) => d.user_id !== user.id);
+  const visibleDrafts = [...myDrafts, ...sharedDrafts];
+  const sharedCount = drafts.filter((d) => d.user_id !== user.id).length;
 
   return (
     <>
@@ -1040,6 +1056,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                       onDoubleClick={() => startRename(activeDraft)}
                     >
                       {activeDraft.name}
+                    </span>
+                  )}
+                  {activeDraft.user_id !== user.id && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-sm bg-primary/20 whitespace-nowrap" title="Progetto condiviso con te">
+                      <Users2 className="w-3 h-3" /> da {ownerName(activeDraft.user_id)}
                     </span>
                   )}
                   {renamingId !== activeDraft.id && (
@@ -1087,6 +1108,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                   >
                     Schede
                     <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-sm bg-ink/10">{drafts.length}</span>
+                    {sharedCount > 0 && (
+                      <span className="inline-flex items-center gap-0.5 font-mono text-[11px] px-1.5 py-0.5 rounded-sm bg-primary/15 text-primary" title="Condivisi con me">
+                        <Users2 className="w-3 h-3" />{sharedCount}
+                      </span>
+                    )}
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                 </PopoverTrigger>
@@ -1104,6 +1130,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                     {visibleDrafts.length === 0 && (
                       <div className="text-sm text-muted-foreground px-2 py-3">Nessun risultato</div>
                     )}
+                    {sharedDrafts.length > 0 && (
+                      <div className="text-xs font-bold text-muted-foreground px-2 pb-1">
+                        I miei: {myDrafts.length} · Condivisi con me: {sharedDrafts.length} (in fondo alla lista)
+                      </div>
+                    )}
                     {visibleDrafts.map((d) => (
                       <div
                         key={d.id}
@@ -1117,16 +1148,17 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                             switchTo(d.id);
                             setPickerOpen(false);
                           }}
-                          className="flex-1 min-w-0 text-left text-sm font-semibold truncate"
+                          className="flex-1 min-w-0 text-left"
                           title={d.name}
                         >
-                          {d.name}
+                          <span className="block text-sm font-semibold truncate">{d.name}</span>
+                          {d.user_id !== user.id && (
+                            <span className="flex items-center gap-1 text-xs font-bold text-primary truncate">
+                              <Users2 className="w-3.5 h-3.5 shrink-0" />
+                              Condiviso da {ownerName(d.user_id)}
+                            </span>
+                          )}
                         </button>
-                        {d.user_id !== user.id && (
-                          <span title="Condiviso con te" className="text-primary">
-                            <Users2 className="w-3.5 h-3.5" />
-                          </span>
-                        )}
                         <button
                           type="button"
                           onClick={() => {

@@ -1058,6 +1058,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                       {activeDraft.name}
                     </span>
                   )}
+                  {activeDraft.user_id !== user.id && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-sm bg-primary/20 whitespace-nowrap" title="Progetto condiviso con te">
+                      <Users2 className="w-3 h-3" /> da {ownerName(activeDraft.user_id)}
+                    </span>
+                  )}
                   {renamingId !== activeDraft.id && (
                     <>
                       <button

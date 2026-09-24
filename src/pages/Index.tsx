@@ -131,6 +131,9 @@ const Index = () => {
     customerType: CustomerType;
     subProjects?: SubProject[];
     activeSubProjectId?: string | null;
+    /** Riferimenti gestionale Passepartout */
+    passepartoutQuote?: string;
+    passepartoutOrder?: string;
   };
   /** Normalizza qualsiasi snapshot (calcolatrice o produzione/revisione) nel formato
    *  StoredSnap. In particolare:
@@ -193,6 +196,8 @@ const Index = () => {
     buildDepts(initialSnap?.departments),
   );
   const [jobName, setJobName] = useState(initialSnap?.jobName ?? "");
+  const [ppQuote, setPpQuote] = useState<string>(initialSnap?.passepartoutQuote ?? "");
+  const [ppOrder, setPpOrder] = useState<string>(initialSnap?.passepartoutOrder ?? "");
   const [quantity, setQuantity] = useState(typeof initialSnap?.quantity === "number" ? initialSnap.quantity : 1);
   const [margin, setMargin] = useState(typeof initialSnap?.margin === "number" ? initialSnap.margin : 30);
   const [vat, setVat] = useState(typeof initialSnap?.vat === "number" ? initialSnap.vat : 22);
@@ -265,6 +270,7 @@ const Index = () => {
     const snap: StoredSnap = {
       version: STATE_VERSION, departments, jobName, quantity, margin, vat, applyVat, customerType,
       subProjects, activeSubProjectId,
+      passepartoutQuote: ppQuote, passepartoutOrder: ppOrder,
     };
     const serialized = JSON.stringify(snap);
     if (serialized === lastAppliedRef.current) return;
@@ -273,7 +279,7 @@ const Index = () => {
       localStorage.setItem(STATE_KEY, serialized);
       window.dispatchEvent(new Event("officina:draft-state-changed"));
     } catch { /* ignore */ }
-  }, [departments, jobName, quantity, margin, vat, applyVat, customerType, subProjects, activeSubProjectId]);
+  }, [departments, jobName, quantity, margin, vat, applyVat, customerType, subProjects, activeSubProjectId, ppQuote, ppOrder]);
 
   useEffect(() => {
     const refresh = () => setWorkshopTick((v) => v + 1);
@@ -311,6 +317,8 @@ const Index = () => {
       const nextDepartments = buildDepts(nextSnap.departments);
       setDepartments(nextDepartments);
       setJobName(nextSnap.jobName ?? "");
+      setPpQuote(nextSnap.passepartoutQuote ?? "");
+      setPpOrder(nextSnap.passepartoutOrder ?? "");
       setQuantity(typeof nextSnap.quantity === "number" ? nextSnap.quantity : 1);
       setMargin(typeof nextSnap.margin === "number" ? nextSnap.margin : 30);
       setVat(typeof nextSnap.vat === "number" ? nextSnap.vat : 22);
@@ -334,6 +342,8 @@ const Index = () => {
         customerType: nextSnap.customerType === "dealer" ? "dealer" : "final",
         subProjects: nextSubs,
         activeSubProjectId: nextActiveSub,
+        passepartoutQuote: nextSnap.passepartoutQuote ?? "",
+        passepartoutOrder: nextSnap.passepartoutOrder ?? "",
       });
       setDraftReloadNonce((n) => n + 1);
     };
@@ -700,6 +710,34 @@ const Index = () => {
           </button>
         </div>
       </header>
+
+      {/* Riferimenti gestionale Passepartout */}
+      <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 pt-3">
+        <div className="flex flex-wrap items-center gap-3 border-2 border-primary bg-primary/10 rounded-sm px-4 py-3">
+          <span className="font-display text-base font-semibold text-ink">Passepartout</span>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            N. preventivo
+            <input
+              value={ppQuote}
+              onChange={(e) => setPpQuote(e.target.value)}
+              placeholder="es. 2026/145"
+              className="h-10 w-44 rounded-sm border-2 border-input bg-background px-3 text-base"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            N. ordine
+            <input
+              value={ppOrder}
+              onChange={(e) => setPpOrder(e.target.value)}
+              placeholder="es. OC 2026/88"
+              className="h-10 w-44 rounded-sm border-2 border-input bg-background px-3 text-base"
+            />
+          </label>
+          {!ppQuote && !ppOrder && (
+            <span className="text-sm font-semibold text-destructive">Da inserire</span>
+          )}
+        </div>
+      </div>
 
       {/* Barra schede progetto + (riga sotto) tab reparti + Storico + Invia al Flow */}
       <DraftTabsBar

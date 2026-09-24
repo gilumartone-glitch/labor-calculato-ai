@@ -1002,6 +1002,17 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     }
   };
 
+  const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
+  const otherOwnerKey = Array.from(new Set(drafts.map((d) => d.user_id).filter((id) => id !== user?.id))).sort().join(",");
+  useEffect(() => {
+    if (!otherOwnerKey) return;
+    supabase.from("profiles").select("id, display_name").in("id", otherOwnerKey.split(",")).then(({ data }) => {
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((p: any) => { if (p.display_name) m[p.id] = p.display_name; });
+      setOwnerNames((prev) => ({ ...prev, ...m }));
+    });
+  }, [otherOwnerKey]);
+
   if (!user) return null;
 
   const ownerName = (uid: string) => ownerNames[uid] || "altro utente";

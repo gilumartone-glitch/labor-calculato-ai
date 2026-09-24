@@ -605,7 +605,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setQtyStr(e.target.value);
                 queueLinePatch({ quantity: parseQtyStr(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ quantity: parseQtyStr(qtyStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "quantity"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ quantity: parseQtyStr(qtyStr) }, true); }}
               className="w-12 bg-transparent text-right font-mono text-sm font-semibold focus:outline-none"
             />
           </div>
@@ -863,7 +864,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setWidthStr(e.target.value);
                 queueLinePatch({ width: parseNum(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ width: parseNum(widthStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "width"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ width: parseNum(widthStr) }, true); }}
               placeholder={shape === "trapezoid" ? "B" : "b"}
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -877,7 +879,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setHeightStr(e.target.value);
                 queueLinePatch({ height: parseNum(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ height: parseNum(heightStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "height"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ height: parseNum(heightStr) }, true); }}
               placeholder="h"
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -893,7 +896,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   setWidthBottomStr(e.target.value);
                   queueLinePatch({ widthBottom: parseNum(e.target.value) });
                 }}
-                onBlur={() => queueLinePatch({ widthBottom: parseNum(widthBottomStr) }, true)}
+                onFocus={() => { editingFieldRef.current = "widthBottom"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ widthBottom: parseNum(widthBottomStr) }, true); }}
                 placeholder="b minore"
                 disabled={materialLockedToLab}
                 className="input-bare font-mono text-sm text-right w-full disabled:opacity-50 disabled:cursor-not-allowed"

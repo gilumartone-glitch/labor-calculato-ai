@@ -801,6 +801,8 @@ const Index = () => {
                       }
                       return (
                         <CreateCommessaButton
+                          ppQuote={ppQuote}
+                          ppOrder={ppOrder}
                           label={`Lancia solo "${sp.name}" nel Flow`}
                           defaultTitle={`${(typeof window !== "undefined" ? localStorage.getItem("officina:active-draft-name") : "") || jobName || ""}${sp.name ? " · " + sp.name : ""}`}
                           defaultAmount={summaryData.reduce((s, d) => s + (d.totals?.total ?? 0), 0)}

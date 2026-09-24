@@ -320,6 +320,8 @@ export type Database = {
           note: string | null
           operator_ids: string[]
           ordine: number
+          pp_ordine: string | null
+          pp_preventivo: string | null
           priorita: Database["public"]["Enums"]["commessa_priorita"]
           reparto: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id: string | null
@@ -341,6 +343,8 @@ export type Database = {
           note?: string | null
           operator_ids?: string[]
           ordine?: number
+          pp_ordine?: string | null
+          pp_preventivo?: string | null
           priorita?: Database["public"]["Enums"]["commessa_priorita"]
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id?: string | null
@@ -362,6 +366,8 @@ export type Database = {
           note?: string | null
           operator_ids?: string[]
           ordine?: number
+          pp_ordine?: string | null
+          pp_preventivo?: string | null
           priorita?: Database["public"]["Enums"]["commessa_priorita"]
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id?: string | null

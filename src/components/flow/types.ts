@@ -32,6 +32,8 @@ export type Commessa = {
   macro_reparto?: string | null;
   responsabile_id?: string | null;
   operator_ids?: string[] | null;
+  pp_preventivo?: string | null;
+  pp_ordine?: string | null;
 };
 
 export const STATI: { k: CommessaStato; label: string; sub: string }[] = [

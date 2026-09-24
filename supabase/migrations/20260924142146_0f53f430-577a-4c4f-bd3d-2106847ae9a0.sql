@@ -1,0 +1,1 @@
+ALTER TABLE public.commesse ADD COLUMN IF NOT EXISTS pp_preventivo text, ADD COLUMN IF NOT EXISTS pp_ordine text;

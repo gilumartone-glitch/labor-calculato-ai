@@ -1004,10 +1004,15 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
 
   if (!user) return null;
 
+  const ownerName = (uid: string) => ownerNames[uid] || "altro utente";
   const activeDraft = drafts.find((d) => d.id === activeId) ?? null;
-  const visibleDrafts = pickerQuery.trim()
+  const filteredDrafts = pickerQuery.trim()
     ? drafts.filter((d) => d.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
     : drafts;
+  const myDrafts = filteredDrafts.filter((d) => d.user_id === user.id);
+  const sharedDrafts = filteredDrafts.filter((d) => d.user_id !== user.id);
+  const visibleDrafts = [...myDrafts, ...sharedDrafts];
+  const sharedCount = drafts.filter((d) => d.user_id !== user.id).length;
 
   return (
     <>

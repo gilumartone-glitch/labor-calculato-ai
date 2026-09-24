@@ -1103,6 +1103,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                   >
                     Schede
                     <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-sm bg-ink/10">{drafts.length}</span>
+                    {sharedCount > 0 && (
+                      <span className="inline-flex items-center gap-0.5 font-mono text-[11px] px-1.5 py-0.5 rounded-sm bg-primary/15 text-primary" title="Condivisi con me">
+                        <Users2 className="w-3 h-3" />{sharedCount}
+                      </span>
+                    )}
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                 </PopoverTrigger>
@@ -1120,6 +1125,11 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                     {visibleDrafts.length === 0 && (
                       <div className="text-sm text-muted-foreground px-2 py-3">Nessun risultato</div>
                     )}
+                    {sharedDrafts.length > 0 && (
+                      <div className="text-xs font-bold text-muted-foreground px-2 pb-1">
+                        I miei: {myDrafts.length} · Condivisi con me: {sharedDrafts.length} (in fondo alla lista)
+                      </div>
+                    )}
                     {visibleDrafts.map((d) => (
                       <div
                         key={d.id}
@@ -1133,16 +1143,17 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
                             switchTo(d.id);
                             setPickerOpen(false);
                           }}
-                          className="flex-1 min-w-0 text-left text-sm font-semibold truncate"
+                          className="flex-1 min-w-0 text-left"
                           title={d.name}
                         >
-                          {d.name}
+                          <span className="block text-sm font-semibold truncate">{d.name}</span>
+                          {d.user_id !== user.id && (
+                            <span className="flex items-center gap-1 text-xs font-bold text-primary truncate">
+                              <Users2 className="w-3.5 h-3.5 shrink-0" />
+                              Condiviso da {ownerName(d.user_id)}
+                            </span>
+                          )}
                         </button>
-                        {d.user_id !== user.id && (
-                          <span title="Condiviso con te" className="text-primary">
-                            <Users2 className="w-3.5 h-3.5" />
-                          </span>
-                        )}
                         <button
                           type="button"
                           onClick={() => {

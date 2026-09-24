@@ -113,17 +113,31 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
   // Risincronizza quando cambia esternamente (es. Reset, sync da Lab),
   // ma NON sovrascrivere se la stringa locale rappresenta già lo stesso numero
   // (altrimenti digitare "0," o "1." azzera il campo durante l'input).
+  // Mentre l'utente sta scrivendo in un campo (focus) o c'è un valore ancora
+  // in coda, NON riscrivere il campo con il valore "vecchio" che torna dal
+  // padre: era la causa dei numeri cancellati scrivendo veloce.
+  const editingFieldRef = useRef<string | null>(null);
+  const isBusy = (k: keyof PieceLine) =>
+    editingFieldRef.current === k || k in pendingLinePatchRef.current;
   useEffect(() => {
+    if (isBusy("width")) return;
     setWidthStr((prev) => (parseNum(prev) === (line.width ?? 0) ? prev : fmtNum(line.width)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.width]);
   useEffect(() => {
+    if (isBusy("height")) return;
     setHeightStr((prev) => (parseNum(prev) === (line.height ?? 0) ? prev : fmtNum(line.height)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.height]);
   useEffect(() => {
+    if (isBusy("widthBottom")) return;
     setWidthBottomStr((prev) => (parseNum(prev) === (line.widthBottom ?? 0) ? prev : fmtNum(line.widthBottom)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.widthBottom]);
   useEffect(() => {
+    if (isBusy("quantity")) return;
     setQtyStr((prev) => (parseQtyStr(prev) === Math.max(1, Math.floor(Number(line.quantity) || 1)) ? prev : fmtQty(line.quantity)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.quantity]);
   /** Catalogo da cui leggere materiali/varianti per QUESTO pezzo.
    *  Se il pezzo preleva il materiale dal Laboratorio, usiamo i materiali del
@@ -591,7 +605,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setQtyStr(e.target.value);
                 queueLinePatch({ quantity: parseQtyStr(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ quantity: parseQtyStr(qtyStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "quantity"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ quantity: parseQtyStr(qtyStr) }, true); }}
               className="w-12 bg-transparent text-right font-mono text-sm font-semibold focus:outline-none"
             />
           </div>
@@ -849,7 +864,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setWidthStr(e.target.value);
                 queueLinePatch({ width: parseNum(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ width: parseNum(widthStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "width"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ width: parseNum(widthStr) }, true); }}
               placeholder={shape === "trapezoid" ? "B" : "b"}
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -863,7 +879,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 setHeightStr(e.target.value);
                 queueLinePatch({ height: parseNum(e.target.value) });
               }}
-              onBlur={() => queueLinePatch({ height: parseNum(heightStr) }, true)}
+              onFocus={() => { editingFieldRef.current = "height"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ height: parseNum(heightStr) }, true); }}
               placeholder="h"
               disabled={materialLockedToLab}
               className="col-span-5 input-bare font-mono text-lg font-bold text-right text-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -879,7 +896,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   setWidthBottomStr(e.target.value);
                   queueLinePatch({ widthBottom: parseNum(e.target.value) });
                 }}
-                onBlur={() => queueLinePatch({ widthBottom: parseNum(widthBottomStr) }, true)}
+                onFocus={() => { editingFieldRef.current = "widthBottom"; }}
+              onBlur={() => { editingFieldRef.current = null; queueLinePatch({ widthBottom: parseNum(widthBottomStr) }, true); }}
                 placeholder="b minore"
                 disabled={materialLockedToLab}
                 className="input-bare font-mono text-sm text-right w-full disabled:opacity-50 disabled:cursor-not-allowed"

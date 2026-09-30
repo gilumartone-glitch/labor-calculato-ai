@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ProdCalendar } from "@/components/produzione/ProdCalendar";
 import { useSearchParams } from "react-router-dom";
 import { Plus, Eye, Lock, Calendar, Truck, Package, FileText, PackageCheck, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
@@ -107,6 +108,7 @@ const ProdBoard = () => {
   const [operatorDepts, setOperatorDepts] = useState<ProdDept[]>([]);
   const [commessaDeadlines, setCommessaDeadlines] = useState<Record<string, string | null>>({});
   const [mobileStage, setMobileStage] = useState<string | null>(null);
+  const [view, setView] = useState<"board" | "calendar">("board");
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Auto-open SubOrderDetailDialog when arriving via ?sub=<id> (e.g. da notifiche)
@@ -435,8 +437,21 @@ const ProdBoard = () => {
 
 
 
+        <div className="flex gap-1.5">
+          {(["board", "calendar"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              className={`px-4 py-2 rounded-sm border-2 text-sm font-bold uppercase ${view === v ? "bg-primary text-primary-foreground border-primary" : "border-ink/20 hover:border-ink/50"}`}>
+              {v === "board" ? "Bacheca" : "Calendario"}
+            </button>
+          ))}
+        </div>
+
+        {view === "calendar" && (
+          <ProdCalendar orders={orders} subs={isCoordinator ? subs : Object.values(displaySubsByOrder).flat()} profiles={profiles} onOpenSub={setDetail} />
+        )}
+
         {/* Tab pillole mobile per selezionare la fase */}
-        {stages.length > 1 && (
+        {view === "board" && stages.length > 1 && (
           <div className="md:hidden -mx-3 px-3 overflow-x-auto">
             <div className="flex items-center gap-1.5 pb-1 min-w-max">
               <button
@@ -460,7 +475,7 @@ const ProdBoard = () => {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2 md:flex-1 md:min-h-0">
+        <div className={`flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2 md:flex-1 md:min-h-0 ${view === "calendar" ? "hidden" : ""}`}>
           {stages.map((st) => (
             <div key={st.key} className={`w-full md:min-w-[340px] md:w-[340px] bg-muted/30 border-2 border-ink/15 rounded-sm flex flex-col md:h-full md:min-h-0 ${mobileStage !== null && st.key !== mobileStage ? "hidden md:flex" : ""}`}>
 

@@ -352,6 +352,11 @@ export const CreateCommessaButton = ({
         setInferenceSnapshot(snapshot);
       }
       setMontaggiActive(hasMontaggiContentForActiveDraft());
+      {
+        const ds = readDesignState() as { passepartoutOrder?: string; passepartoutQuote?: string };
+        const ppNum = (ppOrder || ds.passepartoutOrder || "").trim() || (ppQuote || ds.passepartoutQuote || "").trim();
+        if (ppNum) setForm((f) => ({ ...f, refType: "OC", refNumber: ppNum }));
+      }
       if (defaultTitle && defaultTitle.trim()) {
         // Auto-sync titolo con il nome della schedina (Progetto N) ad ogni apertura.
         // L'utente può comunque modificarlo successivamente.
@@ -509,7 +514,7 @@ export const CreateCommessaButton = ({
         snapshot: productionSnapshot as never,
         created_by: user.id,
         responsabile_id: generalManager || null,
-        pp_preventivo: (refType === "PR" && refNumber.trim()) || ppQuote.trim() || null,
+        pp_preventivo: (refType === "PR" && refNumber.trim()) || (ppQuote || String((readDesignState() as any).passepartoutQuote ?? "")).trim() || null,
         pp_ordine: (refType === "OC" && refNumber.trim()) || ppOrder.trim() || null,
       } as never).select("id").single();
       if (error) throwFlowError("creazione_commessa", "commesse", error);

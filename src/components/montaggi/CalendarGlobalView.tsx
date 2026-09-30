@@ -202,9 +202,9 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     const planP = planQuery.order("date").then((r) => r);
     const subP = nonMontaggiReparti.length > 0
       ? supabase.from("production_sub_orders")
-        .select("id, assignee_id, dept, status, started_at, completed_at, due_date, order_id")
+        .select("id, assignee_id, dept, status, started_at, completed_at, due_date, start_date, end_date, order_id")
         .in("dept", nonMontaggiReparti)
-        .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay}`)
+        .or(`due_date.gte.${firstDay},started_at.gte.${firstDay},completed_at.gte.${firstDay},end_date.gte.${firstDay},start_date.gte.${firstDay}`)
         .then((r) => r)
       : Promise.resolve({ data: [], error: null });
     const profP = profilesLoadedRef.current
@@ -315,10 +315,12 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     for (const s of prodSubs) {
       if (!s.assignee_id) continue;
       // intervallo coperto: da started_at (o due_date) a completed_at (o today)
-      const startStr = s.started_at ? s.started_at.slice(0, 10) : s.due_date ?? null;
+      const sa = s as any;
+      const startStr: string | null = sa.start_date ?? (s.started_at ? s.started_at.slice(0, 10) : null) ?? s.due_date ?? (s.completed_at ? s.completed_at.slice(0, 10) : null);
       if (!startStr) continue;
-      const endStr = s.completed_at
-        ? s.completed_at.slice(0, 10)
+      const endRaw = sa.end_date ?? (s.completed_at ? s.completed_at.slice(0, 10) : null);
+      const endStr = endRaw && endRaw >= startStr
+        ? endRaw
         : s.status === "completato" ? startStr
         : fmtDate(new Date());
       // se l'intervallo non interseca la finestra, salta

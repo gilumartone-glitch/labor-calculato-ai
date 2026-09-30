@@ -19,7 +19,7 @@ interface Props {
 export const ProdCalendar = ({ orders, subs, profiles, onOpenSub }: Props) => {
   const [month, setMonth] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [dept, setDept] = useState<ProdDept | "all">("all");
-  const [showDone, setShowDone] = useState(false);
+  const [showDone, setShowDone] = useState(true);
 
   const orderById = useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
   const nameOf = (id?: string | null) => (id ? profiles.find((p) => p.id === id)?.display_name ?? "?" : null);

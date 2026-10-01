@@ -397,6 +397,52 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
 
   const allCantieri = useMemo(() => Array.from(byCantiere.keys()).sort(), [byCantiere]);
 
+  const buildPdf = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const title = `Pianificazione ${days[0].toLocaleDateString("it-IT")} – ${days[days.length - 1].toLocaleDateString("it-IT")}`;
+    doc.setFontSize(16); doc.text(title, 14, 14);
+    const hslToRgb = (hsl: string): [number, number, number] => {
+      const m = hsl.match(/hsl\((\d+)\s+(\d+)%\s+(\d+)%\)/); if (!m) return [120, 120, 120];
+      const h = +m[1] / 360, sat = +m[2] / 100, l = +m[3] / 100;
+      const f = (n: number) => { const k = (n + h * 12) % 12; const a = sat * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+      return [f(0), f(8), f(4)];
+    };
+    const body: any[] = [];
+    const colors: [number, number, number][] = [];
+    for (const d of days) {
+      const ds = fmtDate(d);
+      for (const c of allCantieri) {
+        const list = (byCantiere.get(c)?.get(ds) ?? []) as Assignment[];
+        if (!list.length) continue;
+        const names = Array.from(new Set(list.map((a) => a.operator_id))).map((id) => displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id));
+        body.push([d.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit" }), c, names.join(", "), `${list[0].hours}h`]);
+        colors.push(hslToRgb(colorForCantiere(c)));
+      }
+    }
+    autoTable(doc, {
+      startY: 20, head: [["Giorno", "Cantiere", "Operai", "Ore"]], body,
+      styles: { fontSize: 10, cellPadding: 2 }, headStyles: { fillColor: [40, 40, 40] },
+      columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 70, fontStyle: "bold" }, 3: { cellWidth: 16 } },
+      didParseCell: (h: any) => { if (h.section === "body" && h.column.index === 1) { h.cell.styles.fillColor = colors[h.row.index]; h.cell.styles.textColor = [255, 255, 255]; } },
+    });
+    if (!body.length) doc.text("Nessun cantiere nel periodo.", 14, 30);
+    return { doc, name: `pianificazione_${dayStrs[0]}_${dayStrs[dayStrs.length - 1]}.pdf` };
+  };
+  const exportPdf = async () => { const { doc, name } = await buildPdf(); doc.save(name); };
+  const sharePdf = async () => {
+    const { doc, name } = await buildPdf();
+    const file = new File([doc.output("blob")], name, { type: "application/pdf" });
+    const nav = navigator as any;
+    if (nav.canShare && nav.canShare({ files: [file] })) {
+      try { await nav.share({ files: [file], title: "Pianificazione" }); return; } catch { return; }
+    }
+    doc.save(name);
+    window.open(`https://wa.me/?text=${encodeURIComponent("Pianificazione in allegato (" + name + ")")}`, "_blank");
+    toast.info("PDF scaricato: allegalo nella chat WhatsApp che si è aperta");
+  };
+
   const saveCrew = async () => {
     if (!crew || !user) return;
     const current = (byCantiere.get(crew.cantiere)?.get(crew.date) ?? []) as Assignment[];
@@ -560,6 +606,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
             <Button size="sm" onClick={() => setQuickOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+            <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
+            <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
@@ -643,10 +691,10 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                             <button key={id} type="button"
                               onClick={() => setCrew({ cantiere: cs[0], date: ds, sel: ((byCantiere.get(cs[0])?.get(ds) ?? []) as Assignment[]).map((x) => x.operator_id) })}
                               title={`${name} · ${cs.join(", ")}`}
-                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight border-l-[5px] bg-muted hover:bg-muted/70"
-                              style={{ borderLeftColor: colorForCantiere(cs[0]) }}>
+                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90 border-l-[6px]"
+                              style={{ backgroundColor: colorForCantiere("op:" + id), borderLeftColor: colorForCantiere(cs[0]) }}>
                               <div className="font-bold truncate">{name}</div>
-                              <div className="truncate text-xs text-muted-foreground">{cs.join(", ")}</div>
+                              <div className="truncate text-xs opacity-90">{cs.join(", ")}</div>
                             </button>
                           );
                         })}
@@ -657,10 +705,10 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                             <button key={c} type="button"
                               onClick={() => setCrew({ cantiere: c, date: ds, sel: list.map((x) => x.operator_id) })}
                               title={`${c} · ${names.join(", ")} · clic per scegliere gli operai`}
-                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight border-l-[5px] bg-muted hover:bg-muted/70"
-                              style={{ borderLeftColor: colorForCantiere(c) }}>
+                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90"
+                              style={{ backgroundColor: colorForCantiere(c) }}>
                               <div className="font-bold truncate">{c}</div>
-                              <div className="truncate text-xs text-muted-foreground">{names.length} · {names.join(", ")}</div>
+                              <div className="truncate text-xs opacity-90">{names.length} · {names.join(", ")}</div>
                             </button>
                           );
                         })}

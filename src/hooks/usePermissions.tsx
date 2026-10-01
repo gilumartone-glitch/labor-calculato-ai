@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type PageKey = "preventivi" | "flow" | "contabilita" | "falegnameria" | "montaggi" | "produzione" | "logistica" | "dipendenti" | "admin";
+export type PageKey = "preventivi" | "flow" | "contabilita" | "falegnameria" | "montaggi" | "produzione" | "logistica" | "pianificazione" | "dipendenti" | "admin";
 export type Level = "none" | "read" | "write";
 
 type State = {
@@ -44,6 +44,8 @@ export const usePermissions = () => {
 
   const can = (page: PageKey, required: Level = "read") => {
     if (state.isAdmin) return true;
+    // La Pianificazione è visibile a tutti gli utenti approvati.
+    if (page === "pianificazione" && required === "read") return state.approved;
     const meets = (lvl: Level) => {
       if (required === "read") return lvl === "read" || lvl === "write";
       if (required === "write") return lvl === "write";

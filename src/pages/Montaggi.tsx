@@ -902,7 +902,7 @@ function QuickCantiereButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-bold">+ Cantiere / Lavorazione</Button>
       <QuickCantiereDialog open={open} onOpenChange={setOpen} />
     </>
   );

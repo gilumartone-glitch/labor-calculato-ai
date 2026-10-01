@@ -783,7 +783,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                   <DraggableChip
                                     key={a.id}
                                     assignment={a}
-                                    onOpenDialog={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                    onOpenDialog={() => isResp && setEditing({ operatorId: op.id, date: dateStr, existing: a })}
                                     onDragState={setDraggingId}
                                   />
                                 ))}
@@ -1018,7 +1018,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
   return (
     <button
       type="button"
-      draggable
+      draggable={canDrag}
       onClick={onOpenDialog}
       onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
       onDragEnd={() => { setIsDragging(false); onDragState(null); }}

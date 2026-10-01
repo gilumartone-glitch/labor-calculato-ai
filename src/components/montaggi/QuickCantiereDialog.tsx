@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ interface Props {
 export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultReparto = "montaggi" }: Props) => {
   const { user } = useAuth();
   const [profiles, setProfiles] = useState<Prof[]>([]);
+  const calOps = useSharedCloudState<Array<{ id: string; name: string; userId?: string; reparti?: string[] }>>("montaggi:operai:v1", []);
   const [existing, setExisting] = useState<Row[]>([]);
   const [editLabel, setEditLabel] = useState<string>("");
   const [nome, setNome] = useState("");
@@ -92,8 +94,12 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
 
   const sortedProfiles = useMemo(() => {
     const inRep = (p: Prof) => (p.settori ?? []).includes(reparto);
-    return [...profiles].sort((a, b) => Number(inRep(b)) - Number(inRep(a)));
-  }, [profiles, reparto]);
+    const profIds = new Set(profiles.map((p) => p.id));
+    const extra: Prof[] = (calOps.state ?? [])
+      .filter((o) => o?.id && !profIds.has(o.id) && !(o.userId && profIds.has(o.userId)))
+      .map((o) => ({ id: o.id, display_name: o.name, settori: o.reparti ?? [] }));
+    return [...profiles, ...extra].sort((a, b) => Number(inRep(b)) - Number(inRep(a)));
+  }, [profiles, reparto, calOps.state]);
 
   const save = async () => {
     if (!user) return;

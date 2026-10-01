@@ -606,7 +606,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="icon" variant="outline" onClick={() => view === "calendario" && calRange === "month" ? setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)) : setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
-            <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className="font-bold">+ Cantiere / montaggio</Button>
+            <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className="font-bold">+ Cantiere / Lavorazione</Button>
             <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
             <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
@@ -629,7 +629,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                   })}
                 </div>
                 <DialogFooter className="gap-2">
-                  <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere ?? null; setCrew(null); setQuickLabel(c); setQuickOpen(true); }}>Modifica tutto il cantiere</Button>
+                  <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere ?? null; setCrew(null); setQuickLabel(c); setQuickOpen(true); }}>Modifica Cantiere / Lavorazione</Button>
                   <Button variant="outline" onClick={() => setCrew(null)}>Annulla</Button>
                   <Button onClick={saveCrew} disabled={crewSaving}><Save className="h-4 w-4" />Salva</Button>
                 </DialogFooter>

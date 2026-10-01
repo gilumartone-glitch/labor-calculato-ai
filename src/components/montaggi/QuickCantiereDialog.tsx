@@ -185,13 +185,13 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">{editLabel ? "Modifica cantiere" : "Nuovo cantiere / montaggio"}</DialogTitle>
+          <DialogTitle className="text-2xl">{editLabel ? "Modifica Cantiere / Lavorazione" : "Nuovo Cantiere / Lavorazione"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 text-base">
           {labels.length > 0 && (
             <label className="block">
-              <span className="font-semibold">Modifica un cantiere esistente</span>
+              <span className="font-semibold">Modifica un Cantiere / Lavorazione esistente</span>
               <select value={editLabel} onChange={(e) => loadExisting(e.target.value)} className="mt-1 w-full h-11 border-2 border-input rounded-sm px-2 bg-background">
                 <option value="">— Nuovo cantiere —</option>
                 {labels.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -199,7 +199,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
             </label>
           )}
 
-          <label className="block"><span className="font-semibold">Nome cantiere *</span>
+          <label className="block"><span className="font-semibold">Nome Cantiere / Lavorazione *</span>
             <Input className="mt-1 h-11 text-base" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="es. Teatro San Carlo" autoFocus />
           </label>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -291,7 +291,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
         <DialogFooter className="gap-2">
           {editLabel && <Button variant="destructive" onClick={remove} className="mr-auto"><Trash2 className="w-4 h-4" />Elimina</Button>}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
-          <Button onClick={save} disabled={saving}><Plus className="w-4 h-4" />{editLabel ? "Salva modifiche" : "Crea cantiere"}</Button>
+          <Button onClick={save} disabled={saving}><Plus className="w-4 h-4" />{editLabel ? "Salva modifiche" : "Crea Cantiere / Lavorazione"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

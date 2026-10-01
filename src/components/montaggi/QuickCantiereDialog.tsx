@@ -55,10 +55,12 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
   const [reparto, setReparto] = useState(defaultReparto);
   const [ops, setOps] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dayOps, setDayOps] = useState<Record<string, string[]>>({});
+  const [showDays, setShowDays] = useState(false);
 
   const reset = () => {
     setEditLabel(""); setNome(""); setCliente(""); setLuogo(""); setNote("");
-    setFrom(todayStr()); setTo(todayStr()); setHours(8); setWeekend(false); setReparto(defaultReparto); setOps([]);
+    setFrom(todayStr()); setTo(todayStr()); setHours(8); setWeekend(false); setReparto(defaultReparto); setOps([]); setDayOps({}); setShowDays(false);
   };
 
   useEffect(() => {
@@ -88,7 +90,14 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     setNome(label); setCliente(n.cliente); setLuogo(n.luogo); setNote(n.note);
     setFrom(dates[0]); setTo(dates[dates.length - 1]);
     setHours(Number(rows[0].hours) || 8); setReparto(rows[0].reparto || defaultReparto);
-    setOps(Array.from(new Set(rows.map((r) => r.operator_id))));
+    const all = Array.from(new Set(rows.map((r) => r.operator_id)));
+    setOps(all);
+    const per: Record<string, string[]> = {};
+    for (const d of new Set(dates)) {
+      const o = rows.filter((r) => r.date === d).map((r) => r.operator_id);
+      if (o.length !== all.length) per[d] = o;
+    }
+    setDayOps(per); setShowDays(Object.keys(per).length > 0);
     setWeekend(rows.some((r) => { const d = new Date(r.date).getDay(); return d === 0 || d === 6; }));
   };
 
@@ -101,17 +110,27 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     return [...profiles, ...extra].sort((a, b) => Number(inRep(b)) - Number(inRep(a)));
   }, [profiles, reparto, calOps.state]);
 
+  const days = useMemo(() => {
+    const out: string[] = [];
+    if (!from || !to || to < from) return out;
+    for (let d = new Date(from + "T00:00:00"); fmt(d) <= to; d.setDate(d.getDate() + 1)) {
+      const wd = d.getDay();
+      if (!weekend && (wd === 0 || wd === 6)) continue;
+      out.push(fmt(d));
+    }
+    return out;
+  }, [from, to, weekend]);
+  const opsFor = (d: string) => dayOps[d] ?? ops;
+  const toggleDayOp = (d: string, id: string) => setDayOps((m) => {
+    const cur = m[d] ?? ops;
+    return { ...m, [d]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
+  });
+  const nameOf = (id: string) => sortedProfiles.find((p) => p.id === id)?.display_name ?? "Operaio";
+
   const save = async () => {
     if (!user) return;
     if (!nome.trim()) { toast.error("Inserisci il nome del cantiere"); return; }
     if (!from || !to || to < from) { toast.error("Controlla le date"); return; }
-    if (!ops.length) { toast.error("Scegli almeno un operaio"); return; }
-    const days: string[] = [];
-    for (let d = new Date(from + "T00:00:00"); fmt(d) <= to; d.setDate(d.getDate() + 1)) {
-      const wd = d.getDay();
-      if (!weekend && (wd === 0 || wd === 6)) continue;
-      days.push(fmt(d));
-    }
     if (!days.length) { toast.error("Nessun giorno lavorativo nelle date scelte"); return; }
     setSaving(true);
     try {
@@ -123,9 +142,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
         }
       }
       const notes = buildNotes(cliente.trim(), luogo.trim(), note.trim());
-      const rows = ops.flatMap((op) => days.map((date) => ({
+      const rows = days.flatMap((date) => opsFor(date).map((op) => ({
         commessa_id: null, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto, created_by: user.id,
       })));
+      if (!rows.length) { toast.error("Scegli almeno un operaio"); setSaving(false); return; }
       const { error } = await supabase.from("montaggi_planning").insert(rows);
       if (error) throw error;
       toast.success(editLabel ? "Cantiere aggiornato" : "Cantiere creato");
@@ -205,6 +225,42 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
               })}
             </div>
           </div>
+
+          {days.length > 0 && (
+            <div className="border-2 border-input rounded-sm">
+              <button type="button" onClick={() => setShowDays((v) => !v)} className="w-full text-left px-3 py-2 font-semibold">
+                {showDays ? "▾" : "▸"} Operai per singola giornata ({days.length} giorni)
+              </button>
+              {showDays && (
+                <div className="divide-y divide-border">
+                  {days.map((d) => {
+                    const cur = opsFor(d);
+                    const label = new Date(d + "T00:00:00").toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit" });
+                    const pool = Array.from(new Set([...ops, ...cur]));
+                    return (
+                      <div key={d} className="px-3 py-2 flex flex-wrap items-center gap-1.5">
+                        <span className="w-28 font-semibold capitalize">{label}</span>
+                        {pool.map((id) => {
+                          const on = cur.includes(id);
+                          return (
+                            <button key={id} type="button" onClick={() => toggleDayOp(d, id)}
+                              className={`px-2.5 py-1 rounded-sm border-2 text-sm font-semibold ${on ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground line-through"}`}>
+                              {nameOf(id)}
+                            </button>
+                          );
+                        })}
+                        <select value="" onChange={(e) => e.target.value && toggleDayOp(d, e.target.value)} className="h-8 border-2 border-input rounded-sm px-1 bg-background text-sm">
+                          <option value="">+ aggiungi</option>
+                          {sortedProfiles.filter((p) => !cur.includes(p.id)).map((p) => <option key={p.id} value={p.id}>{p.display_name ?? "Utente"}</option>)}
+                        </select>
+                        {dayOps[d] && <button type="button" className="text-sm underline text-muted-foreground" onClick={() => setDayOps((m) => { const n = { ...m }; delete n[d]; return n; })}>ripristina</button>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <label className="block"><span className="font-semibold">Note</span>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="mt-1 w-full border-2 border-input rounded-sm p-2 bg-background" />

@@ -148,7 +148,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const includesMontaggi = allowedReparti.includes("montaggi");
   const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
 
-  const [view, setView] = useState<"operai" | "cantieri">("operai");
+  const [view, setView] = useState<"operai" | "cantieri" | "calendario">("operai");
   const [quickOpen, setQuickOpen] = useState(false);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
@@ -522,6 +522,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <TabsList>
                 <TabsTrigger value="operai"><Users className="h-3.5 w-3.5 mr-1" />Per operaio</TabsTrigger>
                 <TabsTrigger value="cantieri"><Building2 className="h-3.5 w-3.5 mr-1" />Per cantiere</TabsTrigger>
+                <TabsTrigger value="calendario"><CalendarDays className="h-3.5 w-3.5 mr-1" />Calendario</TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-1">
@@ -589,6 +590,42 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
         <CardContent className="p-0 overflow-x-auto">
           {loading && assignments.length === 0 && prodSubs.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">Caricamento…</div>
+          ) : view === "calendario" ? (
+            <div>
+              <div className="grid grid-cols-7 text-sm font-bold uppercase text-muted-foreground border-b border-border">
+                {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => <div key={d} className="px-2 py-2">{d}</div>)}
+              </div>
+              <div className="grid grid-cols-7">
+                {days.map((d) => {
+                  const ds = fmtDate(d);
+                  const cants = allCantieri.filter((c) => (byCantiere.get(c)?.get(ds) ?? []).length > 0);
+                  const isWeekend = ((d.getDay() + 6) % 7) >= 5;
+                  return (
+                    <div key={ds} className={`min-h-[130px] border-r border-b border-border p-1.5 ${isWeekend ? "bg-muted/30" : ""} ${ds === todayStr ? "bg-dept-soft/30" : ""}`}>
+                      <div className={`text-base mb-1 ${ds === todayStr ? "font-bold text-dept" : "font-semibold"}`}>
+                        {d.toLocaleDateString("it-IT", { day: "numeric", month: "short" })}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {cants.map((c) => {
+                          const list = (byCantiere.get(c)?.get(ds) ?? []) as Assignment[];
+                          const names = Array.from(new Set(list.map((a) => a.operator_id))).map((id) => displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id));
+                          return (
+                            <button key={c} type="button"
+                              onClick={() => setCrew({ cantiere: c, date: ds, sel: list.map((x) => x.operator_id) })}
+                              title={`${c} · ${names.join(", ")} · clic per scegliere gli operai`}
+                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight border-l-[5px] bg-muted hover:bg-muted/70"
+                              style={{ borderLeftColor: colorForCantiere(c) }}>
+                              <div className="font-bold truncate">{c}</div>
+                              <div className="truncate text-xs text-muted-foreground">{names.length} · {names.join(", ")}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           ) : view === "operai" ? (
               <table className="w-full border-collapse min-w-[1100px]">
                 <thead>

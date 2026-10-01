@@ -35,10 +35,12 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   onSaved?: () => void;
   defaultReparto?: string;
+  /** Se presente, apre direttamente in modifica questo cantiere/lavorazione. */
+  initialLabel?: string | null;
 }
 
 /** Creazione/modifica rapida di un cantiere o montaggio, senza progetto. */
-export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultReparto = "montaggi" }: Props) => {
+export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultReparto = "montaggi", initialLabel }: Props) => {
   const { user } = useAuth();
   const [profiles, setProfiles] = useState<Prof[]>([]);
   const calOps = useSharedCloudState<Array<{ id: string; name: string; userId?: string; reparti?: string[] }>>("montaggi:operai:v1", []);
@@ -57,33 +59,43 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
   const [saving, setSaving] = useState(false);
   const [dayOps, setDayOps] = useState<Record<string, string[]>>({});
   const [showDays, setShowDays] = useState(false);
+  const [dayRep, setDayRep] = useState<Record<string, string>>({});
+  const [commessaId, setCommessaId] = useState<string | null>(null);
 
   const reset = () => {
     setEditLabel(""); setNome(""); setCliente(""); setLuogo(""); setNote("");
-    setFrom(todayStr()); setTo(todayStr()); setHours(8); setWeekend(false); setReparto(defaultReparto); setOps([]); setDayOps({}); setShowDays(false);
+    setFrom(todayStr()); setTo(todayStr()); setHours(8); setWeekend(false); setReparto(defaultReparto); setOps([]); setDayOps({}); setShowDays(false); setDayRep({}); setCommessaId(null);
   };
 
   useEffect(() => {
     if (!open) return;
     reset();
     (async () => {
-      const [{ data: p }, { data: r }] = await Promise.all([
+      const cols = "id, cantiere_label, operator_id, date, hours, notes, reparto, commessa_id";
+      const [{ data: p }, { data: r }, { data: r2 }] = await Promise.all([
         supabase.from("profiles").select("id, display_name, settori").order("display_name"),
-        supabase.from("montaggi_planning").select("id, cantiere_label, operator_id, date, hours, notes, reparto, commessa_id")
+        supabase.from("montaggi_planning").select(cols)
           .is("commessa_id", null).gte("date", fmt(new Date(Date.now() - 60 * 864e5))).order("date"),
+        initialLabel
+          ? supabase.from("montaggi_planning").select(cols).eq("cantiere_label", initialLabel).order("date")
+          : Promise.resolve({ data: [] as Row[] }),
       ]);
       setProfiles((p ?? []) as Prof[]);
-      setExisting((r ?? []) as Row[]);
+      const map = new Map<string, Row>();
+      for (const x of [...((r ?? []) as Row[]), ...((r2 ?? []) as Row[])]) map.set(x.id, x);
+      const all = Array.from(map.values());
+      setExisting(all);
+      if (initialLabel) loadExisting(initialLabel, all);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const labels = useMemo(() => Array.from(new Set(existing.map((r) => r.cantiere_label))).sort(), [existing]);
 
-  const loadExisting = (label: string) => {
+  const loadExisting = (label: string, src: Row[] = existing) => {
     setEditLabel(label);
     if (!label) { reset(); return; }
-    const rows = existing.filter((r) => r.cantiere_label === label);
+    const rows = src.filter((r) => r.cantiere_label === label);
     if (!rows.length) return;
     const dates = rows.map((r) => r.date).sort();
     const n = parseNotes(rows[0].notes);
@@ -97,7 +109,12 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
       const o = rows.filter((r) => r.date === d).map((r) => r.operator_id);
       if (o.length !== all.length) per[d] = o;
     }
-    setDayOps(per); setShowDays(Object.keys(per).length > 0);
+    const mainRep = rows[0].reparto || defaultReparto;
+    const reps: Record<string, string> = {};
+    for (const r of rows) if ((r.reparto || defaultReparto) !== mainRep) reps[r.date] = r.reparto || defaultReparto;
+    setDayRep(reps);
+    setCommessaId(rows.find((r) => r.commessa_id)?.commessa_id ?? null);
+    setDayOps(per); setShowDays(Object.keys(per).length > 0 || Object.keys(reps).length > 0);
     setWeekend(rows.some((r) => { const d = new Date(r.date).getDay(); return d === 0 || d === 6; }));
   };
 
@@ -143,7 +160,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
       }
       const notes = buildNotes(cliente.trim(), luogo.trim(), note.trim());
       const rows = days.flatMap((date) => opsFor(date).map((op) => ({
-        commessa_id: null, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto, created_by: user.id,
+        commessa_id: commessaId, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto: dayRep[date] ?? reparto, created_by: user.id,
       })));
       if (!rows.length) { toast.error("Scegli almeno un operaio"); setSaving(false); return; }
       const { error } = await supabase.from("montaggi_planning").insert(rows);
@@ -240,6 +257,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
                     return (
                       <div key={d} className="px-3 py-2 flex flex-wrap items-center gap-1.5">
                         <span className="w-28 font-semibold capitalize">{label}</span>
+                        <select value={dayRep[d] ?? reparto} onChange={(e) => setDayRep((m) => { const n = { ...m }; if (e.target.value === reparto) delete n[d]; else n[d] = e.target.value; return n; })}
+                          className="h-8 border-2 border-input rounded-sm px-1 bg-background text-sm" title="Reparto di questo giorno">
+                          {REPARTI.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
+                        </select>
                         {pool.map((id) => {
                           const on = cur.includes(id);
                           return (

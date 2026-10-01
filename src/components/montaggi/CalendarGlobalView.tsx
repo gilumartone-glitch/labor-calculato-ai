@@ -150,6 +150,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
 
   const [view, setView] = useState<"operai" | "cantieri" | "calendario">("operai");
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickLabel, setQuickLabel] = useState<string | null>(null);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
   const initialCache = dataCache.get(`${repartiKey}|${fmtDate(startOfWeek(new Date()))}`);
@@ -605,7 +606,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="icon" variant="outline" onClick={() => view === "calendario" && calRange === "month" ? setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)) : setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
-            <Button size="sm" onClick={() => setQuickOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+            <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className="font-bold">+ Cantiere / montaggio</Button>
             <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
             <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
@@ -628,12 +629,13 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                   })}
                 </div>
                 <DialogFooter className="gap-2">
+                  <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere ?? null; setCrew(null); setQuickLabel(c); setQuickOpen(true); }}>Modifica tutto il cantiere</Button>
                   <Button variant="outline" onClick={() => setCrew(null)}>Annulla</Button>
                   <Button onClick={saveCrew} disabled={crewSaving}><Save className="h-4 w-4" />Salva</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <QuickCantiereDialog open={quickOpen} onOpenChange={setQuickOpen} onSaved={() => load()} defaultReparto={allowedReparti[0] ?? "montaggi"} />
+            <QuickCantiereDialog open={quickOpen} initialLabel={quickLabel} onOpenChange={setQuickOpen} onSaved={() => load()} defaultReparto={allowedReparti[0] ?? "montaggi"} />
           </div>
         </CardHeader>
       </Card>
@@ -689,7 +691,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                           const cs = Array.from(new Set(mine.map((a) => a.cantiere_label)));
                           return (
                             <button key={id} type="button"
-                              onClick={() => setCrew({ cantiere: cs[0], date: ds, sel: ((byCantiere.get(cs[0])?.get(ds) ?? []) as Assignment[]).map((x) => x.operator_id) })}
+                              onClick={() => { setQuickLabel(cs[0]); setQuickOpen(true); }}
                               title={`${name} · ${cs.join(", ")}`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90 border-l-[6px]"
                               style={{ backgroundColor: colorForCantiere("op:" + id), borderLeftColor: colorForCantiere(cs[0]) }}>
@@ -703,8 +705,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                           const names = Array.from(new Set(list.map((a) => a.operator_id))).map((id) => displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id));
                           return (
                             <button key={c} type="button"
-                              onClick={() => setCrew({ cantiere: c, date: ds, sel: list.map((x) => x.operator_id) })}
-                              title={`${c} · ${names.join(", ")} · clic per scegliere gli operai`}
+                              onClick={() => { setQuickLabel(c); setQuickOpen(true); }}
+                              title={`${c} · ${names.join(", ")} · clic per modificare`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90"
                               style={{ backgroundColor: colorForCantiere(c) }}>
                               <div className="font-bold truncate">{c}</div>

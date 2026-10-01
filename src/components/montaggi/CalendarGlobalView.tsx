@@ -177,13 +177,22 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const [dirty, setDirty] = useState(false);
   useEffect(() => { if (ops.ready && opsDraft === null) setOpsDraft(ops.state); }, [ops.ready, ops.state, opsDraft]);
 
-  const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
+  const [calRange, setCalRange] = useState<"week" | "2w" | "month">("month");
+  const [calShow, setCalShow] = useState<"cantieri" | "operai">("cantieri");
+  const [calMonth, setCalMonth] = useState<Date>(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const days = useMemo(() => {
+    if (view === "calendario") {
+      if (calRange === "month") { const s0 = startOfWeek(calMonth); return Array.from({ length: 42 }, (_, i) => addDays(s0, i)); }
+      return Array.from({ length: calRange === "week" ? 7 : 14 }, (_, i) => addDays(start, i));
+    }
+    return Array.from({ length: DAYS }, (_, i) => addDays(start, i));
+  }, [start, view, calRange, calMonth]);
   const dayStrs = useMemo(() => days.map(fmtDate), [days]);
 
   // Carica solo la finestra corrente. Niente realtime su ogni modifica: gli update sono ottimistici
   // e restano locali, così la griglia non si ricarica continuamente mentre lavori.
   const profilesLoadedRef = useRef(initialCache ? true : false);
-  const cacheKey = useMemo(() => `${repartiKey}|${dayStrs[0]}`, [repartiKey, dayStrs]);
+  const cacheKey = useMemo(() => `${repartiKey}|${dayStrs[0]}|${dayStrs.length}`, [repartiKey, dayStrs]);
 
   const load = useCallback(async () => {
     const cached = dataCache.get(cacheKey);
@@ -526,12 +535,29 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" onClick={() => setStart(addDays(start, -7))}><ChevronLeft className="h-4 w-4" /></Button>
+              {view === "calendario" && (
+                <Tabs value={calRange} onValueChange={(v) => setCalRange(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="week">Settimana</TabsTrigger>
+                    <TabsTrigger value="2w">2 settimane</TabsTrigger>
+                    <TabsTrigger value="month">Mese</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+              {view === "calendario" && (
+                <Tabs value={calShow} onValueChange={(v) => setCalShow(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="cantieri">Cantieri</TabsTrigger>
+                    <TabsTrigger value="operai">Operai</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+              <Button size="icon" variant="outline" onClick={() => view === "calendario" && calRange === "month" ? setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1)) : setStart(addDays(start, -7))}><ChevronLeft className="h-4 w-4" /></Button>
               <div className="px-3 text-sm font-mono">
-                {days[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} – {days[days.length - 1].toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}
+                {view === "calendario" && calRange === "month" ? <span className="capitalize text-base font-bold">{calMonth.toLocaleDateString("it-IT", { month: "long", year: "numeric" })}</span> : <>{days[0].toLocaleDateString("it-IT", { day: "2-digit", month: "short" })} – {days[days.length - 1].toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}</>}
               </div>
-              <Button size="icon" variant="outline" onClick={() => setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
-              <Button size="sm" variant="outline" onClick={() => setStart(startOfWeek(new Date()))}>Oggi</Button>
+              <Button size="icon" variant="outline" onClick={() => view === "calendario" && calRange === "month" ? setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)) : setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
             <Button size="sm" onClick={() => setQuickOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
@@ -600,13 +626,31 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                   const ds = fmtDate(d);
                   const cants = allCantieri.filter((c) => (byCantiere.get(c)?.get(ds) ?? []).length > 0);
                   const isWeekend = ((d.getDay() + 6) % 7) >= 5;
+                  const outMonth = calRange === "month" && d.getMonth() !== calMonth.getMonth();
+                  const dayAll = cants.flatMap((c) => (byCantiere.get(c)?.get(ds) ?? []) as Assignment[]);
+                  const opIds = Array.from(new Set(dayAll.map((a) => a.operator_id)));
                   return (
-                    <div key={ds} className={`min-h-[130px] border-r border-b border-border p-1.5 ${isWeekend ? "bg-muted/30" : ""} ${ds === todayStr ? "bg-dept-soft/30" : ""}`}>
+                    <div key={ds} className={`${calRange === "month" ? "min-h-[150px]" : "min-h-[320px]"} border-r border-b border-border p-1.5 ${outMonth ? "opacity-50" : ""} ${isWeekend ? "bg-muted/30" : ""} ${ds === todayStr ? "bg-dept-soft/30" : ""}`}>
                       <div className={`text-base mb-1 ${ds === todayStr ? "font-bold text-dept" : "font-semibold"}`}>
                         {d.toLocaleDateString("it-IT", { day: "numeric", month: "short" })}
                       </div>
                       <div className="flex flex-col gap-1">
-                        {cants.map((c) => {
+                        {calShow === "operai" && opIds.map((id) => {
+                          const mine = dayAll.filter((a) => a.operator_id === id);
+                          const name = displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id);
+                          const cs = Array.from(new Set(mine.map((a) => a.cantiere_label)));
+                          return (
+                            <button key={id} type="button"
+                              onClick={() => setCrew({ cantiere: cs[0], date: ds, sel: ((byCantiere.get(cs[0])?.get(ds) ?? []) as Assignment[]).map((x) => x.operator_id) })}
+                              title={`${name} · ${cs.join(", ")}`}
+                              className="text-left rounded-sm px-2 py-1 text-sm leading-tight border-l-[5px] bg-muted hover:bg-muted/70"
+                              style={{ borderLeftColor: colorForCantiere(cs[0]) }}>
+                              <div className="font-bold truncate">{name}</div>
+                              <div className="truncate text-xs text-muted-foreground">{cs.join(", ")}</div>
+                            </button>
+                          );
+                        })}
+                        {calShow === "cantieri" && cants.map((c) => {
                           const list = (byCantiere.get(c)?.get(ds) ?? []) as Assignment[];
                           const names = Array.from(new Set(list.map((a) => a.operator_id))).map((id) => displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id));
                           return (

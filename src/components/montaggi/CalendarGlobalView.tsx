@@ -799,7 +799,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                 })}
                                 <button
                                   type="button"
-                                  onClick={() => isResp ? setEditing({ operatorId: op.id, date: dateStr })}
+                                  onClick={() => isResp ? setEditing({ operatorId: op.id, date: dateStr }) : toast.info("Solo un responsabile può modificare")}
                                   className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
                                   title="Aggiungi impegno"
                                 >

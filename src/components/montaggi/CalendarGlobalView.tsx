@@ -158,6 +158,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
   const [loading, setLoading] = useState(!initialCache);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
+  const [crew, setCrew] = useState<{ cantiere: string; date: string; sel: string[] } | null>(null);
+  const [crewSaving, setCrewSaving] = useState(false);
 
   // Filtri
   const [filterText, setFilterText] = useState("");
@@ -385,6 +387,34 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   }, [filteredAssignments]);
 
   const allCantieri = useMemo(() => Array.from(byCantiere.keys()).sort(), [byCantiere]);
+
+  const saveCrew = async () => {
+    if (!crew || !user) return;
+    const current = (byCantiere.get(crew.cantiere)?.get(crew.date) ?? []) as Assignment[];
+    const toDel = current.filter((a) => !crew.sel.includes(a.operator_id));
+    const have = new Set(current.map((a) => a.operator_id));
+    const toAdd = crew.sel.filter((id) => !have.has(id));
+    const tpl = current[0] ?? (Array.from(byCantiere.get(crew.cantiere)?.values() ?? []).flat()[0] as Assignment | undefined);
+    setCrewSaving(true);
+    try {
+      if (toDel.length) {
+        const { error } = await supabase.from("montaggi_planning").delete().in("id", toDel.map((a) => a.id));
+        if (error) throw error;
+      }
+      if (toAdd.length) {
+        const { error } = await supabase.from("montaggi_planning").insert(toAdd.map((op) => ({
+          commessa_id: tpl?.commessa_id ?? null, cantiere_label: crew.cantiere, operator_id: op, date: crew.date,
+          hours: tpl?.hours ?? 8, notes: tpl?.notes ?? null, reparto: tpl?.reparto ?? defaultReparto, created_by: user.id,
+        })));
+        if (error) throw error;
+      }
+      toast.success("Operai del giorno aggiornati");
+      dataCache.delete(cacheKey);
+      setCrew(null);
+      await load();
+    } catch (e: any) { toast.error(e?.message ?? "Errore"); }
+    finally { setCrewSaving(false); }
+  };
   const todayStr = fmtDate(new Date());
 
   // === Worker manager handlers ===
@@ -503,6 +533,31 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="sm" variant="outline" onClick={() => setStart(startOfWeek(new Date()))}>Oggi</Button>
             </div>
             <Button size="sm" onClick={() => setQuickOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+            <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">{crew?.cantiere}</DialogTitle>
+                  <p className="text-base text-muted-foreground capitalize">{crew && new Date(crew.date + "T00:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}</p>
+                </DialogHeader>
+                <div className="font-semibold text-base">Operai in questo giorno ({crew?.sel.length ?? 0})</div>
+                <div className="flex flex-wrap gap-2 max-h-[50vh] overflow-y-auto">
+                  {displayedOps.map((o) => {
+                    const on = !!crew?.sel.includes(o.id);
+                    return (
+                      <button key={o.id} type="button"
+                        onClick={() => setCrew((c) => c && ({ ...c, sel: on ? c.sel.filter((x) => x !== o.id) : [...c.sel, o.id] }))}
+                        className={`px-3 py-2 rounded-sm border-2 text-base font-semibold ${on ? "bg-primary text-primary-foreground border-primary" : "border-input hover:border-primary"}`}>
+                        {on ? "✓ " : ""}{o.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => setCrew(null)}>Annulla</Button>
+                  <Button onClick={saveCrew} disabled={crewSaving}><Save className="h-4 w-4" />Salva</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <QuickCantiereDialog open={quickOpen} onOpenChange={setQuickOpen} onSaved={() => load()} defaultReparto={allowedReparti[0] ?? "montaggi"} />
           </div>
         </CardHeader>
@@ -684,7 +739,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                         const isWeekend = dow >= 5;
                         return (
                           <td key={dateStr} className={`p-1 border-b border-l border-border align-top ${isWeekStart ? "border-l-2 border-l-dept" : ""} ${isToday ? "bg-dept-soft/30" : ""} ${isWeekend ? "bg-muted/30" : ""}`}>
-                            <div className="space-y-1 min-h-[64px]">
+                            <div className="space-y-1 min-h-[64px] cursor-pointer" title="Clic per scegliere gli operai di questo giorno" onClick={() => setCrew({ cantiere: c, date: dateStr, sel: list.map((x) => x.operator_id) })}>
                               {list.map((a) => {
                                 const rep = (a.reparto ?? "montaggi") as Reparto;
                                 const opName = displayedOps.find((o) => o.id === a.operator_id)?.name ?? prettyOpName(a.operator_id);
@@ -692,7 +747,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                   <button
                                     key={a.id}
                                     type="button"
-                                    onClick={() => setEditing({ operatorId: a.operator_id, date: dateStr, existing: a })}
+                                    onClick={(e) => { e.stopPropagation(); setCrew({ cantiere: c, date: dateStr, sel: list.map((x) => x.operator_id) }); }}
                                     className="w-full text-left px-2 py-1.5 rounded-md text-[11px] font-bold text-white hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all border-l-[5px] shadow-md ring-1 ring-black/10 leading-tight"
                                     style={{
                                       backgroundColor: chipColorForAssignment(a),

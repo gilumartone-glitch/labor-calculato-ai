@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { QuickCantiereDialog } from "./QuickCantiereDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,8 @@ const FILTER_REPARTI: Reparto[] = ["stampa", "taglio", "tappezzeria", "montaggi"
 
 export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalViewProps) => {
   const { user } = useAuth();
+  const perms = usePermissions();
+  const isResp = perms.isAdmin || perms.roles.includes("coordinatore");
 
   // Costruisci allowedReparti dai filtri scelti (prop nuova) oppure dalla vecchia mode.
   const allowedReparti = useMemo<Reparto[]>(() => {
@@ -149,7 +152,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
 
   const [view, setView] = useState<"operai" | "cantieri" | "calendario">("operai");
-  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickOpen, setQuickOpenRaw] = useState(false);
+  const setQuickOpen = (v: boolean) => { if (v && !isResp) { toast.info("Solo un responsabile può modificare"); return; } setQuickOpenRaw(v); };
   const [quickLabel, setQuickLabel] = useState<string | null>(null);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
@@ -159,7 +163,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const [profiles, setProfiles] = useState<ProfileLite[]>(initialCache?.profiles ?? []);
   const [loading, setLoading] = useState(!initialCache);
   const [editing, setEditing] = useState<{ operatorId: string; date: string; existing?: Assignment } | null>(null);
-  const [crew, setCrew] = useState<{ cantiere: string; date: string; sel: string[] } | null>(null);
+  const [crew, setCrewRaw] = useState<{ cantiere: string; date: string; sel: string[] } | null>(null);
+  const setCrew: typeof setCrewRaw = (v) => { if (v && !isResp) { toast.info("Solo un responsabile può modificare"); return; } setCrewRaw(v); };
   const [crewSaving, setCrewSaving] = useState(false);
 
   // Filtri
@@ -547,6 +552,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
 
   // === Spostamento veloce: drag HTML nativo, molto più leggero di @dnd-kit sulla griglia grande ===
   const moveAssignment = (dragId: string, targetOp: string, targetDate: string) => {
+    if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
     const a = modeAssignments.find((x) => x.id === dragId);
     if (!a) return;
     if (a.operator_id === targetOp && a.date === targetDate) return;
@@ -606,7 +612,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="icon" variant="outline" onClick={() => view === "calendario" && calRange === "month" ? setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)) : setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
-            <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className="font-bold">+ Cantiere / montaggio</Button>
+            <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className={`font-bold ${isResp ? "" : "hidden"}`}>+ Cantiere / montaggio</Button>
             <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
             <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
@@ -778,7 +784,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                   <DraggableChip
                                     key={a.id}
                                     assignment={a}
-                                    onOpenDialog={() => setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                    onOpenDialog={() => isResp && setEditing({ operatorId: op.id, date: dateStr, existing: a })}
                                     onDragState={setDraggingId}
                                   />
                                 ))}
@@ -794,7 +800,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                 })}
                                 <button
                                   type="button"
-                                  onClick={() => setEditing({ operatorId: op.id, date: dateStr })}
+                                  onClick={() => isResp ? setEditing({ operatorId: op.id, date: dateStr }) : toast.info("Solo un responsabile può modificare")}
                                   className="w-full px-1 py-0.5 rounded text-[9px] text-muted-foreground hover:bg-dept/10 hover:text-dept transition flex items-center justify-center"
                                   title="Aggiungi impegno"
                                 >

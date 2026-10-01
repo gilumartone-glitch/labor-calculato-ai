@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
+import { QuickCantiereDialog } from "./QuickCantiereDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,6 +149,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
 
   const [view, setView] = useState<"operai" | "cantieri">("operai");
+  const [quickOpen, setQuickOpen] = useState(false);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
   const initialCache = dataCache.get(`${repartiKey}|${fmtDate(startOfWeek(new Date()))}`);
@@ -500,6 +502,8 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="icon" variant="outline" onClick={() => setStart(addDays(start, 7))}><ChevronRight className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" onClick={() => setStart(startOfWeek(new Date()))}>Oggi</Button>
             </div>
+            <Button size="sm" onClick={() => setQuickOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+            <QuickCantiereDialog open={quickOpen} onOpenChange={setQuickOpen} onSaved={() => load()} defaultReparto={allowedReparti[0] ?? "montaggi"} />
           </div>
         </CardHeader>
       </Card>

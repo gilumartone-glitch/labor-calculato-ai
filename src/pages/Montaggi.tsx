@@ -1,3 +1,4 @@
+import { QuickCantiereDialog } from "@/components/montaggi/QuickCantiereDialog";
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -483,6 +484,7 @@ export default function Montaggi({ embedded = false }: MontaggiProps) {
             </div>
             <div className="flex items-center gap-2">
               <AdminUsersLink variant="outline" />
+              <QuickCantiereButton />
               <Button size="sm" onClick={saveProject}><Save className="h-4 w-4" />Salva</Button>
             </div>
           </div>
@@ -895,3 +897,13 @@ const NumberInput = ({ value, onChange, prefix }: { value: number; onChange: (n:
 };
 const IconButton = ({ onClick }: { onClick: () => void }) => <Button className="self-end justify-self-start xl:justify-self-end" type="button" size="icon" variant="ghost" onClick={onClick} aria-label="Elimina riga"><Trash2 className="h-4 w-4" /></Button>;
 const Summary = ({ label, value, strong, suffix }: { label: string; value: number; strong?: boolean; suffix?: string }) => <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">{label}</span><span className={`font-mono ${strong ? "text-xl font-bold text-dept" : "font-semibold"}`}>{suffix ? `${value.toFixed(2)}${suffix}` : eur(value)}</span></div>;
+
+function QuickCantiereButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-bold">+ Cantiere / montaggio</Button>
+      <QuickCantiereDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}

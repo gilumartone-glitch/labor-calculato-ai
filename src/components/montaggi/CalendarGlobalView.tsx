@@ -148,7 +148,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   const includesMontaggi = allowedReparti.includes("montaggi");
   const nonMontaggiReparti = useMemo(() => allowedReparti.filter((r) => r !== "montaggi"), [allowedReparti]);
 
-  const [view, setView] = useState<"operai" | "cantieri" | "calendario">("operai");
+  const [view, setView] = useState<"operai" | "cantieri" | "calendario">("calendario");
   const [quickOpen, setQuickOpen] = useState(false);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount

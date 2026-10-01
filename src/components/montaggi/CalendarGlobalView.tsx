@@ -552,6 +552,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
 
   // === Spostamento veloce: drag HTML nativo, molto più leggero di @dnd-kit sulla griglia grande ===
   const moveAssignment = (dragId: string, targetOp: string, targetDate: string) => {
+    if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
     const a = modeAssignments.find((x) => x.id === dragId);
     if (!a) return;
     if (a.operator_id === targetOp && a.date === targetDate) return;
@@ -1018,7 +1019,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
   return (
     <button
       type="button"
-      draggable={canDrag}
+      draggable
       onClick={onOpenDialog}
       onDragStart={(e) => { e.dataTransfer.setData("text/plain", a.id); e.dataTransfer.effectAllowed = "move"; setIsDragging(true); onDragState(a.id); }}
       onDragEnd={() => { setIsDragging(false); onDragState(null); }}

@@ -39,7 +39,7 @@ const colorForCantiere = (label: string) => {
   return COLORS[h % COLORS.length];
 };
 
-const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
+const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const dayLabel = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const startOfWeek = (d: Date) => {
   const x = new Date(d);

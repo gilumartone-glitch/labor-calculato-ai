@@ -183,7 +183,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto"
+        onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}
+        onDragStart={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="text-2xl">{editLabel ? "Modifica cantiere" : "Nuovo cantiere / montaggio"}</DialogTitle>
         </DialogHeader>

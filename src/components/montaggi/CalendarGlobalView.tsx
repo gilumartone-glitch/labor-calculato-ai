@@ -459,6 +459,17 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     toast.info("PDF scaricato: allegalo nella chat WhatsApp che si è aperta");
   };
 
+  const crewList = crew ? ((byCantiere.get(crew.cantiere)?.get(crew.date) ?? []) as Assignment[]) : [];
+  const crewDone = crewList.length > 0 && crewList.every((a) => !!a.completed_at);
+  const toggleCrewDone = async () => {
+    if (!crew || !user || !crewList.length) return;
+    const val = crewDone ? null : new Date().toISOString();
+    const { error } = await supabase.from("montaggi_planning").update({ completed_at: val, completed_by: val ? user.id : null } as any).in("id", crewList.map((a) => a.id));
+    if (error) { toast.error(error.message); return; }
+    toast.success(val ? "Giornata segnata come completata" : "Giornata riaperta");
+    setCrew(null); dataCache.clear(); load();
+  };
+
   const saveCrew = async () => {
     if (!crew || !user) return;
     const current = (byCantiere.get(crew.cantiere)?.get(crew.date) ?? []) as Assignment[];
@@ -646,6 +657,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                 </div>
                 <DialogFooter className="gap-2">
                   <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere ?? null; setCrew(null); setQuickLabel(c); setQuickOpen(true); }}>Modifica tutto il cantiere</Button>
+                  {crewList.length > 0 && <Button variant={crewDone ? "outline" : "secondary"} onClick={toggleCrewDone}>{crewDone ? "Riapri giornata" : "✓ Giornata completata"}</Button>}
                   <Button variant="outline" onClick={() => setCrew(null)}>Annulla</Button>
                   <Button onClick={saveCrew} disabled={crewSaving}><Save className="h-4 w-4" />Salva</Button>
                 </DialogFooter>

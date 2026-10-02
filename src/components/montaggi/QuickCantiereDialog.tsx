@@ -16,7 +16,7 @@ const REPARTI = [
   { k: "magazzino", label: "Magazzino" },
 ];
 
-type Row = { id: string; cantiere_label: string; operator_id: string; date: string; hours: number; notes: string | null; reparto: string; commessa_id: string | null };
+type Row = { id: string; cantiere_label: string; operator_id: string; date: string; hours: number; notes: string | null; reparto: string; commessa_id: string | null; completed_at?: string | null };
 type Prof = { id: string; display_name: string | null; settori: string[] | null };
 
 const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -71,7 +71,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     if (!open) return;
     reset();
     (async () => {
-      const cols = "id, cantiere_label, operator_id, date, hours, notes, reparto, commessa_id";
+      const cols = "id, cantiere_label, operator_id, date, hours, notes, reparto, commessa_id, completed_at";
       const [{ data: p }, { data: r }, { data: r2 }] = await Promise.all([
         supabase.from("profiles").select("id, display_name, settori").order("display_name"),
         supabase.from("montaggi_planning").select(cols)
@@ -158,9 +158,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
           if (error) throw error;
         }
       }
+      const doneAt = editLabel && editRows.length && editRows.every((r) => !!r.completed_at) ? editRows[0].completed_at : null;
       const notes = buildNotes(cliente.trim(), luogo.trim(), note.trim());
       const rows = days.flatMap((date) => opsFor(date).map((op) => ({
-        commessa_id: commessaId, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto: dayRep[date] ?? reparto, created_by: user.id,
+        commessa_id: commessaId, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto: dayRep[date] ?? reparto, created_by: user.id, completed_at: doneAt,
       })));
       if (!rows.length) { toast.error("Scegli almeno un operaio"); setSaving(false); return; }
       const { error } = await supabase.from("montaggi_planning").insert(rows);
@@ -171,6 +172,17 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     } catch (e: any) {
       toast.error(e?.message ?? "Errore di salvataggio");
     } finally { setSaving(false); }
+  };
+
+  const editRows = existing.filter((r) => r.cantiere_label === editLabel);
+  const allDone = editRows.length > 0 && editRows.every((r) => !!r.completed_at);
+  const toggleDone = async () => {
+    if (!editLabel || !user || !editRows.length) return;
+    const val = allDone ? null : new Date().toISOString();
+    const { error } = await supabase.from("montaggi_planning").update({ completed_at: val, completed_by: val ? user.id : null } as any).in("id", editRows.map((r) => r.id));
+    if (error) { toast.error(error.message); return; }
+    toast.success(val ? "Segnato come completato" : "Riaperto");
+    onSaved?.(); onOpenChange(false);
   };
 
   const remove = async () => {
@@ -188,7 +200,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
         onTouchStart={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}
         onDragStart={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle className="text-2xl">{editLabel ? "Modifica cantiere" : "Nuovo cantiere / montaggio"}</DialogTitle>
+          <DialogTitle className="text-2xl">{allDone ? "✓ " : ""}{editLabel ? "Modifica cantiere" : "Nuovo cantiere / montaggio"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 text-base">
@@ -293,6 +305,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
 
         <DialogFooter className="gap-2">
           {editLabel && <Button variant="destructive" onClick={remove} className="mr-auto"><Trash2 className="w-4 h-4" />Elimina</Button>}
+          {editLabel && <Button variant={allDone ? "outline" : "secondary"} onClick={toggleDone}>{allDone ? "Riapri" : "✓ Segna completato"}</Button>}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
           <Button onClick={save} disabled={saving}><Plus className="w-4 h-4" />{editLabel ? "Salva modifiche" : "Crea cantiere"}</Button>
         </DialogFooter>

@@ -29,6 +29,8 @@ type Assignment = {
   notes: string | null;
   created_by: string;
   reparto?: Reparto;
+  completed_at?: string | null;
+  _done?: boolean;
 };
 type ProdSub = {
   id: string;
@@ -233,7 +235,15 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
     const planData = planRes?.data; const e1 = planRes?.error;
     const subData = subRes?.data;
     if (e1) { toast.error("Errore caricamento"); setLoading(false); return; }
-    const nextAssignments = (planData ?? []) as Assignment[];
+    const rawAssignments = (planData ?? []) as Assignment[];
+    const commIds = Array.from(new Set(rawAssignments.map((a) => a.commessa_id).filter(Boolean))) as string[];
+    const doneSet = new Set<string>();
+    if (commIds.length) {
+      const { data: ords } = await supabase.from("production_orders").select("source_commessa_id, status")
+        .in("source_commessa_id", commIds).in("status", ["pronto", "spedito", "chiuso"]);
+      for (const o of (ords ?? []) as any[]) if (o.source_commessa_id) doneSet.add(o.source_commessa_id);
+    }
+    const nextAssignments = rawAssignments.map((a) => ({ ...a, _done: !!a.completed_at || (!!a.commessa_id && doneSet.has(a.commessa_id)) }));
     const nextProdSubs = (subData ?? []) as ProdSub[];
     setAssignments(nextAssignments);
     setProdSubs(nextProdSubs);
@@ -695,13 +705,14 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                           const mine = dayAll.filter((a) => a.operator_id === id);
                           const name = displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id);
                           const cs = Array.from(new Set(mine.map((a) => a.cantiere_label)));
+                          const done = mine.every((a) => a._done);
                           return (
                             <button key={id} type="button"
                               onClick={() => { setQuickLabel(cs[0]); setQuickOpen(true); }}
                               title={`${name} · ${cs.join(", ")}`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90 border-l-[6px]"
-                              style={{ backgroundColor: colorForCantiere("op:" + id), borderLeftColor: colorForCantiere(cs[0]) }}>
-                              <div className="font-bold truncate">{name}</div>
+                              style={{ backgroundColor: colorForCantiere("op:" + id), borderLeftColor: colorForCantiere(cs[0]), opacity: done ? 0.45 : 1 }}>
+                              <div className={`font-bold truncate ${done ? "line-through" : ""}`}>{done ? "✓ " : ""}{name}</div>
                               <div className="truncate text-xs opacity-90">{cs.join(", ")}</div>
                             </button>
                           );
@@ -709,13 +720,14 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                         {calShow === "cantieri" && cants.map((c) => {
                           const list = (byCantiere.get(c)?.get(ds) ?? []) as Assignment[];
                           const names = Array.from(new Set(list.map((a) => a.operator_id))).map((id) => displayedOps.find((o) => o.id === id)?.name ?? prettyOpName(id));
+                          const done = list.length > 0 && list.every((a) => a._done);
                           return (
                             <button key={c} type="button"
                               onClick={() => { setQuickLabel(c); setQuickOpen(true); }}
-                              title={`${c} · ${names.join(", ")} · clic per modificare`}
+                              title={`${done ? "COMPLETATO · " : ""}${c} · ${names.join(", ")} · clic per modificare`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90"
-                              style={{ backgroundColor: colorForCantiere(c) }}>
-                              <div className="font-bold truncate">{c}</div>
+                              style={{ backgroundColor: colorForCantiere(c), opacity: done ? 0.45 : 1 }}>
+                              <div className={`font-bold truncate ${done ? "line-through" : ""}`}>{done ? "✓ " : ""}{c}</div>
                               <div className="truncate text-xs opacity-90">{names.length} · {names.join(", ")}</div>
                             </button>
                           );
@@ -792,9 +804,9 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                   const r = (s.dept as Reparto) in REPARTO_BG ? (s.dept as Reparto) : "altro";
                                   return (
                                     <div key={s.id} className="px-1 py-0.5 rounded text-[9px] font-medium text-white truncate flex items-center gap-0.5"
-                                      style={{ backgroundColor: REPARTO_BG[r], opacity: 0.85 }}
-                                      title={`${REPARTO_LABEL[r]} · ${s.status}`}>
-                                      <Factory className="h-2 w-2" />{REPARTO_LABEL[r].slice(0, 8)}
+                                      style={{ backgroundColor: REPARTO_BG[r], opacity: s.status === "completato" ? 0.4 : 0.85, textDecoration: s.status === "completato" ? "line-through" : undefined }}
+                                      title={`${REPARTO_LABEL[r]} · ${s.status === "completato" ? "COMPLETATO" : s.status}`}>
+                                      {s.status === "completato" ? "✓" : <Factory className="h-2 w-2" />}{REPARTO_LABEL[r].slice(0, 8)}
                                     </div>
                                   );
                                 })}
@@ -889,10 +901,11 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                     style={{
                                       backgroundColor: chipColorForAssignment(a),
                                       borderLeftColor: repartoAccent(a),
+                                      opacity: a._done ? 0.45 : 1,
                                     }}
-                                    title={`${REPARTO_LABEL[rep]} · ${opName} · ${a.hours}h · clic per modificare`}
+                                    title={`${a._done ? "COMPLETATO · " : ""}${REPARTO_LABEL[rep]} · ${opName} · ${a.hours}h · clic per modificare`}
                                   >
-                                    <div className="truncate">{opName}</div>
+                                    <div className={`truncate ${a._done ? "line-through" : ""}`}>{a._done ? "✓ " : ""}{opName}</div>
                                     <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
                                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
                                       <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>
@@ -1027,11 +1040,11 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
       style={{
         backgroundColor: chipColorForAssignment(a),
         borderLeftColor: repartoAccent(a),
-        opacity: isDragging ? 0.4 : 1,
+        opacity: isDragging ? 0.4 : a._done ? 0.45 : 1,
       }}
-      title={`${REPARTO_LABEL[rep]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
+      title={`${a._done ? "COMPLETATO · " : ""}${REPARTO_LABEL[rep]} · ${a.cantiere_label} · ${a.hours}h · clic per modificare, trascina per spostare`}
     >
-      <div className="truncate uppercase tracking-tight">{a.cantiere_label}</div>
+      <div className={`truncate uppercase tracking-tight ${a._done ? "line-through" : ""}`}>{a._done ? "✓ " : ""}{a.cantiere_label}</div>
       <div className="flex items-center justify-between gap-1 mt-0.5 opacity-95">
         <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/25 truncate">{REPARTO_LABEL[rep]}</span>
         <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>

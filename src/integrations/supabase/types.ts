@@ -1320,6 +1320,8 @@ export type Database = {
         Row: {
           cantiere_label: string
           commessa_id: string | null
+          completed_at: string | null
+          completed_by: string | null
           created_at: string
           created_by: string
           date: string
@@ -1336,6 +1338,8 @@ export type Database = {
         Insert: {
           cantiere_label?: string
           commessa_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by: string
           date: string
@@ -1352,6 +1356,8 @@ export type Database = {
         Update: {
           cantiere_label?: string
           commessa_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string
           date?: string

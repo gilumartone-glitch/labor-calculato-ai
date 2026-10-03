@@ -1096,6 +1096,46 @@ type EditDialogProps = {
   onDelete?: () => void;
 };
 
+/** Anteprima semplificata del progetto collegato a una lavorazione. */
+const LinkedProjectPreview = ({ id }: { id: string }) => {
+  const [info, setInfo] = useState<null | { kind: "commessa" | "draft" | "none"; titolo?: string; cliente?: string | null; descrizione?: string | null; stato?: string; scadenza?: string | null; pr?: string | null; oc?: string | null; orders?: { code: string; status: string }[] }>(null);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      const [{ data: c }, { data: d }, { data: o }] = await Promise.all([
+        supabase.from("commesse").select("titolo, cliente, descrizione, stato, data_scadenza, pp_preventivo, pp_ordine").eq("id", id).maybeSingle(),
+        supabase.from("design_drafts").select("name").eq("id", id).maybeSingle(),
+        supabase.from("production_orders").select("code, status").eq("source_commessa_id", id),
+      ]);
+      if (off) return;
+      const orders = (o ?? []) as { code: string; status: string }[];
+      if (c) setInfo({ kind: "commessa", titolo: (c as any).titolo, cliente: (c as any).cliente, descrizione: (c as any).descrizione, stato: (c as any).stato, scadenza: (c as any).data_scadenza, pr: (c as any).pp_preventivo, oc: (c as any).pp_ordine, orders });
+      else if (d) setInfo({ kind: "draft", titolo: (d as any).name, orders });
+      else setInfo({ kind: "none", orders });
+    })();
+    return () => { off = true; };
+  }, [id]);
+  if (!info) return <div className="text-sm text-muted-foreground">Caricamento progetto…</div>;
+  if (info.kind === "none" && !info.orders?.length) return null;
+  const openFull = () => {
+    if (!confirm("Vuoi aprire il progetto completo?")) return;
+    window.location.href = info.kind === "draft" ? `/?draft=${id}` : "/flow";
+  };
+  return (
+    <div className="rounded-sm border-2 border-border p-3 space-y-1.5 text-sm">
+      <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Progetto collegato</div>
+      <div className="text-base font-bold">{info.titolo ?? "Progetto"}</div>
+      {info.cliente && <div><b>Cliente:</b> {info.cliente}</div>}
+      {info.stato && <div><b>Stato:</b> {info.stato.replace(/_/g, " ")}</div>}
+      {info.scadenza && <div><b>Scadenza:</b> {new Date(info.scadenza + "T00:00:00").toLocaleDateString("it-IT")}</div>}
+      {(info.pr || info.oc) && <div>{info.pr && <b className="mr-2">PR {info.pr}</b>}{info.oc && <b>OC {info.oc}</b>}</div>}
+      {!!info.orders?.length && <div><b>Ordini:</b> {info.orders.map((x) => `${x.code} (${x.status})`).join(", ")}</div>}
+      {info.descrizione && <div className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{info.descrizione}</div>}
+      {info.kind !== "none" && <Button size="sm" variant="outline" onClick={openFull}>Vedi progetto completo</Button>}
+    </div>
+  );
+};
+
 const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti, defaultReparto, onClose, onSave, onDelete }: EditDialogProps) => {
   const ex = editing.existing;
   const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
@@ -1128,7 +1168,7 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Cantiere / Commessa</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Lavorazione</div>
                 <div className="text-lg font-bold leading-tight break-words">{cantiere || "—"}</div>
               </div>
               <div
@@ -1158,6 +1198,7 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
             )}
           </div>
         )}
+        {ex?.commessa_id && <LinkedProjectPreview id={ex.commessa_id} />}
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
             <Label>Tipo di attività / Reparto</Label>
@@ -1189,8 +1230,8 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Cantiere</Label>
-            <Input list="cantieri-list-global" placeholder="Nome cantiere" value={cantiere} onChange={(e) => setCantiere(e.target.value)} />
+            <Label>Lavorazione</Label>
+            <Input list="cantieri-list-global" placeholder="Nome lavorazione" value={cantiere} onChange={(e) => setCantiere(e.target.value)} />
             <datalist id="cantieri-list-global">
               {allCantieri.map((c) => <option key={c} value={c} />)}
             </datalist>

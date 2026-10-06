@@ -1097,10 +1097,96 @@ type EditDialogProps = {
   onDelete?: () => void;
 };
 
+/** Contenuto completo degli ordini collegati (pezzi, materiali, lavorazioni di reparto). */
+const OrderFullDialog = ({ commessaId, onClose }: { commessaId: string; onClose: () => void }) => {
+  const [orders, setOrders] = useState<any[] | null>(null);
+  const [subs, setSubs] = useState<any[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("production_orders")
+        .select("id, code, cliente, production_name, data, status, priorita, delivery, note, customer_order_ref, snapshot, attachments")
+        .eq("source_commessa_id", commessaId).order("created_at");
+      const os = (data ?? []) as any[];
+      setOrders(os);
+      if (os.length) {
+        const { data: ss } = await supabase.from("production_sub_orders").select("order_id, code, dept, status, due_date, note").in("order_id", os.map((o) => o.id)).order("ordine");
+        setSubs((ss ?? []) as any[]);
+      }
+    })();
+  }, [commessaId]);
+  const lbl = (x: any) => String(x ?? "").replace(/_/g, " ");
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="text-2xl">Contenuto dell'ordine</DialogTitle></DialogHeader>
+        {orders === null ? <div className="text-base text-muted-foreground">Caricamento…</div>
+          : orders.length === 0 ? <div className="text-base">Nessun ordine collegato.</div>
+          : orders.map((o) => {
+            const snap = o.snapshot?.departments ? o.snapshot : (o.snapshot?.designState ?? o.snapshot ?? {});
+            const deps = (snap?.departments ?? []) as any[];
+            const mySubs = subs.filter((x) => x.order_id === o.id);
+            return (
+              <div key={o.id} className="space-y-3 text-base border-2 border-border rounded-sm p-3">
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <span className="text-xl font-bold">{o.code}</span>
+                  <span className="font-semibold">{o.production_name || o.cliente}</span>
+                  <span className="capitalize text-muted-foreground">{lbl(o.status)}</span>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-1">
+                  <div><b>Cliente:</b> {o.cliente}</div>
+                  {o.customer_order_ref && <div><b>Rif. cliente:</b> {o.customer_order_ref}</div>}
+                  <div><b>Data:</b> {o.data ? new Date(o.data + "T00:00:00").toLocaleDateString("it-IT") : "—"}</div>
+                  <div className="capitalize"><b>Priorità:</b> {lbl(o.priorita)} · <b>Consegna:</b> {lbl(o.delivery)}</div>
+                </div>
+                {o.note && <div className="whitespace-pre-wrap"><b>Note:</b> {o.note}</div>}
+                {deps.map((d) => {
+                  const st = d.state ?? {};
+                  const pieces = (st.pieces ?? []) as any[];
+                  const mats = (st.materials ?? []) as any[];
+                  const opsL = (st.operations ?? []) as any[];
+                  if (!pieces.length && !mats.length && !opsL.length) return null;
+                  return (
+                    <div key={d.key} className="space-y-1">
+                      <div className="font-bold uppercase tracking-wide">{d.label ?? d.key}</div>
+                      {pieces.map((p, i) => (
+                        <div key={p.id ?? i} className="pl-3 border-l-4 border-border">
+                          <b>{p.productName || "Pezzo"}</b> — {p.width}×{p.height} {p.dimUnit ?? ""} · q.tà {p.quantity ?? 1}
+                          {p.color ? ` · ${p.color}` : ""}{p.fireproof ? ` · ${p.fireproof}` : ""}{p.thickness ? ` · sp. ${p.thickness}` : ""}
+                          {p.notes || p.description ? <div className="text-sm text-muted-foreground">{p.notes || p.description}</div> : null}
+                        </div>
+                      ))}
+                      {mats.map((m, i) => <div key={"m" + i} className="pl-3 border-l-4 border-border">Materiale: <b>{m.name || m.productName || m.label || "—"}</b>{m.quantity ? ` · ${m.quantity}` : ""}{m.unit ? ` ${m.unit}` : ""}</div>)}
+                      {opsL.map((x, i) => <div key={"o" + i} className="pl-3 border-l-4 border-border">Lavorazione: <b>{x.name || x.label || x.description || "—"}</b>{x.hours ? ` · ${x.hours} h` : ""}</div>)}
+                    </div>
+                  );
+                })}
+                {mySubs.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="font-bold uppercase tracking-wide">Lavorazioni di reparto</div>
+                    {mySubs.map((x, i) => (
+                      <div key={i} className={`pl-3 border-l-4 border-border ${x.status === "completato" ? "line-through opacity-60" : ""}`}>
+                        <b>{x.code}</b> · <span className="capitalize">{lbl(x.dept)}</span> · {lbl(x.status)}
+                        {x.due_date ? ` · entro ${new Date(x.due_date + "T00:00:00").toLocaleDateString("it-IT")}` : ""}
+                        {x.note && <div className="text-sm text-muted-foreground">{x.note}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {Array.isArray(o.attachments) && o.attachments.length > 0 && <div><b>Allegati:</b> {o.attachments.length}</div>}
+              </div>
+            );
+          })}
+        <DialogFooter><Button variant="outline" onClick={onClose}>Chiudi</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 /** Anteprima semplificata del progetto collegato a una lavorazione. */
 const LinkedProjectPreview = ({ id }: { id: string }) => {
   const navigate = useNavigate();
   const [showSum, setShowSum] = useState(false);
+  const [fullOpen, setFullOpen] = useState(false);
   const [subs, setSubs] = useState<{ code: string; dept: string; status: string; due_date: string | null; note: string | null }[] | null>(null);
   const [info, setInfo] = useState<null | { kind: "commessa" | "draft" | "none"; titolo?: string; cliente?: string | null; descrizione?: string | null; stato?: string; scadenza?: string | null; pr?: string | null; oc?: string | null; orders?: { code: string; status: string }[] }>(null);
   useEffect(() => {
@@ -1121,7 +1207,10 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   }, [id]);
   if (!info) return <div className="text-sm text-muted-foreground">Caricamento progetto…</div>;
   if (info.kind === "none" && !info.orders?.length) return null;
-  const openFull = () => navigate(info.kind === "draft" ? `/preventivi?draft=${id}` : "/flow");
+  const openFull = () => {
+    if (info.orders?.length) { setFullOpen(true); return; }
+    if (info.kind === "draft") navigate(`/preventivi?draft=${id}`);
+  };
   const toggleSum = async () => {
     const next = !showSum; setShowSum(next);
     if (next && subs === null) {
@@ -1143,8 +1232,9 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
       {!!info.orders?.length && <div><b>Ordini:</b> {info.orders.map((x) => `${x.code} (${x.status})`).join(", ")}</div>}
             <div className="flex flex-wrap gap-2 pt-1">
         <Button size="sm" variant="secondary" onClick={toggleSum}>{showSum ? "Nascondi sintesi" : "Vedi sintesi"}</Button>
-        {info.kind !== "none" && <Button size="sm" variant="outline" onClick={openFull}>Apri progetto completo</Button>}
+        {(info.kind === "draft" || !!info.orders?.length) && <Button size="sm" variant="outline" onClick={openFull}>Apri progetto completo</Button>}
       </div>
+      {fullOpen && <OrderFullDialog commessaId={id} onClose={() => setFullOpen(false)} />}
       {showSum && (
         <div className="border-t border-border pt-2 space-y-1">
           {info.descrizione && <div className="text-sm whitespace-pre-wrap">{info.descrizione}</div>}

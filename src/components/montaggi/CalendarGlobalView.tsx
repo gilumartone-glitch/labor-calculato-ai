@@ -1185,6 +1185,8 @@ const OrderFullDialog = ({ commessaId, onClose }: { commessaId: string; onClose:
 /** Anteprima semplificata del progetto collegato a una lavorazione. */
 const LinkedProjectPreview = ({ id }: { id: string }) => {
   const navigate = useNavigate();
+  const perms = usePermissions();
+  const isResp = perms.isAdmin || perms.roles.includes("coordinatore");
   const [showSum, setShowSum] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
   const [subs, setSubs] = useState<{ code: string; dept: string; status: string; due_date: string | null; note: string | null }[] | null>(null);
@@ -1211,6 +1213,17 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
     if (info.orders?.length) { setFullOpen(true); return; }
     if (info.kind === "draft") navigate(`/preventivi?draft=${id}`);
   };
+  const editProject = async () => {
+    if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
+    if (info.kind === "draft") { navigate(`/preventivi?draft=${id}`); return; }
+    const t = (info.titolo ?? "").trim();
+    if (t) {
+      const { data } = await supabase.from("design_drafts").select("id").ilike("name", t).order("updated_at", { ascending: false }).limit(1);
+      const did = (data as any[])?.[0]?.id;
+      if (did) { navigate(`/preventivi?draft=${did}`); return; }
+    }
+    toast.error("Progetto di origine non trovato");
+  };
   const toggleSum = async () => {
     const next = !showSum; setShowSum(next);
     if (next && subs === null) {
@@ -1231,25 +1244,10 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
       {(info.pr || info.oc) && <div>{info.pr && <b className="mr-2">PR {info.pr}</b>}{info.oc && <b>OC {info.oc}</b>}</div>}
       {!!info.orders?.length && <div><b>Ordini:</b> {info.orders.map((x) => `${x.code} (${x.status})`).join(", ")}</div>}
             <div className="flex flex-wrap gap-2 pt-1">
-        <Button size="sm" variant="secondary" onClick={toggleSum}>{showSum ? "Nascondi sintesi" : "Vedi sintesi"}</Button>
+        {isResp && <Button size="sm" variant="secondary" onClick={editProject}>Modifica il progetto</Button>}
         {(info.kind === "draft" || !!info.orders?.length) && <Button size="sm" variant="outline" onClick={openFull}>Apri progetto completo</Button>}
       </div>
       {fullOpen && <OrderFullDialog commessaId={id} onClose={() => setFullOpen(false)} />}
-      {showSum && (
-        <div className="border-t border-border pt-2 space-y-1">
-          {info.descrizione && <div className="text-sm whitespace-pre-wrap">{info.descrizione}</div>}
-          {subs === null ? <div className="text-muted-foreground">Caricamento…</div>
-            : subs.length === 0 ? <div className="text-muted-foreground">Nessuna lavorazione di reparto.</div>
-            : subs.map((x, i) => (
-              <div key={i} className={`flex flex-wrap gap-2 ${x.status === "completato" ? "line-through opacity-60" : ""}`}>
-                <b>{x.code}</b><span className="capitalize">{x.dept.replace(/_/g, " ")}</span>
-                <span>· {x.status.replace(/_/g, " ")}</span>
-                {x.due_date && <span>· entro {new Date(x.due_date + "T00:00:00").toLocaleDateString("it-IT")}</span>}
-                {x.note && <span className="w-full text-xs text-muted-foreground">{x.note}</span>}
-              </div>
-            ))}
-        </div>
-      )}
     </div>
   );
 };

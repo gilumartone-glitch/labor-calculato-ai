@@ -516,6 +516,7 @@ export const CreateCommessaButton = ({
         responsabile_id: generalManager || null,
         pp_preventivo: (refType === "PR" && refNumber.trim()) || (ppQuote || String((readDesignState() as any).passepartoutQuote ?? "")).trim() || null,
         pp_ordine: (refType === "OC" && refNumber.trim()) || ppOrder.trim() || null,
+        source_draft_id: localStorage.getItem("officina:active-draft") || null,
       } as never).select("id").single();
       if (error) throwFlowError("creazione_commessa", "commesse", error);
       const commessaId = createdCommessa.id;

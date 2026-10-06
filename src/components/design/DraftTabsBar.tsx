@@ -708,7 +708,8 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
         data_scadenza: sendScadenza || null,
         snapshot: productionSnapshot as never,
         created_by: user.id,
-      }).select("id").single();
+        source_draft_id: activeId,
+      } as never).select("id").single();
       if (error) throwFlowError("creazione_commessa", "commesse", error);
 
       // 2) Prepara payload e apri il dialog di verifica materiali (acquisti propedeutici)

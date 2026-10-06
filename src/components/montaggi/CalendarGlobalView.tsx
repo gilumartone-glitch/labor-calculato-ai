@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
@@ -1098,6 +1099,9 @@ type EditDialogProps = {
 
 /** Anteprima semplificata del progetto collegato a una lavorazione. */
 const LinkedProjectPreview = ({ id }: { id: string }) => {
+  const navigate = useNavigate();
+  const [showSum, setShowSum] = useState(false);
+  const [subs, setSubs] = useState<{ code: string; dept: string; status: string; due_date: string | null; note: string | null }[] | null>(null);
   const [info, setInfo] = useState<null | { kind: "commessa" | "draft" | "none"; titolo?: string; cliente?: string | null; descrizione?: string | null; stato?: string; scadenza?: string | null; pr?: string | null; oc?: string | null; orders?: { code: string; status: string }[] }>(null);
   useEffect(() => {
     let off = false;
@@ -1117,9 +1121,16 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   }, [id]);
   if (!info) return <div className="text-sm text-muted-foreground">Caricamento progetto…</div>;
   if (info.kind === "none" && !info.orders?.length) return null;
-  const openFull = () => {
-    if (!confirm("Vuoi aprire il progetto completo?")) return;
-    window.location.href = info.kind === "draft" ? `/?draft=${id}` : "/flow";
+  const openFull = () => navigate(info.kind === "draft" ? `/preventivi?draft=${id}` : "/flow");
+  const toggleSum = async () => {
+    const next = !showSum; setShowSum(next);
+    if (next && subs === null) {
+      const { data: ords } = await supabase.from("production_orders").select("id").eq("source_commessa_id", id);
+      const ids = ((ords ?? []) as any[]).map((o) => o.id);
+      if (!ids.length) { setSubs([]); return; }
+      const { data } = await supabase.from("production_sub_orders").select("code, dept, status, due_date, note").in("order_id", ids).order("ordine");
+      setSubs((data ?? []) as any);
+    }
   };
   return (
     <div className="rounded-sm border-2 border-border p-3 space-y-1.5 text-sm">
@@ -1130,8 +1141,25 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
       {info.scadenza && <div><b>Scadenza:</b> {new Date(info.scadenza + "T00:00:00").toLocaleDateString("it-IT")}</div>}
       {(info.pr || info.oc) && <div>{info.pr && <b className="mr-2">PR {info.pr}</b>}{info.oc && <b>OC {info.oc}</b>}</div>}
       {!!info.orders?.length && <div><b>Ordini:</b> {info.orders.map((x) => `${x.code} (${x.status})`).join(", ")}</div>}
-      {info.descrizione && <div className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{info.descrizione}</div>}
-      {info.kind !== "none" && <Button size="sm" variant="outline" onClick={openFull}>Vedi progetto completo</Button>}
+            <div className="flex flex-wrap gap-2 pt-1">
+        <Button size="sm" variant="secondary" onClick={toggleSum}>{showSum ? "Nascondi sintesi" : "Vedi sintesi"}</Button>
+        {info.kind !== "none" && <Button size="sm" variant="outline" onClick={openFull}>Apri progetto completo</Button>}
+      </div>
+      {showSum && (
+        <div className="border-t border-border pt-2 space-y-1">
+          {info.descrizione && <div className="text-sm whitespace-pre-wrap">{info.descrizione}</div>}
+          {subs === null ? <div className="text-muted-foreground">Caricamento…</div>
+            : subs.length === 0 ? <div className="text-muted-foreground">Nessuna lavorazione di reparto.</div>
+            : subs.map((x, i) => (
+              <div key={i} className={`flex flex-wrap gap-2 ${x.status === "completato" ? "line-through opacity-60" : ""}`}>
+                <b>{x.code}</b><span className="capitalize">{x.dept.replace(/_/g, " ")}</span>
+                <span>· {x.status.replace(/_/g, " ")}</span>
+                {x.due_date && <span>· entro {new Date(x.due_date + "T00:00:00").toLocaleDateString("it-IT")}</span>}
+                {x.note && <span className="w-full text-xs text-muted-foreground">{x.note}</span>}
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 };

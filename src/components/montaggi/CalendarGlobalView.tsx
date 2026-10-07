@@ -1190,18 +1190,18 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   const [showSum, setShowSum] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
   const [subs, setSubs] = useState<{ code: string; dept: string; status: string; due_date: string | null; note: string | null }[] | null>(null);
-  const [info, setInfo] = useState<null | { kind: "commessa" | "draft" | "none"; titolo?: string; cliente?: string | null; descrizione?: string | null; stato?: string; scadenza?: string | null; pr?: string | null; oc?: string | null; orders?: { code: string; status: string }[] }>(null);
+  const [info, setInfo] = useState<null | { kind: "commessa" | "draft" | "none"; titolo?: string; cliente?: string | null; descrizione?: string | null; stato?: string; scadenza?: string | null; pr?: string | null; oc?: string | null; draftId?: string | null; orders?: { code: string; status: string }[] }>(null);
   useEffect(() => {
     let off = false;
     (async () => {
       const [{ data: c }, { data: d }, { data: o }] = await Promise.all([
-        supabase.from("commesse").select("titolo, cliente, descrizione, stato, data_scadenza, pp_preventivo, pp_ordine").eq("id", id).maybeSingle(),
+        supabase.from("commesse").select("titolo, cliente, descrizione, stato, data_scadenza, pp_preventivo, pp_ordine, source_draft_id").eq("id", id).maybeSingle(),
         supabase.from("design_drafts").select("name").eq("id", id).maybeSingle(),
         supabase.from("production_orders").select("code, status").eq("source_commessa_id", id),
       ]);
       if (off) return;
       const orders = (o ?? []) as { code: string; status: string }[];
-      if (c) setInfo({ kind: "commessa", titolo: (c as any).titolo, cliente: (c as any).cliente, descrizione: (c as any).descrizione, stato: (c as any).stato, scadenza: (c as any).data_scadenza, pr: (c as any).pp_preventivo, oc: (c as any).pp_ordine, orders });
+      if (c) setInfo({ kind: "commessa", titolo: (c as any).titolo, cliente: (c as any).cliente, descrizione: (c as any).descrizione, stato: (c as any).stato, scadenza: (c as any).data_scadenza, pr: (c as any).pp_preventivo, oc: (c as any).pp_ordine, draftId: (c as any).source_draft_id ?? null, orders });
       else if (d) setInfo({ kind: "draft", titolo: (d as any).name, orders });
       else setInfo({ kind: "none", orders });
     })();

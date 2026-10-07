@@ -1216,13 +1216,8 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   const editProject = async () => {
     if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
     if (info.kind === "draft") { navigate(`/preventivi?draft=${id}`); return; }
-    const t = (info.titolo ?? "").trim();
-    if (t) {
-      const { data } = await supabase.from("design_drafts").select("id").ilike("name", t).order("updated_at", { ascending: false }).limit(1);
-      const did = (data as any[])?.[0]?.id;
-      if (did) { navigate(`/preventivi?draft=${did}`); return; }
-    }
-    toast.error("Progetto di origine non trovato");
+    if (info.draftId) { navigate(`/preventivi?draft=${info.draftId}`); return; }
+    toast.error("Questa lavorazione non è collegata a un progetto di origine");
   };
   const toggleSum = async () => {
     const next = !showSum; setShowSum(next);

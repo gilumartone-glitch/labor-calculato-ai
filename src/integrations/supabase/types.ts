@@ -326,6 +326,7 @@ export type Database = {
           reparto: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id: string | null
           snapshot: Json | null
+          source_draft_id: string | null
           stato: Database["public"]["Enums"]["commessa_stato"]
           tipo: Database["public"]["Enums"]["commessa_tipo"]
           titolo: string
@@ -349,6 +350,7 @@ export type Database = {
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id?: string | null
           snapshot?: Json | null
+          source_draft_id?: string | null
           stato?: Database["public"]["Enums"]["commessa_stato"]
           tipo?: Database["public"]["Enums"]["commessa_tipo"]
           titolo: string
@@ -372,12 +374,21 @@ export type Database = {
           reparto?: Database["public"]["Enums"]["commessa_reparto"]
           responsabile_id?: string | null
           snapshot?: Json | null
+          source_draft_id?: string | null
           stato?: Database["public"]["Enums"]["commessa_stato"]
           tipo?: Database["public"]["Enums"]["commessa_tipo"]
           titolo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "commesse_source_draft_id_fkey"
+            columns: ["source_draft_id"]
+            isOneToOne: false
+            referencedRelation: "design_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contabilita_state: {
         Row: {

@@ -1,3 +1,4 @@
+import { colorForProject } from "@/lib/project-color";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdOrder, ProdSubOrder } from "@/lib/produzione/types";

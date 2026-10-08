@@ -1,3 +1,4 @@
+import { colorForProject } from "@/lib/project-color";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 

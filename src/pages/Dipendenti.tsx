@@ -57,6 +57,7 @@ export default function Dipendenti() {
   const [editing, setEditing] = useState<Editable | null>(null);
   const [rateFrom, setRateFrom] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`; });
   const [rateFromInitial, setRateFromInitial] = useState("");
+  const [histEdited, setHistEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterMacro, setFilterMacro] = useState<MacroReparto | "">("");
@@ -97,7 +98,7 @@ export default function Dipendenti() {
   const startEdit = (d: Dipendente) => {
     const h = histOf(d);
     const f = h.length > 1 ? h[h.length - 1].from : defaultFrom();
-    setRateFrom(f); setRateFromInitial(f);
+    setRateFrom(f); setRateFromInitial(f); setHistEdited(false);
     setEditing({ ...d });
   };
 
@@ -128,7 +129,10 @@ export default function Dipendenti() {
       note: editing.note?.trim() || null,
     };
     let error;
-    if (editing.id) {
+    if (editing.id && histEdited) {
+      const h = histOf(editing);
+      ({ error } = await supabase.from("dipendenti").update({ ...payload, hourly_rate: Number(h[h.length - 1]?.rate) || payload.hourly_rate, rate_history: h } as never).eq("id", editing.id));
+    } else if (editing.id) {
       const { data: old } = await supabase.from("dipendenti").select("hourly_rate, rate_history").eq("id", editing.id).maybeSingle();
       const extra: Record<string, unknown> = {};
       if (old && Number(old.hourly_rate) !== payload.hourly_rate) {
@@ -398,7 +402,15 @@ export default function Dipendenti() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                     <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
                     {editing.id && <div><Label className="text-sm">Nuova paga per le presenze dal (pagata il mese dopo)</Label><Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />
-                      {histOf(editing).length > 1 && <div className="mt-1 text-sm text-muted-foreground">{histOf(editing).map((h, i) => <div key={i}>{i === 0 ? "Paga iniziale" : `Dal ${h.from.split("-").reverse().join("/")}`}: € {Number(h.rate).toFixed(2)}/h</div>)}</div>}</div>}
+                      {histOf(editing).length > 1 && <div className="mt-2 space-y-1 text-sm">
+                        <div className="font-semibold">Storico paghe (correggi se serve)</div>
+                        {histOf(editing).map((h, i) => <div key={i} className="flex items-center gap-1">
+                          <span className="w-24 shrink-0">{i === 0 ? "Prima" : `Dal ${h.from.split("-").reverse().join("/")}`}</span>
+                          <Input type="number" step="0.01" className="h-8" value={h.rate} onChange={(e) => {
+                            const nh = histOf(editing); nh[i] = { ...nh[i], rate: Number(e.target.value) };
+                            setEditing({ ...editing, rate_history: nh }); setHistEdited(true);
+                          }} /><span>€/h</span></div>)}
+                      </div>}</div>}
                     <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>

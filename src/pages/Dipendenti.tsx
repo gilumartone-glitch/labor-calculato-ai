@@ -19,7 +19,7 @@ import {
   type MaterialDependencyRule,
 } from "@/lib/material-dependencies";
 import { DEPT_LABEL, type ProdDept } from "@/lib/produzione/types";
-import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, type Dipendente } from "@/lib/dipendenti";
+import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, applyRateChange, type Dipendente } from "@/lib/dipendenti";
 import { NetToCostCalculator } from "@/components/dipendenti/NetToCostCalculator";
 
 type Profile = { id: string; display_name: string | null };
@@ -55,6 +55,7 @@ export default function Dipendenti() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editable | null>(null);
+  const [rateFrom, setRateFrom] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`; });
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterMacro, setFilterMacro] = useState<MacroReparto | "">("");
@@ -119,7 +120,12 @@ export default function Dipendenti() {
     };
     let error;
     if (editing.id) {
-      ({ error } = await supabase.from("dipendenti").update(payload).eq("id", editing.id));
+      const { data: old } = await supabase.from("dipendenti").select("hourly_rate, rate_history").eq("id", editing.id).maybeSingle();
+      const extra: Record<string, unknown> = {};
+      if (old && Number(old.hourly_rate) !== payload.hourly_rate) {
+        extra.rate_history = applyRateChange(Number(old.hourly_rate) || 0, (old as any).rate_history, rateFrom, payload.hourly_rate);
+      }
+      ({ error } = await supabase.from("dipendenti").update({ ...payload, ...extra } as never).eq("id", editing.id));
     } else {
       ({ error } = await supabase.from("dipendenti").insert({ ...payload, created_by: user.id }));
     }
@@ -370,6 +376,7 @@ export default function Dipendenti() {
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi) — visibile solo agli admin</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                     <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
+                    {editing.id && <div><Label className="text-[10px]">Nuova paga valida dal</Label><Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} /></div>}
                     <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>

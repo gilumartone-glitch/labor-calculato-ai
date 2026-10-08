@@ -24,7 +24,7 @@ import { Contact, suggestContacts, normalizeText, movementMatchesContact } from 
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayType, getSegments } from "@/components/contabilita/HoursLogView";
-import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
+import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";

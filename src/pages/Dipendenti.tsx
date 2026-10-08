@@ -89,8 +89,15 @@ export default function Dipendenti() {
   }, [items, filter, filterMacro]);
 
 
-  const startNew = () => setEditing(empty());
-  const startEdit = (d: Dipendente) => setEditing({ ...d });
+  const startNew = () => { setRateFrom(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`); setEditing(empty()); };
+  const defaultFrom = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`; };
+  const histOf = (d: { rate_history?: unknown } | null) =>
+    ((Array.isArray(d?.rate_history) ? d!.rate_history : []) as { from: string; rate: number }[]).slice().sort((a, b) => a.from.localeCompare(b.from));
+  const startEdit = (d: Dipendente) => {
+    const h = histOf(d);
+    setRateFrom(h.length > 1 ? h[h.length - 1].from : defaultFrom());
+    setEditing({ ...d });
+  };
 
   const save = async () => {
     if (!editing || !user) return;
@@ -124,6 +131,13 @@ export default function Dipendenti() {
       const extra: Record<string, unknown> = {};
       if (old && Number(old.hourly_rate) !== payload.hourly_rate) {
         extra.rate_history = applyRateChange(Number(old.hourly_rate) || 0, (old as any).rate_history, rateFrom, payload.hourly_rate);
+      } else if (old) {
+        // Paga invariata ma data cambiata: sposta la data dell'ultimo cambio paga
+        const h = histOf(old as any);
+        if (h.length > 1 && h[h.length - 1].from !== rateFrom && rateFrom > h[h.length - 2].from) {
+          h[h.length - 1] = { ...h[h.length - 1], from: rateFrom };
+          extra.rate_history = h;
+        }
       }
       ({ error } = await supabase.from("dipendenti").update({ ...payload, ...extra } as never).eq("id", editing.id));
     } else {
@@ -376,7 +390,8 @@ export default function Dipendenti() {
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi) — visibile solo agli admin</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                     <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
-                    {editing.id && <div><Label className="text-[10px]">Nuova paga valida dal</Label><Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} /></div>}
+                    {editing.id && <div><Label className="text-sm">Nuova paga per le presenze dal (pagata il mese dopo)</Label><Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />
+                      {histOf(editing).length > 1 && <div className="mt-1 text-sm text-muted-foreground">{histOf(editing).map((h, i) => <div key={i}>{i === 0 ? "Paga iniziale" : `Dal ${h.from.split("-").reverse().join("/")}`}: € {Number(h.rate).toFixed(2)}/h</div>)}</div>}</div>}
                     <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>

@@ -8,6 +8,13 @@
       "when": 1791379188793,
       "tag": "0000_sync_planning_to_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791448426774,
+      "tag": "0001_archive_sent_drafts",
+      "breakpoints": true
     }
   ]
 }

@@ -1226,7 +1226,11 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   const editProject = async () => {
     if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
     if (info.kind === "draft") { navigate(`/preventivi?draft=${id}`); return; }
-    if (info.draftId) { navigate(`/preventivi?draft=${info.draftId}`); return; }
+    if (info.draftId) {
+      const { error } = await supabase.rpc("reopen_project_draft" as never, { _draft: info.draftId } as never);
+      if (error) { toast.error(error.message); return; }
+      navigate(`/preventivi?draft=${info.draftId}`); return;
+    }
     toast.error("Questa lavorazione non è collegata a un progetto di origine");
   };
   const toggleSum = async () => {

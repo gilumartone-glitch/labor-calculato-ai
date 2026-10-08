@@ -341,6 +341,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       const { data, error } = await supabase
         .from("design_drafts")
         .select("*")
+        .is("archived_at", null)
         .order("ordine", { ascending: true });
       if (error) {
         toast.error("Errore caricamento bozze: " + error.message);
@@ -953,7 +954,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
       // nuova automaticamente: il progetto deve "sparire" dalla Progettazione una
       // volta inviato al Flow. Tornerà a comparire solo se la Produzione lo
       // rimanda in revisione (return_order_to_revision crea una nuova draft).
-      const { error: deleteDraftError } = await supabase.from("design_drafts").delete().eq("id", activeId);
+      const { error: deleteDraftError } = await supabase.from("design_drafts").update({ archived_at: new Date().toISOString(), active: false } as never).eq("id", activeId);
       if (deleteDraftError) throwFlowError("chiusura_draft", "design_drafts", deleteDraftError);
       const remaining = drafts.filter((dr) => dr.id !== activeId);
       writeLocalState({});
@@ -1232,7 +1233,7 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
             getSnapshot={async () => await snapshotForProduction(readLocalState())}
             onAfterSubmit={async () => {
               if (!activeId) return;
-              await supabase.from("design_drafts").delete().eq("id", activeId);
+              await supabase.from("design_drafts").update({ archived_at: new Date().toISOString(), active: false } as never).eq("id", activeId);
               writeLocalState({});
               localStorage.removeItem(ACTIVE_DRAFT_KEY);
             }}

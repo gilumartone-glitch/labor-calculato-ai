@@ -56,6 +56,7 @@ export default function Dipendenti() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editable | null>(null);
   const [rateFrom, setRateFrom] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`; });
+  const [rateFromInitial, setRateFromInitial] = useState("");
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterMacro, setFilterMacro] = useState<MacroReparto | "">("");
@@ -95,7 +96,8 @@ export default function Dipendenti() {
     ((Array.isArray(d?.rate_history) ? d!.rate_history : []) as { from: string; rate: number }[]).slice().sort((a, b) => a.from.localeCompare(b.from));
   const startEdit = (d: Dipendente) => {
     const h = histOf(d);
-    setRateFrom(h.length > 1 ? h[h.length - 1].from : defaultFrom());
+    const f = h.length > 1 ? h[h.length - 1].from : defaultFrom();
+    setRateFrom(f); setRateFromInitial(f);
     setEditing({ ...d });
   };
 
@@ -134,9 +136,14 @@ export default function Dipendenti() {
       } else if (old) {
         // Paga invariata ma data cambiata: sposta la data dell'ultimo cambio paga
         const h = histOf(old as any);
-        if (h.length > 1 && h[h.length - 1].from !== rateFrom && rateFrom > h[h.length - 2].from) {
-          h[h.length - 1] = { ...h[h.length - 1], from: rateFrom };
-          extra.rate_history = h;
+        if (rateFrom !== rateFromInitial) {
+          if (h.length > 1 && rateFrom > h[h.length - 2].from) {
+            h[h.length - 1] = { ...h[h.length - 1], from: rateFrom };
+            extra.rate_history = h;
+          } else if (h.length <= 1) {
+            const r = Number(old.hourly_rate) || 0;
+            extra.rate_history = [{ from: "2000-01-01", rate: h[0]?.rate ?? r }, { from: rateFrom, rate: r }];
+          }
         }
       }
       ({ error } = await supabase.from("dipendenti").update({ ...payload, ...extra } as never).eq("id", editing.id));

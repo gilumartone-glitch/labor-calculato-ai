@@ -1,0 +1,1 @@
+ALTER TABLE public.dipendenti ADD COLUMN IF NOT EXISTS rate_history jsonb NOT NULL DEFAULT '[]'::jsonb;

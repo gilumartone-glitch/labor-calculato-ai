@@ -552,6 +552,7 @@ export type Database = {
           note: string | null
           profile_id: string | null
           ral: number
+          rate_history: Json
           reparti: string[]
           telefono: string | null
           tfr_pct: number
@@ -575,6 +576,7 @@ export type Database = {
           note?: string | null
           profile_id?: string | null
           ral?: number
+          rate_history?: Json
           reparti?: string[]
           telefono?: string | null
           tfr_pct?: number
@@ -598,6 +600,7 @@ export type Database = {
           note?: string | null
           profile_id?: string | null
           ral?: number
+          rate_history?: Json
           reparti?: string[]
           telefono?: string | null
           tfr_pct?: number

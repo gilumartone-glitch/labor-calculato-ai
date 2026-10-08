@@ -20,6 +20,7 @@ export type Dipendente = {
   contract_hours_per_day: number;
   attivo: boolean;
   note: string | null;
+  rate_history?: unknown;
 };
 
 export const fetchDipendenti = async (onlyActive = true): Promise<Dipendente[]> => {
@@ -78,3 +79,28 @@ export const dipendenteTrasfertaDailyCost = (
 ) => TRASFERTA_DAILY_EXTRA * NET_TO_COMPANY_MULTIPLIER;
 
 
+
+export type RateChange = { from: string; rate: number };
+
+/** Paga oraria valida in una data (YYYY-MM-DD) secondo lo storico; se manca lo storico usa la paga attuale. */
+export const rateAt = (d: { hourly_rate?: number | null; rate_history?: unknown } | undefined, date: string): number => {
+  if (!d) return 0;
+  const hist = (Array.isArray(d.rate_history) ? d.rate_history : []) as RateChange[];
+  const valid = hist.filter((h) => h && typeof h.from === "string" && h.from <= date).sort((a, b) => a.from.localeCompare(b.from));
+  if (valid.length) return Number(valid[valid.length - 1].rate) || 0;
+  if (hist.length) {
+    // data precedente a tutto lo storico: usa la prima paga registrata
+    const first = [...hist].sort((a, b) => a.from.localeCompare(b.from))[0];
+    return Number(first.rate) || 0;
+  }
+  return Number(d.hourly_rate) || 0;
+};
+
+/** Registra un cambio paga dalla data indicata, conservando la paga precedente per il passato. */
+export const applyRateChange = (oldRate: number, history: unknown, from: string, newRate: number): RateChange[] => {
+  let hist = (Array.isArray(history) ? history : []) as RateChange[];
+  if (hist.length === 0) hist = [{ from: "2000-01-01", rate: oldRate }];
+  hist = hist.filter((h) => h.from !== from);
+  hist.push({ from, rate: newRate });
+  return hist.sort((a, b) => a.from.localeCompare(b.from));
+};

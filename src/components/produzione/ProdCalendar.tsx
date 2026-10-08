@@ -1,3 +1,4 @@
+import { colorForProject } from "@/lib/project-color";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DEPT_LABEL, DEPT_COLOR, SUB_STATUS_LABEL, ProdDept, ProdOrder, ProdSubOrder } from "@/lib/produzione/types";
@@ -84,7 +85,8 @@ export const ProdCalendar = ({ orders, subs, profiles, onOpenSub }: Props) => {
                   return (
                     <button key={s.id} onClick={() => onOpenSub(s)}
                       title={`${order?.production_name || order?.cliente || ""} · ${DEPT_LABEL[s.dept]} · ${SUB_STATUS_LABEL[s.status]}${who ? ` · ${who}` : ""}`}
-                      className={`text-left rounded-sm px-1.5 py-1 text-xs leading-tight ${DEPT_COLOR[s.dept]?.chip ?? "bg-muted"} ${s.status === "completato" ? "opacity-50 line-through" : ""}`}>
+                      style={{ backgroundColor: colorForProject(order?.production_name || order?.cliente || s.code), color: "hsl(0 0% 100%)" }}
+                      className={`text-left rounded-sm px-1.5 py-1 text-xs leading-tight ${s.status === "completato" ? "opacity-50 line-through" : ""}`}>
                       <div className="font-bold truncate">{order?.production_name || order?.cliente || s.code}</div>
                       <div className="truncate opacity-90">{DEPT_LABEL[s.dept]} · {who || "da assegnare"}</div>
                     </button>

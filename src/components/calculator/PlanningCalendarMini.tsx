@@ -1,3 +1,4 @@
+import { colorForProject } from "@/lib/project-color";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -24,11 +25,7 @@ const startOfWeek = (d: Date) => {
   x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x;
 };
 
-const colorForCantiere = (label: string) => {
-  let h = 0;
-  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360} 70% 38%)`;
-};
+const colorForCantiere = colorForProject;
 
 interface Props {
   reparto: string;

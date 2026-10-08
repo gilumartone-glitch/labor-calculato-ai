@@ -1,3 +1,4 @@
+import { colorForProject } from "@/lib/project-color";
 import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
@@ -83,14 +84,7 @@ const MODE_REPARTI: Record<CalendarMode, Reparto[]> = {
   lavorazioni: ["laboratorio", "tappezzeria", "vendite", "magazzino", "falegnameria", "stampa", "taglio", "stampa_3d", "assemblaggio", "progettazione"],
 };
 
-const colorForCantiere = (label: string) => {
-  let h = 0;
-  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  const saturation = 70 + ((h >>> 8) % 12);
-  const lightness = 32 + ((h >>> 16) % 10);
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
-};
+const colorForCantiere = colorForProject;
 // Colore del chip = cantiere (per distinguere chiaramente impegni diversi)
 // Accento sul bordo sinistro = reparto (tipo di impegno)
 const chipColorForAssignment = (a: Pick<Assignment, "reparto" | "cantiere_label">) => {

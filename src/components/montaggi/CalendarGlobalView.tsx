@@ -810,6 +810,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                                     key={a.id}
                                     assignment={a}
                                     onOpenDialog={() => isResp && setEditing({ operatorId: op.id, date: dateStr, existing: a })}
+                                    onDelete={isResp ? () => { if (confirm(`Eliminare "${a.cantiere_label}" di questo giorno per questo operaio?`)) deleteAssignment(a.id); } : undefined}
                                     onDragState={setDraggingId}
                                   />
                                 ))}
@@ -1036,13 +1037,21 @@ type DraggableChipProps = {
   assignment: Assignment;
   onOpenDialog: () => void;
   onDragState: (id: string | null) => void;
+  onDelete?: () => void;
 };
 
-const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableChipProps) => {
+const DraggableChip = ({ assignment: a, onOpenDialog, onDragState, onDelete }: DraggableChipProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const rep = (a.reparto ?? "montaggi") as Reparto;
 
   return (
+    <div className="relative group">
+    {onDelete && (
+      <span role="button" tabIndex={0} aria-label="Elimina questo giorno" title="Elimina solo questo giorno"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onDelete(); } }}
+        className="absolute -top-1.5 -right-1.5 z-10 grid h-5 w-5 place-items-center rounded-full bg-destructive text-destructive-foreground text-xs font-bold shadow opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer">×</span>
+    )}
     <button
       type="button"
       draggable
@@ -1063,6 +1072,7 @@ const DraggableChip = ({ assignment: a, onOpenDialog, onDragState }: DraggableCh
         <span className="text-[10px] font-extrabold bg-white/25 px-1.5 py-0.5 rounded">{a.hours}h</span>
       </div>
     </button>
+    </div>
   );
 };
 
@@ -1216,7 +1226,11 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   const editProject = async () => {
     if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
     if (info.kind === "draft") { navigate(`/preventivi?draft=${id}`); return; }
-    if (info.draftId) { navigate(`/preventivi?draft=${info.draftId}`); return; }
+    if (info.draftId) {
+      const { error } = await supabase.rpc("reopen_project_draft" as never, { _draft: info.draftId } as never);
+      if (error) { toast.error(error.message); return; }
+      navigate(`/preventivi?draft=${info.draftId}`); return;
+    }
     toast.error("Questa lavorazione non è collegata a un progetto di origine");
   };
   const toggleSum = async () => {

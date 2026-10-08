@@ -500,6 +500,7 @@ export type Database = {
       design_drafts: {
         Row: {
           active: boolean
+          archived_at: string | null
           created_at: string
           id: string
           name: string
@@ -510,6 +511,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archived_at?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -520,6 +522,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archived_at?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -549,6 +552,7 @@ export type Database = {
           note: string | null
           profile_id: string | null
           ral: number
+          rate_history: Json
           reparti: string[]
           telefono: string | null
           tfr_pct: number
@@ -572,6 +576,7 @@ export type Database = {
           note?: string | null
           profile_id?: string | null
           ral?: number
+          rate_history?: Json
           reparti?: string[]
           telefono?: string | null
           tfr_pct?: number
@@ -595,6 +600,7 @@ export type Database = {
           note?: string | null
           profile_id?: string | null
           ral?: number
+          rate_history?: Json
           reparti?: string[]
           telefono?: string | null
           tfr_pct?: number
@@ -2183,6 +2189,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {
         Args: { _order_id: string; _reason: string; _sub_order_id: string }
         Returns: string

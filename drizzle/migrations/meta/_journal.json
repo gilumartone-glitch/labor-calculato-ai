@@ -8,6 +8,27 @@
       "when": 1791379188793,
       "tag": "0000_sync_planning_to_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791448426774,
+      "tag": "0001_archive_sent_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791448617682,
+      "tag": "0002_dipendenti_rate_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791449093441,
+      "tag": "0003_migration",
+      "breakpoints": true
     }
   ]
 }

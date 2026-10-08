@@ -24,7 +24,7 @@ import { Contact, suggestContacts, normalizeText, movementMatchesContact } from 
 import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayType, getSegments } from "@/components/contabilita/HoursLogView";
-import { fetchDipendenti, type Dipendente } from "@/lib/dipendenti";
+import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -2992,7 +2992,7 @@ const computeSalaryForRow = (
   year: number,
   month: number,
 ): ComputedSalary => {
-  const hourlyRate = Number(dip?.hourly_rate) || 0;
+  const hourlyRate = dip ? rateAt(dip, `${year}-${String(month + 1).padStart(2, "0")}-01`) : 0;
   const contractH = Math.max(0, Number(dip?.contract_hours_per_day) || 8);
   const OVERTIME_RATE = 5;
   const TRASFERTA_BONUS = 20;
@@ -3006,6 +3006,7 @@ const computeSalaryForRow = (
     if (segs.length === 0) return;
     const date = new Date(year, month, day);
     const dow = date.getDay();
+    const dayRate = dip ? rateAt(dip, `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`) : hourlyRate;
     let workH = 0;
     let paidH = 0;
     let hasFestivoSeg = false;
@@ -3032,12 +3033,12 @@ const computeSalaryForRow = (
     const overtimeH = hadDoppia ? 0 : Math.max(workH - contractH, 0);
     const normalH = workH - overtimeH;
     const isHoliday = (dow === 0 || hasFestivoSeg) && (workH > 0);
-    const baseAmount = (normalH + paidH) * hourlyRate + overtimeH * OVERTIME_RATE;
+    const baseAmount = (normalH + paidH) * dayRate + overtimeH * OVERTIME_RATE;
     // Bonus trasferta: +20 € per ogni giornata con almeno un segmento di trasferta
     const trasfertaBonus = hadTrasferta ? TRASFERTA_BONUS : 0;
     // Le ore festive/domenica sono già conteggiate al pari delle ordinarie: nessun raddoppio automatico.
     const amount = baseAmount + trasfertaBonus;
-    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate, baseAmount, trasfertaBonus, isHoliday, amount });
+    breakdown.push({ day, dow, segs, workH, normalH, overtimeH, paidH, hourlyRate: dayRate, baseAmount, trasfertaBonus, isHoliday, amount });
     totale += amount;
     tNormalH += normalH;
     tOvertimeH += overtimeH;

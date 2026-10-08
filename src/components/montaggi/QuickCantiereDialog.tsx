@@ -138,6 +138,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     return out;
   }, [from, to, weekend]);
   const opsFor = (d: string) => dayOps[d] ?? ops;
+  const [doneFlag, setDoneFlag] = useState(false);
+  const initDone = existing.filter((r) => r.cantiere_label === editLabel).length > 0
+    && existing.filter((r) => r.cantiere_label === editLabel).every((r) => !!r.completed_at);
+  useEffect(() => { if (open) setDoneFlag(!!editLabel && initDone); }, [open, editLabel, initDone]);
   const toggleDayOp = (d: string, id: string) => setDayOps((m) => {
     const cur = m[d] ?? ops;
     return { ...m, [d]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
@@ -158,7 +162,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
           if (error) throw error;
         }
       }
-      const doneAt = editLabel && editRows.length && editRows.every((r) => !!r.completed_at) ? editRows[0].completed_at : null;
+      const doneAt = doneFlag ? (editRows.find((r) => r.completed_at)?.completed_at ?? new Date().toISOString()) : null;
       const notes = buildNotes(cliente.trim(), luogo.trim(), note.trim());
       const rows = days.flatMap((date) => opsFor(date).map((op) => ({
         commessa_id: commessaId, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto: dayRep[date] ?? reparto, created_by: user.id, completed_at: doneAt,
@@ -300,6 +304,10 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
 
           <label className="block"><span className="font-semibold">Note</span>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="mt-1 w-full border-2 border-input rounded-sm p-2 bg-background" />
+          </label>
+          <label className="flex items-center gap-3 rounded-sm border-2 border-input p-3 text-lg font-semibold cursor-pointer">
+            <input type="checkbox" className="h-6 w-6" checked={doneFlag} onChange={(e) => setDoneFlag(e.target.checked)} />
+            ✓ Completato
           </label>
         </div>
 

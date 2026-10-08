@@ -19,7 +19,7 @@ import {
   type MaterialDependencyRule,
 } from "@/lib/material-dependencies";
 import { DEPT_LABEL, type ProdDept } from "@/lib/produzione/types";
-import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, applyRateChange, type Dipendente } from "@/lib/dipendenti";
+import { dipendenteHourlyCost as dipHourlyCost, dipendenteCompanyCost as dipCompanyCost, EFFECTIVE_ANNUAL_HOURS, applyRateChange, rateAt, type Dipendente } from "@/lib/dipendenti";
 import { NetToCostCalculator } from "@/components/dipendenti/NetToCostCalculator";
 
 type Profile = { id: string; display_name: string | null };
@@ -130,8 +130,9 @@ export default function Dipendenti() {
     };
     let error;
     if (editing.id && histEdited) {
-      const h = histOf(editing);
-      ({ error } = await supabase.from("dipendenti").update({ ...payload, hourly_rate: Number(h[h.length - 1]?.rate) || payload.hourly_rate, rate_history: h } as never).eq("id", editing.id));
+      const h = histOf(editing).filter((r) => r.from);
+      const today = new Date().toISOString().slice(0, 10);
+      ({ error } = await supabase.from("dipendenti").update({ ...payload, hourly_rate: rateAt({ rate_history: h }, today), rate_history: h } as never).eq("id", editing.id));
     } else if (editing.id) {
       const { data: old } = await supabase.from("dipendenti").select("hourly_rate, rate_history").eq("id", editing.id).maybeSingle();
       const extra: Record<string, unknown> = {};
@@ -400,17 +401,27 @@ export default function Dipendenti() {
                 <div className="border-t pt-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Costi (per calcolo preventivi) — visibile solo agli admin</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                    <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>
-                    {editing.id && <div><Label className="text-sm">Nuova paga per le presenze dal (pagata il mese dopo)</Label><Input type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />
-                      {histOf(editing).length > 1 && <div className="mt-2 space-y-1 text-sm">
-                        <div className="font-semibold">Storico paghe (correggi se serve)</div>
-                        {histOf(editing).map((h, i) => <div key={i} className="flex items-center gap-1">
-                          <span className="w-24 shrink-0">{i === 0 ? "Prima" : `Dal ${h.from.split("-").reverse().join("/")}`}</span>
-                          <Input type="number" step="0.01" className="h-8" value={h.rate} onChange={(e) => {
-                            const nh = histOf(editing); nh[i] = { ...nh[i], rate: Number(e.target.value) };
-                            setEditing({ ...editing, rate_history: nh }); setHistEdited(true);
-                          }} /><span>€/h</span></div>)}
-                      </div>}</div>}
+                    {!editing.id && <div><Label className="text-[10px]">Paga netta €/h</Label><Input type="number" step="0.01" value={editing.hourly_rate} onChange={(e) => setEditing({ ...editing, hourly_rate: Number(e.target.value) || 0 })} /></div>}
+                    {editing.id && (() => {
+                      const h = histOf(editing).length ? histOf(editing) : [{ from: "2000-01-01", rate: Number(editing.hourly_rate) || 0 }];
+                      const setH = (nh: { from: string; rate: number }[]) => { setEditing({ ...editing, rate_history: nh }); setHistEdited(true); };
+                      return <div className="col-span-2 sm:col-span-4 rounded-md border p-3 space-y-2">
+                        <div className="text-base font-semibold">Paghe nette €/h</div>
+                        <p className="text-sm text-muted-foreground">Ogni paga vale per le presenze dalla sua data (pagate il mese dopo). Le paghe vecchie restano registrate.</p>
+                        {h.map((r, i) => <div key={i} className="flex flex-wrap items-center gap-2">
+                          {i === 0 ? <span className="w-40 text-sm font-medium">Paga iniziale</span>
+                            : <Input type="date" className="w-40" value={r.from} onChange={(e) => { const nh = [...h]; nh[i] = { ...r, from: e.target.value }; setH(nh); }} />}
+                          <Input type="number" step="0.01" className="w-28" value={r.rate} onChange={(e) => { const nh = [...h]; nh[i] = { ...r, rate: Number(e.target.value) || 0 }; setH(nh); }} />
+                          <span className="text-sm">€/h</span>
+                          {i > 0 && <Button type="button" variant="outline" size="sm" onClick={() => setH(h.filter((_, j) => j !== i))}>Elimina</Button>}
+                        </div>)}
+                        <Button type="button" variant="outline" onClick={() => {
+                          const n = new Date(); const next = new Date(n.getFullYear(), n.getMonth() + 1, 1);
+                          const from = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+                          setH([...h, { from, rate: Number(h[h.length - 1].rate) || 0 }]);
+                        }}>+ Aggiungi nuova paga</Button>
+                      </div>;
+                    })()}
                     <div><Label className="text-[10px]">INPS %</Label><Input type="number" step="0.01" value={editing.inps_pct} onChange={(e) => setEditing({ ...editing, inps_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">INAIL %</Label><Input type="number" step="0.01" value={editing.inail_pct} onChange={(e) => setEditing({ ...editing, inail_pct: Number(e.target.value) || 0 })} /></div>
                     <div><Label className="text-[10px]">TFR %</Label><Input type="number" step="0.01" value={editing.tfr_pct} onChange={(e) => setEditing({ ...editing, tfr_pct: Number(e.target.value) || 0 })} /></div>

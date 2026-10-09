@@ -11,6 +11,7 @@ import { convertLength } from "@/lib/perimeter";
 import {
   computePieceMaterial,
   piecePerimetersTotal,
+  pieceFullnessFactor,
   pieceCustomWorksTotal,
   piecePrintTotal,
   pieceLeftoverScrapSellCost,
@@ -1879,11 +1880,11 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   ? op.priceFinal
                   : op?.pricePerMeter ?? 0;
               const isTiro = isTiroAPacchetto(op?.name || "");
-              const meters = pp.sides.reduce((acc, s) => acc + sideLengthM(s, line.width, line.height, line.dimUnit), 0);
+              const meters = pp.sides.reduce((acc, s) => acc + sideLengthM(s, (Number(line.width) || 0) * pieceFullnessFactor(line), line.height, line.dimUnit), 0);
               const areaM2 = pieceAreaM2({ width: line.width, height: line.height, dimUnit: line.dimUnit });
               // Tiro a pacchetto: n.file × altezza × €/m
-              const widthM = sideLengthM("top", line.width, line.height, line.dimUnit);
-              const heightM = sideLengthM("left", line.width, line.height, line.dimUnit);
+              const widthM = sideLengthM("top", (Number(line.width) || 0) * pieceFullnessFactor(line), line.height, line.dimUnit);
+              const heightM = sideLengthM("left", (Number(line.width) || 0) * pieceFullnessFactor(line), line.height, line.dimUnit);
               const files = isTiro ? tiroFiles(widthM) : 0;
               const tiroQtyM = files * heightM;
               // Per le lavorazioni a "pezzo" la quantità coincide con la quantità del pezzo
@@ -1975,7 +1976,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                     <div className="grid grid-cols-4 gap-1">
                       {SIDES.map((s) => {
                         const active = pp.sides.includes(s);
-                        const len = sideLengthM(s, line.width, line.height, line.dimUnit);
+                        const len = sideLengthM(s, (Number(line.width) || 0) * pieceFullnessFactor(line), line.height, line.dimUnit);
                         return (
                           <button
                             key={s}

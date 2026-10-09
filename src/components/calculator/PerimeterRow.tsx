@@ -1,4 +1,3 @@
-import { pieceFullnessFactor } from "@/lib/piece";
 import { motion } from "framer-motion";
 import { X, Layers } from "lucide-react";
 import { CatalogPerimeterOp, PerimeterLine, PerimeterSide } from "./types";
@@ -105,7 +104,7 @@ export const PerimeterRow = ({
           <div className="grid grid-cols-4 gap-1">
             {SIDES.map((s) => {
               const active = line.sides.includes(s);
-              const len = sideLengthM(s, (Number(line.width) || 0) * pieceFullnessFactor(line), line.height, line.dimUnit);
+              const len = sideLengthM(s, line.width, line.height, line.dimUnit);
               return (
                 <button
                   key={s}

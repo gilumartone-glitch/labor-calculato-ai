@@ -11,6 +11,7 @@ import { convertLength } from "@/lib/perimeter";
 import {
   computePieceMaterial,
   piecePerimetersTotal,
+  pieceFullnessFactor,
   pieceCustomWorksTotal,
   piecePrintTotal,
   pieceLeftoverScrapSellCost,

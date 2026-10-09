@@ -1,3 +1,4 @@
+import { pieceFullnessFactor } from "@/lib/piece";
 import { motion } from "framer-motion";
 import { X, Layers } from "lucide-react";
 import { CatalogPerimeterOp, PerimeterLine, PerimeterSide } from "./types";

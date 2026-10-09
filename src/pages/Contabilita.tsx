@@ -3566,7 +3566,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
       </CardContent>
 
       <BreakdownDialog
-        data={breakdownFor}
+        data={breakdownFor ? (computedRows.find((c) => c.name.trim().toLowerCase() === breakdownFor.name.trim().toLowerCase()) ?? breakdownFor) : null}
         year={prevY}
         month={prevM}
         onClose={() => setBreakdownFor(null)}

@@ -3277,7 +3277,7 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   const displayRows = useMemo(() => {
     if (useSavedRows) {
       const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
-      return savedRowsForMonth.map((salary) => {
+      const savedRows = savedRowsForMonth.map((salary) => {
         const dip = findDipendente(dipendenti, salary.name);
         // Se l'utente non ha impostato uno split manuale (sc=false), riflettiamo
         // il totale ricalcolato dalle ore in tempo reale (così le correzioni sui
@@ -3286,6 +3286,12 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
         const computed = fresh && !salary.sc ? fresh : computedFromSavedSalary(salary, dip);
         return { key: salary.id, computed, salary, saved: true };
       });
+      // Dipendenti con ore inserite dopo l'elaborazione (o salvati a 0): vanno mostrati comunque.
+      const shown = new Set(savedRowsForMonth.map((s) => s.name.trim().toLowerCase()));
+      const extra = computedRows
+        .filter((c) => c.totale > 0 && !shown.has(c.name.trim().toLowerCase()))
+        .map((computed) => ({ key: computed.name, computed, salary: ensureSalary(computed), saved: false }));
+      return [...savedRows, ...extra].sort((a, b) => a.computed.name.localeCompare(b.computed.name, "it", { sensitivity: "base" }));
     }
     return computedRows.map((computed) => ({ key: computed.name, computed, salary: ensureSalary(computed), saved: false }));
     // eslint-disable-next-line react-hooks/exhaustive-deps

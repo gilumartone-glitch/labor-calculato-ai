@@ -697,6 +697,37 @@ export const DraftTabsBar = ({ secondaryRow }: { secondaryRow?: React.ReactNode 
     setSendBusy(true);
     try {
       const productionSnapshot = await snapshotForProduction(snap);
+      // 0) Progetto già inviato (riaperto con «Modifica il progetto"): aggiorna, non duplicare
+      const { data: existing } = await supabase.from("commesse").select("id").eq("source_draft_id", activeId).limit(1).maybeSingle();
+      if (existing?.id) {
+        const { error: upErr } = await supabase.from("commesse").update({
+          titolo: sendTitolo.trim(),
+          cliente: sendCliente.trim() || null,
+          importo: sendImporto || null,
+          priorita: sendPriorita,
+          data_scadenza: sendScadenza || null,
+          snapshot: productionSnapshot as never,
+        } as never).eq("id", existing.id);
+        if (upErr) throwFlowError("creazione_commessa", "commesse", upErr);
+        await supabase.from("production_orders").update({ snapshot: productionSnapshot as never } as never).eq("source_commessa_id", existing.id);
+        const { error: archErr } = await supabase.from("design_drafts").update({ archived_at: new Date().toISOString(), active: false } as never).eq("id", activeId);
+        if (archErr) throwFlowError("chiusura_draft", "design_drafts", archErr);
+        const remaining = drafts.filter((dr) => dr.id !== activeId);
+        writeLocalState({});
+        localStorage.removeItem(ACTIVE_DRAFT_KEY);
+        if (remaining.length === 0) { setDrafts([]); setActiveId(null); }
+        else {
+          const next = remaining[0];
+          await supabase.from("design_drafts").update({ active: true }).eq("id", next.id);
+          setDrafts(remaining); setActiveId(next.id);
+          localStorage.setItem(ACTIVE_DRAFT_KEY, next.id);
+          writeLocalState(next.snapshot ?? {}, next.id);
+        }
+        setSendOpen(false);
+        toast.success("Progetto aggiornato nel Flow (nessun doppione creato)");
+        navigate("/flow");
+        return;
+      }
       // 1) Crea commessa nel Flow
       const { data: createdCommessa, error } = await supabase.from("commesse").insert({
         titolo: sendTitolo.trim(),

@@ -637,7 +637,19 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const dipsRef = useRef<Dipendente[]>([]);
   useEffect(() => {
     if (!isAdmin) return;
-    fetchDipendenti(false).then((r) => { dipsRef.current = r; }).catch(() => {});
+    let stop = false;
+    fetchDipendenti(false).then((r) => {
+      dipsRef.current = r;
+      // Pubblica subito il riepilogo contanti aggiornato.
+      const tryPublish = async () => {
+        if (stop) return;
+        if (!remoteLoadedRef.current || !stateRef.current) { setTimeout(tryPublish, 1000); return; }
+        const { data: authData } = await supabase.auth.getUser();
+        await remoteSave(REMOTE_KEY, withCashView(stateRef.current), authData?.user?.id ?? null, true);
+      };
+      void tryPublish();
+    }).catch(() => {});
+    return () => { stop = true; };
   }, [isAdmin]);
   // Il titolare pubblica il riepilogo dei soli contanti per l'amministrazione.
   const withCashView = (st: AccountingState) => {

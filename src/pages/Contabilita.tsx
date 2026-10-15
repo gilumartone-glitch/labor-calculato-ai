@@ -1382,7 +1382,19 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
               <Button size="sm" variant={stipendiSub !== "ore" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>
               <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>
             </div>
-            {stipendiSub !== "ore" && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} />}
+            {stipendiSub !== "ore" && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} onRemoveFree={(name, salaryMonth, hoursKey) => {
+              const n = name.trim().toLowerCase();
+              update((prev) => {
+                const hl = { ...(prev.hoursLog ?? {}) } as HoursLog;
+                const hm = hl[hoursKey];
+                if (hm) hl[hoursKey] = { ...hm, rows: hm.rows.filter((r) => r.dipendenteId || r.name.trim().toLowerCase() !== n) };
+                return {
+                  salaries: (prev.salaries ?? []).filter((s) => !(s.month === salaryMonth && s.name.trim().toLowerCase() === n)),
+                  hoursLog: hl,
+                };
+              });
+              toast.success(`${name} eliminato`);
+            }} />}
             {stipendiSub === "ore" && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours || isAdmin} defaultYear={year} />}
           </div>
         )}
@@ -3238,7 +3250,7 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
 
 
 
-const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin, defaultYear }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean; defaultYear?: number }) => {
+const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDates, setPayDates, hoursLog, isAdmin, defaultYear, onRemoveFree }: { salaries: Salary[]; setSalaries: (s: Salary[]) => void; processed: boolean[]; setProcessed: (p: boolean[]) => void; payDates: string[]; setPayDates: (p: string[]) => void; hoursLog: HoursLog; isAdmin: boolean; defaultYear?: number; onRemoveFree?: (name: string, salaryMonth: number, hoursKey: string) => void }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
   const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
@@ -3529,6 +3541,13 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
                       <button type="button" onClick={() => setHistoryFor({ name: c.name, dipendenteId: c.dipendenteId })} className="h-9 w-full rounded-md px-2 text-left text-xs font-medium hover:bg-dept-soft/40 underline-offset-2 hover:underline">
                         {c.name}{row.saved ? <span className="ml-2 rounded-sm bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground no-underline">salvato</span> : null}
                       </button>
+                      {onRemoveFree && !findDipendente(dipendenti, c.name, c.dipendenteId) && (
+                        <Button type="button" size="sm" variant="ghost" className="mt-1 h-8 w-full text-sm text-destructive hover:bg-destructive/10"
+                          title="Nome libero: non è nella sezione Dipendenti"
+                          onClick={() => { if (window.confirm(`Eliminare ${c.name} dagli stipendi di ${MONTHS[openMonth]} e dalle ore di ${MONTHS[prevM]}?`)) onRemoveFree(c.name, openMonth, prevKey); }}>
+                          <Trash2 className="h-4 w-4" />Elimina
+                        </Button>
+                      )}
                     </td>
                     <td className="border border-border p-1">
                       <button type="button" onClick={() => setBreakdownFor(c)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs font-semibold hover:bg-dept-soft/40 underline-offset-2 hover:underline" title="Vedi calcolo analitico">

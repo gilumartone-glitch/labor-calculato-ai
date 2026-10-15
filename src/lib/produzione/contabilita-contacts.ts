@@ -14,11 +14,8 @@ const KEY = "main";
 
 /** Carica i contatti dall'anagrafica condivisa (contabilita_state.data.contacts). */
 export async function loadContabContacts(): Promise<ContabContact[]> {
-  const { data, error } = await supabase
-    .from("contabilita_state")
-    .select("data")
-    .eq("key", KEY)
-    .maybeSingle();
+  const { data: rows, error } = await (supabase.rpc as any)("get_contabilita_state_public", { _key: KEY });
+  const data = Array.isArray(rows) ? rows[0] ?? null : rows;
   if (error || !data?.data) return [];
   const arr = (data.data as any).contacts;
   if (!Array.isArray(arr)) return [];
@@ -37,11 +34,8 @@ export async function loadContabContacts(): Promise<ContabContact[]> {
 export async function addContabContact(input: { name: string; type: "cliente" | "fornitore" | "entrambi"; email?: string; phone?: string }): Promise<ContabContact> {
   const name = input.name.trim();
   if (!name) throw new Error("Nome contatto richiesto");
-  const { data, error } = await supabase
-    .from("contabilita_state")
-    .select("data")
-    .eq("key", KEY)
-    .maybeSingle();
+  const { data: rows, error } = await (supabase.rpc as any)("get_contabilita_state_public", { _key: KEY });
+  const data = Array.isArray(rows) ? rows[0] ?? null : rows;
   if (error) throw error;
   const state = (data?.data as any) ?? {};
   const list: any[] = Array.isArray(state.contacts) ? state.contacts : [];
@@ -52,7 +46,7 @@ export async function addContabContact(input: { name: string; type: "cliente" | 
     if (exists.type !== input.type && exists.type !== "entrambi") {
       exists.type = "entrambi";
       const next = { ...state, contacts: list };
-      await supabase.from("contabilita_state").upsert([{ key: KEY, data: next as never }], { onConflict: "key" });
+      await (supabase.rpc as any)("save_contabilita_state_public", { _key: KEY, _data: next });
     }
     return {
       id: String(exists.id),
@@ -71,9 +65,7 @@ export async function addContabContact(input: { name: string; type: "cliente" | 
     createdAt: new Date().toISOString(),
   };
   const next = { ...state, contacts: [...list, created] };
-  const { error: e2 } = await supabase
-    .from("contabilita_state")
-    .upsert([{ key: KEY, data: next as never }], { onConflict: "key" });
+  const { error: e2 } = await (supabase.rpc as any)("save_contabilita_state_public", { _key: KEY, _data: next });
   if (e2) throw e2;
   return created;
 }

@@ -3167,7 +3167,7 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
         </div>
         <div className="flex items-center gap-2">
           <label className="text-xs text-muted-foreground">Anno</label>
-          <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || now.getFullYear())} className="h-8 w-24" />
+          <span className="text-lg font-semibold">{year}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

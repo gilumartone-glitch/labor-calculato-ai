@@ -630,7 +630,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const { isAdmin: isRealAdmin, isAmministrazione } = usePermissions();
   const { user: authUser } = useAuth();
   // Solo il titolare vede gli stipendi completi; gli altri (anche admin) solo i contanti.
-  const isAdmin = (authUser?.email ?? "").toLowerCase() === "gilumartone@gmail.com";
+  const isAdmin = ["gilumartone@gmail.com", "gmartone@tecnofra.it"].includes((authUser?.email ?? "").toLowerCase());
   const canEditHours = isRealAdmin || isAmministrazione;
   const isOwnerRef = useRef(isAdmin);
   isOwnerRef.current = isAdmin;

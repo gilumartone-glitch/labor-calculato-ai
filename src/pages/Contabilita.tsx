@@ -610,6 +610,18 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   // Solo il titolare vede gli stipendi completi; gli altri (anche admin) solo i contanti.
   const isAdmin = (authUser?.email ?? "").toLowerCase() === "gilumartone@gmail.com";
   const canEditHours = isRealAdmin || isAmministrazione;
+  const isOwnerRef = useRef(isAdmin);
+  isOwnerRef.current = isAdmin;
+  const dipsRef = useRef<Dipendente[]>([]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchDipendenti(false).then((r) => { dipsRef.current = r; }).catch(() => {});
+  }, [isAdmin]);
+  // Il titolare pubblica il riepilogo dei soli contanti per l'amministrazione.
+  const withCashView = (st: AccountingState) => {
+    if (!isOwnerRef.current || dipsRef.current.length === 0) return st;
+    return { ...st, cashView: buildCashView(st, dipsRef.current, year) } as AccountingState;
+  };
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {
@@ -695,12 +707,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     try { writeLocalState(restored, Date.now()); } catch { /* ignore */ }
     const { data: authData } = await supabase.auth.getUser();
     const uid = authData?.user?.id ?? null;
-    const { error } = await supabase
-      .from("contabilita_state")
-      .upsert(
-        [{ key: REMOTE_KEY, data: restored as unknown as never, updated_by: uid as unknown as never }],
-        { onConflict: "key" },
-      );
+    const { error } = await remoteSave(REMOTE_KEY, withCashView(restored), uid, isOwnerRef.current);
     if (error) throw error;
     lastRemoteRef.current = serializeAccountingState(restored);
     setSaveStatus("idle");
@@ -810,11 +817,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("contabilita_state")
-        .select("data,updated_at")
-        .eq("key", REMOTE_KEY)
-        .maybeSingle();
+      const { data, error } = await remoteLoad(REMOTE_KEY, isOwnerRef.current);
       if (cancelled) return;
       if (error) {
         console.warn("[contabilita] load remote:", error.message);
@@ -852,12 +855,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
           ownSaveUntilRef.current = Date.now() + 2500;
           const { data: authData } = await supabase.auth.getUser();
           const uid = authData?.user?.id ?? null;
-          const { error: restoreError } = await supabase
-            .from("contabilita_state")
-            .upsert(
-              [{ key: REMOTE_KEY, data: merged as unknown as never, updated_by: uid as unknown as never }],
-              { onConflict: "key" },
-            );
+          const { error: restoreError } = await remoteSave(REMOTE_KEY, withCashView(merged), uid, isOwnerRef.current);
           if (restoreError) {
             setSaveStatus("error");
             toast.error("Non riesco a riportare sul cloud le modifiche locali: resta su questa pagina finché non risulta Salvato.", { duration: 10000, id: "contab-save-error" });
@@ -883,13 +881,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     saveTimerRef.current = setTimeout(async () => {
       const { data: authData } = await supabase.auth.getUser();
       const uid = authData?.user?.id ?? null;
-      const { data: written, error } = await supabase
-        .from("contabilita_state")
-        .upsert(
-          [{ key: REMOTE_KEY, data: state as unknown as never, updated_by: uid as unknown as never }],
-          { onConflict: "key" },
-        )
-        .select("key,updated_at");
+      const { data: written, error } = await remoteSave(REMOTE_KEY, withCashView(state), uid, isOwnerRef.current);
       if (seq !== saveSeqRef.current) return;
       if (error) {
         console.warn("[contabilita] save remote:", error.message, "uid=", uid);
@@ -898,13 +890,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         try {
           const { data: refreshed } = await supabase.auth.refreshSession();
           if (refreshed?.session) {
-            const retry = await supabase
-              .from("contabilita_state")
-              .upsert(
-                [{ key: REMOTE_KEY, data: state as unknown as never, updated_by: refreshed.session.user.id as unknown as never }],
-                { onConflict: "key" },
-              )
-              .select("key,updated_at");
+            const retry = await remoteSave(REMOTE_KEY, withCashView(state), refreshed.session.user.id, isOwnerRef.current);
             if (!retry.error && retry.data && retry.data.length > 0) {
               lastRemoteRef.current = serialized;
               ownSaveUntilRef.current = Date.now() + 2500;
@@ -955,13 +941,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       const { data: authData } = await supabase.auth.getUser();
       const uid = authData?.user?.id ?? null;
       if (!uid) return; // serve login utente
-      const { data: written, error } = await supabase
-        .from("contabilita_state")
-        .upsert(
-          [{ key: REMOTE_KEY, data: current as unknown as never, updated_by: uid as unknown as never }],
-          { onConflict: "key" },
-        )
-        .select("key,updated_at");
+      const { data: written, error } = await remoteSave(REMOTE_KEY, withCashView(current), uid, isOwnerRef.current);
       if (!error && written && written.length > 0) {
         lastRemoteRef.current = serialized;
         ownSaveUntilRef.current = Date.now() + 2500;
@@ -983,11 +963,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       if (refetching) return;
       refetching = true;
       try {
-        const { data, error } = await supabase
-          .from("contabilita_state")
-          .select("data")
-          .eq("key", REMOTE_KEY)
-          .maybeSingle();
+        const { data, error } = await remoteLoad(REMOTE_KEY, isOwnerRef.current);
         if (error || !data?.data) return;
         const remote = normalizeState(data.data as Partial<AccountingState>);
         const remoteSerialized = serializeAccountingState(remote);
@@ -1049,7 +1025,10 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       const serialized = serializeAccountingState(current);
       if (serialized === lastRemoteRef.current) return;
       try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contabilita_state?on_conflict=key`;
+        const owner = isOwnerRef.current;
+        const url = owner
+          ? `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contabilita_state?on_conflict=key`
+          : `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/save_contabilita_state_public`;
         const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
         const tokenRaw = localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`);
         let accessToken = apikey;
@@ -1065,7 +1044,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
             Authorization: `Bearer ${accessToken}`,
             Prefer: "resolution=merge-duplicates,return=minimal",
           },
-          body: JSON.stringify([{ key: REMOTE_KEY, data: JSON.parse(serialized) }]),
+          body: owner
+            ? JSON.stringify([{ key: REMOTE_KEY, data: withCashView(JSON.parse(serialized)) }])
+            : JSON.stringify({ _key: REMOTE_KEY, _data: JSON.parse(serialized) }),
         }).catch(() => { /* ignore */ });
         lastRemoteRef.current = serialized;
       } catch { /* ignore */ }
@@ -1332,7 +1313,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 items-center"><AdminUsersLink variant="outline" /><Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title={history.length === 0 ? "Niente da annullare" : `Annulla (${history.length})`}><Undo2 className="h-4 w-4" /><span className="hidden sm:inline">Annulla{history.length > 0 ? ` (${history.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={redo} disabled={future.length === 0} title={future.length === 0 ? "Niente da rifare" : `Avanti (${future.length})`}><Redo2 className="h-4 w-4" /><span className="hidden sm:inline">Avanti{future.length > 0 ? ` (${future.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={() => setSnapshotsOpen(true)} title="Versioni precedenti (ripristino)"><History className="h-4 w-4" /><span className="hidden sm:inline">Versioni</span></Button><div className={`flex items-center gap-1.5 text-xs ${saveStatus === "error" ? "text-destructive" : "text-muted-foreground"}`} title="Salvataggio automatico in tempo reale">{saveStatus === "saving" ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Salvataggio…</span></>) : saveStatus === "error" ? (<><X className="h-3.5 w-3.5" /><span className="hidden sm:inline">Non salvato</span></>) : (<><Check className="h-3.5 w-3.5 text-green-600" /><span className="hidden sm:inline">Salvato</span></>)}</div></div>
+          <div className="flex flex-wrap gap-2 items-center"><AdminUsersLink variant="outline" /><Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title={history.length === 0 ? "Niente da annullare" : `Annulla (${history.length})`}><Undo2 className="h-4 w-4" /><span className="hidden sm:inline">Annulla{history.length > 0 ? ` (${history.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={redo} disabled={future.length === 0} title={future.length === 0 ? "Niente da rifare" : `Avanti (${future.length})`}><Redo2 className="h-4 w-4" /><span className="hidden sm:inline">Avanti{future.length > 0 ? ` (${future.length})` : ""}</span></Button><Button variant="outline" size="sm" onClick={() => setSnapshotsOpen(true)} hidden={!isAdmin} title="Versioni precedenti (ripristino)"><History className="h-4 w-4" /><span className="hidden sm:inline">Versioni</span></Button><div className={`flex items-center gap-1.5 text-xs ${saveStatus === "error" ? "text-destructive" : "text-muted-foreground"}`} title="Salvataggio automatico in tempo reale">{saveStatus === "saving" ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Salvataggio…</span></>) : saveStatus === "error" ? (<><X className="h-3.5 w-3.5" /><span className="hidden sm:inline">Non salvato</span></>) : (<><Check className="h-3.5 w-3.5 text-green-600" /><span className="hidden sm:inline">Salvato</span></>)}</div></div>
         </div>
       </header>
       <SnapshotsDialog open={snapshotsOpen} onOpenChange={setSnapshotsOpen} remoteKey={REMOTE_KEY} onRestore={restoreSnapshot} />
@@ -1374,7 +1355,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         {tab === "stipendi" && !isAdmin && canEditHours && (
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Contanti da consegnare</h2>
-            <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} defaultYear={year} />
+            <CashOnlySalariesView remoteKey={REMOTE_KEY} year={year} />
           </div>
         )}
         {tab === "grafici" && (

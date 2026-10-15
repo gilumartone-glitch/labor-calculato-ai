@@ -154,6 +154,28 @@ const setActiveYear = (y: number) => { ACTIVE_YEAR = y; };
 const storageKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? BASE_STORAGE_KEY : `${BASE_STORAGE_KEY}:${year}`;
 const savedAtKeyFor = (year: number = ACTIVE_YEAR) => `${storageKeyFor(year)}:saved_at`;
 const remoteKeyFor = (year: number = ACTIVE_YEAR) => year === BASE_YEAR ? "main" : `main-${year}`;
+// Solo il titolare legge/scrive direttamente la riga completa (stipendi e ore
+// inclusi). Gli altri passano da funzioni del database che tolgono stipendi e ore.
+const remoteLoad = async (key: string, owner: boolean): Promise<{ data: { data: unknown; updated_at: string | null } | null; error: { message: string } | null }> => {
+  if (owner) {
+    const { data, error } = await supabase.from("contabilita_state").select("data,updated_at").eq("key", key).maybeSingle();
+    return { data: data as any, error };
+  }
+  const { data, error } = await (supabase.rpc as any)("get_contabilita_state_public", { _key: key });
+  const row = Array.isArray(data) ? data[0] ?? null : data ?? null;
+  return { data: row, error };
+};
+const remoteSave = async (key: string, data: unknown, uid: string | null, owner: boolean): Promise<{ data: { key: string }[] | null; error: { message: string } | null }> => {
+  if (owner) {
+    const { data: written, error } = await supabase
+      .from("contabilita_state")
+      .upsert([{ key, data: data as never, updated_by: uid as never }], { onConflict: "key" })
+      .select("key,updated_at");
+    return { data: written as any, error };
+  }
+  const { error } = await (supabase.rpc as any)("save_contabilita_state_public", { _key: key, _data: data });
+  return { data: error ? null : [{ key }], error };
+};
 const LEGACY_STORAGE_KEYS = ["officina:contabilita-cassa:v21", "officina:contabilita-cassa:v20"];
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const OPENING_CASH_2025 = 96259.6;
@@ -3079,62 +3101,62 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
 
 // Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
 // Non mostra totali, bonifici, cassa. Non permette modifiche.
-const CashOnlySalariesView = ({ salaries, processed, payDates, hoursLog, defaultYear }: { salaries: Salary[]; processed: boolean[]; payDates: string[]; hoursLog: HoursLog; defaultYear?: number }) => {
+type CashRow = { name: string; contanti: number; stato: "confermato" | "stimato" };
+type CashMonth = { processed: boolean; payDate: string; rows: CashRow[] };
+
+/** Calcola, per ogni mese di competenza, i soli contanti da consegnare. */
+const buildCashView = (st: AccountingState, dipendenti: Dipendente[], year: number): Record<string, CashMonth> => {
+  const salaries = st.salaries ?? [];
+  const processed = st.salariesProcessed ?? [];
+  const payDates = (st.salaryPayDates ?? []) as string[];
+  const hoursLog = (st.hoursLog ?? {}) as HoursLog;
+  const out: Record<string, CashMonth> = {};
+  for (let openMonth = 0; openMonth < 12; openMonth++) {
+    const nextM = openMonth === 11 ? 0 : openMonth + 1;
+    const isProcessed = !!processed[nextM];
+    const savedRows = salaries
+      .filter((s) => s.month === nextM)
+      .filter((s) => (s.totale || 0) > 0 || (s.bonifico || 0) !== 0 || (s.contanti || 0) !== 0 || s.sc);
+    const hm = hoursLog[`${year}-${openMonth}`] ?? { rows: [] };
+    const computedRows = hm.rows.map((r) => computeSalaryForRow(r, findDipendente(dipendenti, r.name, r.dipendenteId), year, openMonth));
+    const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
+    const rows: CashRow[] = (isProcessed && savedRows.length > 0)
+      ? savedRows.map((s) => {
+          const fresh = computedByKey.get(s.name.trim().toLowerCase());
+          const totale = (!s.sc && fresh) ? fresh.totale : (Number(s.totale) || 0);
+          const contanti = s.sc ? (Number(s.contanti) || 0) : Math.max(0, totale - (Number(s.bonifico) || 0));
+          return { name: s.name, contanti, stato: "confermato" as const };
+        })
+      : computedRows.filter((c) => c.totale > 0).map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }));
+    rows.sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
+    out[String(openMonth)] = { processed: isProcessed, payDate: sanitizeSalaryPayDate(payDates[nextM], nextM) || "", rows };
+  }
+  return out;
+};
+
+const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: number }) => {
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
-  const [year, setYear] = useState<number>(defaultYear ?? now.getFullYear());
-  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+  const [view, setView] = useState<Record<string, CashMonth>>({});
 
   useEffect(() => {
     let mounted = true;
-    fetchDipendenti(false).then((r) => { if (mounted) setDipendenti(r); }).catch(() => {});
-    return () => { mounted = false; };
-  }, []);
+    const load = () => (supabase.rpc as any)("get_contabilita_cash_only", { _key: remoteKey })
+      .then(({ data }: { data: unknown }) => { if (mounted && data) setView(data as Record<string, CashMonth>); });
+    load();
+    const id = setInterval(load, 30000);
+    return () => { mounted = false; clearInterval(id); };
+  }, [remoteKey]);
 
-  // openMonth = mese di COMPETENZA (mese lavorato). Lo stipendio corrispondente
-  // è salvato sotto il mese successivo (stipendio "di luglio" = competenza giugno).
   const nextM = openMonth === 11 ? 0 : openMonth + 1;
   const nextY = openMonth === 11 ? year + 1 : year;
-  const isProcessed = !!processed[nextM];
-  const savedRows = useMemo(
-    () => salaries
-      .filter((s) => s.month === nextM)
-      .filter((s) => (s.totale || 0) > 0 || (s.bonifico || 0) !== 0 || (s.contanti || 0) !== 0 || s.sc)
-      .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
-    [salaries, nextM],
-  );
-
-  // Ore del mese di competenza selezionato
-  const computedRows = useMemo(() => {
-    const hm = hoursLog[`${year}-${openMonth}`] ?? { rows: [] };
-    return hm.rows.map((r) => {
-      const dip = findDipendente(dipendenti, r.name, r.dipendenteId);
-      return computeSalaryForRow(r, dip, year, openMonth);
-    });
-  }, [hoursLog, year, openMonth, dipendenti]);
-
-  type Row = { name: string; contanti: number; stato: "confermato" | "stimato" };
-  const rows: Row[] = useMemo(() => {
-    const computedByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
-    if (isProcessed && savedRows.length > 0) {
-      return savedRows.map((s) => {
-        const fresh = computedByKey.get(s.name.trim().toLowerCase());
-        const totale = (!s.sc && fresh) ? fresh.totale : (Number(s.totale) || 0);
-        const contanti = s.sc
-          ? (Number(s.contanti) || 0)
-          : Math.max(0, totale - (Number(s.bonifico) || 0));
-        return { name: s.name, contanti, stato: "confermato" as const };
-      });
-    }
-    return computedRows
-      .filter((c) => c.totale > 0)
-      .map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }))
-      .sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
-  }, [isProcessed, savedRows, computedRows]);
-
+  const month = view[String(openMonth)];
+  const isProcessed = !!month?.processed;
+  const processed = Array.from({ length: 12 }, (_, i) => !!view[String(i === 0 ? 11 : i - 1)]?.processed);
+  const rows: CashRow[] = month?.rows ?? [];
 
   const totContanti = rows.reduce((a, r) => a + r.contanti, 0);
-  const payDate = sanitizeSalaryPayDate(payDates[nextM], nextM);
+  const payDate = month?.payDate ?? "";
 
   return (
     <Card className="border-2 border-dept shadow-soft">

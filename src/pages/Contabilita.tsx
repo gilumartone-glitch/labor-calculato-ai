@@ -1,3 +1,4 @@
+import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownCircle, ArrowUpCircle, CalendarClock, Check, ChevronRight, History, Landmark, Loader2, Pencil, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from "lucide-react";

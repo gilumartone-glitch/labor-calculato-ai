@@ -3338,11 +3338,15 @@ const SalariesTable = ({ salaries, setSalaries, processed, setProcessed, payDate
   useEffect(() => {
     if (!useSavedRows) return;
     const patches = new Map<string, number>();
-    displayRows.forEach(({ computed, salary }) => {
-      if (salary.sc) return;
-      const fresh = Math.round((Number(computed.totale) || 0) * 100) / 100;
+    const freshByKey = new Map(computedRows.map((c) => [c.name.trim().toLowerCase(), c] as const));
+    displayRows.forEach(({ salary, saved }) => {
+      if (!saved || salary.sc) return;
+      // Solo righe con ore reali: evita il ciclo infinito con i totali ricavati dal salvato.
+      const c = freshByKey.get(salary.name.trim().toLowerCase());
+      if (!c) return;
+      const fresh = Math.round((Number(c.totale) || 0) * 100) / 100;
       const stored = Math.round((Number(salary.totale) || 0) * 100) / 100;
-      if (fresh !== stored) patches.set(salary.id, fresh);
+      if (Math.abs(fresh - stored) > 0.01) patches.set(salary.id, fresh);
     });
     if (patches.size === 0) return;
     setSalaries(salaries.map((s) => patches.has(s.id) ? { ...s, totale: patches.get(s.id)! } : s));

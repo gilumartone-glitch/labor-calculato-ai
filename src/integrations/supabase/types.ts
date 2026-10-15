@@ -2181,6 +2181,16 @@ export type Database = {
         }
         Returns: string
       }
+      mark_salary_cash_paid: {
+        Args: {
+          _amount: number
+          _comp_month: number
+          _key: string
+          _name: string
+          _paid: boolean
+        }
+        Returns: undefined
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string

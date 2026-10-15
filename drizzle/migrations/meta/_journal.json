@@ -36,6 +36,13 @@
       "when": 1791462370732,
       "tag": "0004_sync_subs_to_planning",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792063374900,
+      "tag": "0005_contabilita_payroll_owner_only",
+      "breakpoints": true
     }
   ]
 }

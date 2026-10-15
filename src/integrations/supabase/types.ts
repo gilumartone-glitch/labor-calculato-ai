@@ -2098,6 +2098,7 @@ export type Database = {
         Args: { _cat: Database["public"]["Enums"]["admin_task_category"] }
         Returns: string
       }
+      can_use_contabilita: { Args: { _uid: string }; Returns: boolean }
       can_view_admin_task: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
@@ -2110,6 +2111,7 @@ export type Database = {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
+      contabilita_payroll_keys: { Args: never; Returns: string[] }
       debug_flow_launch_permissions: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -2121,7 +2123,14 @@ export type Database = {
         Returns: number
       }
       get_admin_user_ids: { Args: never; Returns: string[] }
-      get_contabilita_cash_only: { Args: never; Returns: Json }
+      get_contabilita_cash_only: { Args: { _key?: string }; Returns: Json }
+      get_contabilita_state_public: {
+        Args: { _key: string }
+        Returns: {
+          data: Json
+          updated_at: string
+        }[]
+      }
       has_permission: {
         Args: {
           _page: string
@@ -2160,6 +2169,7 @@ export type Database = {
         Args: { _record_id: string }
         Returns: boolean
       }
+      is_salary_owner: { Args: { _user_id: string }; Returns: boolean }
       log_audit_action: {
         Args: {
           _action: string
@@ -2192,6 +2202,10 @@ export type Database = {
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {
         Args: { _order_id: string; _reason: string; _sub_order_id: string }
+        Returns: string
+      }
+      save_contabilita_state_public: {
+        Args: { _data: Json; _key: string }
         Returns: string
       }
     }

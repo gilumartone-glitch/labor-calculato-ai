@@ -1,3 +1,4 @@
+import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDownCircle, ArrowUpCircle, CalendarClock, Check, ChevronRight, History, Landmark, Loader2, Pencil, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from "lucide-react";
@@ -604,8 +605,11 @@ export default function Contabilita() {
 }
 
 function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (y: number) => void }) {
-  const { isAdmin, isAmministrazione } = usePermissions();
-  const canEditHours = isAdmin || isAmministrazione;
+  const { isAdmin: isRealAdmin, isAmministrazione } = usePermissions();
+  const { user: authUser } = useAuth();
+  // Solo il titolare vede gli stipendi completi; gli altri (anche admin) solo i contanti.
+  const isAdmin = (authUser?.email ?? "").toLowerCase() === "gilumartone@gmail.com";
+  const canEditHours = isRealAdmin || isAmministrazione;
   const [state, setState] = useState<AccountingState>(() => loadStoredState());
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {

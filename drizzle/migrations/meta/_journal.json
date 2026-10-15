@@ -43,6 +43,13 @@
       "when": 1792063374900,
       "tag": "0005_contabilita_payroll_owner_only",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792063495832,
+      "tag": "0006_mark_cash_paid",
+      "breakpoints": true
     }
   ]
 }

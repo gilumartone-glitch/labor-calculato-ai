@@ -1361,16 +1361,20 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         {tab === "mensile" && <ForecastTable rows={[forecast[selectedMonth]]} movements={state.movements} salaries={salaries} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} salaryPayDates={payDates} setSalaryPayDates={(salaryPayDates) => update({ salaryPayDates })} contacts={state.contacts ?? []} onAddContact={(c) => update({ contacts: [...(state.contacts ?? []), c] })} currentCash={currentCash} />}
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
         {tab === "fisse" && <FixedTable title="Spese fisse mensili" category="Fissi" expenses={state.fixedExpenses} setExpenses={(fixedExpenses) => update({ fixedExpenses })} addFixed={() => addFixed("Fissi")} />}
-        {tab === "stipendi" && (isAdmin || canEditHours) && (
+        {tab === "stipendi" && isAdmin && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              {isAdmin && <Button size="sm" variant={stipendiSub === "stipendi" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>}
-              {!isAdmin && canEditHours && <Button size="sm" variant={stipendiSub === "contanti" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>}
-              {canEditHours && <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>}
+              <Button size="sm" variant={stipendiSub !== "ore" ? "default" : "outline"} onClick={() => setStipendiSub("stipendi")}>Stipendi</Button>
+              <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>
             </div>
-            {stipendiSub === "stipendi" && isAdmin && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} />}
-            {stipendiSub === "contanti" && !isAdmin && canEditHours && <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} defaultYear={year} />}
-            {stipendiSub === "ore" && canEditHours && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} defaultYear={year} />}
+            {stipendiSub !== "ore" && <SalariesTable salaries={state.salaries ?? []} setSalaries={(salaries) => update({ salaries })} processed={state.salariesProcessed ?? []} setProcessed={(salariesProcessed) => update({ salariesProcessed })} payDates={payDates} setPayDates={(salaryPayDates) => update({ salaryPayDates })} hoursLog={state.hoursLog ?? {}} isAdmin={isAdmin} defaultYear={year} />}
+            {stipendiSub === "ore" && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours || isAdmin} defaultYear={year} />}
+          </div>
+        )}
+        {tab === "stipendi" && !isAdmin && canEditHours && (
+          <div className="space-y-3">
+            <h2 className="text-xl font-semibold">Contanti da consegnare</h2>
+            <CashOnlySalariesView salaries={state.salaries ?? []} processed={state.salariesProcessed ?? []} payDates={payDates} hoursLog={state.hoursLog ?? {}} defaultYear={year} />
           </div>
         )}
         {tab === "grafici" && (

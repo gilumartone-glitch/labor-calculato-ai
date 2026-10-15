@@ -3113,7 +3113,7 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
 
 // Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
 // Non mostra totali, bonifici, cassa. Non permette modifiche.
-type CashRow = { name: string; contanti: number; stato: "confermato" | "stimato" };
+type CashRow = { name: string; contanti: number; stato: "confermato" | "stimato"; pagato?: number };
 type CashMonth = { processed: boolean; payDate: string; rows: CashRow[] };
 
 /** Calcola, per ogni mese di competenza, i soli contanti da consegnare. */
@@ -3140,6 +3140,10 @@ const buildCashView = (st: AccountingState, dipendenti: Dipendente[], year: numb
           return { name: s.name, contanti, stato: "confermato" as const };
         })
       : computedRows.filter((c) => c.totale > 0).map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }));
+    for (const r of rows) {
+      const saved = salaries.find((s) => s.month === nextM && s.name.trim().toLowerCase() === r.name.trim().toLowerCase());
+      r.pagato = Number(saved?.cassaContanti) || 0;
+    }
     rows.sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
     out[String(openMonth)] = { processed: isProcessed, payDate: sanitizeSalaryPayDate(payDates[nextM], nextM) || "", rows };
   }
@@ -3150,11 +3154,15 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
   const now = new Date();
   const [openMonth, setOpenMonth] = useState<number>(now.getMonth());
   const [view, setView] = useState<Record<string, CashMonth>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  let load: () => Promise<void> = async () => {};
+  const loadRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let mounted = true;
-    const load = () => (supabase.rpc as any)("get_contabilita_cash_only", { _key: remoteKey })
+    load = () => (supabase.rpc as any)("get_contabilita_cash_only", { _key: remoteKey })
       .then(({ data }: { data: unknown }) => { if (mounted && data) setView(data as Record<string, CashMonth>); });
+    loadRef.current = load;
     load();
     const id = setInterval(load, 30000);
     return () => { mounted = false; clearInterval(id); };
@@ -3203,11 +3211,12 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
                 <th className="border border-border px-3 py-2 text-left label-cap">Dipendente</th>
                 <th className="border border-border px-3 py-2 text-right label-cap">Contanti da consegnare</th>
                 <th className="border border-border px-3 py-2 text-center label-cap">Stato</th>
+                <th className="border border-border px-3 py-2 text-center label-cap">Consegnati</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={3} className="border border-border p-4 text-center text-muted-foreground">Nessun dato disponibile per {MONTHS[openMonth]} {year}.</td></tr>
+                <tr><td colSpan={4} className="border border-border p-4 text-center text-muted-foreground">Nessun dato disponibile per {MONTHS[openMonth]} {year}.</td></tr>
               ) : rows.map((r) => (
                 <tr key={r.name} className="border-b border-border hover:bg-dept-soft/20">
                   <td className="border border-border px-3 py-2 font-medium">{r.name}</td>
@@ -3216,6 +3225,26 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
                     {r.stato === "confermato"
                       ? <span className="rounded-sm bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">confermato</span>
                       : <span className="rounded-sm bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">stimato</span>}
+                  </td>
+                  <td className="border border-border px-3 py-2 text-center">
+                    {(() => {
+                      const paid = (r.pagato ?? 0) > 0;
+                      return (
+                        <Button size="sm" variant={paid ? "default" : "outline"} disabled={busy === r.name || r.contanti <= 0}
+                          onClick={async () => {
+                            if (!paid && !window.confirm(`Confermi di aver consegnato ${eur(r.contanti)} in contanti a ${r.name}?`)) return;
+                            if (paid && !window.confirm(`Annullare la consegna dei contanti a ${r.name}?`)) return;
+                            setBusy(r.name);
+                            const { error } = await (supabase.rpc as any)("mark_salary_cash_paid", { _key: remoteKey, _comp_month: openMonth, _name: r.name, _amount: r.contanti, _paid: !paid });
+                            setBusy(null);
+                            if (error) { toast.error(`Non salvato: ${error.message}`); return; }
+                            toast.success(paid ? "Consegna annullata" : "Contanti segnati come pagati in contabilità");
+                            await loadRef.current();
+                          }}>
+                          {paid ? `✓ Pagato ${eur(r.pagato ?? 0)}` : "Segna pagato"}
+                        </Button>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -3226,6 +3255,7 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
                   <td className="border border-border px-3 py-2 text-right label-cap">Totale contanti</td>
                   <td className="border border-border px-3 py-2 text-right font-mono text-dept">{eur(totContanti)}</td>
                   <td className="border border-border" />
+                  <td className="border border-border px-3 py-2 text-center font-mono">{eur(rows.reduce((a, r) => a + (r.pagato ?? 0), 0))}</td>
                 </tr>
               </tfoot>
             )}

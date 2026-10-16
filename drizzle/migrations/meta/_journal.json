@@ -57,6 +57,13 @@
       "when": 1792064035860,
       "tag": "0007_salary_owner_only_gmartone",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792138080090,
+      "tag": "0008_amministrazione_hours_access",
+      "breakpoints": true
     }
   ]
 }

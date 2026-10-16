@@ -1038,7 +1038,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
     // Safety net: ogni 30s riallinea con il cloud, nel caso un evento Realtime
     // fosse stato perso (es. connessione instabile).
-    const poll = setInterval(() => { void applyRemote(); }, 30000);
+    const poll = setInterval(() => { void applyRemote(); }, 8000);
     // Riallinea quando la finestra torna in primo piano.
     const onVis = () => { if (document.visibilityState === "visible") void applyRemote(); };
     document.addEventListener("visibilitychange", onVis);

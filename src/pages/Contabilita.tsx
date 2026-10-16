@@ -781,7 +781,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     const l = local ?? {};
     const r = remote ?? {};
     const keys = new Set<string>([...Object.keys(l), ...Object.keys(r)]);
-    const out: Record<string, { rows: any[] }> = {};
+    const out: Record<string, { rows: any[]; deletedRowIds?: string[] }> = {};
     for (const k of keys) {
       const lm = l[k];
       const rm = r[k];

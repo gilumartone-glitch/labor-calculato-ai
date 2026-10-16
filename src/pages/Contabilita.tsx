@@ -1400,8 +1400,12 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         )}
         {tab === "stipendi" && !isAdmin && canEditHours && (
           <div className="space-y-3">
-            <h2 className="text-xl font-semibold">Contanti da consegnare</h2>
-            <CashOnlySalariesView remoteKey={REMOTE_KEY} year={year} />
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={stipendiSub !== "ore" ? "default" : "outline"} onClick={() => setStipendiSub("contanti")}>Contanti da consegnare</Button>
+              <Button size="sm" variant={stipendiSub === "ore" ? "default" : "outline"} onClick={() => setStipendiSub("ore")}>Calcolo ore</Button>
+            </div>
+            {stipendiSub !== "ore" && <CashOnlySalariesView remoteKey={REMOTE_KEY} year={year} />}
+            {stipendiSub === "ore" && <HoursLogView hoursLog={state.hoursLog ?? {}} setHoursLog={(hoursLog) => update({ hoursLog })} canEdit={canEditHours} defaultYear={year} />}
           </div>
         )}
         {tab === "grafici" && (

@@ -20,7 +20,7 @@ export type HoursRow = {
   name: string;
   days: Record<number, DayCell>;
 };
-export type HoursMonth = { rows: HoursRow[] };
+export type HoursMonth = { rows: HoursRow[]; deletedRowIds?: string[] };
 export type HoursLog = Record<string, HoursMonth>; // key `${year}-${monthIndex}`
 
 const MONTHS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -148,7 +148,7 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit, defaultYear }: Pr
       toast.info("Nessun nuovo dipendente da importare");
       return;
     }
-    setHoursLog({ ...hoursLog, [key]: { rows: [...prev.rows, ...added] } });
+    setHoursLog({ ...hoursLog, [key]: { ...prev, rows: [...prev.rows, ...added] } });
     toast.success(`Importati ${added.length} dipendenti`);
   };
 
@@ -239,11 +239,11 @@ const MonthTable = ({
   const days = useMemo(() => Array.from({ length: nDays }, (_, i) => i + 1), [nDays]);
 
   const updateRow = (rowId: string, mutate: (row: HoursRow) => HoursRow) => {
-    onChange({ rows: data.rows.map((r) => (r.id === rowId ? mutate(r) : r)) });
+    onChange({ ...data, rows: data.rows.map((r) => (r.id === rowId ? mutate(r) : r)) });
   };
-  const removeRow = (rowId: string) => onChange({ rows: data.rows.filter((r) => r.id !== rowId) });
+  const removeRow = (rowId: string) => onChange({ ...data, rows: data.rows.filter((r) => r.id !== rowId), deletedRowIds: Array.from(new Set([...(data.deletedRowIds ?? []), rowId])) });
   const addRow = (name: string, dipendenteId?: string) => {
-    onChange({ rows: [...data.rows, { id: uid(), name, dipendenteId, days: {} }] });
+    onChange({ ...data, rows: [...data.rows, { id: uid(), name, dipendenteId, days: {} }] });
   };
 
   const setDaySegments = (rowId: string, dayNum: number, segments: DaySegment[]) => {

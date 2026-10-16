@@ -64,6 +64,13 @@
       "when": 1792138080090,
       "tag": "0008_amministrazione_hours_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792138328872,
+      "tag": "0009_public_state_aggregated_salaries",
+      "breakpoints": true
     }
   ]
 }

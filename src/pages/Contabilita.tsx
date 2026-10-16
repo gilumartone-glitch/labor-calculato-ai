@@ -1038,7 +1038,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
     // Safety net: ogni 30s riallinea con il cloud, nel caso un evento Realtime
     // fosse stato perso (es. connessione instabile).
-    const poll = setInterval(() => { void applyRemote(); }, 30000);
+    const poll = setInterval(() => { void applyRemote(); }, 8000);
     // Riallinea quando la finestra torna in primo piano.
     const onVis = () => { if (document.visibilityState === "visible") void applyRemote(); };
     document.addEventListener("visibilitychange", onVis);
@@ -3129,7 +3129,7 @@ const computedFromSavedSalary = (salary: Salary, dip?: Dipendente): ComputedSala
 
 // Vista read-only per Amministrazione: solo contanti da consegnare ai dipendenti.
 // Non mostra totali, bonifici, cassa. Non permette modifiche.
-type CashRow = { name: string; contanti: number; stato: "confermato" | "stimato" };
+type CashRow = { name: string; contanti: number; stato: "confermato" | "stimato"; pagato?: number };
 type CashMonth = { processed: boolean; payDate: string; rows: CashRow[] };
 
 /** Calcola, per ogni mese di competenza, i soli contanti da consegnare. */
@@ -3156,6 +3156,10 @@ const buildCashView = (st: AccountingState, dipendenti: Dipendente[], year: numb
           return { name: s.name, contanti, stato: "confermato" as const };
         })
       : computedRows.filter((c) => c.totale > 0).map((c) => ({ name: c.name, contanti: c.totale, stato: "stimato" as const }));
+    for (const r of rows) {
+      const sv = salaries.find((s) => s.month === nextM && s.name.trim().toLowerCase() === r.name.trim().toLowerCase());
+      r.pagato = Number((sv as any)?.cassaContanti) || 0;
+    }
     rows.sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" }));
     out[String(openMonth)] = { processed: isProcessed, payDate: sanitizeSalaryPayDate(payDates[nextM], nextM) || "", rows };
   }
@@ -3171,10 +3175,22 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
     let mounted = true;
     const load = () => (supabase.rpc as any)("get_contabilita_cash_only", { _key: remoteKey })
       .then(({ data }: { data: unknown }) => { if (mounted && data) setView(data as Record<string, CashMonth>); });
+    loadRef.current = load;
     load();
-    const id = setInterval(load, 30000);
+    const id = setInterval(load, 8000);
     return () => { mounted = false; clearInterval(id); };
   }, [remoteKey]);
+  const loadRef = useRef<() => void>(() => {});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const savePaid = async (r: CashRow, value: string) => {
+    const amt = Math.max(0, Number(value.replace(",", ".")) || 0);
+    if (Math.abs(amt - (r.pagato || 0)) < 0.005) return;
+    const { error } = await (supabase.rpc as any)("mark_salary_cash_paid", { _key: remoteKey, _comp_month: openMonth, _name: r.name, _amount: amt, _paid: true });
+    if (error) { toast.error("Salvataggio non riuscito"); return; }
+    toast.success(`Cassa contanti di ${r.name}: ${eur(amt)}`);
+    setDraft((d) => { const n = { ...d }; delete n[r.name]; return n; });
+    loadRef.current();
+  };
 
   const nextM = openMonth === 11 ? 0 : openMonth + 1;
   const nextY = openMonth === 11 ? year + 1 : year;
@@ -3184,6 +3200,7 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
   const rows: CashRow[] = month?.rows ?? [];
 
   const totContanti = rows.reduce((a, r) => a + r.contanti, 0);
+  const totPagato = rows.reduce((a, r) => a + (r.pagato || 0), 0);
   const payDate = month?.payDate ?? "";
 
   return (
@@ -3217,17 +3234,30 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
             <thead>
               <tr className="border-b-2 border-dept bg-dept-soft/40">
                 <th className="border border-border px-3 py-2 text-left label-cap">Dipendente</th>
-                <th className="border border-border px-3 py-2 text-right label-cap">Contanti da consegnare</th>
+                <th className="border border-border px-3 py-2 text-right label-cap">Divisione pagamento · contanti</th>
+                <th className="border border-border px-3 py-2 text-right label-cap">Cassa · contanti già dati</th>
+                <th className="border border-border px-3 py-2 text-right label-cap">Competenza · saldo contanti</th>
                 <th className="border border-border px-3 py-2 text-center label-cap">Stato</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={3} className="border border-border p-4 text-center text-muted-foreground">Nessun dato disponibile per {MONTHS[openMonth]} {year}.</td></tr>
+                <tr><td colSpan={5} className="border border-border p-4 text-center text-muted-foreground">Nessun dato disponibile per {MONTHS[openMonth]} {year}.</td></tr>
               ) : rows.map((r) => (
                 <tr key={r.name} className="border-b border-border hover:bg-dept-soft/20">
                   <td className="border border-border px-3 py-2 font-medium">{r.name}</td>
                   <td className="border border-border px-3 py-2 text-right font-mono font-semibold">{eur(r.contanti)}</td>
+                  <td className="border border-border px-2 py-1 text-right">
+                    <Input
+                      inputMode="decimal"
+                      className="h-10 w-32 ml-auto text-right font-mono text-base"
+                      value={draft[r.name] ?? String(r.pagato || 0)}
+                      onChange={(e) => setDraft((d) => ({ ...d, [r.name]: e.target.value }))}
+                      onBlur={(e) => savePaid(r, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                    />
+                  </td>
+                  <td className={`border border-border px-3 py-2 text-right font-mono font-semibold ${r.contanti - (r.pagato || 0) < -0.005 ? "text-destructive" : ""}`}>{eur(r.contanti - (r.pagato || 0))}</td>
                   <td className="border border-border px-3 py-2 text-center">
                     {r.stato === "confermato"
                       ? <span className="rounded-sm bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">confermato</span>
@@ -3241,6 +3271,8 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
                 <tr className="border-t-2 border-dept bg-dept-soft/30 font-semibold">
                   <td className="border border-border px-3 py-2 text-right label-cap">Totale contanti</td>
                   <td className="border border-border px-3 py-2 text-right font-mono text-dept">{eur(totContanti)}</td>
+                  <td className="border border-border px-3 py-2 text-right font-mono">{eur(totPagato)}</td>
+                  <td className="border border-border px-3 py-2 text-right font-mono">{eur(totContanti - totPagato)}</td>
                   <td className="border border-border" />
                 </tr>
               </tfoot>

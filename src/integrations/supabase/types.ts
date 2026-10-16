@@ -2111,6 +2111,10 @@ export type Database = {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
+      contabilita_merge_list: {
+        Args: { _deleted: Json; _new: Json; _old: Json }
+        Returns: Json
+      }
       contabilita_payroll_keys: { Args: never; Returns: string[] }
       debug_flow_launch_permissions: { Args: never; Returns: Json }
       delete_email: {

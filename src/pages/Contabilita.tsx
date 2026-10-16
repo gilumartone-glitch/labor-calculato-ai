@@ -166,13 +166,9 @@ const remoteLoad = async (key: string, owner: boolean): Promise<{ data: { data: 
   return { data: row, error };
 };
 const remoteSave = async (key: string, data: unknown, uid: string | null, owner: boolean): Promise<{ data: { key: string }[] | null; error: { message: string } | null }> => {
-  if (owner) {
-    const { data: written, error } = await supabase
-      .from("contabilita_state")
-      .upsert([{ key, data: data as never, updated_by: uid as never }], { onConflict: "key" })
-      .select("key,updated_at");
-    return { data: written as any, error };
-  }
+  // Tutti (titolare compreso) salvano con la funzione del database che unisce
+  // le righe per id: così due utenti insieme non si cancellano i movimenti.
+  void uid; void owner;
   const { error } = await (supabase.rpc as any)("save_contabilita_state_public", { _key: key, _data: data });
   return { data: error ? null : [{ key }], error };
 };
@@ -1038,7 +1034,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
     // Safety net: ogni 30s riallinea con il cloud, nel caso un evento Realtime
     // fosse stato perso (es. connessione instabile).
-    const poll = setInterval(() => { void applyRemote(); }, 30000);
+    const poll = setInterval(() => { void applyRemote(); }, isOwnerRef.current ? 30000 : 8000);
     // Riallinea quando la finestra torna in primo piano.
     const onVis = () => { if (document.visibilityState === "visible") void applyRemote(); };
     document.addEventListener("visibilitychange", onVis);
@@ -1060,9 +1056,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       if (serialized === lastRemoteRef.current) return;
       try {
         const owner = isOwnerRef.current;
-        const url = owner
-          ? `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contabilita_state?on_conflict=key`
-          : `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/save_contabilita_state_public`;
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/save_contabilita_state_public`;
         const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
         const tokenRaw = localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`);
         let accessToken = apikey;
@@ -1078,9 +1072,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
             Authorization: `Bearer ${accessToken}`,
             Prefer: "resolution=merge-duplicates,return=minimal",
           },
-          body: owner
-            ? JSON.stringify([{ key: REMOTE_KEY, data: withCashView(JSON.parse(serialized)) }])
-            : JSON.stringify({ _key: REMOTE_KEY, _data: JSON.parse(serialized) }),
+          body: JSON.stringify({ _key: REMOTE_KEY, _data: owner ? withCashView(JSON.parse(serialized)) : JSON.parse(serialized) }),
         }).catch(() => { /* ignore */ });
         lastRemoteRef.current = serialized;
       } catch { /* ignore */ }

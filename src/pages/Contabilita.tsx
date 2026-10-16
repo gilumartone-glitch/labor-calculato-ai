@@ -774,23 +774,26 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   // - Per ogni mese, merge righe per dipendenteId (fallback id).
   // - Per ogni riga, union dei giorni: locale vince solo se localActive; un giorno mai svuotato.
   const mergeHoursLog = (
-    local: Record<string, { rows: any[] }> | undefined,
-    remote: Record<string, { rows: any[] }> | undefined,
+    local: Record<string, { rows: any[]; deletedRowIds?: string[] }> | undefined,
+    remote: Record<string, { rows: any[]; deletedRowIds?: string[] }> | undefined,
     localActive: boolean,
-  ): Record<string, { rows: any[] }> => {
+  ): Record<string, { rows: any[]; deletedRowIds?: string[] }> => {
     const l = local ?? {};
     const r = remote ?? {};
     const keys = new Set<string>([...Object.keys(l), ...Object.keys(r)]);
-    const out: Record<string, { rows: any[] }> = {};
+    const out: Record<string, { rows: any[]; deletedRowIds?: string[] }> = {};
     for (const k of keys) {
       const lm = l[k];
       const rm = r[k];
       if (!lm) { out[k] = rm; continue; }
       if (!rm) { out[k] = lm; continue; }
+      const deletedRowIds = Array.from(new Set([...(lm.deletedRowIds ?? []), ...(rm.deletedRowIds ?? [])]));
+      const dead = new Set(deletedRowIds);
       const rowKey = (row: any) => row?.dipendenteId ?? row?.id;
       const byKey = new Map<string, any>();
-      for (const row of rm.rows ?? []) byKey.set(rowKey(row), row);
+      for (const row of rm.rows ?? []) if (!dead.has(row?.id)) byKey.set(rowKey(row), row);
       for (const row of lm.rows ?? []) {
+        if (dead.has(row?.id)) continue;
         const key = rowKey(row);
         const other = byKey.get(key);
         if (!other) { byKey.set(key, row); continue; }
@@ -807,7 +810,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         }
         byKey.set(key, { ...other, ...row, days: mergedDays });
       }
-      out[k] = { rows: Array.from(byKey.values()) };
+      out[k] = { rows: Array.from(byKey.values()), deletedRowIds };
     }
     return out;
   };
@@ -1387,7 +1390,10 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
               update((prev) => {
                 const hl = { ...(prev.hoursLog ?? {}) } as HoursLog;
                 const hm = hl[hoursKey];
-                if (hm) hl[hoursKey] = { ...hm, rows: hm.rows.filter((r) => r.dipendenteId || r.name.trim().toLowerCase() !== n) };
+                if (hm) {
+                  const gone = hm.rows.filter((r) => !r.dipendenteId && r.name.trim().toLowerCase() === n).map((r) => r.id);
+                  hl[hoursKey] = { ...hm, rows: hm.rows.filter((r) => !gone.includes(r.id)), deletedRowIds: Array.from(new Set([...(hm.deletedRowIds ?? []), ...gone])) };
+                }
                 return {
                   salaries: (prev.salaries ?? []).filter((s) => !(s.month === salaryMonth && s.name.trim().toLowerCase() === n)),
                   hoursLog: hl,

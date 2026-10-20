@@ -3,7 +3,7 @@ param(
   [string]$Version,
 
   [string]$Owner = "gilumartone-glitch",
-  [string]$Repo = "workprice-buddy-new",
+  [string]$Repo = "labor-calculato-ai",
   [string]$ReleaseDir = "electron-release"
 )
 

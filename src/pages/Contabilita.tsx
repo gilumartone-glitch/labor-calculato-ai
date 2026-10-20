@@ -27,6 +27,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayType, getSegments } from "@/components/contabilita/HoursLogView";
 import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 import { mergeHoursLog } from "@/lib/hours-sync";
+import { orderMovementRows } from "@/lib/movement-order";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -2272,6 +2273,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
     setMovements((prev) => prev.map((m) => m.id === id ? normalizeMovement({ ...m, ...patch }) : m));
   };
   const [editingId, setEditingId] = useState<string | null>(null);
+  const confirmedOrderRef = useRef<string[]>([]);
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -2297,12 +2299,10 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
       if (q && !(m.description.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))) return false;
       return inRange(m.date);
     });
-    const sorted = [...base];
-    if (sortBy === "date") sorted.sort((a, b) => a.date.localeCompare(b.date));
-    else if (sortBy === "name") sorted.sort((a, b) => a.description.localeCompare(b.description, "it", { sensitivity: "base" }));
-    else if (sortBy === "amount") sorted.sort((a, b) => b.amount - a.amount);
+    const sorted = orderMovementRows(base, sortBy, editingId ? confirmedOrderRef.current : undefined);
+    if (!editingId) confirmedOrderRef.current = sorted.map((m) => m.id);
     return sorted;
-  }, [r.movements, q, from, to, sortBy]);
+  }, [r.movements, q, from, to, sortBy, editingId]);
   const rangeActive = !!(from || to);
   const rangeTotals = computeMovementTotals(filteredMovements);
   const rangeCashSaldo = rangeTotals.cashIn - rangeTotals.cashOut;
@@ -2625,7 +2625,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           <div className="flex h-8 items-center justify-end rounded-md border border-input bg-muted px-1 font-mono text-sm font-semibold whitespace-nowrap" title={m.gestitoAcconti && (m.acconto ?? 0) > 0 ? `Totale ${eur(m.amount)} − acconto ${eur(m.acconto ?? 0)}` : undefined}>{eur(m.gestitoAcconti ? Math.max(0, m.amount - (m.acconto ?? 0)) : m.amount)}</div>
         </div>
         {((isEditing) || (selectionMode && selectedIds.has(m.id))) && !isVirtual && (
-          <form className="mt-2 grid gap-2 rounded-sm border border-dept bg-dept-soft/20 p-2 grid-cols-2" onSubmit={(e) => { e.preventDefault(); setEditingId(null); }}>
+          <form className="mt-2 grid gap-2 rounded-sm border border-dept bg-dept-soft/20 p-2 grid-cols-2" onFocusCapture={() => { if (!editingId) setEditingId(m.id); }} onSubmit={(e) => { e.preventDefault(); setEditingId(null); }}>
             <Field label="Causale">
               <ContactAutocompleteInput value={m.description} onChange={(v) => updateMovement(m.id, { description: v })} contacts={contacts} movementType={m.type} onAddContact={onAddContact} autoFocus={!m.description} />
             </Field>

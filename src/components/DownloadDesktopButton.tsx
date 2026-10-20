@@ -1,6 +1,6 @@
 import { Monitor } from "lucide-react";
 
-const RELEASE_URL = "https://github.com/gilumartone-glitch/workprice-buddy-new/releases/latest";
+const RELEASE_URL = "https://github.com/gilumartone-glitch/labor-calculato-ai/releases/latest";
 
 export const DownloadDesktopButton = () => {
   if (typeof window !== "undefined" && window.electronAPI?.isElectron) return null;

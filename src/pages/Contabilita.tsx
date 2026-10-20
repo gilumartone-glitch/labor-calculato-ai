@@ -2604,7 +2604,7 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           )}
           <QuickDateInput ariaLabel="Data" className="h-8 w-full px-1 text-sm text-center tracking-tight" monthIndex={monthIndex} value={m.date} onCommit={(v) => updateMovement(m.id, { date: v })} />
           <div className="relative flex h-8 w-full items-stretch min-w-0">
-            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center truncate rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}>{isVirtual ? "🔒 " : ""}{m.description}</button>
+            <button type="button" disabled={isVirtual} className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background px-1.5 text-left text-sm font-medium hover:bg-dept-soft/30 disabled:cursor-default disabled:opacity-90" onClick={() => setEditingId(isEditing ? null : m.id)} title={isVirtual ? "Voce automatica da Stipendi" : undefined}><span className="truncate">{isVirtual ? "🔒 " : ""}{m.description}</span>{opts?.inlinePaid && (<span className={`ml-auto shrink-0 font-mono text-sm ${m.invoiceNumber ? "text-foreground" : "text-muted-foreground"}`}>{m.invoiceNumber ? `Fatt. ${m.invoiceNumber}` : "Fatt. —"}</span>)}</button>
             {!isVirtual && m.description.trim().length >= 3 && !contacts.some((c) => movementMatchesContact(m.description, c.name)) && (
               <button
                 type="button"
@@ -2710,7 +2710,8 @@ const MonthSection = ({ row: r, movements, salaries, setMovements, salaryPayDate
           const order: string[] = [];
           const groups = new Map<string, CashMovement[]>();
           for (const m of rows) {
-            const k = groupKey(m.description);
+            // La voce in modifica resta fuori dal gruppo finché non si chiude l'inserimento.
+            const k = m.id === editingId ? `__editing__${m.id}` : groupKey(m.description);
             if (!groups.has(k)) { groups.set(k, []); order.push(k); }
             groups.get(k)!.push(m);
           }

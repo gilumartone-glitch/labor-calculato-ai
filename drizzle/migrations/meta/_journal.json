@@ -71,6 +71,27 @@
       "when": 1792138328872,
       "tag": "0009_public_state_aggregated_salaries",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792489026194,
+      "tag": "0010_merge_shared_hours_on_accounting_save",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792489314322,
+      "tag": "0011_optimize_accounting_list_merge",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792489462921,
+      "tag": "0012_use_linear_accounting_list_merge",
+      "breakpoints": true
     }
   ]
 }

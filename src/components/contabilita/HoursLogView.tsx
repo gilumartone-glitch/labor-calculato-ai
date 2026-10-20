@@ -19,6 +19,7 @@ export type HoursRow = {
   dipendenteId?: string;
   name: string;
   days: Record<number, DayCell>;
+  dayUpdatedAt?: Record<number, number>;
 };
 export type HoursMonth = { rows: HoursRow[]; deletedRowIds?: string[] };
 export type HoursLog = Record<string, HoursMonth>; // key `${year}-${monthIndex}`
@@ -118,7 +119,7 @@ export const HoursLogView = ({ hoursLog, setHoursLog, canEdit, defaultYear }: Pr
 
   const ensureMonthSeeded = (m: number) => {
     const key = monthKey(year, m);
-    if (hoursLog[key] && hoursLog[key].rows.length > 0) return;
+    if (hoursLog[key]) return;
     const rows: HoursRow[] = dipendenti.map((d) => ({
       id: uid(),
       dipendenteId: d.id,
@@ -250,12 +251,8 @@ const MonthTable = ({
     updateRow(rowId, (r) => {
       const nextDays = { ...r.days };
       const clean = segments.filter((s) => s && s.t && (Number(s.h) || 0) > 0);
-      if (clean.length === 0) {
-        delete nextDays[dayNum];
-      } else {
-        nextDays[dayNum] = { segments: clean };
-      }
-      return { ...r, days: nextDays };
+      nextDays[dayNum] = { segments: clean };
+      return { ...r, days: nextDays, dayUpdatedAt: { ...r.dayUpdatedAt, [dayNum]: Date.now() } };
     });
   };
 

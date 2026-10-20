@@ -26,6 +26,7 @@ import { SnapshotsDialog } from "@/components/contabilita/SnapshotsDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayType, getSegments } from "@/components/contabilita/HoursLogView";
 import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
+import { mergeHoursLog } from "@/lib/hours-sync";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -166,13 +167,6 @@ const remoteLoad = async (key: string, owner: boolean): Promise<{ data: { data: 
   return { data: row, error };
 };
 const remoteSave = async (key: string, data: unknown, uid: string | null, owner: boolean): Promise<{ data: { key: string }[] | null; error: { message: string } | null }> => {
-  if (owner) {
-    const { data: written, error } = await supabase
-      .from("contabilita_state")
-      .upsert([{ key, data: data as never, updated_by: uid as never }], { onConflict: "key" })
-      .select("key,updated_at");
-    return { data: written as any, error };
-  }
   const { error } = await (supabase.rpc as any)("save_contabilita_state_public", { _key: key, _data: data });
   return { data: error ? null : [{ key }], error };
 };
@@ -769,52 +763,6 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     return b.every((item) => ids.has(item.id));
   };
 
-  // Merge hoursLog senza perdere giorni già salvati altrove.
-  // - Union delle chiavi mese (mai droppare un mese presente su un lato).
-  // - Per ogni mese, merge righe per dipendenteId (fallback id).
-  // - Per ogni riga, union dei giorni: locale vince solo se localActive; un giorno mai svuotato.
-  const mergeHoursLog = (
-    local: Record<string, { rows: any[]; deletedRowIds?: string[] }> | undefined,
-    remote: Record<string, { rows: any[]; deletedRowIds?: string[] }> | undefined,
-    localActive: boolean,
-  ): Record<string, { rows: any[]; deletedRowIds?: string[] }> => {
-    const l = local ?? {};
-    const r = remote ?? {};
-    const keys = new Set<string>([...Object.keys(l), ...Object.keys(r)]);
-    const out: Record<string, { rows: any[]; deletedRowIds?: string[] }> = {};
-    for (const k of keys) {
-      const lm = l[k];
-      const rm = r[k];
-      if (!lm) { out[k] = rm; continue; }
-      if (!rm) { out[k] = lm; continue; }
-      const deletedRowIds = Array.from(new Set([...(lm.deletedRowIds ?? []), ...(rm.deletedRowIds ?? [])]));
-      const dead = new Set(deletedRowIds);
-      const rowKey = (row: any) => row?.dipendenteId ?? row?.id;
-      const byKey = new Map<string, any>();
-      for (const row of rm.rows ?? []) if (!dead.has(row?.id)) byKey.set(rowKey(row), row);
-      for (const row of lm.rows ?? []) {
-        if (dead.has(row?.id)) continue;
-        const key = rowKey(row);
-        const other = byKey.get(key);
-        if (!other) { byKey.set(key, row); continue; }
-        const localDays = row?.days ?? {};
-        const remoteDays = other?.days ?? {};
-        const dayKeys = new Set<string>([...Object.keys(localDays), ...Object.keys(remoteDays)]);
-        const mergedDays: Record<string, any> = {};
-        for (const dk of dayKeys) {
-          const lv = localDays[dk];
-          const rv = remoteDays[dk];
-          if (lv == null || lv === "") { mergedDays[dk] = rv ?? lv; continue; }
-          if (rv == null || rv === "") { mergedDays[dk] = lv; continue; }
-          mergedDays[dk] = localActive ? lv : rv;
-        }
-        byKey.set(key, { ...other, ...row, days: mergedDays });
-      }
-      out[k] = { rows: Array.from(byKey.values()), deletedRowIds };
-    }
-    return out;
-  };
-
   const mergeRemoteState = (local: AccountingState, remote: AccountingState, localActive: boolean, preferLocalRecords = false): AccountingState => {
     const unionIds = (a?: string[], b?: string[]) => Array.from(new Set([...(a ?? []), ...(b ?? [])]));
     const deletedIds = {
@@ -1062,10 +1010,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       const serialized = serializeAccountingState(current);
       if (serialized === lastRemoteRef.current) return;
       try {
-        const owner = isOwnerRef.current;
-        const url = owner
-          ? `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contabilita_state?on_conflict=key`
-          : `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/save_contabilita_state_public`;
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/save_contabilita_state_public`;
         const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
         const tokenRaw = localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`);
         let accessToken = apikey;
@@ -1081,9 +1026,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
             Authorization: `Bearer ${accessToken}`,
             Prefer: "resolution=merge-duplicates,return=minimal",
           },
-          body: owner
-            ? JSON.stringify([{ key: REMOTE_KEY, data: withCashView(JSON.parse(serialized)) }])
-            : JSON.stringify({ _key: REMOTE_KEY, _data: JSON.parse(serialized) }),
+          body: JSON.stringify({ _key: REMOTE_KEY, _data: withCashView(JSON.parse(serialized)) }),
         }).catch(() => { /* ignore */ });
         lastRemoteRef.current = serialized;
       } catch { /* ignore */ }

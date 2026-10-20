@@ -2111,6 +2111,10 @@ export type Database = {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
+      contabilita_merge_hours: {
+        Args: { _new: Json; _old: Json }
+        Returns: Json
+      }
       contabilita_merge_list: {
         Args: { _deleted: Json; _new: Json; _old: Json }
         Returns: Json

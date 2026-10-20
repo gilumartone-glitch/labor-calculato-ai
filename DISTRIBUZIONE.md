@@ -18,7 +18,7 @@
 2. Fai commit/push (anche da Lovable va bene).
 3. Doppio click su `aggiorna.bat`.
    - Scarica le modifiche, compila, genera l'installer `.exe` e lo carica su GitHub Releases come **draft**.
-4. Vai su https://github.com/gilumartone-glitch/workprice-buddy-new/releases
+4. Vai su https://github.com/gilumartone-glitch/labor-calculato-ai/releases
    - Trovi una release in stato **Draft** con dentro `WorkpriceBuddy Setup X.Y.Z.exe` e `latest.yml`.
    - Clicca **Edit** → **Publish release**.
 

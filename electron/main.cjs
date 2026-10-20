@@ -181,7 +181,7 @@ autoUpdater.on("error", async (err) => {
       });
       if (choice.response === 0) {
         shell.openExternal(
-          "https://github.com/gilumartone-glitch/workprice-buddy-new/releases/latest"
+          "https://github.com/gilumartone-glitch/labor-calculato-ai/releases/latest"
         );
       }
     }

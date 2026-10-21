@@ -99,6 +99,13 @@
       "when": 1792489877178,
       "tag": "0013_skip_unchanged_accounting_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792569319693,
+      "tag": "0014_keep_hours_row_order",
+      "breakpoints": true
     }
   ]
 }

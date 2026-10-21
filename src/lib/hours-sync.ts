@@ -28,7 +28,11 @@ export const mergeHoursLog = (local: HoursLog = {}, remote: HoursLog = {}, local
       }
       rows.set(identity(row), { ...other, ...row, days, dayUpdatedAt });
     }
-    result[month] = { rows: [...rows.values()], deletedRowIds };
+    // Keep the order rows were shown in: local order first, then rows only seen remotely.
+    const order = new Map<string, number>();
+    for (const row of [...left.rows, ...right.rows]) if (!order.has(identity(row))) order.set(identity(row), order.size);
+    const sorted = [...rows.entries()].sort((a, b) => (order.get(a[0]) ?? 0) - (order.get(b[0]) ?? 0)).map(([, r]) => r);
+    result[month] = { rows: sorted, deletedRowIds };
   }
   return result;
 };

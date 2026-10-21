@@ -791,7 +791,8 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     // Liste con id: merge per id (nessuna cancellazione di righe modificate altrove)
       movements: mergeById(local.movements, remote.movements ?? [], tMov, recent),
       fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix, recent),
-      salaries: mergeById(local.salaries ?? [], remote.salaries ?? [], tSal, recent),
+      // Chi non è l'owner riceve solo i totali mensili aggregati: sostituiscono sempre le righe locali.
+      salaries: isOwnerRef.current ? mergeById(local.salaries ?? [], remote.salaries ?? [], tSal, recent) : (remote.salaries ?? []),
       contacts: mergeById(local.contacts ?? [], remote.contacts ?? [], tCon, recent),
       deletedIds,
     };

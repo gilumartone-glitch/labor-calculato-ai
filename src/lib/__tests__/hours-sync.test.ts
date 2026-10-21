@@ -22,4 +22,9 @@ describe("salvataggio ore nomi liberi", () => {
   it("non ripristina un nome libero eliminato", () => {
     expect(mergeHoursLog({ "2026-9": { rows: [], deletedRowIds: ["libero"] } }, hours("libero", 8, 20))["2026-9"].rows).toEqual([]);
   });
+  it("mantiene l'ordine delle righe dopo l'unione", () => {
+    const local: HoursLog = { "2026-9": { rows: [hours("z", 1, 1)["2026-9"].rows[0], hours("a", 1, 1)["2026-9"].rows[0]] } };
+    const remote: HoursLog = { "2026-9": { rows: [hours("a", 1, 1)["2026-9"].rows[0], hours("z", 1, 1)["2026-9"].rows[0], hours("m", 1, 1)["2026-9"].rows[0]] } };
+    expect(mergeHoursLog(local, remote)["2026-9"].rows.map(r => r.id)).toEqual(["z", "a", "m"]);
+  });
 });

@@ -20,7 +20,20 @@ type State = {
   setSubs: (s: ProdSubOrder[]) => void;
 };
 
-export const useProdStore = create<State>((set, get) => ({
+// One reload at a time; calls made meanwhile share the running one plus one follow-up.
+const singleFlight = <T,>(fn: () => Promise<T>) => {
+  let running: Promise<T> | null = null;
+  let queued: Promise<T> | null = null;
+  return (): Promise<T> => {
+    if (!running) { running = fn().finally(() => { running = null; }); return running; }
+    if (!queued) queued = running.catch(() => undefined).then(() => { queued = null; return singleRun(); });
+    return queued;
+  };
+  function singleRun(): Promise<T> { running = fn().finally(() => { running = null; }); return running; }
+};
+
+export const useProdStore = create<State>((set, get) => {
+  const loadAllOnce = singleFlight(async () => {
   loaded: false,
   orders: [],
   subs: [],

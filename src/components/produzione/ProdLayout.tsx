@@ -1,3 +1,4 @@
+import { coalesced } from "@/lib/coalesce";
 import { ReactNode, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {

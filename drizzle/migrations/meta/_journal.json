@@ -120,6 +120,20 @@
       "when": 1792743520351,
       "tag": "0016_throttle_accounting_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792744751199,
+      "tag": "0017_faster_hours_merge",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792744855918,
+      "tag": "0018_trim_cron_history_batch",
+      "breakpoints": true
     }
   ]
 }

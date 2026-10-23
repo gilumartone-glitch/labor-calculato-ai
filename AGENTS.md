@@ -4,3 +4,4 @@
 - Hours merge uses stable employee/row identity, deletion tombstones, and per-day edit timestamps; cleared days remain explicit empty cells so stale copies cannot restore them.
 - `src/lib/hours-sync.ts` mirrors the database hours merge and has focused regression tests.
 - Monthly movement ordering uses `src/lib/movement-order.ts` and freezes row positions during entry so editing cannot relocate the active form before confirmation.- Accounting list rows (movements, fixed expenses, salaries, contacts) carry `_u` edit time; client (`src/lib/row-sync.ts`) and database list merge keep the newest copy so failed saves or stale devices cannot revert edits.
+- Realtime-triggered reloads go through `src/lib/coalesce.ts` (debounced, one at a time) and store reloads are single-flight; save retries back off and never overlap, so event bursts cannot flood the small database.

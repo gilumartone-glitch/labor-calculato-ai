@@ -1,3 +1,4 @@
+import { coalesced } from "@/lib/coalesce";
 import { ReactNode, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
@@ -37,15 +38,17 @@ export const ProdLayout = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     loadAll();
     refreshNotifications(user.id);
+    const reload = coalesced(() => loadAll(), 800);
+    const reloadNotes = coalesced(() => refreshNotifications(user.id), 800);
     const ch = supabase
       .channel("prod-board")
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_items" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_scrap_pieces" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` }, () => refreshNotifications(user.id))
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_items" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_scrap_pieces" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` }, reloadNotes)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => { reload.cancel(); reloadNotes.cancel(); supabase.removeChannel(ch); };
   }, [user, loadAll, refreshNotifications]);
 
   const SidebarInner = ({ onNavigate }: { onNavigate?: () => void }) => (

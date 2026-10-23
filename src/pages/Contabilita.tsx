@@ -28,6 +28,7 @@ import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayTy
 import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 import { mergeHoursLog } from "@/lib/hours-sync";
 import { orderMovementRows } from "@/lib/movement-order";
+import { mergeRowsById, stampChangedRows, type SyncRow } from "@/lib/row-sync";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -744,19 +745,17 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
   // Merge granulare anti-cancellazione: fonde lo stato remoto con quello locale
   // per ID, in modo che modifiche concorrenti di utenti diversi non si distruggano.
-  const mergeById = <T extends { id: string }>(local: T[], remote: T[], tombstones: Set<string> = new Set(), keepLocalIds: Set<string> = new Set()): T[] => {
-    const map = new Map<string, T>();
-    for (const item of local) if (!tombstones.has(item.id)) map.set(item.id, item);
-    // Il remoto vince sui record con stesso id (last-write-wins per riga),
-    // EXCEPT per gli ID modificati di recente localmente: in quel caso il
-    // locale resta finché non scade la finestra (così la spunta non torna indietro).
-    for (const item of remote) {
-      if (tombstones.has(item.id)) continue;
-      if (keepLocalIds.has(item.id) && map.has(item.id)) continue;
-      map.set(item.id, item);
-    }
-    return Array.from(map.values());
-  };
+  // Vince la copia della riga modificata più di recente (`_u`), così una copia
+  // vecchia (salvataggio fallito, altro PC) non riporta indietro una modifica.
+  const mergeById = <T extends { id: string }>(local: T[], remote: T[], tombstones: Set<string> = new Set(), keepLocalIds: Set<string> = new Set()): T[] =>
+    mergeRowsById(local as (T & SyncRow)[], remote as (T & SyncRow)[], tombstones, keepLocalIds);
+  const stampLists = (prev: AccountingState, next: AccountingState): AccountingState => ({
+    ...next,
+    movements: stampChangedRows(prev.movements as any, next.movements as any) as any,
+    fixedExpenses: stampChangedRows(prev.fixedExpenses as any, next.fixedExpenses as any) as any,
+    salaries: stampChangedRows((prev.salaries ?? []) as any, (next.salaries ?? []) as any) as any,
+    contacts: stampChangedRows((prev.contacts ?? []) as any, (next.contacts ?? []) as any) as any,
+  });
 
   const hasSameItemsById = <T extends { id: string }>(a: T[] = [], b: T[] = []) => {
     if (a.length !== b.length) return false;
@@ -1051,8 +1050,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const undo = () => {
     setHistory((h) => {
       if (h.length === 0) { toast.info("Niente da annullare"); return h; }
-      const prev = h[h.length - 1];
+      const prev = stampLists(state, h[h.length - 1]);
       setFuture((f) => [...f.slice(-49), state]);
+      localEditUntilRef.current = Date.now() + 8000;
       setState(prev);
       persistState(prev);
       toast.success("Azione annullata");
@@ -1063,8 +1063,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const redo = () => {
     setFuture((f) => {
       if (f.length === 0) { toast.info("Niente da rifare"); return f; }
-      const nextState = f[f.length - 1];
+      const nextState = stampLists(state, f[f.length - 1]);
       setHistory((h) => [...h.slice(-49), state]);
+      localEditUntilRef.current = Date.now() + 8000;
       setState(nextState);
       persistState(nextState);
       toast.success("Azione ripristinata");
@@ -1092,7 +1093,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
     pushHistory(prev);
     setFuture([]);
     const resolved = typeof patch === "function" ? patch(prev) : patch;
-    const next = { ...prev, ...resolved };
+    const next = stampLists(prev, { ...prev, ...resolved });
     // Rileva cancellazioni e registrale come tombstone così non risorgono dal cloud.
     const diffRemoved = <T extends { id: string }>(before: T[] = [], after: T[] = []) => {
       const afterIds = new Set(after.map((x) => x.id));

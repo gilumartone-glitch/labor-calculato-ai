@@ -696,7 +696,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
   // ===== Sync realtime con Supabase (chiave 'main') =====
   const REMOTE_KEY = remoteKeyFor(year);
-  const REMOTE_SAVE_DEBOUNCE_MS = 500;
+  const REMOTE_SAVE_DEBOUNCE_MS = 1200;
   const lastRemoteRef = useRef<string>("");
   const remoteLoadedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

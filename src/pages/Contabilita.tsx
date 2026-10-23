@@ -28,6 +28,7 @@ import { HoursLogView, type HoursLog, type HoursRow, type DaySegment, type DayTy
 import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 import { mergeHoursLog } from "@/lib/hours-sync";
 import { orderMovementRows } from "@/lib/movement-order";
+import { mergeRowsById, stampChangedRows, type SyncRow } from "@/lib/row-sync";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";

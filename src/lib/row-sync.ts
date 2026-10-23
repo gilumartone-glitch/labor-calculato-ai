@@ -31,7 +31,10 @@ export const mergeRowsById = <T extends SyncRow>(
 
 /** Stamp `_u = now` on rows of `after` that differ from their copy in `before`. */
 export const stampChangedRows = <T extends SyncRow>(before: T[] = [], after: T[] = [], now = Date.now()): T[] => {
-  const strip = (row: T) => { const { _u, ...rest } = row; void _u; return JSON.stringify(rest, Object.keys(rest).sort()); };
+  const stable = (v: unknown): unknown => Array.isArray(v) ? v.map(stable)
+    : v && typeof v === "object" ? Object.keys(v as object).sort().reduce<Record<string, unknown>>((acc, k) => { acc[k] = stable((v as Record<string, unknown>)[k]); return acc; }, {})
+    : v;
+  const strip = (row: T) => { const { _u, ...rest } = row; void _u; return JSON.stringify(stable(rest)); };
   const prev = new Map(before.map((row) => [row.id, row]));
   return after.map((row) => {
     const old = prev.get(row.id);

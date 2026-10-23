@@ -113,6 +113,13 @@
       "when": 1792743324214,
       "tag": "0015_accounting_rows_newest_edit_wins",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792743520351,
+      "tag": "0016_throttle_accounting_snapshots",
+      "breakpoints": true
     }
   ]
 }

@@ -914,28 +914,36 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   }, [state]);
 
   // 2b) Auto-retry: finché il salvataggio è in errore, riprova ogni 15s
+  // Un solo tentativo alla volta, con attesa crescente (5s → 60s): mai una raffica
+  // di salvataggi lenti che blocca il database per tutti.
   useEffect(() => {
     if (saveStatus !== "error") return;
-    const id = setInterval(async () => {
+    let stopped = false;
+    let delay = 5000;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const attempt = async () => {
+      if (stopped) return;
       const current = stateRef.current;
       if (!current) return;
       const serialized = serializeAccountingState(current);
       if (serialized === lastRemoteRef.current) { setSaveStatus("idle"); return; }
-      try {
-        await supabase.auth.refreshSession();
-      } catch { /* ignore */ }
       const { data: authData } = await supabase.auth.getUser();
       const uid = authData?.user?.id ?? null;
-      if (!uid) return; // serve login utente
+      if (!uid || stopped) return;
       const { data: written, error } = await remoteSave(REMOTE_KEY, withCashView(current), uid, isOwnerRef.current);
+      if (stopped) return;
       if (!error && written && written.length > 0) {
         lastRemoteRef.current = serialized;
         ownSaveUntilRef.current = Date.now() + 2500;
         setSaveStatus("idle");
         toast.success("Contabilità ri-sincronizzata sul cloud", { id: "contab-save-error" });
+        return;
       }
-    }, 4000);
-    return () => clearInterval(id);
+      delay = Math.min(60000, delay * 2);
+      timer = setTimeout(attempt, delay);
+    };
+    timer = setTimeout(attempt, delay);
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
   }, [saveStatus]);
 
   // 3) Realtime: ricevi modifiche da altri utenti.
@@ -990,7 +998,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
     // Safety net: ogni 30s riallinea con il cloud, nel caso un evento Realtime
     // fosse stato perso (es. connessione instabile).
-    const poll = setInterval(() => { void applyRemote(); }, 8000);
+    const poll = setInterval(() => { if (document.visibilityState === "visible") void applyRemote(); }, 10000);
     // Riallinea quando la finestra torna in primo piano.
     const onVis = () => { if (document.visibilityState === "visible") void applyRemote(); };
     document.addEventListener("visibilitychange", onVis);
@@ -3129,7 +3137,7 @@ const CashOnlySalariesView = ({ remoteKey, year }: { remoteKey: string; year: nu
       .then(({ data }: { data: unknown }) => { if (mounted && data) setView(data as Record<string, CashMonth>); });
     loadRef.current = load;
     load();
-    const id = setInterval(load, 8000);
+    const id = setInterval(() => { if (document.visibilityState === "visible") load(); }, 10000);
     return () => { mounted = false; clearInterval(id); };
   }, [remoteKey]);
   const loadRef = useRef<() => void>(() => {});

@@ -120,6 +120,13 @@
       "when": 1792743520351,
       "tag": "0016_throttle_accounting_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792744751199,
+      "tag": "0017_faster_hours_merge",
+      "breakpoints": true
     }
   ]
 }

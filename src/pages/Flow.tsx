@@ -181,14 +181,16 @@ const Flow = () => {
   // Realtime: aggiorna quando un altro utente modifica
   useEffect(() => {
     if (!user) return;
+    const reload = coalesced(() => loadAll(), 800);
     const channel = supabase
       .channel("commesse-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "commesse" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "commessa_assegnatari" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "commesse" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "commessa_assegnatari" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_sub_orders" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_orders" }, reload)
       .subscribe();
     return () => {
+      reload.cancel();
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

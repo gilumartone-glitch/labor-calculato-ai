@@ -934,7 +934,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         setSaveStatus("idle");
         toast.success("Contabilità ri-sincronizzata sul cloud", { id: "contab-save-error" });
       }
-    }, 15000);
+    }, 4000);
     return () => clearInterval(id);
   }, [saveStatus]);
 

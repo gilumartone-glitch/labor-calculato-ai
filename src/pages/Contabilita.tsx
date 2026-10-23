@@ -1292,7 +1292,20 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   }, [state.openingCash, allMovementsForForecast]);
 
   return (
-    <div data-dept="generale" className="min-h-screen bg-dept-soft/35">
+    <div
+      data-dept="generale"
+      className="min-h-screen bg-dept-soft/35"
+      onInputCapture={(e) => {
+        const el = e.target as HTMLInputElement | HTMLTextAreaElement;
+        const isText = el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && ["text", "search", ""].includes((el as HTMLInputElement).type));
+        if (!isText) return;
+        const up = el.value.toLocaleUpperCase("it-IT");
+        if (up === el.value) return;
+        const s = el.selectionStart, en = el.selectionEnd;
+        el.value = up;
+        try { if (s != null && en != null) el.setSelectionRange(s, en); } catch { /* ignore */ }
+      }}
+    >
       <header className="sticky top-0 z-20 border-b-2 border-dept bg-paper">
         <div className="w-full px-3 md:px-6 flex flex-wrap items-center justify-between gap-3 py-3 md:py-4">
           <div className="flex items-center gap-3 min-w-0">

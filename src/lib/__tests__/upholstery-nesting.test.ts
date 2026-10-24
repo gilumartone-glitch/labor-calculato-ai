@@ -51,9 +51,9 @@ describe("upholstery shared fabric consumption", () => {
 
   it("keeps separate heights if they really cost less than a shared cut", () => {
     const c = catalog([material(360, 1), material(610, 15)]);
-    const pieces = [piece("large", 300, 400), piece("small", 200, 100, "tulle-360")];
+    const pieces = [piece("large", 300, 400), piece("small", 400, 300, "tulle-360")];
     const groups = computeNesting(pieces, effective(c));
     expect(groups).toHaveLength(2);
-    expect(groups.reduce((sum, g) => sum + g.materialCostOptimized, 0)).toBeCloseTo(47);
+    expect(groups.reduce((sum, g) => sum + g.materialCostOptimized, 0)).toBeCloseTo(49);
   });
 });

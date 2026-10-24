@@ -104,6 +104,8 @@ export type Catalog = {
   /** Flag runtime (NON persistito): se true, NON addebitare lo sfrido iniziale
    *  del rotolo (es. Tappezzeria, dove il prezzo manuale lo include già). */
   __skipInitialScrap?: boolean;
+  /** Compare shared roll cuts against separate heights by total cost (upholstery). */
+  __optimizeRollGroups?: boolean;
   /** Larghezza fresa/taglio in mm: spazio da lasciare tra i pezzi (aggiunto al bbox). */
   __kerfMm?: number;
   /** Margine perimetrale in mm da lasciare sul bordo del foglio (default 10).

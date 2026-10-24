@@ -1856,7 +1856,8 @@ export const computeNesting = (
       ps[0].variantId ?? ps[0].catalogMaterialId,
     );
 
-    // --- ROTOLI: ogni pezzo va sull'altezza di rullo che lo "veste" meglio ---
+    let separateRollGroups: NestingGroup[] | undefined;
+    // Compare individual-height cuts with shared cuts for upholstery.
     // Se nella stessa famiglia i pezzi preferiscono altezze diverse (es. teli h 800
     // e teli h 1100), il gruppo viene suddiviso in sottogruppi per altezza.
     const forceSingle = !!(catalog as unknown as { __forceSinglePiece?: boolean }).__forceSinglePiece;
@@ -1899,7 +1900,10 @@ export const computeNesting = (
         const allPlaced =
           subs.every((s) => s.unplaced.length === 0 && s.items.length > 0) &&
           Array.from(buckets.values()).reduce((s, b) => s + b.pieces.length, 0) === ps.length;
-        if (allPlaced) return subs;
+        if (allPlaced) {
+          if (!catalog.__optimizeRollGroups) return subs;
+          separateRollGroups = subs;
+        }
       }
     }
 
@@ -1937,6 +1941,10 @@ export const computeNesting = (
       //  3) sfrido percentuale
       //  4) lunghezza/area minore
       pool.sort((a, b) => {
+        if (catalog.__optimizeRollGroups) {
+          const costDifference = a.materialCostOptimized - b.materialCostOptimized;
+          if (Math.abs(costDifference) > 1e-3) return costDifference;
+        }
         const aHasSeams = (a.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
         const bHasSeams = (b.seamLengthM ?? 0) > 1e-6 ? 1 : 0;
         // Preferisco l'assenza di cuciture, MA non a qualunque prezzo: se la
@@ -1956,6 +1964,11 @@ export const computeNesting = (
       });
       g = pool[0];
     }
+    if (separateRollGroups && (
+      g.unplaced.length > 0 ||
+      separateRollGroups.reduce((sum, group) => sum + group.materialCostOptimized, 0)
+        < g.materialCostOptimized - 1e-3
+    )) return separateRollGroups;
     return [finalize(g, ps)];
   });
 };

@@ -13,6 +13,7 @@ import { useCloudCatalogs } from "@/hooks/useCloudCatalogs";
 import { buildPerimeterOpsForDept, perimeterCost } from "@/lib/perimeter";
 import { pieceTotal, aggregateScrapDeduction } from "@/lib/piece";
 import { computeNesting } from "@/lib/nesting";
+import { upholsteryPiecesTotal } from "@/lib/upholstery-totals";
 import { buildGhostMaterialsForLab } from "@/lib/ghost-materials";
 import { materialAwareCatalog, withoutInitialScrap } from "@/lib/piece-catalog";
 import { syncMaterialFromLabDimensions } from "@/lib/lab-sync";
@@ -449,8 +450,9 @@ const Index = () => {
       const c = materialAwareCatalog(p, catalogs[key], catalogs.stampa);
       return key === "tappezzeria" ? withoutInitialScrap(c) : c;
     };
-    const piecesT =
-      piecesArr.reduce(
+    const piecesT = key === "tappezzeria"
+      ? upholsteryPiecesTotal(s, withoutInitialScrap(catalogs[key]), customerForDept(key))
+      : piecesArr.reduce(
         (acc, p) => acc + pieceTotal(p, matCat(p), customerForDept(key)),
         0,
       ) -

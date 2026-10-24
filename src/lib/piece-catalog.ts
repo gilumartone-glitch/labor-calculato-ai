@@ -17,7 +17,7 @@ export const materialAwareCatalog = (
 /** Marca un catalogo come "no sfrido iniziale" (Tappezzeria). Il flag è
  *  runtime-only e viene letto da computePieceMaterial. */
 export const withoutInitialScrap = (catalog: Catalog): Catalog =>
-  ({ ...catalog, __skipInitialScrap: true } as Catalog);
+  ({ ...catalog, __skipInitialScrap: true, __optimizeRollGroups: true });
 /** Orientamento dell'altezza del pezzo — deciso nel LISTINO, per prodotto.
  *  Default "horizontal": l'altezza del pezzo si sviluppa lungo il rotolo.
  *  "vertical" solo se il prodotto è flaggato con `verticalHeight`. */

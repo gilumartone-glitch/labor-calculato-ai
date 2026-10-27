@@ -141,6 +141,13 @@
       "when": 1793099278403,
       "tag": "0019_strip_agg_salaries",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793099626016,
+      "tag": "0020_tombstone_agg_salaries",
+      "breakpoints": true
     }
   ]
 }

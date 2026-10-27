@@ -2111,6 +2111,7 @@ export type Database = {
         Args: { _sub_id: string; _user_id: string }
         Returns: boolean
       }
+      contabilita_agg_tombstones: { Args: { _del: Json }; Returns: Json }
       contabilita_merge_hours: {
         Args: { _new: Json; _old: Json }
         Returns: Json

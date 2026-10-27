@@ -791,7 +791,10 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
       movements: mergeById(local.movements, remote.movements ?? [], tMov, recent),
       fixedExpenses: mergeById(local.fixedExpenses, remote.fixedExpenses ?? [], tFix, recent),
       // Chi non è l'owner riceve solo i totali mensili aggregati: sostituiscono sempre le righe locali.
-      salaries: isOwnerRef.current ? mergeById(local.salaries ?? [], remote.salaries ?? [], tSal, recent) : (remote.salaries ?? []),
+      // I totali aggregati ("agg-*") sono solo una vista per l'amministrazione: mai nelle righe dell'owner.
+      salaries: isOwnerRef.current
+        ? mergeById((local.salaries ?? []).filter((s: any) => !String(s?.id ?? "").startsWith("agg-")), (remote.salaries ?? []).filter((s: any) => !String(s?.id ?? "").startsWith("agg-")), tSal, recent)
+        : (remote.salaries ?? []),
       contacts: mergeById(local.contacts ?? [], remote.contacts ?? [], tCon, recent),
       deletedIds,
     };

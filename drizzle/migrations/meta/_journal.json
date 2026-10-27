@@ -134,6 +134,13 @@
       "when": 1792744855918,
       "tag": "0018_trim_cron_history_batch",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793099278403,
+      "tag": "0019_strip_agg_salaries",
+      "breakpoints": true
     }
   ]
 }

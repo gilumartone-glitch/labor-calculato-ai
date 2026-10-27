@@ -1430,27 +1430,33 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
               // copie affiancate sulla larghezza del rullo. Mostriamo i metri
               // lineari effettivi consumati da TUTTE le qty, coerenti con il
               // calcolo prezzo (che già ottimizza l'affianco interno).
+              // Lato del pezzo che attraversa il rullo: quello che NON corre lungo
+              // il telo (con rotazione attiva il pezzo può essere girato).
+              const crossM = Math.abs(mat.panelLengthM - mat.pieceWidthM) < 1e-6 &&
+                Math.abs(mat.panelLengthM - mat.pieceHeightM) > 1e-6
+                ? mat.pieceHeightM
+                : mat.pieceWidthM;
               const isRollNested =
                 (mat.material?.format ?? "rotolo") === "rotolo" &&
                 !!(catalog as { __skipInitialScrap?: boolean }).__skipInitialScrap &&
                 mat.rollWidthM > 0 &&
-                mat.pieceWidthM > 0 &&
-                mat.pieceWidthM <= mat.rollWidthM;
+                crossM > 0 &&
+                crossM <= mat.rollWidthM;
               const quantityPlan = (mat.material?.format ?? "rotolo") === "rotolo"
                 ? rollQuantityNestingPlan(
-                    mat.pieceWidthM,
+                    crossM,
                     mat.rollWidthM,
                     mat.panelLengthM,
                     qty,
                   )
                 : { panels: mat.panels, totalMetersM: mat.totalMetersM };
-              const piecesPerShelf = isRollNested && mat.pieceWidthM <= mat.rollWidthM
-                ? Math.max(1, Math.floor(mat.rollWidthM / mat.pieceWidthM))
+              const piecesPerShelf = isRollNested && crossM <= mat.rollWidthM
+                ? Math.max(1, Math.floor(mat.rollWidthM / crossM))
                 : 1;
-              const shelves = isRollNested || mat.pieceWidthM > mat.rollWidthM
+              const shelves = isRollNested || crossM > mat.rollWidthM
                 ? quantityPlan.panels
                 : mat.panels;
-              const totalMetersQtyM = isRollNested || mat.pieceWidthM > mat.rollWidthM
+              const totalMetersQtyM = isRollNested || crossM > mat.rollWidthM
                 ? quantityPlan.totalMetersM
                 : mat.totalMetersM;
               // Metri realmente attribuiti dal nesting (quota di gruppo).

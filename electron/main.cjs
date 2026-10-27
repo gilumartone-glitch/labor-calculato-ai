@@ -54,18 +54,17 @@ function createWindow() {
   if (isDev) {
     win.loadURL(process.env.ELECTRON_START_URL);
   } else {
+    // Carica sempre il sito online: ogni "Pubblica" arriva subito anche all'app desktop.
+    // Se manca la rete, ripiega sulla copia locale.
     const indexPath = path.join(__dirname, "..", "dist", "index.html");
-    if (!fs.existsSync(indexPath)) {
-      showStartupError(
-        win,
-        "Applicativo non trovato",
-        `Manca il file compilato:\n${indexPath}\n\nRilancia aggiorna.bat e verifica che npm run build finisca senza errori prima di installare l'exe.`
-      );
-    } else {
-      win.loadFile(indexPath, { hash: "/hub" }).catch((err) => {
-        showStartupError(win, "Errore apertura applicativo", String(err));
-      });
-    }
+    const loadLocal = () => {
+      if (!fs.existsSync(indexPath)) {
+        showStartupError(win, "Connessione assente", "Impossibile raggiungere flow.tecnofra.it e manca la copia locale.");
+        return;
+      }
+      win.loadFile(indexPath, { hash: "/hub" }).catch((err) => showStartupError(win, "Errore apertura applicativo", String(err)));
+    };
+    win.loadURL("https://flow.tecnofra.it/hub").catch(() => loadLocal());
   }
 
   win.webContents.once("did-finish-load", () => {

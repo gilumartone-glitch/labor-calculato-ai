@@ -1969,6 +1969,17 @@ export const computeNesting = (
       separateRollGroups.reduce((sum, group) => sum + group.materialCostOptimized, 0)
         < g.materialCostOptimized - 1e-3
     )) return separateRollGroups;
+    // Rotoli: se un pezzo è largo quanto il telo (es. 300 cm su h 300) il margine
+    // perimetrale lo farebbe risultare "più largo del telo", mentre la scheda del
+    // pezzo lo considera valido. In quel caso ricalcolo il gruppo senza margine
+    // perimetrale, così nesting, scheda e totale restano coerenti.
+    const isRollGroup = (g.format ?? "rotolo") === "rotolo";
+    const c = catalog as unknown as { __skipPerimeterMargin?: boolean };
+    if (isRollGroup && g.unplaced.length > 0 && !c.__skipPerimeterMargin && getNestingConfig(catalog).perimeterM > 0) {
+      const retry = computeNesting(ps, { ...catalog, __skipPerimeterMargin: true } as Catalog, customer);
+      const retryUnplaced = retry.reduce((s, r) => s + r.unplaced.length, 0);
+      if (retry.length > 0 && retryUnplaced < g.unplaced.length) return retry;
+    }
     return [finalize(g, ps)];
   });
 };

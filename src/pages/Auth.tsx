@@ -129,6 +129,19 @@ const Auth = () => {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={async () => {
+              if (!email) { toast.error("Scrivi prima la tua email"); return; }
+              const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+              if (error) toast.error(error.message);
+              else toast.success("Ti abbiamo mandato un'email per scegliere una nuova password");
+            }}
+            className="mt-4 w-full text-base underline text-primary"
+          >
+            Password dimenticata?
+          </button>
+
           <div className="mt-5 pt-4 border-t border-ink/15 text-center">
             <p className="text-[11px] text-muted-foreground">
               La registrazione è gestita dall'amministratore. Contatta il responsabile per ricevere un account.

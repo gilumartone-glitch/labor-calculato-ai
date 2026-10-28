@@ -364,6 +364,12 @@ const Inner = () => {
                         <button onClick={() => resetPassword(u)} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm uppercase tracking-wider font-bold border-2 border-ink/30 hover:bg-ink hover:text-paper">
                           <KeyRound className="w-4 h-4" /> Cambia password
                         </button>
+                        <button onClick={async () => {
+                          const { error } = await supabase.auth.resetPasswordForEmail(u.email, { redirectTo: `${window.location.origin}/reset-password` });
+                          if (error) toast.error(error.message); else toast.success(`Email di reset inviata a ${u.email}`);
+                        }} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm uppercase tracking-wider font-bold border-2 border-ink/30 hover:bg-ink hover:text-paper">
+                          <Mail className="w-4 h-4" /> Invia email reset password
+                        </button>
                         <button onClick={() => deleteUser(u)} className="inline-flex items-center gap-2 px-3 py-2 rounded-sm text-sm uppercase tracking-wider font-bold border-2 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground">
                           <Trash2 className="w-4 h-4" /> Elimina utente
                         </button>

@@ -1305,7 +1305,12 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         const up = el.value.toLocaleUpperCase("it-IT");
         if (up === el.value) return;
         const s = el.selectionStart, en = el.selectionEnd;
-        el.value = up;
+        // Usa il setter nativo: assegnare `el.value` aggiornerebbe anche il tracker
+        // di React, che allora non vedrebbe il cambio e non chiamerebbe onChange
+        // (le lettere digitate in minuscolo andavano perse).
+        const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const nativeSet = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        if (nativeSet) nativeSet.call(el, up); else el.value = up;
         try { if (s != null && en != null) el.setSelectionRange(s, en); } catch { /* ignore */ }
       }}
     >

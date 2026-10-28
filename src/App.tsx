@@ -16,6 +16,7 @@ import Index from "./pages/Index";
 
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"));
 const Flow = lazy(() => import("./pages/Flow.tsx"));
 const Falegnameria = lazy(() => import("./pages/Falegnameria.tsx"));
 const Montaggi = lazy(() => import("./pages/Montaggi.tsx"));

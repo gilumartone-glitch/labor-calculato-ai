@@ -148,6 +148,13 @@
       "when": 1793099626016,
       "tag": "0020_tombstone_agg_salaries",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793267982820,
+      "tag": "0021_bank_statement_tables_and_import",
+      "breakpoints": true
     }
   ]
 }

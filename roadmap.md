@@ -1,5 +1,7 @@
 # Tasks
 
+- [ ] Add a safe Credem/BNL provider setup flow with compatibility evidence, explicit unconfirmed costs, read-only consent and renewal checks before any activation.
+
 - [x] Use joint nesting for Tappezzeria fabric totals and choose the lowest-cost roll height.
 - [x] Test shared-cut consumption and cheaper taller rolls; verify the quote flow.
 - [x] Add Conti with Credem/BNL statement imports and manual full/partial reconciliation to competence or direct cash.

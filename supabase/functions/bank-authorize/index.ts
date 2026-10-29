@@ -31,7 +31,11 @@ Deno.serve(async (req) => {
       if (error) throw new Error("Impossibile salvare la richiesta di autorizzazione.");
       const auth = await bankingRequest("/auth", { access: { valid_until: validUntil, balances: true, transactions: true }, aspsp: { name: bank.name, country: "IT" }, psu_type: "business", state, redirect_url: "https://flow.tecnofra.it/eb-callback" });
       const authUrl = new URL(auth.url);
-      if (authUrl.protocol !== "https:" || authUrl.hostname !== "auth.enablebanking.com") throw new Error("Indirizzo di autorizzazione inatteso.");
+      const host = authUrl.hostname.toLowerCase();
+      if (authUrl.protocol !== "https:" || !(host === "enablebanking.com" || host.endsWith(".enablebanking.com"))) {
+        console.error("Unexpected auth host", host);
+        throw new Error("Indirizzo di autorizzazione inatteso.");
+      }
       return json({ url: auth.url });
     }
     const { data: connection } = await admin.from("bank_provider_connections").select("*").eq("state", input.data.state).eq("user_id", user.id).eq("status", "pending").gt("expires_at", new Date().toISOString()).single();

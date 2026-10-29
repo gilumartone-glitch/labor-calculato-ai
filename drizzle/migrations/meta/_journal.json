@@ -162,6 +162,13 @@
       "when": 1793268009008,
       "tag": "0022_atomic_bank_to_cash_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793272031080,
+      "tag": "0023_enable_banking_connections",
+      "breakpoints": true
     }
   ]
 }

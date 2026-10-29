@@ -1,6 +1,7 @@
 # Tasks
 
-- [ ] Reuse the banking service from My Money Manager; inspect its integration and establish the secure connection requirements before activation.
+- [ ] Use Enable Banking with a separate Tecnofra business application; source integration inspected, credentials and commercial/consent verification still required before activation.
+- [x] Explain where to find the Tecnofra application ID and downloaded private key, with secure-entry guidance.
 - [x] Add safe Credem/BNL preparation flow with authenticated prerequisite assessment, official provider links, unknown costs/renewals clearly disclosed and activation blocked; verified both banks through the signed-in UI and 15 passing tests.
 
 - [x] Use joint nesting for Tappezzeria fabric totals and choose the lowest-cost roll height.

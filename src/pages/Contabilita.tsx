@@ -29,10 +29,11 @@ import { fetchDipendenti, rateAt, type Dipendente } from "@/lib/dipendenti";
 import { mergeHoursLog } from "@/lib/hours-sync";
 import { orderMovementRows } from "@/lib/movement-order";
 import { mergeRowsById, stampChangedRows, type SyncRow } from "@/lib/row-sync";
+import { BankAccountsView } from "@/components/contabilita/BankAccountsView";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
-type AccountingTab = "generale" | "mensile" | "movimenti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
+type AccountingTab = "generale" | "mensile" | "movimenti" | "conti" | "fisse" | "stipendi" | "grafici" | "anagrafica";
 type StipendiSubTab = "stipendi" | "ore" | "contanti";
 
 type CashMovement = {
@@ -656,7 +657,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const [tab, setTab] = useState<AccountingTab>(() => {
     try {
       const saved = localStorage.getItem("officina:contabilita:tab");
-      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "fisse", "stipendi", "grafici", "anagrafica"];
+      const valid: AccountingTab[] = ["generale", "mensile", "movimenti", "conti", "fisse", "stipendi", "grafici", "anagrafica"];
       if (saved === "ore") return "stipendi";
       if (saved && (valid as string[]).includes(saved)) return saved as AccountingTab;
     } catch { /* ignore */ }
@@ -1342,7 +1343,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
           <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Gestione contabile</CardTitle>
             <div className="flex flex-wrap gap-2">
-              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "fisse", label: "Spese fisse" }, ...((isAdmin || canEditHours) ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
+              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "conti", label: "Conti" }, { key: "fisse", label: "Spese fisse" }, ...((isAdmin || canEditHours) ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
                 <Button key={item.key} size="sm" variant={tab === item.key ? "default" : "outline"} onClick={() => setTab(item.key)}>{item.label}</Button>
               ))}
             </div>
@@ -1353,6 +1354,16 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
         {tab === "generale" && <GeneralReport totals={totals} movements={allMovementsForForecast} currentCash={currentCash} />}
         {tab === "mensile" && <ForecastTable rows={[forecast[selectedMonth]]} movements={state.movements} salaries={salaries} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} salaryPayDates={payDates} setSalaryPayDates={(salaryPayDates) => update({ salaryPayDates })} contacts={state.contacts ?? []} onAddContact={(c) => update({ contacts: [...(state.contacts ?? []), c] })} currentCash={currentCash} />}
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
+        {tab === "conti" && <BankAccountsView year={year} accountingKey={REMOTE_KEY} saving={saveStatus !== "idle"} onReconciled={async () => {
+          const { data, error } = await remoteLoad(REMOTE_KEY, isOwnerRef.current);
+          if (error || !data?.data) throw new Error(error?.message ?? "Non riesco ad aggiornare la contabilità");
+          const remote = normalizeState(data.data as Partial<AccountingState>);
+          const merged = mergeRemoteState(stateRef.current ?? remote, remote, false);
+          lastRemoteRef.current = serializeAccountingState(remote);
+          ownSaveUntilRef.current = 0;
+          setState(merged);
+          writeLocalState(merged);
+        }} />}
         {tab === "fisse" && <FixedTable title="Spese fisse mensili" category="Fissi" expenses={state.fixedExpenses} setExpenses={(fixedExpenses) => update({ fixedExpenses })} addFixed={() => addFixed("Fissi")} />}
         {tab === "stipendi" && isAdmin && (
           <div className="space-y-3">

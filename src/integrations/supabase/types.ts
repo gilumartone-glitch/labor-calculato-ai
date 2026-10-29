@@ -204,6 +204,89 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_allocations: {
+        Row: {
+          accounting_key: string
+          amount: number
+          cash_movement_id: string
+          competence_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          transaction_id: string
+        }
+        Insert: {
+          accounting_key: string
+          amount: number
+          cash_movement_id: string
+          competence_id?: string | null
+          created_at?: string
+          created_by: string
+          id: string
+          transaction_id: string
+        }
+        Update: {
+          accounting_key?: string
+          amount?: number
+          cash_movement_id?: string
+          competence_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_allocations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_transactions: {
+        Row: {
+          account_ref: string
+          amount: number
+          bank: string
+          booking_date: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          external_id: string
+          id: string
+          source: string
+        }
+        Insert: {
+          account_ref: string
+          amount: number
+          bank: string
+          booking_date: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description: string
+          external_id: string
+          id?: string
+          source?: string
+        }
+        Update: {
+          account_ref?: string
+          amount?: number
+          bank?: string
+          booking_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          external_id?: string
+          id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       catalogs: {
         Row: {
           data: Json
@@ -2098,6 +2181,7 @@ export type Database = {
         Args: { _cat: Database["public"]["Enums"]["admin_task_category"] }
         Returns: string
       }
+      can_reconcile_bank: { Args: { _uid: string }; Returns: boolean }
       can_use_contabilita: { Args: { _uid: string }; Returns: boolean }
       can_view_admin_task: {
         Args: { _task_id: string; _user: string }
@@ -2155,6 +2239,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_bank_transactions: { Args: { _rows: Json }; Returns: number }
       is_amministrazione: { Args: { _user_id: string }; Returns: boolean }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_dm_member: {
@@ -2217,6 +2302,19 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reconcile_bank_transaction: {
+        Args: {
+          _amount: number
+          _category: string
+          _competence_id: string
+          _description: string
+          _expected_acconto?: number
+          _expected_amount?: number
+          _request_id: string
+          _transaction_id: string
+        }
+        Returns: Json
       }
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {

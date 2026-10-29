@@ -245,6 +245,81 @@ export type Database = {
           },
         ]
       }
+      bank_provider_connections: {
+        Row: {
+          accounts: Json
+          bank: string
+          consent_expires_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          session_id: string | null
+          state: string
+          status: string
+          sync_lock_until: string | null
+          user_id: string
+        }
+        Insert: {
+          accounts?: Json
+          bank: string
+          consent_expires_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          session_id?: string | null
+          state?: string
+          status?: string
+          sync_lock_until?: string | null
+          user_id: string
+        }
+        Update: {
+          accounts?: Json
+          bank?: string
+          consent_expires_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          session_id?: string | null
+          state?: string
+          status?: string
+          sync_lock_until?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bank_provider_settings: {
+        Row: {
+          commercial_evidence: string | null
+          costs_verified: boolean
+          id: boolean
+          monthly_cost_eur: number | null
+          sync_enabled: boolean
+          verified_at: string | null
+        }
+        Insert: {
+          commercial_evidence?: string | null
+          costs_verified?: boolean
+          id?: boolean
+          monthly_cost_eur?: number | null
+          sync_enabled?: boolean
+          verified_at?: string | null
+        }
+        Update: {
+          commercial_evidence?: string | null
+          costs_verified?: boolean
+          id?: boolean
+          monthly_cost_eur?: number | null
+          sync_enabled?: boolean
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       bank_transactions: {
         Row: {
           account_ref: string
@@ -2216,6 +2291,18 @@ export type Database = {
         Returns: number
       }
       get_admin_user_ids: { Args: never; Returns: string[] }
+      get_bank_provider_connections: {
+        Args: never
+        Returns: {
+          account_count: number
+          bank: string
+          consent_expires_at: string
+          id: string
+          last_error: string
+          last_sync_at: string
+          status: string
+        }[]
+      }
       get_contabilita_cash_only: { Args: { _key?: string }; Returns: Json }
       get_contabilita_state_public: {
         Args: { _key: string }

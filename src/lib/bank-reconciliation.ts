@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const bankImportRowSchema = z.object({
-  bank: z.enum(["Credem", "BNL"]),
+  bank: z.enum(["Credem", "BNL", "PayPal"]),
   account_ref: z.string().trim().min(1).max(100),
   external_id: z.string().trim().min(1).max(250),
   booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => !Number.isNaN(Date.parse(v))),

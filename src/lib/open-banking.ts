@@ -1,4 +1,4 @@
-export type BankingBank = "Credem" | "BNL";
+export type BankingBank = "Credem" | "BNL" | "PayPal";
 export type BankingAssessment = {
   bank: BankingBank;
   provider: "Enable Banking";

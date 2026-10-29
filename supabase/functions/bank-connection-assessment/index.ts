@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
-const schema = z.object({ bank: z.enum(["Credem", "BNL"]), product: z.string().trim().min(2).max(150) }).strict();
+const schema = z.object({ bank: z.enum(["Credem", "BNL", "PayPal"]), product: z.string().trim().min(2).max(150) }).strict();
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
 Deno.serve(async (req) => {

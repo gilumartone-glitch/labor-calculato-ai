@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { bankingRequest, BankProviderError } from "../_shared/enable-banking.ts";
-const schema = z.discriminatedUnion("action", [z.object({ action: z.literal("start"), bank: z.enum(["Credem", "BNL"]) }).strict(), z.object({ action: z.literal("finish"), state: z.string().uuid(), code: z.string().min(1).max(2000) }).strict()]);
+const schema = z.discriminatedUnion("action", [z.object({ action: z.literal("start"), bank: z.enum(["Credem", "BNL", "PayPal"]) }).strict(), z.object({ action: z.literal("finish"), state: z.string().uuid(), code: z.string().min(1).max(2000) }).strict()]);
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       const app = await bankingRequest("/application");
       if (!app.active || !app.services?.includes("AIS")) return json({ error: "Applicazione bancaria non attiva." }, 409);
       const result = await bankingRequest("/aspsps?country=IT");
-      const pattern = input.data.bank === "Credem" ? /credito emiliano|credem/i : /nazionale.*lavoro|\bbnl\b/i;
+      const pattern = input.data.bank === "Credem" ? /credito emiliano|credem/i : input.data.bank === "PayPal" ? /paypal/i : /nazionale.*lavoro|\bbnl\b/i;
       const matches = (result.aspsps ?? []).filter((b: { name: string; psu_types: string[] }) => pattern.test(b.name) && b.psu_types.includes("business"));
       if (matches.length !== 1) return json({ error: "Servizio aziendale non identificato univocamente. Verifica con Enable Banking." }, 409);
       const bank = matches[0];

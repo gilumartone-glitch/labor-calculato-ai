@@ -169,6 +169,13 @@
       "when": 1793272031080,
       "tag": "0023_enable_banking_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793273893663,
+      "tag": "0024_add_paypal_bank",
+      "breakpoints": true
     }
   ]
 }

@@ -106,7 +106,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
 
   const readFile = async (file: File) => {
     try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true, raw: true });
       const first = workbook.SheetNames[0];
       if (!first) throw new Error("File vuoto");
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[first], { defval: "" });

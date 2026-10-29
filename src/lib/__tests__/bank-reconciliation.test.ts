@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as XLSX from "xlsx";
 import { bankRemaining, competenceRemaining, parseBankAmount, validateAllocation, type BankTransaction, type BankAllocation, type CompetenceMovement } from "../bank-reconciliation";
 
 const bank: BankTransaction = { id: "bank-1", bank: "Credem", account_ref: "AZIENDA", external_id: "1", booking_date: "2026-10-29", description: "FATTURA", amount: -100, currency: "EUR", source: "csv", created_at: "" };
@@ -20,4 +21,11 @@ describe("bank reconciliation rules", () => {
   it("incoming transactions cannot pay outgoing competence", () => { expect(() => validateAllocation({ ...bank, amount: 100 }, [], 100, competence)).toThrow(); });
   it("previous manual advances are not paid a second time", () => { expect(() => validateAllocation(bank, [], 100, { ...competence, amount: 150, acconto: 60 })).toThrow(); });
   it("Italian statement amounts retain their sign and cents", () => { expect(parseBankAmount("-1.234,56 €")).toBe(-1234.56); });
+  it("CSV loading preserves decimal commas before amount conversion", () => {
+    const wb = XLSX.read("Data;Importo\n29/10/2026;-1,00\n29/10/2026;0,50\n", { type: "string", raw: true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<{ Importo: string }>(sheet);
+    expect(parseBankAmount(rows[0].Importo)).toBe(-1);
+    expect(parseBankAmount(rows[1].Importo)).toBe(0.5);
+  });
 });

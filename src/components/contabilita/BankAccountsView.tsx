@@ -50,6 +50,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [splitAmounts, setSplitAmounts] = useState(false);
   const [fileName, setFileName] = useState("");
   const loadingRef = useRef(false);
+  const [paypalBusy, setPaypalBusy] = useState(false);
   const [connections, setConnections] = useState<Record<string, { status: string; consent_expires_at: string | null; account_count: number }>>({});
 
   const load = useCallback(async () => {
@@ -168,12 +169,26 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     return (bank === "all" || bank === t.bank) && (status === "all" || (status === "pending" ? remaining > 0 : remaining === 0)) && (!from || t.booking_date >= from) && (!to || t.booking_date <= to) && `${t.description} ${t.account_ref}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT"));
   });
   const selected = candidates.find((m) => m.id === selectedId);
+  const syncPaypal = async () => {
+    setPaypalBusy(true);
+    try {
+      const { data, error: e } = await supabase.functions.invoke("paypal-sync", { body: {} });
+      if (e || data?.error) {
+        let msg = data?.error as string | undefined;
+        try { msg = msg ?? (await (e as { context?: Response }).context?.json())?.error; } catch { /* ignore */ }
+        throw new Error(msg ?? "Importazione PayPal non riuscita.");
+      }
+      toast.success(`PayPal: ${data.imported} nuovi movimenti importati`);
+      await load();
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Importazione PayPal non riuscita."); }
+    finally { setPaypalBusy(false); }
+  };
   const pending = transactions.filter((t) => bankRemaining(t, allocations) > 0);
   const mappingSelect = (key: keyof typeof mapping, label: string, optional = false) => <div className="space-y-1" key={key}><Label htmlFor={`bank-column-${key}`} className="text-base">{label}</Label><select id={`bank-column-${key}`} className={selectClass} value={mapping[key]} onChange={(e) => setMapping((m) => ({ ...m, [key]: e.target.value }))}><option value="">{optional ? "Non presente" : "Scegli colonna"}</option>{columns.map((c) => <option key={c}>{c}</option>)}</select></div>;
 
   return <section className="space-y-5" aria-label="Conti bancari">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-2xl font-semibold">Conti</h2><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Aggiorna elenco</Button>{canEdit && <Button onClick={() => setImportOpen(true)}><Upload className="h-4 w-4" />Importa estratto conto</Button>}</div></div>
-    <div className="grid gap-4 md:grid-cols-3">{(["Credem", "BNL", "PayPal"] as const).map((name) => <div key={name} className="border-b-2 border-dept pb-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2 text-xl font-semibold"><Landmark className="h-5 w-5" />{name}</div>{canEdit && <Button variant="outline" className="text-base" onClick={() => setConnectionBank(name)}><Link2 />Collega {name}</Button>}</div><p className="my-2 text-base text-muted-foreground">Collegamento automatico non attivo</p><div className="flex flex-wrap justify-between gap-2 text-base"><span>{transactions.filter((t) => t.bank === name).length} movimenti importati</span><span className="font-semibold">Da associare: {eur(pending.filter((t) => t.bank === name).reduce((s, t) => s + bankRemaining(t, allocations), 0))}</span></div></div>)}</div>
+    <div className="grid gap-4 md:grid-cols-3">{(["Credem", "BNL", "PayPal"] as const).map((name) => <div key={name} className="border-b-2 border-dept pb-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2 text-xl font-semibold"><Landmark className="h-5 w-5" />{name}</div>{canEdit && (name === "PayPal" ? <Button variant="outline" className="text-base" disabled={paypalBusy} onClick={() => void syncPaypal()}>{paypalBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Importa da PayPal</Button> : <Button variant="outline" className="text-base" onClick={() => setConnectionBank(name)}><Link2 />Collega {name}</Button>)}</div><p className="my-2 text-base text-muted-foreground">{name === "PayPal" ? "Collegamento diretto PayPal · ultimi 90 giorni" : "Collegamento automatico non attivo"}</p><div className="flex flex-wrap justify-between gap-2 text-base"><span>{transactions.filter((t) => t.bank === name).length} movimenti importati</span><span className="font-semibold">Da associare: {eur(pending.filter((t) => t.bank === name).reduce((s, t) => s + bankRemaining(t, allocations), 0))}</span></div></div>)}</div>
     <BankLiveConnection bank={connectionBank} onClose={() => setConnectionBank(null)} />
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5"><Input aria-label="Cerca movimento bancario" placeholder="Cerca causale o conto" value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 text-base" /><Select value={bank} onValueChange={setBank}><SelectTrigger aria-label="Banca" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutte le banche</SelectItem><SelectItem value="Credem">Credem</SelectItem><SelectItem value="BNL">BNL</SelectItem><SelectItem value="PayPal">PayPal</SelectItem></SelectContent></Select><Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Stato associazione" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Da associare</SelectItem><SelectItem value="done">Associati</SelectItem><SelectItem value="all">Tutti i movimenti</SelectItem></SelectContent></Select><Input aria-label="Movimenti dal" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 text-base" /><Input aria-label="Movimenti al" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 text-base" /></div>
     {error && <p role="alert" className="text-base text-destructive">{error}</p>}

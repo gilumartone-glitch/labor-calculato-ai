@@ -1,5 +1,6 @@
 # Tasks
 
+- [ ] Reuse the banking service from My Money Manager; inspect its integration and establish the secure connection requirements before activation.
 - [x] Add safe Credem/BNL preparation flow with authenticated prerequisite assessment, official provider links, unknown costs/renewals clearly disclosed and activation blocked; verified both banks through the signed-in UI and 15 passing tests.
 
 - [x] Use joint nesting for Tappezzeria fabric totals and choose the lowest-cost roll height.

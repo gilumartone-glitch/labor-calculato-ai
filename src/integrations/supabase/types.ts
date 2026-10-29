@@ -2303,6 +2303,19 @@ export type Database = {
           read_ct: number
         }[]
       }
+      reconcile_bank_transaction: {
+        Args: {
+          _amount: number
+          _category: string
+          _competence_id: string
+          _description: string
+          _expected_acconto?: number
+          _expected_amount?: number
+          _request_id: string
+          _transaction_id: string
+        }
+        Returns: Json
+      }
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {
         Args: { _order_id: string; _reason: string; _sub_order_id: string }

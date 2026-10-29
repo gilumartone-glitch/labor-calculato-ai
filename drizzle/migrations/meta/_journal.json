@@ -155,6 +155,13 @@
       "when": 1793267982820,
       "tag": "0021_bank_statement_tables_and_import",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793268009008,
+      "tag": "0022_atomic_bank_to_cash_reconciliation",
+      "breakpoints": true
     }
   ]
 }

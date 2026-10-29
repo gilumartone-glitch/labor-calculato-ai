@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     if (error || !allowed) return json({ error: "Non autorizzato." }, 403);
     const app = await bankingRequest("/application");
     const list = await bankingRequest("/aspsps?country=IT");
-    const banks = (list.aspsps ?? []).filter((b: {name: string}) => /credito emiliano|credem|nazionale.*lavoro|\bbnl\b/i.test(b.name)).map((b: {name: string; psu_types: string[]; maximum_consent_validity: number}) => ({ name: b.name, business: b.psu_types.includes("business"), maximumConsentDays: Math.floor(b.maximum_consent_validity / 86400) }));
+    const banks = (list.aspsps ?? []).filter((b: {name: string}) => /credito emiliano|credem|nazionale.*lavoro|\bbnl\b|paypal/i.test(b.name)).map((b: {name: string; psu_types: string[]; maximum_consent_validity: number}) => ({ name: b.name, business: b.psu_types.includes("business"), maximumConsentDays: Math.floor(b.maximum_consent_validity / 86400) }));
     return json({ verified: true, name: app.name, active: app.active, services: app.services, redirect_urls: app.redirect_urls, banks, costsVerified: false, importActive: false });
   } catch (e) {
     if (e instanceof BankProviderError) return json({ error: "Verifica Enable Banking non riuscita", status: e.status, details: e.details }, e.status);

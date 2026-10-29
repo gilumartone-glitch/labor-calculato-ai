@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
   try {
-    const input = z.object({ bank: z.enum(["Credem", "BNL"]) }).strict().safeParse(await req.json());
+    const input = z.object({ bank: z.enum(["Credem", "BNL", "PayPal"]) }).strict().safeParse(await req.json());
     if (!input.success) return json({ error: "Banca non valida." }, 400);
     const url = Deno.env.get("SUPABASE_URL") ?? "";
     const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });

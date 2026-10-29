@@ -50,6 +50,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [splitAmounts, setSplitAmounts] = useState(false);
   const [fileName, setFileName] = useState("");
   const loadingRef = useRef(false);
+  const [connections, setConnections] = useState<Record<string, { status: string; consent_expires_at: string | null; account_count: number }>>({});
 
   const load = useCallback(async () => {
     if (loadingRef.current) return;
@@ -69,6 +70,12 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         links.push(...(data ?? []) as BankAllocation[]);
         if ((data?.length ?? 0) < 1000) break;
       }
+      const { data: conns } = await supabase.rpc("get_bank_provider_connections" as never);
+      const latest: Record<string, { status: string; consent_expires_at: string | null; account_count: number }> = {};
+      for (const c of (conns ?? []) as { bank: string; status: string; consent_expires_at: string | null; account_count: number }[]) {
+        if (c.status === "authorized" && !(latest[c.bank]?.status === "authorized")) latest[c.bank] = c;
+      }
+      setConnections(latest);
       setTransactions(tx); setAllocations(links); setError("");
     } catch (e) { setError(e instanceof Error ? e.message : String((e as { message?: string }).message ?? e)); }
     finally { loadingRef.current = false; setLoading(false); }

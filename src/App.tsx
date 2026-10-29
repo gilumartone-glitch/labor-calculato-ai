@@ -17,6 +17,7 @@ import Index from "./pages/Index";
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"));
+const BankCallback = lazy(() => import("./pages/BankCallback.tsx"));
 const Flow = lazy(() => import("./pages/Flow.tsx"));
 const Falegnameria = lazy(() => import("./pages/Falegnameria.tsx"));
 const Montaggi = lazy(() => import("./pages/Montaggi.tsx"));
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="/vernici-ignifughe" element={<Navigate to="/preventivi?tab=magazzino&sub=ignifugo" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/eb-callback" element={<BankCallback />} />
             <Route path="/hub" element={<Hub />} />
             <Route path="/magazzino" element={<MagazzinoView />} />
             <Route path="/marketing" element={<Marketing />} />

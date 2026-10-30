@@ -52,6 +52,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [splitAmounts, setSplitAmounts] = useState(false);
   const [fileName, setFileName] = useState("");
   const loadingRef = useRef(false);
+  const reloadRequested = useRef(false);
   const [paypalBusy, setPaypalBusy] = useState(false);
   const [bankBusy, setBankBusy] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -61,7 +62,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [connections, setConnections] = useState<Record<string, { status: string; consent_expires_at: string | null; account_count: number }>>({});
 
   const load = useCallback(async () => {
-    if (loadingRef.current) return;
+    if (loadingRef.current) { reloadRequested.current = true; return; }
     loadingRef.current = true;
     try {
       const tx: BankTransaction[] = [];
@@ -90,7 +91,10 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
       setLogs(logRows ?? []);
       setTransactions(tx); setAllocations(links); setError("");
     } catch (e) { setError(e instanceof Error ? e.message : String((e as { message?: string }).message ?? e)); }
-    finally { loadingRef.current = false; setLoading(false); }
+    finally {
+      loadingRef.current = false; setLoading(false);
+      if (reloadRequested.current) { reloadRequested.current = false; void load(); }
+    }
   }, [year, accountingKey]);
 
   useEffect(() => {

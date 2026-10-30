@@ -1,7 +1,7 @@
 # Tasks
 
-- [ ] Enable automatic Credem, BNL and PayPal synchronization at 08:30 and 15:00 Europe/Rome with server-only authorization and verified terms.
-- [ ] Verify schedule configuration, scheduled authorization and all three provider results; display the active times in Conti.
+- [x] Enable automatic Credem, BNL and PayPal synchronization at 08:30 and 15:00 Europe/Rome; single active job 128, DST-aware dispatcher and server-only authorization.
+- [x] Verify configuration and scheduled authorization: PayPal succeeds; Credem/BNL respond rate_limited after prior manual calls. Active times verified in signed-in Conti; 20 focused tests passed.
 
 - [x] Remove obsolete accounts from Conti selectors using live provider identity; verified only BNL, current Credem and PayPal remain.
 - [x] Add authorized bulk editing and deletion, preserving allocations and preventing deleted records or manual edits from being restored by sync.
@@ -12,7 +12,7 @@
 
 - [x] Finish deployed open-banking.io getAccounts smoke test: authenticated deployed read succeeded with 2 accounts and credentials stored securely.
 - [x] Replace stale Enable account counts and controls in Conti with live open-banking.io accounts; verified 1 Credem account and 1 BNL account, retaining existing transactions and PayPal.
-- [ ] Complete legacy Enable retirement and scheduled dispatcher replacement as the remaining provider migration; not part of this manual-sync fix and schedule activation awaits explicit user instruction.
+- [x] Replace the scheduled legacy Enable dispatcher with bank-scheduled-sync for open-banking.io and PayPal; old manual Enable code is not used by the active schedule.
 
 - [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
 - [x] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
@@ -29,5 +29,5 @@
 - [x] Test shared-cut consumption and cheaper taller rolls; verify the quote flow.
 - [x] Add Conti with Credem/BNL statement imports and manual full/partial reconciliation to competence or direct cash.
 - [x] Activate and verify open-banking.io imports: user confirmed €3 + €1 plan, official terms verified and saved (€4/month for two accounts); business consent verified and 592 movements imported. No wallet top-up or auto-pay activated.
-- [ ] Activate background bank updates: inactive job remains off; waiting for explicit user instruction and migration of the scheduled dispatcher to open-banking.io.
+- [x] Activate background updates with the user's revised 08:30/15:00 Italian schedule; external bank rate limits remain enforced, no automatic immediate retries.
 - [x] Test reconciliation persistence, amounts, duplicate protection and accounting read-back; verified a 1 € outgoing payment against 1.50 € competence leaves 0.50 €, plus a direct 0.50 € incoming payment, using temporary records removed afterward.

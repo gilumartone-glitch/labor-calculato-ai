@@ -15,3 +15,4 @@
 - Bank sync prerequisite failures return an HTTP-success typed blocked result with zero imports, not an error; clients show that state without throwing so expected safety gates cannot blank the preview.
 - Provider replacement is gated on a deployed authenticated SDK read/decryption smoke test; diagnostic responses expose only count/masked IBANs and sanitized failure codes, never raw provider errors or keys.
 - Conti displays active banking accounts through authenticated obio-accounts reads, not legacy Enable consent counts; provider credentials and account/session identifiers stay server-only, and this read does not initiate bank synchronization.
+- Manual open-banking.io imports use obio-sync with provider-specific verified commercial terms, live business consent, a service-only run lock, stable hashed account identity, decimal-string normalization and the shared storage RPC; this does not enable scheduled synchronization.

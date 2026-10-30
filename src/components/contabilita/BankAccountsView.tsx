@@ -206,17 +206,34 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     catch { setProviderReady(false); }
     finally { setBankBusy(null); }
   };
+  const syncProvider = async () => {
+    if (bankBusy !== null) return;
+    setBankBusy("sync"); setSyncNotice("");
+    try {
+      const { data, error: syncError } = await supabase.functions.invoke("obio-sync", { body: {} });
+      if (syncError || data?.error) {
+        let message = data?.error;
+        try { message = message ?? (await (syncError as { context?: Response })?.context?.json())?.error; } catch { /* sanitized fallback */ }
+        throw new Error(message ?? "Sincronizzazione non riuscita. Riprova.");
+      }
+      setSyncNotice(data.message ?? "Sincronizzazione completata.");
+      if (data.status === "blocked") return;
+      toast.success(`${data.imported ?? 0} nuovi movimenti importati`);
+      await Promise.all([load(), readProviderAccounts()]);
+    } catch (e) { setSyncNotice(e instanceof Error ? e.message : "Sincronizzazione non riuscita."); }
+    finally { setBankBusy(null); }
+  };
   const mappingSelect = (key: keyof typeof mapping, label: string, optional = false) => <div className="space-y-1" key={key}><Label htmlFor={`bank-column-${key}`} className="text-base">{label}</Label><select id={`bank-column-${key}`} className={selectClass} value={mapping[key]} onChange={(e) => setMapping((m) => ({ ...m, [key]: e.target.value }))}><option value="">{optional ? "Non presente" : "Scegli colonna"}</option>{columns.map((c) => <option key={c}>{c}</option>)}</select></div>;
 
   return <section className="space-y-5" aria-label="Conti bancari">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-2xl font-semibold">Conti</h2><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Aggiorna elenco</Button>{canEdit && <Button onClick={() => setImportOpen(true)}><Upload className="h-4 w-4" />Importa estratto conto</Button>}</div></div>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4"><p className="text-lg font-semibold">open-banking.io · {providerReady ? `${providerAccounts.length} conti rilevati` : "Lettura conti non disponibile"}</p><Button variant="outline" disabled={bankBusy !== null} onClick={() => void refreshProvider()}>{bankBusy ? <Loader2 className="animate-spin" /> : <RefreshCw />}Aggiorna conti open-banking.io</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4"><p className="text-lg font-semibold">open-banking.io · {providerReady ? `${providerAccounts.length} conti rilevati` : "Lettura conti non disponibile"}</p><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={bankBusy !== null} onClick={() => void refreshProvider()}>{bankBusy === "accounts" ? <Loader2 className="animate-spin" /> : <RefreshCw />}Aggiorna conti open-banking.io</Button>{canEdit && <Button disabled={bankBusy !== null || !providerReady} onClick={() => void syncProvider()}>{bankBusy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}Sincronizza ora</Button>}</div></div>
     <div className="grid gap-4 md:grid-cols-3">{(["Credem", "BNL", "PayPal"] as const).map((name) => {
       const live = providerAccounts.filter(a => a.bank === name);
       const renew = live.some(a => a.needs_reconnect || consentExpiring(a.valid_until));
       return <div key={name} className="border-b-2 border-dept pb-4"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-xl font-semibold"><Landmark className="h-5 w-5" />{name}</h3>{name === "PayPal" && canEdit && <Button variant="outline" disabled={paypalBusy} onClick={() => void syncPaypal()}>{paypalBusy ? <Loader2 className="animate-spin" /> : <RefreshCw />}Importa da PayPal</Button>}</div><p className="my-2 text-base text-muted-foreground">{name === "PayPal" ? "Collegamento diretto PayPal · ultimi 90 giorni" : providerReady ? `open-banking.io · ${live.length} ${live.length === 1 ? "conto rilevato" : "conti rilevati"}` : "open-banking.io · lettura non disponibile"}</p>{name !== "PayPal" && <Button variant="outline" asChild><a href="https://open-banking.io" target="_blank" rel="noopener noreferrer"><Link2 />{renew ? "Rinnova il collegamento" : "Gestisci collegamento"} su open-banking.io</a></Button>}<div className="mt-3 flex flex-wrap justify-between gap-2 text-base"><span>{transactions.filter(t => t.bank === name).length} movimenti importati</span><span className="font-semibold">Da associare: {eur(pending.filter(t => t.bank === name).reduce((s,t) => s + bankRemaining(t, allocations),0))}</span></div></div>;
     })}</div>
-    <p className="text-base text-muted-foreground">Aggiornamenti programmati disattivati · Importazione movimenti open-banking.io non ancora attivata.</p>
+    <p className="text-base text-muted-foreground">Aggiornamenti programmati disattivati.</p>
     <BankBalances accounts={[...providerAccounts.map(a => ({ ...a, balance: a.balance === null ? null : Number(a.balance) })), ...accounts.filter(a => a.bank === "PayPal")]} />
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5"><Input aria-label="Cerca movimento bancario" placeholder="Cerca causale o conto" value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 text-base" /><Select value={bank} onValueChange={setBank}><SelectTrigger aria-label="Banca" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutte le banche</SelectItem><SelectItem value="Credem">Credem</SelectItem><SelectItem value="BNL">BNL</SelectItem><SelectItem value="PayPal">PayPal</SelectItem></SelectContent></Select><Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Stato associazione" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Da associare</SelectItem><SelectItem value="done">Associati</SelectItem><SelectItem value="suspended">In sospeso in banca</SelectItem><SelectItem value="all">Tutti i movimenti</SelectItem></SelectContent></Select><Input aria-label="Movimenti dal" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 text-base" /><Input aria-label="Movimenti al" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 text-base" /></div>
     <div className="grid gap-3 md:grid-cols-2"><Select value={accountFilter} onValueChange={setAccountFilter}><SelectTrigger aria-label="Conto" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutti i conti</SelectItem>{accounts.map(a => <SelectItem key={a.id} value={a.account_ref}>{a.bank} · {a.display_name}</SelectItem>)}</SelectContent></Select><Select value={direction} onValueChange={setDirection}><SelectTrigger aria-label="Entrate e uscite" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Entrate e uscite</SelectItem><SelectItem value="in">Entrate</SelectItem><SelectItem value="out">Uscite</SelectItem></SelectContent></Select></div>

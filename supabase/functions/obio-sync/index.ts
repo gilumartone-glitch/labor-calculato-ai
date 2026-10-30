@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
   const run = crypto.randomUUID();
   let locked = false;
   let imported = 0;
+  let stage = "validation";
   try {
     const body = await req.json();
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length) return json({ error: "Richiesta non valida." }, 400);
@@ -35,6 +36,7 @@ Deno.serve(async (req) => {
     if (lockError || !acquired) return json(blockedBankSync("sync_in_progress", "Sincronizzazione già in corso: attendi il completamento."));
     locked = true;
     const provider = new OpenBankingClient({ apiBaseUrl, apiKey, privateKeyPkcs8, timeoutMs: 20000 });
+    stage = "read_accounts";
     const [initialAccounts, connections] = await Promise.all([provider.getAccounts(), provider.getConnections()]);
     const supported = initialAccounts.filter(a => /credem|emiliano|bnl|nazionale.*lavoro/i.test(a.aspspName));
     if (!supported.length) return json(blockedBankSync("consent_required", "Nessun conto Credem o BNL disponibile nel servizio."));
@@ -42,7 +44,9 @@ Deno.serve(async (req) => {
     if (initialAccounts.length !== supported.length || supported.some(a => a.currency !== "EUR" || a.needsReconnect || !connections.some(c => c.accountIds.includes(a.id) && c.isLive && new Date(c.validUntil).getTime() > Date.now() && /business|corporate/i.test(c.psuType ?? "")))) {
       return json(blockedBankSync("business_consent_required", "Verifica o rinnova i consensi aziendali su open-banking.io prima di sincronizzare."));
     }
+    stage = "refresh_bank";
     const result = await provider.syncAll();
+    stage = "read_updated_accounts";
     const accounts = await provider.getAccounts();
     let failed = 0;
     for (const a of accounts) {
@@ -50,6 +54,7 @@ Deno.serve(async (req) => {
       if (!bank) continue;
       const accountRef = await obioAccountRef(a.iban || a.id);
       const refusal = result.failures.find(f => f.accountId === a.id);
+      stage = "save_account";
       const { data: saved, error: saveError } = await admin.from("bank_accounts").upsert({ bank, account_ref: accountRef, display_name: (a.displayName || a.accountName || bank).slice(0, 200), iban_last4: a.iban?.slice(-4) ?? null, currency: a.currency, needs_reconnect: a.needsReconnect || refusal?.reason === "reconnect_needed", is_active: true }, { onConflict: "bank,account_ref" }).select("id,last_sync_at").single();
       if (saveError || !saved) throw new Error("account_save_failed");
       if (refusal) {
@@ -62,8 +67,10 @@ Deno.serve(async (req) => {
       const occurrences = new Map<string, number>();
       let complete = false;
       for (let offset = 0; offset < 20000; offset += 200) {
+        stage = "read_transactions";
         const page = await provider.getTransactions(a.id, { from: syncDateFrom(saved.last_sync_at), limit: 200, offset });
         for (const t of page.items) {
+          stage = "normalize_transactions";
           const normalized = normalizeObioMovement(t);
           if (!normalized) continue;
           const key = `${normalized.booking_date}|${normalized.amount}|${normalized.description}`;
@@ -76,6 +83,7 @@ Deno.serve(async (req) => {
       }
       if (!complete) throw new Error("history_limit");
       for (let start = 0; start < rows.length; start += 500) {
+        stage = "save_transactions";
         const { data: count, error: importError } = await admin.rpc("store_bank_transactions", { _rows: rows.slice(start, start + 500), _source: "open_banking_io", _actor: user.id });
         if (importError) throw new Error("storage_failed");
         imported += Number(count ?? 0);
@@ -86,8 +94,11 @@ Deno.serve(async (req) => {
       await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: "Movimenti e saldo open-banking.io aggiornati." });
     }
     return json({ status: failed ? "partial" : "success", imported, failed, message: failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : "Movimenti e saldi aggiornati." });
-  } catch {
-    return json({ status: "error", imported, error: "Sincronizzazione non completata. Controlla il consenso su open-banking.io e riprova; i movimenti già salvati non verranno duplicati." }, 502);
+  } catch (error) {
+    const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
+    const code = error instanceof Error && known.includes(error.message) ? error.message : stage;
+    console.warn("obio-sync blocked", code);
+    return json({ status: "error", code, imported, error: "Sincronizzazione non completata. Controlla il consenso su open-banking.io e riprova; i movimenti già salvati non verranno duplicati." }, 502);
   } finally {
     if (locked) await admin.rpc("release_obio_sync", { _run: run });
   }

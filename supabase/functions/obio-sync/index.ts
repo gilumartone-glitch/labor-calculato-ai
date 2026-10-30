@@ -4,6 +4,7 @@ import { OpenBankingClient } from "npm:@open-banking-io/client@1.3.0";
 import { normalizeObioMovement, obioAccountRef, obioFallbackRef, obioTermsVerified } from "../_shared/obio-import.ts";
 import { syncDateFrom } from "../_shared/bank-identity.ts";
 import { blockedBankSync } from "../_shared/bank-sync-result.ts";
+import { authorizeBankSync } from "../_shared/bank-schedule.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async (req) => {
@@ -11,18 +12,14 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Metodo non consentito." }, 405);
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
-  const { data: { user } } = await client.auth.getUser();
-  if (!user) return json({ error: "Accedi per sincronizzare i movimenti." }, 401);
-  const { data: allowed, error: accessError } = await client.rpc("can_reconcile_bank", { _uid: user.id });
-  if (accessError || !allowed) return json({ error: "Non autorizzato." }, 403);
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const access = await authorizeBankSync(req, client, admin);
+  if (access.error) return json({ error: access.error }, access.status);
   const run = crypto.randomUUID();
   let locked = false;
   let imported = 0;
   let stage = "validation";
   try {
-    const body = await req.json();
-    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length) return json({ error: "Richiesta non valida." }, 400);
     const { data: settings, error: settingsError } = await admin.from("bank_provider_settings").select("provider,costs_verified,monthly_cost_eur,commercial_evidence").eq("id", true).maybeSingle();
     if (settingsError) return json(blockedBankSync("commercial_terms_unverified", "Verifica delle condizioni del servizio non disponibile."));
     if (!obioTermsVerified(settings)) return json(blockedBankSync("commercial_terms_unverified", "Sincronizzazione bloccata: mancano il costo e le condizioni confermate di open-banking.io. La lettura dei conti non attiva l’importazione."));
@@ -86,7 +83,7 @@ Deno.serve(async (req) => {
       if (!complete) throw new Error("history_limit");
       for (let start = 0; start < rows.length; start += 500) {
         stage = "save_transactions";
-        const { data: count, error: importError } = await admin.rpc("store_bank_transactions", { _rows: rows.slice(start, start + 500), _source: "open_banking_io", _actor: user.id });
+        const { data: count, error: importError } = await admin.rpc("store_bank_transactions", { _rows: rows.slice(start, start + 500), _source: "open_banking_io", _actor: access.actor });
         if (importError) throw new Error("storage_failed");
         imported += Number(count ?? 0);
       }

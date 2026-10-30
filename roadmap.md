@@ -1,5 +1,10 @@
 # Tasks
 
+- [x] Remove obsolete accounts from Conti selectors using live provider identity; verified only BNL, current Credem and PayPal remain.
+- [x] Add authorized bulk editing and deletion, preserving allocations and preventing deleted records or manual edits from being restored by sync.
+- [x] Remove 712 bank movements before 24 October 2026 and enforce the inclusive starting date for every import channel; verified zero earlier records remain.
+- [x] Verify bulk save/delete persistence and cutoff: 23 tests pass; signed-in UI edited/deleted two temporary rows and reimport added zero rows.
+
 - [x] Connect Conti manual synchronization to guarded open-banking.io transaction import; 22 tests pass, 556 Credem and 36 BNL movements imported and read back through the signed-in UI. Repeated request adds zero duplicates and banks report rate_limited.
 
 - [x] Finish deployed open-banking.io getAccounts smoke test: authenticated deployed read succeeded with 2 accounts and credentials stored securely.

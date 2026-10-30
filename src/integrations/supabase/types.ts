@@ -464,13 +464,16 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          deleted_at: string | null
           description: string
           external_id: string
           fingerprint: string | null
           id: string
+          manual_updated_at: string | null
           reference_key: string | null
           source: string
           status: string
+          updated_at: string
           value_date: string | null
         }
         Insert: {
@@ -483,13 +486,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          deleted_at?: string | null
           description: string
           external_id: string
           fingerprint?: string | null
           id?: string
+          manual_updated_at?: string | null
           reference_key?: string | null
           source?: string
           status?: string
+          updated_at?: string
           value_date?: string | null
         }
         Update: {
@@ -502,13 +508,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          deleted_at?: string | null
           description?: string
           external_id?: string
           fingerprint?: string | null
           id?: string
+          manual_updated_at?: string | null
           reference_key?: string | null
           source?: string
           status?: string
+          updated_at?: string
           value_date?: string | null
         }
         Relationships: [
@@ -2526,6 +2535,10 @@ export type Database = {
           _prev_state?: Json
         }
         Returns: string
+      }
+      manage_bank_transactions: {
+        Args: { _action: string; _rows: Json }
+        Returns: number
       }
       mark_salary_cash_paid: {
         Args: {

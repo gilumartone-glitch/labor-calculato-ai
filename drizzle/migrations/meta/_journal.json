@@ -176,6 +176,13 @@
       "when": 1793273893663,
       "tag": "0024_add_paypal_bank",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793358984941,
+      "tag": "0025_complete_bank_accounts_and_shared_import",
+      "breakpoints": true
     }
   ]
 }

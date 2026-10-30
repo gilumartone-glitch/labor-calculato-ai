@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
           const gross = Number(i.transaction_amount.value), fee = Number(i.fee_amount?.value ?? 0);
           const amount = Math.round((gross + (Number.isFinite(fee) ? fee : 0)) * 100) / 100;
           const date = String(i.transaction_initiation_date ?? "").slice(0, 10);
+          if (date < "2026-10-24") { skipped++; continue; }
           if (!i.transaction_id || !amount || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { skipped++; continue; }
           const p = t.payer_info ?? {};
           const name = p.payer_name?.alternate_full_name || [p.payer_name?.given_name, p.payer_name?.surname].filter(Boolean).join(" ") || p.email_address || "";

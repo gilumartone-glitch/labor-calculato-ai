@@ -70,11 +70,11 @@ Deno.serve(async (req) => {
       let complete = false;
       for (let offset = 0; offset < 20000; offset += 200) {
         stage = "read_transactions";
-        const page = await provider.getTransactions(a.id, { from: syncDateFrom(saved.last_sync_at), limit: 200, offset });
+        const page = await provider.getTransactions(a.id, { from: [syncDateFrom(saved.last_sync_at), "2026-10-24"].sort().at(-1), limit: 200, offset });
         for (const t of page.items) {
           stage = "normalize_transactions";
           const normalized = normalizeObioMovement(t);
-          if (!normalized) continue;
+          if (!normalized || normalized.booking_date < "2026-10-24") continue;
           const key = `${normalized.booking_date}|${normalized.amount}|${normalized.description}`;
           const occurrence = (occurrences.get(key) ?? 0) + 1;
           occurrences.set(key, occurrence);

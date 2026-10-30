@@ -5,6 +5,7 @@ import { bankRemaining, competenceRemaining, parseBankAmount, validateAllocation
 const bank: BankTransaction = { id: "bank-1", bank: "Credem", account_ref: "AZIENDA", external_id: "1", booking_date: "2026-10-29", description: "FATTURA", amount: -100, currency: "EUR", source: "csv", created_at: "" };
 const competence: CompetenceMovement = { id: "c1", date: "2026-09-10", description: "FATTURA", category: "FORNITORE", type: "uscita", status: "previsto", amount: 150 };
 describe("bank reconciliation rules", () => {
+  it("pending bank movements cannot be reconciled into cash", () => { expect(() => validateAllocation({ ...bank, status: "PDNG" }, [], 100)).toThrow("in sospeso"); });
   it("partial bank payment leaves the unpaid competence outstanding", () => {
     const paid = validateAllocation(bank, [], 100, competence);
     expect(competenceRemaining({ ...competence, amount: competence.amount - paid })).toBe(50);

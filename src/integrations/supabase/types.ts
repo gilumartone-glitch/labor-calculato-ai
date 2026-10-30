@@ -204,6 +204,56 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_accounts: {
+        Row: {
+          account_ref: string
+          balance: number | null
+          balance_date: string | null
+          bank: string
+          connection_id: string | null
+          currency: string
+          display_name: string
+          iban_last4: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+        }
+        Insert: {
+          account_ref: string
+          balance?: number | null
+          balance_date?: string | null
+          bank: string
+          connection_id?: string | null
+          currency?: string
+          display_name: string
+          iban_last4?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+        }
+        Update: {
+          account_ref?: string
+          balance?: number | null
+          balance_date?: string | null
+          bank?: string
+          connection_id?: string | null
+          currency?: string
+          display_name?: string
+          iban_last4?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_provider_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_allocations: {
         Row: {
           accounting_key: string
@@ -320,47 +370,132 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_schedule_config: {
+        Row: {
+          enabled: boolean
+          endpoint: string
+          id: boolean
+          job_id: number | null
+          token: string
+        }
+        Insert: {
+          enabled?: boolean
+          endpoint: string
+          id?: boolean
+          job_id?: number | null
+          token: string
+        }
+        Update: {
+          enabled?: boolean
+          endpoint?: string
+          id?: boolean
+          job_id?: number | null
+          token?: string
+        }
+        Relationships: []
+      }
+      bank_sync_log: {
+        Row: {
+          account_id: string | null
+          bank: string
+          created_at: string
+          id: string
+          message: string
+          outcome: string
+        }
+        Insert: {
+          account_id?: string | null
+          bank: string
+          created_at?: string
+          id?: string
+          message: string
+          outcome: string
+        }
+        Update: {
+          account_id?: string | null
+          bank?: string
+          created_at?: string
+          id?: string
+          message?: string
+          outcome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_sync_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_transactions: {
         Row: {
+          account_id: string | null
           account_ref: string
           amount: number
           bank: string
           booking_date: string
+          counterparty_name: string | null
           created_at: string
           created_by: string | null
           currency: string
           description: string
           external_id: string
+          fingerprint: string | null
           id: string
+          reference_key: string | null
           source: string
+          status: string
+          value_date: string | null
         }
         Insert: {
+          account_id?: string | null
           account_ref: string
           amount: number
           bank: string
           booking_date: string
+          counterparty_name?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           description: string
           external_id: string
+          fingerprint?: string | null
           id?: string
+          reference_key?: string | null
           source?: string
+          status?: string
+          value_date?: string | null
         }
         Update: {
+          account_id?: string | null
           account_ref?: string
           amount?: number
           bank?: string
           booking_date?: string
+          counterparty_name?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           description?: string
           external_id?: string
+          fingerprint?: string | null
           id?: string
+          reference_key?: string | null
           source?: string
+          status?: string
+          value_date?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       catalogs: {
         Row: {
@@ -2256,6 +2391,10 @@ export type Database = {
         Args: { _cat: Database["public"]["Enums"]["admin_task_category"] }
         Returns: string
       }
+      bank_transaction_fingerprint: {
+        Args: { _amount: number; _date: string; _description: string }
+        Returns: string
+      }
       can_reconcile_bank: { Args: { _uid: string }; Returns: boolean }
       can_use_contabilita: { Args: { _uid: string }; Returns: boolean }
       can_view_admin_task: {
@@ -2285,6 +2424,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      dispatch_bank_schedule: { Args: never; Returns: undefined }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -2382,6 +2522,10 @@ export type Database = {
         Returns: number
       }
       next_production_order_code: { Args: never; Returns: string }
+      prepare_bank_schedule: {
+        Args: { _endpoint: string; _token: string }
+        Returns: undefined
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -2411,6 +2555,10 @@ export type Database = {
       save_contabilita_state_public: {
         Args: { _data: Json; _key: string }
         Returns: string
+      }
+      store_bank_transactions: {
+        Args: { _actor?: string; _rows: Json; _source: string }
+        Returns: number
       }
     }
     Enums: {

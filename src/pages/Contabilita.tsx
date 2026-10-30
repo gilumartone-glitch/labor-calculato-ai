@@ -31,6 +31,7 @@ import { mergeHoursLog } from "@/lib/hours-sync";
 import { orderMovementRows } from "@/lib/movement-order";
 import { mergeRowsById, stampChangedRows, type SyncRow } from "@/lib/row-sync";
 import { BankAccountsView } from "@/components/contabilita/BankAccountsView";
+import { canViewBankAccounts } from "@/lib/bank-management";
 
 type MovementType = "entrata" | "uscita";
 type MovementStatus = "cassa" | "previsto";
@@ -629,6 +630,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
   const { user: authUser } = useAuth();
   // Solo il titolare vede gli stipendi completi; gli altri (anche admin) solo i contanti.
   const isAdmin = (authUser?.email ?? "").toLowerCase() === "gmartone@tecnofra.it";
+  const canViewConti = canViewBankAccounts(authUser?.email);
   const canEditHours = isRealAdmin || isAmministrazione;
   const isOwnerRef = useRef(isAdmin);
   isOwnerRef.current = isAdmin;
@@ -1344,7 +1346,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
           <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Gestione contabile</CardTitle>
             <div className="flex flex-wrap gap-2">
-              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, { key: "conti", label: "Conti" }, { key: "fisse", label: "Spese fisse" }, ...((isAdmin || canEditHours) ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
+              {([{ key: "generale", label: "Generale" }, { key: "mensile", label: "Mese per mese" }, { key: "movimenti", label: "Movimenti" }, ...(canViewConti ? [{ key: "conti" as const, label: "Conti" }] : []), { key: "fisse", label: "Spese fisse" }, ...((isAdmin || canEditHours) ? [{ key: "stipendi" as const, label: "Stipendi" }] : []), { key: "grafici", label: "Grafici" }, { key: "anagrafica", label: "Anagrafica" }] as const).map((item) => (
                 <Button key={item.key} size="sm" variant={tab === item.key ? "default" : "outline"} onClick={() => setTab(item.key)}>{item.label}</Button>
               ))}
             </div>
@@ -1354,9 +1356,9 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
         {tab === "generale" && <GeneralReport totals={totals} movements={allMovementsForForecast} currentCash={currentCash} />}
         {tab === "mensile" && <ForecastTable rows={[forecast[selectedMonth]]} movements={state.movements} salaries={salaries} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} salaryPayDates={payDates} setSalaryPayDates={(salaryPayDates) => update({ salaryPayDates })} contacts={state.contacts ?? []} onAddContact={(c) => update({ contacts: [...(state.contacts ?? []), c] })} currentCash={currentCash} />}
-        {tab === "generale" && <BankBalances />}
+        {tab === "generale" && canViewConti && <BankBalances />}
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
-        {tab === "conti" && <BankAccountsView year={year} accountingKey={REMOTE_KEY} saving={saveStatus !== "idle"} onReconciled={async () => {
+        {tab === "conti" && canViewConti && <BankAccountsView year={year} accountingKey={REMOTE_KEY} saving={saveStatus !== "idle"} onReconciled={async () => {
           const { data, error } = await remoteLoad(REMOTE_KEY, isOwnerRef.current);
           if (error || !data?.data) throw new Error(error?.message ?? "Non riesco ad aggiornare la contabilità");
           const remote = normalizeState(data.data as Partial<AccountingState>);

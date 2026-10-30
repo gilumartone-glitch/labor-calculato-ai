@@ -211,6 +211,13 @@
       "when": 1793363129099,
       "tag": "0029_bank_schedule_rome_activation",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793363563886,
+      "tag": "0030_restrict_interactive_banking_owner",
+      "breakpoints": true
     }
   ]
 }

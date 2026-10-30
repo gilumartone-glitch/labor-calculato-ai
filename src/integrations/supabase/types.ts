@@ -217,6 +217,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_sync_at: string | null
+          needs_reconnect: boolean
         }
         Insert: {
           account_ref: string
@@ -230,6 +231,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
+          needs_reconnect?: boolean
         }
         Update: {
           account_ref?: string
@@ -243,6 +245,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
+          needs_reconnect?: boolean
         }
         Relationships: [
           {
@@ -294,6 +297,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bank_obio_runtime: {
+        Row: {
+          id: boolean
+          lock_until: string | null
+          run_id: string | null
+        }
+        Insert: {
+          id?: boolean
+          lock_until?: string | null
+          run_id?: string | null
+        }
+        Update: {
+          id?: boolean
+          lock_until?: string | null
+          run_id?: string | null
+        }
+        Relationships: []
       }
       bank_provider_connections: {
         Row: {
@@ -349,6 +370,7 @@ export type Database = {
           costs_verified: boolean
           id: boolean
           monthly_cost_eur: number | null
+          provider: string
           sync_enabled: boolean
           verified_at: string | null
         }
@@ -357,6 +379,7 @@ export type Database = {
           costs_verified?: boolean
           id?: boolean
           monthly_cost_eur?: number | null
+          provider?: string
           sync_enabled?: boolean
           verified_at?: string | null
         }
@@ -365,6 +388,7 @@ export type Database = {
           costs_verified?: boolean
           id?: boolean
           monthly_cost_eur?: number | null
+          provider?: string
           sync_enabled?: boolean
           verified_at?: string | null
         }
@@ -2364,6 +2388,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_obio_sync: { Args: { _run: string }; Returns: boolean }
       admin_list_users: {
         Args: never
         Returns: {
@@ -2547,6 +2572,7 @@ export type Database = {
         }
         Returns: Json
       }
+      release_obio_sync: { Args: { _run: string }; Returns: undefined }
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {
         Args: { _order_id: string; _reason: string; _sub_order_id: string }

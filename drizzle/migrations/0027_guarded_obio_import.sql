@@ -1,0 +1,12 @@
+ALTER TABLE public.bank_provider_settings ADD COLUMN provider text NOT NULL DEFAULT 'enable_banking';
+ALTER TABLE public.bank_accounts ADD COLUMN needs_reconnect boolean NOT NULL DEFAULT false;
+CREATE TABLE public.bank_obio_runtime (id boolean PRIMARY KEY DEFAULT true CHECK(id), run_id uuid, lock_until timestamptz);
+GRANT ALL ON public.bank_obio_runtime TO service_role;
+ALTER TABLE public.bank_obio_runtime ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION public.acquire_obio_sync(_run uuid) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN INSERT INTO public.bank_obio_runtime(id,run_id,lock_until) VALUES(true,_run,now()+interval '10 minutes') ON CONFLICT(id) DO UPDATE SET run_id=excluded.run_id,lock_until=excluded.lock_until WHERE bank_obio_runtime.lock_until IS NULL OR bank_obio_runtime.lock_until<now(); RETURN FOUND; END; $$;
+REVOKE ALL ON FUNCTION public.acquire_obio_sync(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.acquire_obio_sync(uuid) TO service_role;
+CREATE OR REPLACE FUNCTION public.release_obio_sync(_run uuid) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$ UPDATE public.bank_obio_runtime SET lock_until=NULL WHERE id=true AND run_id=_run; $$;
+REVOKE ALL ON FUNCTION public.release_obio_sync(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.release_obio_sync(uuid) TO service_role;
+DO $$ DECLARE definition text; BEGIN SELECT pg_get_functiondef('public.store_bank_transactions(jsonb,text,uuid)'::regprocedure) INTO definition; definition:=replace(definition,'''csv'',''enable_banking''','''csv'',''enable_banking'',''open_banking_io'''); definition:=replace(definition,'_source=''enable_banking'' AND ref IS NOT NULL','_source IN (''enable_banking'',''open_banking_io'') AND ref IS NOT NULL'); EXECUTE definition; END; $$;

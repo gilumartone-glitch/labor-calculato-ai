@@ -1,5 +1,7 @@
 # Tasks
 
+- [ ] Connect Conti manual synchronization to guarded open-banking.io transaction import and verify the signed-in result; commercial terms remain a prerequisite.
+
 - [x] Finish deployed open-banking.io getAccounts smoke test: authenticated deployed read succeeded with 2 accounts and credentials stored securely.
 - [x] Replace stale Enable account counts and controls in Conti with live open-banking.io accounts; verified 1 Credem account and 1 BNL account, retaining existing transactions and PayPal.
 - [ ] After successful smoke test, replace Enable functions/callback/secrets with open-banking.io sync, reuse accounts/transactions/CSV and keep schedules gated.

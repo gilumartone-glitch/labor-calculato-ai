@@ -13,6 +13,8 @@ import { eur } from "@/lib/format";
 import { bankImportRowSchema, bankRemaining, competenceRemaining, parseBankAmount, parseBankDate, validateAllocation, type BankAllocation, type BankTransaction, type CompetenceMovement } from "@/lib/bank-reconciliation";
 import { BankLiveConnection } from "./BankLiveConnection";
 import type { BankingBank } from "@/lib/open-banking";
+import { BankBalances, type BankAccount } from "./BankBalances";
+import { canonicalReference, fallbackTransactionId, consentExpiring } from "../../../supabase/functions/_shared/bank-identity";
 
 type Props = { year: number; accountingKey: string; saving: boolean; onReconciled: () => Promise<void> };
 const selectClass = "h-11 w-full rounded-md border border-input bg-background px-3 text-base";
@@ -51,6 +53,11 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [fileName, setFileName] = useState("");
   const loadingRef = useRef(false);
   const [paypalBusy, setPaypalBusy] = useState(false);
+  const [bankBusy, setBankBusy] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [accountFilter, setAccountFilter] = useState("all");
+  const [direction, setDirection] = useState("all");
+  const [logs, setLogs] = useState<{ id: string; bank: string; outcome: string; message: string; created_at: string }[]>([]);
   const [connections, setConnections] = useState<Record<string, { status: string; consent_expires_at: string | null; account_count: number }>>({});
 
   const load = useCallback(async () => {
@@ -77,6 +84,10 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         if (c.status === "authorized" && !(latest[c.bank]?.status === "authorized")) latest[c.bank] = c;
       }
       setConnections(latest);
+      const [{ data: accountRows, error: accountError }, { data: logRows }] = await Promise.all([supabase.from("bank_accounts").select("*").eq("is_active", true).order("bank"), supabase.from("bank_sync_log").select("id,bank,outcome,message,created_at").order("created_at", { ascending: false }).limit(10)]);
+      if (accountError) throw accountError;
+      setAccounts((accountRows ?? []) as BankAccount[]);
+      setLogs(logRows ?? []);
       setTransactions(tx); setAllocations(links); setError("");
     } catch (e) { setError(e instanceof Error ? e.message : String((e as { message?: string }).message ?? e)); }
     finally { loadingRef.current = false; setLoading(false); }
@@ -84,9 +95,9 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 10000);
+    const timer = setInterval(() => { if (document.visibilityState === "visible" && !busy) void load(); }, 30000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, busy]);
 
   const openTransaction = async (t: BankTransaction) => {
     setActive(t); setMode("match"); setSelectedId(""); setCandidateSearch(""); setAmount(String(bankRemaining(t, allocations))); setDescription(t.description); setCategory(""); setRequestId(crypto.randomUUID()); setCandidates([]); setCandidateLoading(true);
@@ -151,9 +162,8 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         occurrences.set(fingerprint, occurrence);
         const externalId = mapping.id ? String(row[mapping.id] ?? "").trim() : "";
         if (mapping.id && !externalId) throw new Error(`Riga ${index+2}: riferimento bancario mancante.`);
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${fingerprint}|${occurrence}`));
-        const fallback = Array.from(new Uint8Array(digest)).map((v) => v.toString(16).padStart(2,"0")).join("");
-        const parsed = bankImportRowSchema.safeParse({ bank: importBank, account_ref: accountRef.trim().toLocaleUpperCase("it-IT"), external_id: externalId || `csv-${fallback}`, booking_date: date, description: desc, amount: value, currency: "EUR" });
+        const fallback = await fallbackTransactionId(accountRef.trim(), date, value, desc, occurrence);
+        const parsed = bankImportRowSchema.safeParse({ bank: importBank, account_ref: accountRef.trim(), external_id: externalId ? `eb-${canonicalReference(externalId)}` : `csv-${fallback.slice(5)}`, booking_date: date, description: desc, amount: value, currency: "EUR" });
         if (!parsed.success) throw new Error(`Riga ${index+2}: controlla data, causale e importo.`);
         rows.push(parsed.data);
       }
@@ -166,7 +176,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
 
   const filtered = transactions.filter((t) => {
     const remaining = bankRemaining(t, allocations);
-    return (bank === "all" || bank === t.bank) && (status === "all" || (status === "pending" ? remaining > 0 : remaining === 0)) && (!from || t.booking_date >= from) && (!to || t.booking_date <= to) && `${t.description} ${t.account_ref}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT"));
+    return (accountFilter === "all" || t.account_ref === accountFilter) && (direction === "all" || (direction === "in" ? t.amount > 0 : t.amount < 0)) && (bank === "all" || bank === t.bank) && (status === "all" || (status === "suspended" ? t.status === "PDNG" : t.status !== "PDNG" && (status === "pending" ? remaining > 0 : remaining === 0))) && (!from || t.booking_date >= from) && (!to || t.booking_date <= to) && `${t.description} ${t.account_ref}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT"));
   });
   const selected = candidates.find((m) => m.id === selectedId);
   const syncPaypal = async () => {
@@ -183,7 +193,21 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     } catch (err) { toast.error(err instanceof Error ? err.message : "Importazione PayPal non riuscita."); }
     finally { setPaypalBusy(false); }
   };
-  const pending = transactions.filter((t) => bankRemaining(t, allocations) > 0);
+  const pending = transactions.filter((t) => t.status !== "PDNG" && bankRemaining(t, allocations) > 0);
+  const syncBank = async (name: "Credem" | "BNL") => {
+    setBankBusy(name);
+    try {
+      const { data, error: e } = await supabase.functions.invoke("bank-sync", { body: { bank: name } });
+      if (e || data?.error) {
+        let message = data?.error;
+        try { message = message ?? (await (e as { context?: Response }).context?.json())?.error; } catch { /* safe fallback */ }
+        throw new Error(message ?? "Importazione bancaria non riuscita.");
+      }
+      toast.success(`${name}: ${data.imported} nuovi movimenti importati`);
+      await load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Importazione non riuscita."); }
+    finally { setBankBusy(null); }
+  };
   const mappingSelect = (key: keyof typeof mapping, label: string, optional = false) => <div className="space-y-1" key={key}><Label htmlFor={`bank-column-${key}`} className="text-base">{label}</Label><select id={`bank-column-${key}`} className={selectClass} value={mapping[key]} onChange={(e) => setMapping((m) => ({ ...m, [key]: e.target.value }))}><option value="">{optional ? "Non presente" : "Scegli colonna"}</option>{columns.map((c) => <option key={c}>{c}</option>)}</select></div>;
 
   return <section className="space-y-5" aria-label="Conti bancari">

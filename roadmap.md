@@ -1,5 +1,7 @@
 # Tasks
 
+- [ ] Simplify bank causali to payer/recipient names, preserving full descriptions in details; test fallback and reconciliation defaults.
+
 - [x] Restrict Conti, banking reads and interactive actions to gmartone@tecnofra.it; 20 tests passed, authorized UI/read verified, another account denied by server helper, scheduled imports remain active.
 
 - [x] Enable automatic Credem, BNL and PayPal synchronization at 08:30 and 15:00 Europe/Rome; single active job 128, DST-aware dispatcher and server-only authorization.

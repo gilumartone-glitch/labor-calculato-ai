@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Bank causali use a shared presentation helper for structured payer/payee names and conservative bank-specific extraction; preserve original descriptions and import identity, and honor manual edits.
+
 - Upholstery roll nesting compares shared cuts across all compatible heights with separate-height cuts by total cost; quote totals use `src/lib/upholstery-totals.ts` with the saved nesting settings and overrides to match the department cards.
 
 - Accounting writes, including owner and page-close saves, use the authorized merge RPC to avoid overwriting another user's hours.

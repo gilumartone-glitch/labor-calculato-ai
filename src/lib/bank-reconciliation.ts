@@ -11,7 +11,7 @@ export const bankImportRowSchema = z.object({
 });
 
 export type BankImportRow = z.infer<typeof bankImportRowSchema>;
-export type BankTransaction = BankImportRow & { id: string; source: string; created_at: string; account_id?: string | null; status?: "BOOK" | "PDNG" };
+export type BankTransaction = BankImportRow & { id: string; source: string; created_at: string; account_id?: string | null; status?: "BOOK" | "PDNG"; counterparty_name?: string | null; manual_updated_at?: string | null };
 export type BankAllocation = { id: string; transaction_id: string; accounting_key: string; competence_id: string | null; cash_movement_id: string; amount: number; created_at: string };
 export type CompetenceMovement = { id: string; date: string; description: string; category: string; invoiceNumber?: string; paymentMethod?: string; type: "entrata" | "uscita"; status: "cassa" | "previsto"; amount: number; acconto?: number };
 export const money = (v: number) => Math.round(v * 100) / 100;

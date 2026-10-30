@@ -183,6 +183,13 @@
       "when": 1793358984941,
       "tag": "0025_complete_bank_accounts_and_shared_import",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793359191453,
+      "tag": "0026_harden_bank_cross_channel_matching",
+      "breakpoints": true
     }
   ]
 }

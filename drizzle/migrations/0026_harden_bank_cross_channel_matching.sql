@@ -1,0 +1,7 @@
+DO $$ DECLARE definition text; BEGIN SELECT pg_get_functiondef('public.store_bank_transactions(jsonb,text,uuid)'::regprocedure) INTO definition; definition:=replace(definition,'IF st NOT IN (''BOOK'',''PDNG'') OR amt=0','IF amt IS NULL OR st NOT IN (''BOOK'',''PDNG'') OR amt=0'); definition:=replace(definition,'AND fingerprint=fp AND source<>_source;','AND fingerprint=fp AND source<>_source AND (ref IS NULL OR reference_key IS NULL OR reference_key=ref);'); definition:=replace(definition,'IF hit IS NOT NULL THEN' || chr(10) || '   IF (existing.amount', 'IF hit IS NOT NULL THEN' || chr(10) || '   IF _source=''enable_banking'' AND ref IS NOT NULL AND existing.reference_key IS NULL THEN UPDATE public.bank_transactions SET reference_key=ref WHERE id=hit; END IF;' || chr(10) || '   IF (existing.amount'); EXECUTE definition; END; $$;
+INSERT INTO public.bank_accounts(connection_id,bank,account_ref,display_name,iban_last4,currency)
+SELECT DISTINCT ON(c.bank,a->>'identification_hash') c.id,c.bank,left('EB-'||(a->>'identification_hash'),100),left(coalesce(a->>'name',c.bank||' aziendale'),200),nullif(right(coalesce(a->'account_id'->>'iban',a->>'iban',''),4),''),coalesce(a->>'currency','EUR')
+FROM public.bank_provider_connections c CROSS JOIN LATERAL jsonb_array_elements(c.accounts) a
+WHERE c.status='authorized' AND a->>'identification_hash' IS NOT NULL
+ORDER BY c.bank,a->>'identification_hash',c.created_at DESC
+ON CONFLICT(bank,account_ref) DO UPDATE SET connection_id=excluded.connection_id,iban_last4=excluded.iban_last4;

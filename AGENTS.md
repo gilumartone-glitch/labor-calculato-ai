@@ -12,3 +12,4 @@
 - Enable Banking credentials and session/account identifiers remain server-only; state-bound one-time callbacks bind consent to the requesting user, and statement imports require verified commercial evidence and valid business consent to avoid unauthorized reads or unknown charges.
 - Bank accounts expose only masked IBANs; provider and CSV imports use the same locked storage RPC and canonical account/reference identity. Pending records cannot be allocated, and bank balances remain separate from reconciled accounting cash totals to prevent double counting.
 - Bank scheduled dispatch uses Europe/Rome local-hour guards with an inactive cron and a server-only token; both schedule and commercial gates must be enabled before any unattended request.
+- Provider replacement is gated on a deployed authenticated SDK read/decryption smoke test; diagnostic responses expose only count/masked IBANs and sanitized failure codes, never raw provider errors or keys.

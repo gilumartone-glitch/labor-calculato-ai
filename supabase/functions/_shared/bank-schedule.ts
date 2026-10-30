@@ -3,7 +3,7 @@ export function bankScheduleSlot(now = new Date()) {
   const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
   return BANK_SYNC_TIMES.includes(time);
 }
-export async function authorizeBankSync(req: Request, client: any, admin: any) {
+export async function authorizeBankSync(req: Request, client: any, admin: any, token: string | undefined) {
   let body: unknown;
   try { body = await req.json(); } catch { return { error: "Richiesta non valida.", status: 400 }; }
   if (!body || typeof body !== "object" || Array.isArray(body)) return { error: "Richiesta non valida.", status: 400 };
@@ -11,7 +11,6 @@ export async function authorizeBankSync(req: Request, client: any, admin: any) {
   const scheduled = keys.length === 1 && "action" in body && body.action === "scheduled";
   if (keys.length && !scheduled) return { error: "Richiesta non valida.", status: 400 };
   if (scheduled) {
-    const token = Deno.env.get("BANK_SCHEDULE_TOKEN");
     if (!token || req.headers.get("x-bank-schedule-token") !== token) return { error: "Non autorizzato.", status: 401 };
     const [{ data: config, error: configError }, { data: settings, error: settingsError }] = await Promise.all([
       admin.from("bank_schedule_config").select("enabled").eq("id", true).maybeSingle(),

@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL") ?? "";
     const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-    const authorization = await authorizeBankSync(req, client, admin);
+    const authorization = await authorizeBankSync(req, client, admin, Deno.env.get("BANK_SCHEDULE_TOKEN"));
     if (authorization.error) return json({ error: authorization.error }, authorization.status);
     const access = await token();
     const rows: Record<string, unknown>[] = [];

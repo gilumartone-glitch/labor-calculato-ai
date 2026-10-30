@@ -11,8 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { eur } from "@/lib/format";
 import { bankImportRowSchema, bankRemaining, competenceRemaining, parseBankAmount, parseBankDate, validateAllocation, type BankAllocation, type BankTransaction, type CompetenceMovement } from "@/lib/bank-reconciliation";
-import { BankLiveConnection } from "./BankLiveConnection";
-import type { BankingBank } from "@/lib/open-banking";
 import { BankBalances, type BankAccount } from "./BankBalances";
 import { canonicalReference, fallbackTransactionId, consentExpiring } from "../../../supabase/functions/_shared/bank-identity";
 
@@ -43,7 +41,6 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [busy, setBusy] = useState(false);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [importOpen, setImportOpen] = useState(false);
-  const [connectionBank, setConnectionBank] = useState<BankingBank | null>(null);
   const [importBank, setImportBank] = useState<"Credem" | "BNL" | "PayPal">("Credem");
   const [accountRef, setAccountRef] = useState("");
   const [sheetRows, setSheetRows] = useState<Record<string, unknown>[]>([]);
@@ -60,7 +57,15 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [accountFilter, setAccountFilter] = useState("all");
   const [direction, setDirection] = useState("all");
   const [logs, setLogs] = useState<{ id: string; bank: string; outcome: string; message: string; created_at: string }[]>([]);
-  const [connections, setConnections] = useState<Record<string, { status: string; consent_expires_at: string | null; account_count: number }>>({});
+  const [providerAccounts, setProviderAccounts] = useState<(Omit<BankAccount, "balance"> & { balance: string | null; currency: string; needs_reconnect: boolean; valid_until: string | null })[]>([]);
+  const [providerReady, setProviderReady] = useState(false);
+  const providerLoaded = useRef(false);
+  const readProviderAccounts = useCallback(async () => {
+    const { data, error: e } = await supabase.functions.invoke("obio-accounts", { body: {} });
+    if (!e && data?.status === "ready" && Array.isArray(data.accounts)) {
+      setProviderAccounts(data.accounts); setProviderReady(true);
+    } else { setProviderReady(false); }
+  }, []);
 
   const load = useCallback(async () => {
     if (loadingRef.current) { reloadRequested.current = true; return; }
@@ -80,12 +85,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         links.push(...(data ?? []) as BankAllocation[]);
         if ((data?.length ?? 0) < 1000) break;
       }
-      const { data: conns } = await supabase.rpc("get_bank_provider_connections" as never);
-      const latest: Record<string, { status: string; consent_expires_at: string | null; account_count: number }> = {};
-      for (const c of (conns ?? []) as { bank: string; status: string; consent_expires_at: string | null; account_count: number }[]) {
-        if (c.status === "authorized" && !(latest[c.bank]?.status === "authorized")) latest[c.bank] = c;
-      }
-      setConnections(latest);
+      if (!providerLoaded.current) { providerLoaded.current = true; await readProviderAccounts(); }
       const [{ data: accountRows, error: accountError }, { data: logRows }] = await Promise.all([supabase.from("bank_accounts").select("*").eq("is_active", true).order("bank"), supabase.from("bank_sync_log").select("id,bank,outcome,message,created_at").order("created_at", { ascending: false }).limit(10)]);
       if (accountError) throw accountError;
       setAccounts((accountRows ?? []) as BankAccount[]);
@@ -96,7 +96,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
       loadingRef.current = false; setLoading(false);
       if (reloadRequested.current) { reloadRequested.current = false; void load(); }
     }
-  }, [year, accountingKey]);
+  }, [year, accountingKey, readProviderAccounts]);
 
   useEffect(() => {
     void load();
@@ -204,7 +204,9 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     setBankBusy(name);
     setSyncNotice("");
     try {
-      const { data, error: e } = await supabase.functions.invoke("bank-sync", { body: { bank: name } });
+      await readProviderAccounts();
+      setSyncNotice(`${name}: lecture des comptes actualisée sur open-banking.io. L’importation des mouvements n’est pas encore activée.`.replace("lecture des comptes actualisée sur", "elenco conti aggiornato da").replace("L’importation des mouvements n’est pas encore activée.", "Importazione dei movimenti non ancora attivata."));
+      return;
       if (!e && data?.status === "blocked") {
         const message = typeof data.message === "string" ? data.message : "Importazione non disponibile.";
         setSyncNotice(`${name}: ${message} Nessun movimento importato. Puoi continuare con l’estratto conto CSV o Excel.`);

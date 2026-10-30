@@ -163,7 +163,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         const externalId = mapping.id ? String(row[mapping.id] ?? "").trim() : "";
         if (mapping.id && !externalId) throw new Error(`Riga ${index+2}: riferimento bancario mancante.`);
         const fallback = await fallbackTransactionId(accountRef.trim(), date, value, desc, occurrence);
-        const parsed = bankImportRowSchema.safeParse({ bank: importBank, account_ref: accountRef.trim(), external_id: externalId ? `eb-${canonicalReference(externalId)}` : `csv-${fallback.slice(5)}`, booking_date: date, description: desc, amount: value, currency: "EUR" });
+        const parsed = bankImportRowSchema.safeParse({ bank: importBank, account_ref: accountRef.trim(), external_id: externalId ? `eb-${canonicalReference(externalId)}` : fallback, booking_date: date, description: desc, amount: value, currency: "EUR" });
         if (!parsed.success) throw new Error(`Riga ${index+2}: controlla data, causale e importo.`);
         rows.push(parsed.data);
       }

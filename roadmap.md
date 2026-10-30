@@ -1,5 +1,11 @@
 # Tasks
 
+- [ ] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
+- [ ] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
+- [ ] Add account balances, filters, renewal warnings and manual synchronization to Conti.
+- [ ] Prepare inactive 07:00/14:00 Europe/Rome synchronization schedule; activate only on explicit user request and verified terms.
+- [ ] Run focused regression tests and signed-in Conti checks.
+
 - [x] Configure Enable Banking credentials and verify the active Tecnofra application and business support for Credito Emiliano and BNL Corporate.
 - [x] Add state-bound bank authorization callback and guarded booked-movement import with duplicate protection.
 - [x] Explain where to find the Tecnofra application ID and downloaded private key, with secure-entry guidance.

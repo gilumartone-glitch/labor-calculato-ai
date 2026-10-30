@@ -20,7 +20,7 @@ export default function BankCallback() {
       if (error) {
         const details = error instanceof FunctionsHttpError ? await error.context.json().catch(() => null) : null;
         setMessage(details?.error ?? "Autorizzazione non completata. Accedi a Flow e ripeti da Conti.");
-      } else setMessage(`${data.bank}: autorizzazione salvata per ${data.accountCount} conti. Importazione in attesa della verifica delle condizioni economiche.`);
+      } else setMessage(`${data.bank}: autorizzazione salvata per ${data.accountCount} conti. ${data.syncError ?? (data.importActive ? `${data.imported} nuovi movimenti importati.` : "Importazione in attesa della verifica delle condizioni economiche.")}`);
     })();
   }, []);
   return <main className="mx-auto max-w-2xl space-y-6 px-6 py-16"><h1 className="text-2xl font-semibold">Tecnofra Flow · Collegamento bancario</h1><p role="status" className="text-lg">{message}</p><Button asChild><Link to="/contabilita">Torna a Contabilità</Link></Button></main>;

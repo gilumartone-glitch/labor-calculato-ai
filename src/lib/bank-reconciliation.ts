@@ -11,7 +11,7 @@ export const bankImportRowSchema = z.object({
 });
 
 export type BankImportRow = z.infer<typeof bankImportRowSchema>;
-export type BankTransaction = BankImportRow & { id: string; source: string; created_at: string };
+export type BankTransaction = BankImportRow & { id: string; source: string; created_at: string; account_id?: string | null; status?: "BOOK" | "PDNG" };
 export type BankAllocation = { id: string; transaction_id: string; accounting_key: string; competence_id: string | null; cash_movement_id: string; amount: number; created_at: string };
 export type CompetenceMovement = { id: string; date: string; description: string; category: string; invoiceNumber?: string; paymentMethod?: string; type: "entrata" | "uscita"; status: "cassa" | "previsto"; amount: number; acconto?: number };
 export const money = (v: number) => Math.round(v * 100) / 100;
@@ -19,6 +19,7 @@ export const competenceRemaining = (m: CompetenceMovement) => m.status === "prev
 export const bankRemaining = (t: BankTransaction, allocations: BankAllocation[]) => money(Math.max(0, Math.abs(t.amount) - allocations.filter((a) => a.transaction_id === t.id).reduce((s, a) => s + Number(a.amount), 0)));
 
 export function validateAllocation(transaction: BankTransaction, allocations: BankAllocation[], amount: number, competence?: CompetenceMovement) {
+  if (transaction.status === "PDNG") throw new Error("I movimenti in sospeso non possono essere portati in cassa.");
   const value = money(amount);
   if (!Number.isFinite(amount) || value <= 0) throw new Error("Inserisci un importo maggiore di zero.");
   if (value > bankRemaining(transaction, allocations)) throw new Error("L’importo supera il residuo bancario.");

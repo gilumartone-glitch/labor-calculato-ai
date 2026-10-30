@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { BankAccountsView } from "./BankAccountsView";
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -20,6 +20,17 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 describe("blocked bank import", () => {
+  afterEach(cleanup);
+  it("handles a normal blocked response without presenting zero imports as a successful sync", async () => {
+    invoke.mockResolvedValueOnce({ data: { status: "blocked", code: "commercial_terms_unverified", message: "Condizioni economiche non verificate.", imported: 0 }, error: null });
+    render(<BankAccountsView year={2026} accountingKey="2026" saving={false} onReconciled={vi.fn()} />);
+    const button = await screen.findByRole("button", { name: "Sincronizza ora Credem" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Nessun movimento importato"));
+    expect(button).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Importa estratto conto" })).toBeEnabled();
+  });
   it("handles a 409 without losing the accounts view and releases the sync button", async () => {
     invoke.mockResolvedValueOnce({
       data: null,

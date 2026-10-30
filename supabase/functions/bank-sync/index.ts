@@ -3,6 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { BankProviderError } from "../_shared/enable-banking.ts";
 import { syncConnection } from "../_shared/bank-sync-service.ts";
+import { blockedBankSync } from "../_shared/bank-sync-result.ts";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -29,16 +30,19 @@ Deno.serve(async (req) => {
       if (error) return json({ error: "Preparazione aggiornamenti non riuscita." }, 500);
       return json({ prepared: true, enabled: false, localTimes: ["07:00", "14:00"], timezone: "Europe/Rome" });
     }
-    const { data: settings } = await admin.from("bank_provider_settings").select("*").eq("id", true).maybeSingle();
-    if (!settings?.costs_verified || settings.monthly_cost_eur === null || !settings.commercial_evidence) return json({ error: "Importazione bloccata: condizioni economiche del servizio non ancora verificate." }, 409);
+    const { data: settings, error: settingsError } = await admin.from("bank_provider_settings").select("*").eq("id", true).maybeSingle();
+    if (settingsError) return json({ error: "Verifica delle condizioni del servizio non disponibile." }, 503);
+    if (!settings?.costs_verified || settings.monthly_cost_eur === null || !settings.commercial_evidence) return json(blockedBankSync("commercial_terms_unverified", "Importazione bloccata: condizioni economiche del servizio non ancora verificate."));
     if (scheduled) {
-      const { data: config } = await admin.from("bank_schedule_config").select("enabled").eq("id", true).maybeSingle();
-      if (!config?.enabled || !settings.sync_enabled) return json({ error: "Aggiornamenti programmati disattivati." }, 409);
+      const { data: config, error: configError } = await admin.from("bank_schedule_config").select("enabled").eq("id", true).maybeSingle();
+      if (configError) return json({ error: "Verifica degli aggiornamenti programmati non disponibile." }, 503);
+      if (!config?.enabled || !settings.sync_enabled) return json(blockedBankSync("schedule_disabled", "Aggiornamenti programmati disattivati."));
     }
     let query = admin.from("bank_provider_connections").select("*").eq("status", "authorized").gt("consent_expires_at", new Date().toISOString()).order("created_at", { ascending: false });
     if ("bank" in input.data) query = query.eq("bank", input.data.bank);
     const { data: connections, error } = await query;
-    if (error || !connections?.length) return json({ error: "Autorizza la lettura dalla pagina Conti." }, 409);
+    if (error) return json({ error: "Verifica del consenso non disponibile." }, 503);
+    if (!connections?.length) return json(blockedBankSync("consent_required", "Autorizza la lettura dalla pagina Conti."));
     const seen = new Set<string>();
     let imported = 0;
     for (const c of connections) {

@@ -1,10 +1,10 @@
 # Tasks
 
-- [x] Connect Conti manual synchronization to guarded open-banking.io transaction import; 22 tests pass and signed-in button shows the expected commercial-terms block. Actual provider import is not yet verified.
+- [x] Connect Conti manual synchronization to guarded open-banking.io transaction import; 22 tests pass, 556 Credem and 36 BNL movements imported and read back through the signed-in UI. Repeated request adds zero duplicates and banks report rate_limited.
 
 - [x] Finish deployed open-banking.io getAccounts smoke test: authenticated deployed read succeeded with 2 accounts and credentials stored securely.
 - [x] Replace stale Enable account counts and controls in Conti with live open-banking.io accounts; verified 1 Credem account and 1 BNL account, retaining existing transactions and PayPal.
-- [ ] Retire legacy Enable functions/callback/secrets after the first verified open-banking.io movement import; blocked pending commercial terms and the first real import.
+- [ ] Complete legacy Enable retirement and scheduled dispatcher replacement as the remaining provider migration; not part of this manual-sync fix and schedule activation awaits explicit user instruction.
 
 - [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
 - [x] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
@@ -20,6 +20,6 @@
 - [x] Use joint nesting for Tappezzeria fabric totals and choose the lowest-cost roll height.
 - [x] Test shared-cut consumption and cheaper taller rolls; verify the quote flow.
 - [x] Add Conti with Credem/BNL statement imports and manual full/partial reconciliation to competence or direct cash.
-- [ ] Activate and verify open-banking.io imports: blocked pending confirmed provider costs/terms; business consent is checked from open-banking.io, not initiated from Flow.
-- [ ] Activate background bank updates: inactive job prepared; waiting for explicit user instruction, confirmed terms, verified business consents and first imports.
+- [x] Activate and verify open-banking.io imports: user confirmed €3 + €1 plan, official terms verified and saved (€4/month for two accounts); business consent verified and 592 movements imported. No wallet top-up or auto-pay activated.
+- [ ] Activate background bank updates: inactive job remains off; waiting for explicit user instruction and migration of the scheduled dispatcher to open-banking.io.
 - [x] Test reconciliation persistence, amounts, duplicate protection and accounting read-back; verified a 1 € outgoing payment against 1.50 € competence leaves 0.50 €, plus a direct 0.50 € incoming payment, using temporary records removed afterward.

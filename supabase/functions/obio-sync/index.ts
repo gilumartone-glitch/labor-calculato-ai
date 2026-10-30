@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
     stage = "read_updated_accounts";
     const accounts = await provider.getAccounts();
     let failed = 0;
+    let rateLimited = 0;
     for (const a of accounts) {
       const bank = /credem|emiliano/i.test(a.aspspName) ? "Credem" : /bnl|nazionale.*lavoro/i.test(a.aspspName) ? "BNL" : null;
       if (!bank) continue;
@@ -59,6 +60,7 @@ Deno.serve(async (req) => {
       if (saveError || !saved) throw new Error("account_save_failed");
       if (refusal) {
         failed++;
+        if (refusal.reason === "rate_limited") rateLimited++;
         const reason = ["reconnect_needed", "consent_withdrawn", "uid_outdated", "psu_present_required", "rate_limited", "bank_error", "transient", "partner_app_inactive"].includes(refusal.reason) ? refusal.reason : "provider_refused";
         await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "blocked", message: `Aggiornamento non eseguito: ${reason}.` });
         continue;
@@ -93,7 +95,7 @@ Deno.serve(async (req) => {
       if (balanceError) throw new Error("balance_save_failed");
       await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: "Movimenti e saldo open-banking.io aggiornati." });
     }
-    return json({ status: failed ? "partial" : "success", imported, failed, message: failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : "Movimenti e saldi aggiornati." });
+    return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : "Movimenti e saldi aggiornati." });
   } catch (error) {
     const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
     const code = error instanceof Error && known.includes(error.message) ? error.message : stage;

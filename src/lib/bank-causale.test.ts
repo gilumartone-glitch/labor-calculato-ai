@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("automatically labels the supplied international debit-card payment", () => {
+    expect(bankCausale({ amount: -36.87, description: "PAGAMENTO DEBINT PDINT PAGAMENTO CARTA DI DEBITO INTERNAZIONALE 537599******0775 -28/10/26-04:53 BONOMO;causale interna" })).toBe("CARTA DI DEBITO");
+  });
+  it("keeps only the company name from the supplied incoming transfer", () => {
+    expect(bankCausale({ amount: 100, description: "BONIFICO A CREDITO SOCIETA' COSTRUZIONE SEGNALETICA SOCI SALDO ORDINE 356/2026 DEL 01.10.2026 RIF. 263026062979340-486784068*." })).toBe("SOCIETA' COSTRUZIONE SEGNALETICA SOCI");
+  });
   it("uses the supplied counterparty name instead of the transfer wording", () => {
     expect(bankCausale({ amount: 100, description: "BONIFICO FATTURA 10", counterparty_name: "Mario Rossi" })).toBe("MARIO ROSSI");
   });

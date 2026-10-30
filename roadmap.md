@@ -1,6 +1,6 @@
 # Tasks
 
-- [ ] Simplify bank causali to payer/recipient names, preserving full descriptions in details; test fallback and reconciliation defaults.
+- [x] Simplify bank causali and direct-cash defaults: payer/recipient only for transfers, CARTA DI DEBITO for international debit-card payments; 16 tests passed including submission of both supplied examples without typing. Signed-in existing BNL label/details verified; no existing cash movements altered.
 
 - [x] Restrict Conti, banking reads and interactive actions to gmartone@tecnofra.it; 20 tests passed, authorized UI/read verified, another account denied by server helper, scheduled imports remain active.
 

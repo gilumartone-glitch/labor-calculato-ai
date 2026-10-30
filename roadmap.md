@@ -1,5 +1,8 @@
 # Tasks
 
+- [ ] Finish deployed open-banking.io getAccounts smoke test: SDK loads in deployed Deno and 2 runtime/crypto tests pass; actual account read blocked because OBIO_API_BASE_URL, OBIO_API_KEY and OBIO_PRIVATE_KEY are not configured. Protected obio-test endpoint is ready and returns only count/masked IBANs.
+- [ ] After successful smoke test, replace Enable functions/callback/secrets with open-banking.io sync, reuse accounts/transactions/CSV and keep schedules gated.
+
 - [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
 - [x] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
 - [x] Add account balances, filters, renewal warnings and manual synchronization to Conti and display balances separately in Generale.

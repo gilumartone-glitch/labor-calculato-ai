@@ -1,5 +1,8 @@
 # Tasks
 
+- [ ] Enable automatic Credem, BNL and PayPal synchronization at 08:30 and 15:00 Europe/Rome with server-only authorization and verified terms.
+- [ ] Verify schedule configuration, scheduled authorization and all three provider results; display the active times in Conti.
+
 - [x] Remove obsolete accounts from Conti selectors using live provider identity; verified only BNL, current Credem and PayPal remain.
 - [x] Add authorized bulk editing and deletion, preserving allocations and preventing deleted records or manual edits from being restored by sync.
 - [x] Remove 712 bank movements before 24 October 2026 and enforce the inclusive starting date for every import channel; verified zero earlier records remain.

@@ -205,6 +205,11 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     setSyncNotice("");
     try {
       const { data, error: e } = await supabase.functions.invoke("bank-sync", { body: { bank: name } });
+      if (!e && data?.status === "blocked") {
+        const message = typeof data.message === "string" ? data.message : "Importazione non disponibile.";
+        setSyncNotice(`${name}: ${message} Nessun movimento importato. Puoi continuare con l’estratto conto CSV o Excel.`);
+        return;
+      }
       if (e || data?.error) {
         const context = (e as { context?: Response } | null)?.context;
         let message = typeof data?.error === "string" ? data.error : undefined;

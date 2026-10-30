@@ -11,10 +11,16 @@ const endOfName = /\s*(?:[;|]|\b(?:CAUSALE|MOTIVO|IBAN|B\.\s*ORD|DES\s*\/\s*BEN|
 /** Presentation only: never change the bank description or its deduplication identity. */
 export function bankCausale(movement: Movement): string {
   if (movement.manual_updated_at) return movement.description ?? "";
+  const original = movement.description ?? "";
+  if (/\bPAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE\b/i.test(original)) return "CARTA DI DEBITO";
   const structured = movement.counterparty_name?.trim();
   if (structured) return clean(structured);
 
-  const original = movement.description ?? "";
+  const transfer = original.match(/^\s*BONIFICO\s+(?:A\s+CREDITO|A\s+DEBITO|IN\s+ENTRATA|IN\s+USCITA)\s+(.+)/i)?.[1];
+  if (transfer) {
+    const name = transfer.split(/\s+\b(?:SALDO|ACCONTO|PAGAMENTO|CAUSALE|RIF\.|RIFERIMENTO|CRO\s*:|TRN\s*:|IBAN\s*:)\b|\s+RIF\./i)[0]?.trim();
+    if (name && /\p{L}/u.test(name)) return clean(name);
+  }
   // BNL incoming transfers carry the payer between the YYY date and B.ORD.
   if ((movement.amount ?? 0) > 0) {
     const bnl = original.match(/^\s*YYY\d{8}\s+(.+?)\s+B\.\s*ORD\s*:/i);

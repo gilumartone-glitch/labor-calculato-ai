@@ -10,12 +10,8 @@ Deno.serve(async (req) => {
   const client = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
   const { data: { user } } = await client.auth.getUser();
   if (!user) return json({ error: "Accedi per verificare il collegamento." }, 401);
-  const [{ data: admin }, { data: administration }, { data: approved }] = await Promise.all([
-    client.rpc("has_role", { _user_id: user.id, _role: "admin" }),
-    client.rpc("is_amministrazione", { _user_id: user.id }),
-    client.rpc("is_approved", { _user_id: user.id }),
-  ]);
-  if (!approved || (!admin && !administration)) return json({ error: "Non autorizzato." }, 403);
+  const { data: allowed, error: accessError } = await client.rpc("can_reconcile_bank", { _uid: user.id });
+  if (accessError || !allowed) return json({ error: "Non autorizzato." }, 403);
   const apiBaseUrl = Deno.env.get("OBIO_API_BASE_URL");
   const apiKey = Deno.env.get("OBIO_API_KEY");
   const privateKeyPkcs8 = Deno.env.get("OBIO_PRIVATE_KEY");

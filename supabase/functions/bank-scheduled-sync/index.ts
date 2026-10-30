@@ -19,7 +19,7 @@ Deno.serve(async req => {
       const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
       const { data: { user } } = await client.auth.getUser();
       if (!user) return json({ error: "Accedi per configurare gli aggiornamenti." }, 401);
-      const { data: allowed } = await client.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: allowed } = await client.rpc("can_reconcile_bank", { _uid: user.id });
       if (!allowed) return json({ error: "Non autorizzato." }, 403);
       if (body.action === "activate") {
         const { error } = await admin.rpc("activate_bank_schedule", { _token: token, _endpoint: `${url}/functions/v1/bank-scheduled-sync` });

@@ -28,7 +28,7 @@ describe("live provider accounts", () => {
     bankRows.push({ id: "test-movement", bank: "Credem", account_ref: "TEST", external_id: "test", booking_date: "2026-10-28", description: original, amount, currency: "EUR", status: "BOOK" });
     invoke.mockResolvedValue({ data: { status: "ready", accounts: [] }, error: null });
     render(<BankAccountsView year={2026} accountingKey="2026" saving={false} onReconciled={vi.fn(async () => {})} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Associa", exact: true }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Associa$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Inserisci direttamente in cassa" }));
     expect(screen.getByLabelText("Causale")).toHaveValue(expected);
     await waitFor(() => expect(screen.getByRole("button", { name: "Conferma associazione" })).toBeEnabled());

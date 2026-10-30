@@ -55,6 +55,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const reloadRequested = useRef(false);
   const [paypalBusy, setPaypalBusy] = useState(false);
   const [bankBusy, setBankBusy] = useState<string | null>(null);
+  const [syncNotice, setSyncNotice] = useState("");
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [accountFilter, setAccountFilter] = useState("all");
   const [direction, setDirection] = useState("all");
@@ -199,17 +200,34 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   };
   const pending = transactions.filter((t) => t.status !== "PDNG" && bankRemaining(t, allocations) > 0);
   const syncBank = async (name: "Credem" | "BNL") => {
+    if (bankBusy !== null) return;
     setBankBusy(name);
+    setSyncNotice("");
     try {
       const { data, error: e } = await supabase.functions.invoke("bank-sync", { body: { bank: name } });
       if (e || data?.error) {
-        let message = data?.error;
-        try { message = message ?? (await (e as { context?: Response }).context?.json())?.error; } catch { /* safe fallback */ }
-        throw new Error(message ?? "Importazione bancaria non riuscita.");
+        const context = (e as { context?: Response } | null)?.context;
+        let message = typeof data?.error === "string" ? data.error : undefined;
+        try {
+          const details = await context?.clone().json();
+          if (!message && typeof details?.error === "string") message = details.error;
+        } catch { /* A non-JSON response must also leave the page usable. */ }
+        if (context?.status === 409) {
+          setSyncNotice(`${name}: ${message ?? "Importazione non disponibile."} Nessun movimento importato. Puoi continuare con l’estratto conto CSV o Excel.`);
+          return;
+        }
+        setSyncNotice(`${name}: importazione non riuscita. Nessun movimento importato; riprova più tardi.`);
+        return;
+      }
+      if (!data || typeof data.imported !== "number") {
+        setSyncNotice(`${name}: risposta non disponibile. Aggiorna l’elenco prima di riprovare.`);
+        return;
       }
       toast.success(`${name}: ${data.imported} nuovi movimenti importati`);
       await load();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Importazione non riuscita."); }
+    } catch {
+      setSyncNotice(`${name}: collegamento temporaneamente non disponibile. Puoi continuare con l’estratto conto CSV o Excel.`);
+    }
     finally { setBankBusy(null); }
   };
   const mappingSelect = (key: keyof typeof mapping, label: string, optional = false) => <div className="space-y-1" key={key}><Label htmlFor={`bank-column-${key}`} className="text-base">{label}</Label><select id={`bank-column-${key}`} className={selectClass} value={mapping[key]} onChange={(e) => setMapping((m) => ({ ...m, [key]: e.target.value }))}><option value="">{optional ? "Non presente" : "Scegli colonna"}</option>{columns.map((c) => <option key={c}>{c}</option>)}</select></div>;
@@ -221,6 +239,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5"><Input aria-label="Cerca movimento bancario" placeholder="Cerca causale o conto" value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 text-base" /><Select value={bank} onValueChange={setBank}><SelectTrigger aria-label="Banca" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutte le banche</SelectItem><SelectItem value="Credem">Credem</SelectItem><SelectItem value="BNL">BNL</SelectItem><SelectItem value="PayPal">PayPal</SelectItem></SelectContent></Select><Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Stato associazione" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Da associare</SelectItem><SelectItem value="done">Associati</SelectItem><SelectItem value="suspended">In sospeso in banca</SelectItem><SelectItem value="all">Tutti i movimenti</SelectItem></SelectContent></Select><Input aria-label="Movimenti dal" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 text-base" /><Input aria-label="Movimenti al" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 text-base" /></div>
     <div className="grid gap-3 md:grid-cols-2"><Select value={accountFilter} onValueChange={setAccountFilter}><SelectTrigger aria-label="Conto" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutti i conti</SelectItem>{accounts.map(a => <SelectItem key={a.id} value={a.account_ref}>{a.bank} · {a.display_name}</SelectItem>)}</SelectContent></Select><Select value={direction} onValueChange={setDirection}><SelectTrigger aria-label="Entrate e uscite" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Entrate e uscite</SelectItem><SelectItem value="in">Entrate</SelectItem><SelectItem value="out">Uscite</SelectItem></SelectContent></Select></div>
     {error && <p role="alert" className="text-base text-destructive">{error}</p>}
+    {syncNotice && <p role="status" className="border-y border-border py-4 text-base">{syncNotice}</p>}
     {loading ? <div className="flex items-center gap-2 py-8"><Loader2 className="h-5 w-5 animate-spin" />Caricamento movimenti…</div> : <div className="overflow-x-auto border-y border-border"><table className="w-full text-base"><thead className="bg-muted"><tr>{["Data", "Banca / conto", "Causale", "Entrata", "Uscita", "Residuo", ""].map((h, i) => <th key={i} className="px-3 py-3 text-left font-semibold">{h}</th>)}</tr></thead><tbody>{filtered.map((t) => { const remainder = bankRemaining(t, allocations); return <tr key={t.id} className="border-t border-border"><td className="whitespace-nowrap px-3 py-4">{t.booking_date.split("-").reverse().join("/")}</td><td className="px-3 py-4"><div className="font-semibold">{t.bank}</div>{accounts.find(a => a.id === t.account_id)?.display_name ?? t.account_ref}{t.status === "PDNG" && <div className="text-base text-muted-foreground">In sospeso in banca</div>}</td><td className="min-w-48 max-w-lg break-words px-3 py-4">{t.description}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount > 0 ? eur(t.amount) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount < 0 ? eur(Math.abs(t.amount)) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{eur(remainder)}</td><td className="px-3 py-4"><Button variant="outline" disabled={t.status === "PDNG"} onClick={() => void openTransaction(t)}>{remainder === 0 ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}{remainder === 0 ? "Associato" : "Associa"}</Button></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-10 text-center text-lg text-muted-foreground">Nessun movimento {status === "pending" ? "da associare" : "presente"}</p>}</div>}
     <Dialog open={!!active} onOpenChange={(open) => { if (!open && !busy) setActive(null); }}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle className="text-2xl">Movimento {active?.bank}</DialogTitle><DialogDescription className="text-base">{active?.booking_date} · {active?.description}</DialogDescription></DialogHeader>{active && <>
       <div className="flex justify-between gap-3 text-lg font-semibold"><span>{active.amount > 0 ? "Entrata" : "Uscita"}: {eur(Math.abs(active.amount))}</span><span>Residuo: {eur(bankRemaining(active, allocations))}</span></div>

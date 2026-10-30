@@ -1,6 +1,7 @@
 # Tasks
 
-- [ ] Finish deployed open-banking.io getAccounts smoke test: SDK loads in deployed Deno and 2 runtime/crypto tests pass; actual account read blocked because OBIO_API_BASE_URL, OBIO_API_KEY and OBIO_PRIVATE_KEY are not configured. Protected obio-test endpoint is ready and returns only count/masked IBANs.
+- [x] Finish deployed open-banking.io getAccounts smoke test: authenticated deployed read succeeded with 2 accounts and credentials stored securely.
+- [x] Replace stale Enable account counts and controls in Conti with live open-banking.io accounts; verified 1 Credem account and 1 BNL account, retaining existing transactions and PayPal.
 - [ ] After successful smoke test, replace Enable functions/callback/secrets with open-banking.io sync, reuse accounts/transactions/CSV and keep schedules gated.
 
 - [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.

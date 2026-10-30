@@ -19,30 +19,13 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-describe("blocked bank import", () => {
+describe("live provider accounts", () => {
   afterEach(cleanup);
-  it("handles a normal blocked response without presenting zero imports as a successful sync", async () => {
-    invoke.mockResolvedValueOnce({ data: { status: "blocked", code: "commercial_terms_unverified", message: "Condizioni economiche non verificate.", imported: 0 }, error: null });
+  it("reads open-banking.io instead of counting obsolete Enable consents", async () => {
+    invoke.mockResolvedValue({ data: { status: "ready", accounts: [{ id: "view-1", bank: "Credem", account_ref: "view-1", display_name: "AZIENDA", iban_last4: "1234", currency: "EUR", balance: "10.00", balance_date: null, last_sync_at: null, is_active: true, needs_reconnect: false, valid_until: "2027-01-27" }] }, error: null });
     render(<BankAccountsView year={2026} accountingKey="2026" saving={false} onReconciled={vi.fn()} />);
-    const button = await screen.findByRole("button", { name: "Sincronizza ora Credem" });
-    await waitFor(() => expect(button).toBeEnabled());
-    fireEvent.click(button);
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Nessun movimento importato"));
-    expect(button).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Importa estratto conto" })).toBeEnabled();
-  });
-  it("handles a 409 without losing the accounts view and releases the sync button", async () => {
-    invoke.mockResolvedValueOnce({
-      data: null,
-      error: { context: new Response(JSON.stringify({ error: "Importazione bloccata: condizioni economiche del servizio non ancora verificate." }), { status: 409 }) },
-    });
-    render(<BankAccountsView year={2026} accountingKey="2026" saving={false} onReconciled={vi.fn()} />);
-    const button = await screen.findByRole("button", { name: "Sincronizza ora Credem" });
-    await waitFor(() => expect(button).toBeEnabled());
-    fireEvent.click(button);
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Nessun movimento importato"));
-    expect(button).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Importa estratto conto" })).toBeEnabled();
-    expect(invoke).toHaveBeenCalledWith("bank-sync", { body: { bank: "Credem" } });
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("obio-accounts", { body: {} }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Aggiorna conti open-banking.io" })).toBeEnabled());
+    expect(invoke).not.toHaveBeenCalledWith("bank-sync", expect.anything());
   });
 });

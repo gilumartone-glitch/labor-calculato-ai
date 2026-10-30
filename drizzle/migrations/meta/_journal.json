@@ -204,6 +204,13 @@
       "when": 1793362633586,
       "tag": "0028_bank_bulk_management_and_start_date",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793363129099,
+      "tag": "0029_bank_schedule_rome_activation",
+      "breakpoints": true
     }
   ]
 }

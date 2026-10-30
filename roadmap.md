@@ -1,5 +1,7 @@
 # Tasks
 
+- [ ] Restrict Conti, banking reads and interactive actions to gmartone@tecnofra.it without interrupting scheduled imports; test authorized and unauthorized access.
+
 - [x] Enable automatic Credem, BNL and PayPal synchronization at 08:30 and 15:00 Europe/Rome; single active job 128, DST-aware dispatcher and server-only authorization.
 - [x] Verify configuration and scheduled authorization: PayPal succeeds; Credem/BNL respond rate_limited after prior manual calls. Active times verified in signed-in Conti; 20 focused tests passed.
 

@@ -1,10 +1,10 @@
 # Tasks
 
-- [ ] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
-- [ ] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
-- [ ] Add account balances, filters, renewal warnings and manual synchronization to Conti.
-- [ ] Prepare inactive 07:00/14:00 Europe/Rome synchronization schedule; activate only on explicit user request and verified terms.
-- [ ] Run focused regression tests and signed-in Conti checks.
+- [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
+- [x] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
+- [x] Add account balances, filters, renewal warnings and manual synchronization to Conti and display balances separately in Generale.
+- [x] Prepare inactive 07:00/14:00 Europe/Rome synchronization schedule; activate only on explicit user request and verified terms.
+- [x] Run 21 focused regression tests and signed-in Conti CSV save/read-back/reimport checks; verified provider-channel deduplication with synthetic data and removed temporary records. Live provider import remains blocked pending commercial terms.
 
 - [x] Configure Enable Banking credentials and verify the active Tecnofra application and business support for Credito Emiliano and BNL Corporate.
 - [x] Add state-bound bank authorization callback and guarded booked-movement import with duplicate protection.
@@ -15,5 +15,5 @@
 - [x] Test shared-cut consumption and cheaper taller rolls; verify the quote flow.
 - [x] Add Conti with Credem/BNL statement imports and manual full/partial reconciliation to competence or direct cash.
 - [ ] Activate and verify bank imports: blocked pending confirmed commercial terms and bank reading consent initiated from Flow (the provider portal links alone do not create a Flow session).
-- [ ] Schedule background bank updates: blocked until terms, Flow bank consents and first imports are verified; no automatic connection is active.
+- [ ] Activate background bank updates: inactive job prepared; waiting for explicit user instruction, confirmed terms, Flow consents and verified first imports.
 - [x] Test reconciliation persistence, amounts, duplicate protection and accounting read-back; verified a 1 € outgoing payment against 1.50 € competence leaves 0.50 €, plus a direct 0.50 € incoming payment, using temporary records removed afterward.

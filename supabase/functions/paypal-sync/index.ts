@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { authorizeBankSync } from "../_shared/bank-schedule.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const API = "https://api-m.paypal.com";
@@ -21,11 +22,9 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL") ?? "";
     const client = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
-    const { data: { user } } = await client.auth.getUser();
-    if (!user) return json({ error: "Accedi per importare i movimenti." }, 401);
-    const { data: allowed } = await client.rpc("can_reconcile_bank", { _uid: user.id });
-    if (!allowed) return json({ error: "Non autorizzato." }, 403);
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    const authorization = await authorizeBankSync(req, client, admin, Deno.env.get("BANK_SCHEDULE_TOKEN"));
+    if (authorization.error) return json({ error: authorization.error }, authorization.status);
     const access = await token();
     const rows: Record<string, unknown>[] = [];
     let skipped = 0;
@@ -51,7 +50,7 @@ Deno.serve(async (req) => {
           const p = t.payer_info ?? {};
           const name = p.payer_name?.alternate_full_name || [p.payer_name?.given_name, p.payer_name?.surname].filter(Boolean).join(" ") || p.email_address || "";
           const description = [name, i.transaction_subject, i.transaction_note].filter(Boolean).join(" · ") || "Movimento PayPal";
-          rows.push({ bank: "PayPal", account_ref: "PAYPAL AZIENDALE", external_id: `pp-${i.transaction_id}`, booking_date: date, description: description.toLocaleUpperCase("it-IT").slice(0, 2000), amount, currency: "EUR", source: "paypal", created_by: user.id });
+          rows.push({ bank: "PayPal", account_ref: "PAYPAL AZIENDALE", external_id: `pp-${i.transaction_id}`, booking_date: date, description: description.toLocaleUpperCase("it-IT").slice(0, 2000), amount, currency: "EUR", source: "paypal", created_by: authorization.actor });
         }
         if (page >= (body.total_pages ?? 1)) break;
       }

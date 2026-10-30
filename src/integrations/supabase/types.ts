@@ -400,6 +400,7 @@ export type Database = {
           endpoint: string
           id: boolean
           job_id: number | null
+          last_dispatched_slot: string | null
           token: string
         }
         Insert: {
@@ -407,6 +408,7 @@ export type Database = {
           endpoint: string
           id?: boolean
           job_id?: number | null
+          last_dispatched_slot?: string | null
           token: string
         }
         Update: {
@@ -414,6 +416,7 @@ export type Database = {
           endpoint?: string
           id?: boolean
           job_id?: number | null
+          last_dispatched_slot?: string | null
           token?: string
         }
         Relationships: []
@@ -2398,6 +2401,10 @@ export type Database = {
     }
     Functions: {
       acquire_obio_sync: { Args: { _run: string }; Returns: boolean }
+      activate_bank_schedule: {
+        Args: { _endpoint: string; _token: string }
+        Returns: undefined
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -2477,6 +2484,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_bank_schedule_status: { Args: never; Returns: Json }
       get_contabilita_cash_only: { Args: { _key?: string }; Returns: Json }
       get_contabilita_state_public: {
         Args: { _key: string }

@@ -1,3 +1,4 @@
+import { BankBalances } from "@/components/contabilita/BankBalances";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -1353,6 +1354,7 @@ function ContabilitaYear({ year, onYearChange }: { year: number; onYearChange: (
 
         {tab === "generale" && <GeneralReport totals={totals} movements={allMovementsForForecast} currentCash={currentCash} />}
         {tab === "mensile" && <ForecastTable rows={[forecast[selectedMonth]]} movements={state.movements} salaries={salaries} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} salaryPayDates={payDates} setSalaryPayDates={(salaryPayDates) => update({ salaryPayDates })} contacts={state.contacts ?? []} onAddContact={(c) => update({ contacts: [...(state.contacts ?? []), c] })} currentCash={currentCash} />}
+        {tab === "generale" && <BankBalances />}
         {tab === "movimenti" && <MovementsTable movements={state.movements} setMovements={(m) => update((prev) => ({ movements: typeof m === "function" ? (m as (p: CashMovement[]) => CashMovement[])(prev.movements) : m }))} addMovement={addMovement} openingCash={state.openingCash} setOpeningCash={(openingCash) => update({ openingCash })} />}
         {tab === "conti" && <BankAccountsView year={year} accountingKey={REMOTE_KEY} saving={saveStatus !== "idle"} onReconciled={async () => {
           const { data, error } = await remoteLoad(REMOTE_KEY, isOwnerRef.current);

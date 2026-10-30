@@ -1,5 +1,8 @@
 # Tasks
 
+- [ ] Verify open-banking.io SDK with deployed getAccounts smoke test (count and masked IBAN only); credentials and test success prerequisite for replacement.
+- [ ] After successful smoke test, replace Enable functions/callback/secrets with open-banking.io sync, reuse accounts/transactions/CSV and keep schedules gated.
+
 - [x] Complete existing banking schema with accounts, balances, pending movements and safe synchronization logs.
 - [x] Extend existing authorization/sync and CSV import with shared deduplication; preserve manual cash reconciliation.
 - [x] Add account balances, filters, renewal warnings and manual synchronization to Conti and display balances separately in Generale.

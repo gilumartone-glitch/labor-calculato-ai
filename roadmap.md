@@ -1,6 +1,6 @@
 # Tasks
 
-- [ ] Diagnose missing 2 November movements against live provider refresh and stored transactions; no invented bank dates or automatic retry bursts.
+- [ ] Import missing 2 November movements: stored Credem/BNL latest booking date is 30 October; signed-in live sync returns rate_limited for both banks, zero imports. Blocked by bank/provider availability; no further immediate retries. Increased provider wait limit to 60 seconds and sanitized failure classification; next authorized scheduled slot remains 15:00 Rome.
 
 - [x] Fix missing/stale balances for Credem, BNL and PayPal; shared booked/available snapshot selection, actual PayPal balance endpoint and refresh without bank sync. Signed-in Conti reads BNL 1681.28 EUR, Credem 40266.80 EUR, PayPal 313.74 EUR; stored snapshots verified, no accounting cash totals changed.
 

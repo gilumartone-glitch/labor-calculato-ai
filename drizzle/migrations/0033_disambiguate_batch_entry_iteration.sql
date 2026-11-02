@@ -1,0 +1,1 @@
+DO $$ DECLARE definition text; BEGIN SELECT pg_get_functiondef('public.reconcile_bank_transactions(jsonb)'::regprocedure) INTO definition; definition:=replace(definition,'FOR item IN SELECT value FROM jsonb_array_elements(_entries) LOOP','FOR item IN SELECT e.value FROM jsonb_array_elements(_entries) e LOOP'); EXECUTE definition; END $$;

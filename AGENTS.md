@@ -1,6 +1,7 @@
 # Architecture rules
 
 - Bank balances use shared ISO balance selection (booked first, labelled available fallback) and PayPal reporting total balance with its source date; never derive balances from imported movement totals or erase valid snapshots when the provider omits a balance. Conti reloads provider snapshots without requesting bank synchronization.
+- Live bank refresh allows up to 60 seconds per provider request; sanitized failure classification distinguishes timeouts and HTTP failures without exposing raw provider errors, and rate limits never trigger immediate automatic retries.
 
 - Bank causali use a shared presentation helper for structured payer/payee names and conservative bank-specific extraction; preserve original descriptions and import identity, and honor manual edits.
 

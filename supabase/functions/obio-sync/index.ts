@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { OpenBankingClient } from "npm:@open-banking-io/client@1.3.0";
+import { OpenBankingClient, SyncError } from "npm:@open-banking-io/client@1.3.0";
 import { normalizeObioMovement, obioAccountRef, obioFallbackRef, obioTermsVerified } from "../_shared/obio-import.ts";
 import { syncDateFrom } from "../_shared/bank-identity.ts";
 import { blockedBankSync } from "../_shared/bank-sync-result.ts";
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const { data: acquired, error: lockError } = await admin.rpc("acquire_obio_sync", { _run: run });
     if (lockError || !acquired) return json(blockedBankSync("sync_in_progress", "Sincronizzazione già in corso: attendi il completamento."));
     locked = true;
-    const provider = new OpenBankingClient({ apiBaseUrl, apiKey, privateKeyPkcs8, timeoutMs: 20000 });
+    const provider = new OpenBankingClient({ apiBaseUrl, apiKey, privateKeyPkcs8, timeoutMs: 60000 });
     stage = "read_accounts";
     const [initialAccounts, connections] = await Promise.all([provider.getAccounts(), provider.getConnections()]);
     const supported = initialAccounts.filter(a => /credem|emiliano|bnl|nazionale.*lavoro/i.test(a.aspspName));
@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
     const code = error instanceof Error && known.includes(error.message) ? error.message : stage;
-    console.warn("obio-sync blocked", code);
+    const reason = error instanceof SyncError ? (error.status === 429 ? "rate_limited" : `http_${error.status}`) : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "provider_timeout" : "provider_failure";
+    console.warn("obio-sync blocked", code, reason);
     return json({ status: "error", code, imported, error: "Sincronizzazione non completata. Controlla il consenso su open-banking.io e riprova; i movimenti già salvati non verranno duplicati." }, 502);
   } finally {
     if (locked) await admin.rpc("release_obio_sync", { _run: run });

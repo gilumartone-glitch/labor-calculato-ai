@@ -5,6 +5,7 @@ import { normalizeObioMovement, obioAccountRef, obioFallbackRef, obioTermsVerifi
 import { syncDateFrom } from "../_shared/bank-identity.ts";
 import { blockedBankSync } from "../_shared/bank-sync-result.ts";
 import { authorizeBankSync } from "../_shared/bank-schedule.ts";
+import { selectBankBalance } from "../_shared/bank-balance.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async (req) => {
@@ -87,10 +88,10 @@ Deno.serve(async (req) => {
         if (importError) throw new Error("storage_failed");
         imported += Number(count ?? 0);
       }
-      const balance = a.balances.find(b => b.type === "ITBD" && b.currency === "EUR");
-      const { error: balanceError } = await admin.from("bank_accounts").update({ balance: balance?.amount ?? null, balance_date: balance?.referenceDate ?? null, last_sync_at: new Date().toISOString() }).eq("id", saved.id);
+      const balance = selectBankBalance(a.balances, "EUR");
+      const { error: balanceError } = await admin.from("bank_accounts").update({ ...(balance ? { balance: balance.amount, balance_date: balance.referenceDate } : {}), last_sync_at: new Date().toISOString() }).eq("id", saved.id);
       if (balanceError) throw new Error("balance_save_failed");
-      await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: "Movimenti e saldo open-banking.io aggiornati." });
+      await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: balance ? "Movimenti e saldo open-banking.io aggiornati." : "Movimenti aggiornati; il servizio non ha fornito un saldo. Ultimo saldo conservato." });
     }
     return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : "Movimenti e saldi aggiornati." });
   } catch (error) {

@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] Fix missing/stale balances for Credem, BNL and PayPal; shared booked/available snapshot selection, actual PayPal balance endpoint and refresh without bank sync. Signed-in Conti reads BNL 1681.28 EUR, Credem 40266.80 EUR, PayPal 313.74 EUR; stored snapshots verified, no accounting cash totals changed.
+
 - [x] Add atomic multi-movement / multi-competence reconciliation and bulk direct cash, with bank booking dates, amount balance and competence search; 19 tests pass, signed-in 4500 € split across four entries and bulk direct cash verified/read back with original bank dates; temporary records removed.
 
 - [x] Simplify bank causali and direct-cash defaults: payer/recipient only for transfers, CARTA DI DEBITO for international debit-card payments; 16 tests passed including submission of both supplied examples without typing. Signed-in existing BNL label/details verified; no existing cash movements altered.

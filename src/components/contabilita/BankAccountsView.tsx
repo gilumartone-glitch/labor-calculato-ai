@@ -7,6 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BankBulkDialog } from "./BankBulkDialog";
+import { BankReconcileDialog } from "./BankReconcileDialog";
 import { BANK_START_DATE, currentBankAccounts } from "@/lib/bank-management";
 import { bankCausale } from "@/lib/bank-causale";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { eur } from "@/lib/format";
-import { bankImportRowSchema, bankRemaining, competenceRemaining, parseBankAmount, parseBankDate, validateAllocation, type BankAllocation, type BankTransaction, type CompetenceMovement } from "@/lib/bank-reconciliation";
+import { bankImportRowSchema, bankRemaining, parseBankAmount, parseBankDate, type BankAllocation, type BankTransaction } from "@/lib/bank-reconciliation";
 import { BankBalances, type BankAccount } from "./BankBalances";
 import { canonicalReference, fallbackTransactionId, consentExpiring } from "../../../supabase/functions/_shared/bank-identity";
 
@@ -33,17 +34,9 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState(BANK_START_DATE);
   const [to, setTo] = useState("");
-  const [active, setActive] = useState<BankTransaction | null>(null);
-  const [candidates, setCandidates] = useState<CompetenceMovement[]>([]);
-  const [candidateLoading, setCandidateLoading] = useState(false);
-  const [mode, setMode] = useState("match");
-  const [selectedId, setSelectedId] = useState("");
-  const [candidateSearch, setCandidateSearch] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [reconcileRows, setReconcileRows] = useState<BankTransaction[]>([]);
+  const [reconcileMode, setReconcileMode] = useState<"match" | "direct">("match");
   const [busy, setBusy] = useState(false);
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [importOpen, setImportOpen] = useState(false);
   const [importBank, setImportBank] = useState<"Credem" | "BNL" | "PayPal">("Credem");
   const [accountRef, setAccountRef] = useState("");
@@ -113,31 +106,13 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     return () => clearInterval(timer);
   }, [load, busy]);
 
-  const openTransaction = async (t: BankTransaction) => {
-    setActive(t); setMode("match"); setSelectedId(""); setCandidateSearch(""); setAmount(String(bankRemaining(t, allocations))); setDescription(bankCausale(t)); setCategory(""); setRequestId(crypto.randomUUID()); setCandidates([]); setCandidateLoading(true);
-    try {
-      const { data, error: e } = await supabase.rpc("get_contabilita_state_public", { _key: accountingKey });
-      if (e) throw e;
-      const state = data?.[0]?.data as { movements?: CompetenceMovement[] } | undefined;
-      setCandidates((state?.movements ?? []).filter((m) => m.status === "previsto" && m.type === (t.amount > 0 ? "entrata" : "uscita") && competenceRemaining(m) > 0).sort((a, b) => a.date.localeCompare(b.date)));
-    } catch { toast.error("Non riesco a caricare le competenze. Aggiorna e riprova."); }
-    finally { setCandidateLoading(false); }
+  const openTransaction = (t: BankTransaction) => {
+    setReconcileMode("match"); setReconcileRows([t]);
   };
-
-  const confirm = async () => {
-    if (!active || busy || saving) return;
-    setBusy(true);
-    try {
-      const selected = mode === "match" ? candidates.find((m) => m.id === selectedId) : undefined;
-      if (mode === "match" && !selected) throw new Error("Scegli la voce di competenza.");
-      const value = validateAllocation(active, allocations, parseBankAmount(amount), selected);
-      if (mode === "direct" && !description.trim()) throw new Error("Inserisci la causale.");
-      const { error: e } = await supabase.rpc("reconcile_bank_transaction", { _transaction_id: active.id, _request_id: requestId, _competence_id: selected?.id ?? null, _amount: value, _description: description, _category: category, _expected_amount: selected?.amount ?? null, _expected_acconto: selected ? Math.min(selected.amount, Math.max(0, selected.acconto ?? 0)) : null });
-      if (e) throw e;
-      await Promise.all([load(), onReconciled()]);
-      setActive(null); toast.success("Movimento registrato in cassa");
-    } catch (e) { toast.error(String((e as { message?: string }).message ?? e)); }
-    finally { setBusy(false); }
+  const openChecked = (mode: "match" | "direct") => {
+    const rows = transactions.filter(t => checkedIds.includes(t.id));
+    if (rows.some(t => t.status === "PDNG" || bankRemaining(t, allocations) <= 0)) { toast.error("Seleziona solo movimenti contabilizzati con un residuo da associare."); return; }
+    setReconcileMode(mode); setReconcileRows(rows);
   };
 
   const readFile = async (file: File) => {
@@ -194,7 +169,6 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     const remaining = bankRemaining(t, allocations);
     return (accountFilter === "all" || t.account_ref === accountFilter) && (direction === "all" || (direction === "in" ? t.amount > 0 : t.amount < 0)) && (bank === "all" || bank === t.bank) && (status === "all" || (status === "suspended" ? t.status === "PDNG" : t.status !== "PDNG" && (status === "pending" ? remaining > 0 : remaining === 0))) && (!from || t.booking_date >= from) && (!to || t.booking_date <= to) && `${bankCausale(t)} ${t.description} ${t.account_ref}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT"));
   });
-  const selected = candidates.find((m) => m.id === selectedId);
   const syncPaypal = async () => {
     setPaypalBusy(true);
     try {
@@ -250,20 +224,10 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     <div className="grid gap-3 md:grid-cols-2"><Select value={accountFilter} onValueChange={setAccountFilter}><SelectTrigger aria-label="Conto" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Tutti i conti</SelectItem>{visibleAccounts.map(a => <SelectItem key={a.id} value={a.account_ref}>{a.bank} · {a.display_name}</SelectItem>)}</SelectContent></Select><Select value={direction} onValueChange={setDirection}><SelectTrigger aria-label="Entrate e uscite" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Entrate e uscite</SelectItem><SelectItem value="in">Entrate</SelectItem><SelectItem value="out">Uscite</SelectItem></SelectContent></Select></div>
     {error && <p role="alert" className="text-base text-destructive">{error}</p>}
     {syncNotice && <p role="status" className="border-y border-border py-4 text-base">{syncNotice}</p>}
-    {canEdit && <div className="flex flex-wrap items-center gap-3 border-y border-border py-3"><span className="text-lg font-semibold">{checkedIds.length} selezionati</span><Button variant="outline" disabled={!checkedIds.length || busy} onClick={() => setBulkAction("edit")}><Pencil />Modifica selezionati</Button><Button variant="destructive" disabled={!checkedIds.length || busy} onClick={() => setBulkAction("delete")}><Trash2 />Elimina selezionati</Button>{checkedIds.length > 0 && <Button variant="ghost" onClick={() => setCheckedIds([])}>Deseleziona</Button>}</div>}
+    {canEdit && <div className="flex flex-wrap items-center gap-3 border-y border-border py-3"><span className="text-lg font-semibold">{checkedIds.length} selezionati</span><Button variant="outline" disabled={!checkedIds.length || busy || saving} onClick={() => openChecked("match")}><Link2 />Associa selezionati</Button><Button disabled={!checkedIds.length || busy || saving} onClick={() => openChecked("direct")}><Check />Porta selezionati in cassa</Button><Button variant="outline" disabled={!checkedIds.length || busy} onClick={() => setBulkAction("edit")}><Pencil />Modifica selezionati</Button><Button variant="destructive" disabled={!checkedIds.length || busy} onClick={() => setBulkAction("delete")}><Trash2 />Elimina selezionati</Button>{checkedIds.length > 0 && <Button variant="ghost" onClick={() => setCheckedIds([])}>Deseleziona</Button>}</div>}
     {bulkAction && <BankBulkDialog action={bulkAction} rows={transactions.filter(t => checkedIds.includes(t.id))} onClose={() => setBulkAction(null)} onSaved={async () => { setCheckedIds([]); await load(); }} />}
-    {loading ? <div className="flex items-center gap-2 py-8"><Loader2 className="h-5 w-5 animate-spin" />Caricamento movimenti…</div> : <div className="overflow-x-auto border-y border-border"><table className="w-full text-base"><thead className="bg-muted"><tr>{canEdit && <th className="px-3 py-3"><Checkbox aria-label="Seleziona tutti i movimenti visibili" checked={filtered.length > 0 && filtered.every(t => checkedIds.includes(t.id) || allocations.some(a => a.transaction_id === t.id))} onCheckedChange={value => setCheckedIds(value ? filtered.filter(t => !allocations.some(a => a.transaction_id === t.id)).slice(0, 500).map(t => t.id) : [])} /></th>}{["Data", "Banca / conto", "Causale", "Entrata", "Uscita", "Residuo", ""].map((h, i) => <th key={i} className="px-3 py-3 text-left font-semibold">{h}</th>)}</tr></thead><tbody>{filtered.map((t) => { const remainder = bankRemaining(t, allocations); return <tr key={t.id} className="border-t border-border">{canEdit && <td className="px-3 py-4"><Checkbox aria-label={`Seleziona movimento ${bankCausale(t)}`} disabled={allocations.some(a => a.transaction_id === t.id)} checked={checkedIds.includes(t.id)} onCheckedChange={value => setCheckedIds(prev => value ? [...prev, t.id].slice(0, 500) : prev.filter(id => id !== t.id))} /></td>}<td className="whitespace-nowrap px-3 py-4">{t.booking_date.split("-").reverse().join("/")}</td><td className="px-3 py-4"><div className="font-semibold">{t.bank}</div>{accounts.find(a => a.id === t.account_id)?.display_name ?? t.account_ref}{t.status === "PDNG" && <div className="text-base text-muted-foreground">In sospeso in banca</div>}</td><td className="min-w-48 max-w-lg break-words px-3 py-4">{bankCausale(t)}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount > 0 ? eur(t.amount) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount < 0 ? eur(Math.abs(t.amount)) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{eur(remainder)}</td><td className="px-3 py-4"><Button variant="outline" disabled={t.status === "PDNG"} onClick={() => void openTransaction(t)}>{remainder === 0 ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}{remainder === 0 ? "Associato" : "Associa"}</Button></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-10 text-center text-lg text-muted-foreground">Nessun movimento {status === "pending" ? "da associare" : "presente"}</p>}</div>}
-    <Dialog open={!!active} onOpenChange={(open) => { if (!open && !busy) setActive(null); }}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle className="text-2xl">Movimento {active?.bank}</DialogTitle><DialogDescription className="text-base">{active?.booking_date} · {active?.description}</DialogDescription></DialogHeader>{active && <>
-      <div className="flex justify-between gap-3 text-lg font-semibold"><span>{active.amount > 0 ? "Entrata" : "Uscita"}: {eur(Math.abs(active.amount))}</span><span>Residuo: {eur(bankRemaining(active, allocations))}</span></div>
-      {allocations.filter((a) => a.transaction_id === active.id).map((a) => <div key={a.id} className="border-b border-border py-2 text-base">{a.competence_id ? "Associato a competenza" : "Registrato direttamente in cassa"} · {eur(a.amount)} · {a.created_at.slice(0, 10)}</div>)}
-      {active.status !== "PDNG" && bankRemaining(active, allocations) > 0 && canEdit && <>
-        <div className="flex flex-wrap gap-2"><Button variant={mode === "match" ? "default" : "outline"} onClick={() => setMode("match")}>Associa a competenza</Button><Button variant={mode === "direct" ? "default" : "outline"} onClick={() => setMode("direct")}>Inserisci direttamente in cassa</Button></div>
-        {mode === "match" ? <div className="space-y-3"><Input aria-label="Cerca competenza" placeholder="Cerca causale, categoria o fattura" value={candidateSearch} onChange={(e) => setCandidateSearch(e.target.value)} className="h-11 text-base" />{candidateLoading ? <p>Caricamento competenze…</p> : <div className="max-h-64 space-y-2 overflow-y-auto">{candidates.filter((m) => `${m.description} ${m.category} ${m.invoiceNumber ?? ""}`.toLowerCase().includes(candidateSearch.toLowerCase())).map((m) => <Button key={m.id} variant={selectedId === m.id ? "default" : "outline"} className="h-auto w-full justify-between gap-3 whitespace-normal py-3 text-left text-base" onClick={() => { setSelectedId(m.id); setAmount(String(Math.min(competenceRemaining(m), bankRemaining(active, allocations)))); }}><span>{m.description}<span className="block">{m.date.split("-").reverse().join("/")} · Fatt. {m.invoiceNumber || "—"}</span></span><span className="shrink-0">{eur(competenceRemaining(m))}</span></Button>)}{candidates.length === 0 && <p className="text-base text-muted-foreground">Nessuna voce di competenza disponibile.</p>}</div>}</div> : <div className="grid gap-3"><Label htmlFor="bank-cash-description" className="text-base">Causale</Label><Input id="bank-cash-description" value={description} maxLength={2000} onChange={(e) => setDescription(e.target.value.toLocaleUpperCase("it-IT"))} className="h-11 text-base" /><Label htmlFor="bank-cash-category" className="text-base">Categoria</Label><Input id="bank-cash-category" value={category} maxLength={200} onChange={(e) => setCategory(e.target.value.toLocaleUpperCase("it-IT"))} className="h-11 text-base" /></div>}
-        <div className="space-y-2"><Label htmlFor="bank-allocation-amount" className="text-base">Importo da portare in cassa</Label><Input id="bank-allocation-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-11 text-lg" />{selected && mode === "match" && <p className="text-base">Resterà in competenza: {eur(Math.max(0, competenceRemaining(selected) - (parseBankAmount(amount) || 0)))}</p>}</div>
-        {saving && <p className="text-base text-muted-foreground">Attendi il salvataggio della contabilità prima di confermare.</p>}
-        <Button disabled={busy || saving || candidateLoading || (mode === "match" && !selectedId)} onClick={() => void confirm()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Conferma associazione</Button>
-      </>}
-    </>}</DialogContent></Dialog>
+    {loading ? <div className="flex items-center gap-2 py-8"><Loader2 className="h-5 w-5 animate-spin" />Caricamento movimenti…</div> : <div className="overflow-x-auto border-y border-border"><table className="w-full text-base"><thead className="bg-muted"><tr>{canEdit && <th className="px-3 py-3"><Checkbox aria-label="Seleziona tutti i movimenti visibili" checked={filtered.length > 0 && filtered.every(t => checkedIds.includes(t.id))} onCheckedChange={value => setCheckedIds(value ? filtered.slice(0, 500).map(t => t.id) : [])} /></th>}{["Data", "Banca / conto", "Causale", "Entrata", "Uscita", "Residuo", ""].map((h, i) => <th key={i} className="px-3 py-3 text-left font-semibold">{h}</th>)}</tr></thead><tbody>{filtered.map((t) => { const remainder = bankRemaining(t, allocations); return <tr key={t.id} className="border-t border-border">{canEdit && <td className="px-3 py-4"><Checkbox aria-label={`Seleziona movimento ${bankCausale(t)}`} checked={checkedIds.includes(t.id)} onCheckedChange={value => setCheckedIds(prev => value ? [...prev, t.id].slice(0, 500) : prev.filter(id => id !== t.id))} /></td>}<td className="whitespace-nowrap px-3 py-4">{t.booking_date.split("-").reverse().join("/")}</td><td className="px-3 py-4"><div className="font-semibold">{t.bank}</div>{accounts.find(a => a.id === t.account_id)?.display_name ?? t.account_ref}{t.status === "PDNG" && <div className="text-base text-muted-foreground">In sospeso in banca</div>}</td><td className="min-w-48 max-w-lg break-words px-3 py-4">{bankCausale(t)}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount > 0 ? eur(t.amount) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{t.amount < 0 ? eur(Math.abs(t.amount)) : "—"}</td><td className="whitespace-nowrap px-3 py-4 font-mono">{eur(remainder)}</td><td className="px-3 py-4"><Button variant="outline" disabled={t.status === "PDNG"} onClick={() => void openTransaction(t)}>{remainder === 0 ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}{remainder === 0 ? "Associato" : "Associa"}</Button></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-10 text-center text-lg text-muted-foreground">Nessun movimento {status === "pending" ? "da associare" : "presente"}</p>}</div>}
+    {reconcileRows.length > 0 && <BankReconcileDialog rows={reconcileRows} allocations={allocations} accountingKey={accountingKey} saving={saving} initialMode={reconcileMode} onClose={() => setReconcileRows([])} onSaved={async () => { setCheckedIds([]); await Promise.all([load(), onReconciled()]); }} />}
     <Dialog open={importOpen} onOpenChange={(open) => { if (!busy) setImportOpen(open); }}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle className="text-2xl">Importa estratto conto</DialogTitle><DialogDescription className="text-base">CSV o Excel · importi in euro</DialogDescription></DialogHeader><div className="grid gap-3 md:grid-cols-2"><div className="space-y-1"><Label htmlFor="bank-import-name" className="text-base">Banca</Label><select id="bank-import-name" className={selectClass} value={importBank} onChange={(e) => setImportBank(e.target.value as "Credem" | "BNL" | "PayPal")}><option>Credem</option><option>BNL</option><option>PayPal</option></select></div><div className="space-y-1"><Label htmlFor="bank-account-name" className="text-base">Nome conto</Label><select aria-label="Conto per importazione" className={selectClass} value={accounts.some(a => a.bank === importBank && a.account_ref === accountRef) ? accountRef : "new"} onChange={e => setAccountRef(e.target.value === "new" ? "" : e.target.value)}><option value="new">Nuovo conto manuale</option>{visibleAccounts.filter(a => a.bank === importBank).map(a => <option key={a.id} value={a.account_ref}>{a.display_name} {a.iban_last4 ? `•••• ${a.iban_last4}` : ""}</option>)}</select><Input id="bank-account-name" disabled={accounts.some(a => a.bank === importBank && a.account_ref === accountRef)} placeholder="CONTO AZIENDALE" maxLength={100} value={accountRef} onChange={(e) => setAccountRef(e.target.value.toLocaleUpperCase("it-IT"))} className="h-11 text-base" /></div></div><Input aria-label="File estratto conto" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => { const file = e.target.files?.[0]; if (file) void readFile(file); }} className="h-12 text-base" />{sheetRows.length > 0 && <><p className="text-base font-semibold">{fileName} · {sheetRows.length} movimenti</p><Select value={splitAmounts ? "split" : "signed"} onValueChange={(v) => setSplitAmounts(v === "split")}><SelectTrigger aria-label="Formato importi" className="h-11 text-base"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="signed">Importo unico: + entrate, − uscite</SelectItem><SelectItem value="split">Colonne separate entrate / uscite</SelectItem></SelectContent></Select><div className="grid gap-3 md:grid-cols-2">{mappingSelect("date", "Data contabile")}{mappingSelect("description", "Causale")}{splitAmounts ? <>{mappingSelect("incoming", "Entrate")}{mappingSelect("outgoing", "Uscite")}</> : mappingSelect("amount", "Importo con segno")}{mappingSelect("id", "Riferimento univoco bancario", true)}</div>{!mapping.id && <p role="alert" className="text-base text-destructive">Senza riferimento univoco, estratti sovrapposti con movimenti identici potrebbero non essere distinguibili. Controlla i movimenti prima di associarli.</p>}<Button disabled={busy} onClick={() => void importRows()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Importa {sheetRows.length} movimenti</Button></>}</DialogContent></Dialog>
     {logs.length > 0 && <section aria-label="Ultimi aggiornamenti" className="space-y-2 border-t border-border pt-4"><h3 className="text-xl font-semibold">Ultimi aggiornamenti</h3>{logs.map(log => <p key={log.id} className={`text-base ${log.outcome === "error" ? "text-destructive" : "text-muted-foreground"}`}>{new Date(log.created_at).toLocaleString("it-IT")} · {log.bank} · {log.message}</p>)}</section>}
   </section>;

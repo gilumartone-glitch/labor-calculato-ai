@@ -49,8 +49,7 @@ export function BankReconcileDialog({ rows, allocations, accountingKey, saving, 
     try {
       const plan = retryPlan.current ?? buildAllocationPlan(rows, allocations, selections, mode === "direct" ? { description, category, amount: parseBankAmount(amount) } : undefined);
       retryPlan.current = plan;
-      const client = supabase as unknown as { rpc: (name: "reconcile_bank_transactions", args: { _entries: ReconciliationEntry[] }) => Promise<{ error: { message: string } | null }> };
-      const { error } = await client.rpc("reconcile_bank_transactions", { _entries: plan });
+      const { error } = await supabase.rpc("reconcile_bank_transactions", { _entries: plan });
       if (error) throw error;
       await onSaved(); onClose(); toast.success("Movimenti registrati in cassa");
     } catch (error) { toast.error(String((error as { message?: string }).message ?? error)); }

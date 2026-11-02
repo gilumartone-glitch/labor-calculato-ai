@@ -38,6 +38,7 @@ Deno.serve(async req => {
         const data = await response.json();
         const status = !response.ok || data.error ? "error" : data.status ?? "success";
         // Store only sanitized result codes and counts, never headers or raw errors.
+        if (name === "obio-sync" && !Array.isArray(data.results) && (status !== "success" && status !== "partial")) await admin.from("bank_sync_log").insert({ bank: "Credem/BNL", outcome: status === "blocked" ? "blocked" : "error", message: `Aggiornamento automatico non eseguito: ${String(data.reason ?? data.code ?? "errore").replace(/[^a-z_]/gi, "").slice(0, 40) || "errore"}.` });
         if (name === "paypal-sync") await admin.from("bank_sync_log").insert({ bank: "PayPal", outcome: status === "success" ? "success" : "error", message: status === "success" ? `Aggiornamento automatico PayPal: ${Number(data.imported ?? 0)} nuovi movimenti.` : "Aggiornamento automatico PayPal non completato." });
         return { provider: name === "obio-sync" ? "Credem e BNL" : "PayPal", status, imported: Number(data.imported ?? 0), failed: Number(data.failed ?? 0) };
       } catch {

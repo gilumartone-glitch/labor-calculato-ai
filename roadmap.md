@@ -1,6 +1,6 @@
 # Tasks
 
-- [ ] Add atomic multi-movement / multi-competence reconciliation and bulk direct cash, with bank booking dates, amount balance and competence search; verify tests and signed-in flow.
+- [x] Add atomic multi-movement / multi-competence reconciliation and bulk direct cash, with bank booking dates, amount balance and competence search; 19 tests pass, signed-in 4500 € split across four entries and bulk direct cash verified/read back with original bank dates; temporary records removed.
 
 - [x] Simplify bank causali and direct-cash defaults: payer/recipient only for transfers, CARTA DI DEBITO for international debit-card payments; 16 tests passed including submission of both supplied examples without typing. Signed-in existing BNL label/details verified; no existing cash movements altered.
 

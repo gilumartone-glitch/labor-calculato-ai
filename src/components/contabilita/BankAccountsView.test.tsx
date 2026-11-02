@@ -33,7 +33,7 @@ describe("live provider accounts", () => {
     expect(screen.getByLabelText("Causale")).toHaveValue(expected);
     await waitFor(() => expect(screen.getByRole("button", { name: "Conferma associazione" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Conferma associazione" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("reconcile_bank_transaction", expect.objectContaining({ _description: expected, _competence_id: null, _amount: Math.abs(amount) })));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("reconcile_bank_transactions", { _entries: [expect.objectContaining({ description: expected, competence_id: null, amount: Math.abs(amount) })] }));
   });
   it("reads open-banking.io instead of counting obsolete Enable consents", async () => {
     invoke.mockResolvedValue({ data: { status: "ready", accounts: [{ id: "view-1", bank: "Credem", account_ref: "view-1", display_name: "AZIENDA", iban_last4: "1234", currency: "EUR", balance: "10.00", balance_date: null, last_sync_at: null, is_active: true, needs_reconnect: false, valid_until: "2027-01-27" }] }, error: null });

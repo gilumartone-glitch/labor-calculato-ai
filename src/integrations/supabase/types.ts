@@ -2593,6 +2593,7 @@ export type Database = {
         }
         Returns: Json
       }
+      reconcile_bank_transactions: { Args: { _entries: Json }; Returns: Json }
       release_obio_sync: { Args: { _run: string }; Returns: undefined }
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {

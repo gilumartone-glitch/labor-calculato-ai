@@ -26,7 +26,7 @@ export function buildAllocationPlan(transactions: BankTransaction[], allocations
   const result: ReconciliationEntry[] = [];
   let index = 0;
   for (const selection of selections) {
-    let left = validateAllocation({ ...transactions[0], amount: balance.bank }, [], selection.amount, selection.movement);
+    let left = validateAllocation({ ...transactions[0], amount: Math.sign(transactions[0].amount) * balance.bank }, [], selection.amount, selection.movement);
     let current = { ...selection.movement };
     while (left > 0) {
       const t = transactions[index];

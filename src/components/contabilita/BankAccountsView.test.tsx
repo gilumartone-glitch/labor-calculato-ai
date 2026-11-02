@@ -42,4 +42,13 @@ describe("live provider accounts", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Aggiorna conti open-banking.io" })).toBeEnabled());
     expect(invoke).not.toHaveBeenCalledWith("bank-sync", expect.anything());
   });
+  it("refreshes bank snapshots on list reload without synchronizing the bank", async () => {
+    invoke.mockClear();
+    invoke.mockResolvedValue({ data: { status: "ready", accounts: [] }, error: null });
+    render(<BankAccountsView year={2026} accountingKey="2026" saving={false} onReconciled={vi.fn()} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Aggiorna elenco" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+    expect(invoke.mock.calls.map(call => call[0])).toEqual(["obio-accounts", "obio-accounts"]);
+  });
 });

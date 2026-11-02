@@ -59,7 +59,6 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
   const [logs, setLogs] = useState<{ id: string; bank: string; outcome: string; message: string; created_at: string }[]>([]);
   const [providerAccounts, setProviderAccounts] = useState<(Omit<BankAccount, "balance"> & { balance: string | null; currency: string; needs_reconnect: boolean; valid_until: string | null })[]>([]);
   const [providerReady, setProviderReady] = useState(false);
-  const providerLoaded = useRef(false);
   const readProviderAccounts = useCallback(async () => {
     const { data, error: e } = await supabase.functions.invoke("obio-accounts", { body: {} });
     if (!e && data?.status === "ready" && Array.isArray(data.accounts)) {

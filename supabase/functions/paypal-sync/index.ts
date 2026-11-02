@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { authorizeBankSync } from "../_shared/bank-schedule.ts";
+import { paypalBalance } from "../_shared/bank-balance.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const API = "https://api-m.paypal.com";
@@ -61,7 +62,20 @@ Deno.serve(async (req) => {
       if (error) throw new Error("Salvataggio movimenti non riuscito.");
       imported += data?.length ?? 0;
     }
-    return json({ imported, read: rows.length, skipped });
+    // Read the account balance itself; the imported history is not a starting balance.
+    let balanceWarning: string | null = null;
+    const response = await fetch(`${API}/v1/reporting/balances?currency_code=EUR`, { headers: { Authorization: `Bearer ${access}` } });
+    const snapshot = response.ok ? paypalBalance(await response.json().catch(() => ({}))) : null;
+    const now = new Date().toISOString();
+    if (snapshot) {
+      const { error } = await admin.from("bank_accounts").upsert({ bank: "PayPal", account_ref: "PAYPAL AZIENDALE", display_name: "PayPal aziendale", currency: "EUR", is_active: true, ...snapshot, last_sync_at: now }, { onConflict: "bank,account_ref" });
+      if (error) throw new Error("Salvataggio saldo PayPal non riuscito.");
+    } else {
+      balanceWarning = response.status === 403 ? "PayPal non autorizza la lettura del saldo: verifica il permesso di lettura saldi dell’app Live." : "PayPal non ha fornito il saldo EUR; ultimo saldo conservato.";
+      await admin.from("bank_accounts").update({ last_sync_at: now }).eq("bank", "PayPal").eq("account_ref", "PAYPAL AZIENDALE");
+      await admin.from("bank_sync_log").insert({ bank: "PayPal", outcome: "blocked", message: balanceWarning });
+    }
+    return json({ imported, read: rows.length, skipped, balance_updated: !!snapshot, balance_warning: balanceWarning });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Importazione PayPal non riuscita." }, 500);
   }

@@ -64,7 +64,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
     const { data, error: e } = await supabase.functions.invoke("obio-accounts", { body: {} });
     if (!e && data?.status === "ready" && Array.isArray(data.accounts)) {
       setProviderAccounts(data.accounts); setProviderReady(true);
-    } else { setProviderReady(false); }
+    } else { setProviderReady(false); setProviderAccounts([]); }
   }, []);
 
   const load = useCallback(async () => {
@@ -85,7 +85,8 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         links.push(...(data ?? []) as BankAllocation[]);
         if ((data?.length ?? 0) < 1000) break;
       }
-      if (!providerLoaded.current) { providerLoaded.current = true; await readProviderAccounts(); }
+      // Refresh the provider's stored snapshot, not the bank: no syncAll/rate-limit requests here.
+      await readProviderAccounts();
       const [{ data: accountRows, error: accountError }, { data: logRows }] = await Promise.all([supabase.from("bank_accounts").select("*").eq("is_active", true).order("bank"), supabase.from("bank_sync_log").select("id,bank,outcome,message,created_at").order("created_at", { ascending: false }).limit(10)]);
       if (accountError) throw accountError;
       setAccounts((accountRows ?? []) as BankAccount[]);
@@ -179,6 +180,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
         throw new Error(msg ?? "Importazione PayPal non riuscita.");
       }
       toast.success(`PayPal: ${data.imported} nuovi movimenti importati`);
+      if (data.balance_warning) toast.warning(data.balance_warning);
       await load();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Importazione PayPal non riuscita."); }
     finally { setPaypalBusy(false); }
@@ -204,7 +206,7 @@ export function BankAccountsView({ year, accountingKey, saving, onReconciled }: 
       setSyncNotice(data.message ?? "Sincronizzazione completata.");
       if (data.status === "blocked") return;
       toast.success(`${data.imported ?? 0} nuovi movimenti importati`);
-      await Promise.all([load(), readProviderAccounts()]);
+      await load();
     } catch (e) { setSyncNotice(e instanceof Error ? e.message : "Sincronizzazione non riuscita."); }
     finally { setBankBusy(null); }
   };

@@ -225,6 +225,13 @@
       "when": 1793608708137,
       "tag": "0031_atomic_bank_batch_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793609148771,
+      "tag": "0032_single_write_bank_batch_reconciliation",
+      "breakpoints": true
     }
   ]
 }

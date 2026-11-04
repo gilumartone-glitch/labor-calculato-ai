@@ -12,6 +12,7 @@ const endOfName = /\s*(?:[;|]|\b(?:CAUSALE|MOTIVO|IBAN|B\.\s*ORD|DES\s*\/\s*BEN|
 export function bankCausale(movement: Movement): string {
   if (movement.manual_updated_at) return movement.description ?? "";
   const original = movement.description ?? "";
+  if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
   if (/\bPAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE\b/i.test(original)) return "CARTA DI DEBITO";
   const structured = movement.counterparty_name?.trim();
   if (structured) return clean(structured);

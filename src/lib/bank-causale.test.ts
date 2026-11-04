@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("proposes only VIACARD for the supplied bank narrative without changing the original", () => {
+    const movement = { amount: -275.71, description: "VIACARD PDVIA;causale interna: PD" };
+    expect(bankCausale(movement)).toBe("VIACARD");
+    expect(movement.description).toBe("VIACARD PDVIA;causale interna: PD");
+    expect(bankCausale({ ...movement, description: "viacard PDVIA;causale interna: PD", counterparty_name: "VIACARD PDVIA" })).toBe("VIACARD");
+    expect(bankCausale({ ...movement, description: "VIACARD PERSONALIZZATA", manual_updated_at: "2026-11-04T12:11:00Z" })).toBe("VIACARD PERSONALIZZATA");
+  });
   it("automatically labels the supplied international debit-card payment", () => {
     expect(bankCausale({ amount: -36.87, description: "PAGAMENTO DEBINT PDINT PAGAMENTO CARTA DI DEBITO INTERNAZIONALE 537599******0775 -28/10/26-04:53 BONOMO;causale interna" })).toBe("CARTA DI DEBITO");
   });

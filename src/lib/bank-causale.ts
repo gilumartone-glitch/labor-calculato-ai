@@ -33,6 +33,7 @@ export function bankCausale(movement: Movement): string {
   if (original.includes(" · ")) return counterpartyName(original.split(" · ")[0]);
 
   if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
+  if (/\b(?:PAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE|CANONE\s+CARTA\s+(?:DI\s+)?DEBITO)\b/i.test(original)) return "CARTA DI DEBITO";
   const structured = movement.counterparty_name?.trim();
   if (structured) return counterpartyName(structured);
 

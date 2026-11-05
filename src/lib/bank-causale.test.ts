@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("keeps only the instant transfer counterparty", () => {
+    expect(bankCausale({ amount: -100, description: "rif. banca: 20261104 5429057; ulteriori descrizioni: BON. ISTANTANEO A DEBITO DIIST IBENA Textilwerke GmbH Rif. 000012611041250090691340" })).toBe("IBENA");
+  });
   it("maps debit card fee to CARTA DI DEBITO", () => {
     expect(bankCausale({ amount: -2, description: "CANONE CARTA DEBITO INT COINT CANONE CARTA DI DEBITO INTERNAZIONALE 537599******0775;causale interna: CO" })).toBe("CARTA DI DEBITO");
   });

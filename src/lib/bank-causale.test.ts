@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("keeps only the PayPal counterparty name", () => {
+    expect(bankCausale({ amount: -30, description: "STEFANO PUGLISI · NASTRO BIADESIVO PER MOQUETTE APPROVATO NEC, 38 MM X 50 M." })).toBe("STEFANO PUGLISI");
+  });
   it("maps debit card fee to CARTA DI DEBITO", () => {
     expect(bankCausale({ amount: -2, description: "CANONE CARTA DEBITO INT COINT CANONE CARTA DI DEBITO INTERNAZIONALE 537599******0775;causale interna: CO" })).toBe("CARTA DI DEBITO");
   });

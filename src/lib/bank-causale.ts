@@ -1,0 +1,1 @@
+export { bankCausale, counterpartyName } from "../../supabase/functions/_shared/bank-causale";

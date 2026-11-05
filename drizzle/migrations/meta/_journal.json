@@ -253,6 +253,13 @@
       "when": 1793609342520,
       "tag": "0035_qualify_batch_allocation_amount",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793904066362,
+      "tag": "0036_bank_automatic_cash_and_morning_refresh",
+      "breakpoints": true
     }
   ]
 }

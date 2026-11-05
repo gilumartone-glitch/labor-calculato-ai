@@ -2432,6 +2432,7 @@ export type Database = {
         Args: { _cat: Database["public"]["Enums"]["admin_task_category"] }
         Returns: string
       }
+      auto_register_bank_cash: { Args: { _entries: Json }; Returns: Json }
       bank_transaction_fingerprint: {
         Args: { _amount: number; _date: string; _description: string }
         Returns: string
@@ -2594,6 +2595,10 @@ export type Database = {
         Returns: Json
       }
       reconcile_bank_transactions: { Args: { _entries: Json }; Returns: Json }
+      reconcile_bank_transactions_core: {
+        Args: { _actor: string; _entries: Json }
+        Returns: Json
+      }
       release_obio_sync: { Args: { _run: string }; Returns: undefined }
       reopen_project_draft: { Args: { _draft: string }; Returns: undefined }
       return_order_to_revision: {

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("maps instant transfer fee to BANCA", () => {
+    expect(bankCausale({ amount: -1, description: "COMM BONIFICO ISTANTANEO COIST;causale interna: CO" })).toBe("BANCA");
+  });
   it("proposes only VIACARD for the supplied bank narrative without changing the original", () => {
     const movement = { amount: -275.71, description: "VIACARD PDVIA;causale interna: PD" };
     expect(bankCausale(movement)).toBe("VIACARD");

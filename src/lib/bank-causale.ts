@@ -9,7 +9,7 @@ const clean = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleUpper
 const endOfName = /\s*(?:[;|]|\b(?:CAUSALE|MOTIVO|IBAN|B\.\s*ORD|DES\s*\/\s*BEN|RIFERIMENTO|CRO|TRN)\s*[:/])/i;
 
 const ADDRESS = /\s+(?:C\/O|VIA|V\.LE|VIALE|PIAZZA|P\.ZZA|P\.LE|PIAZZALE|CORSO|C\.SO|LOC\.|LOCALITA'?|CONTRADA|STRADA|LARGO|VICOLO)\s/;
-const LEGAL = /\s+(?:S\.?\s?R\.?\s?L\.?S?|S\.?R\.?$|S\.?\s?P\.?\s?A\.?|S\.?N\.?C\.?|S\.?A\.?S\.?|GMBH|B\.V\.|SOCIETA'\s+(?:A\s+RESP|P\b|PER\s+AZ|COOP)|SOC\.\s*COOP)(?=[\s,.;]|$)/;
+const LEGAL = /\s+(?:S\.?\s?R\.?\s?L\.?S?|S\.?R\.?$|S\.?\s?P\.?\s?A\.?|S\.?N\.?C\.?|S\.?A\.?S\.?|GMBH|B\.V\.)(?=[\s,.;]|$)|\s+(?:SOCIETA'\s+(?:A\s+RESP|P$|PER\s+AZ|COOP)|SOC\.\s*COOP)/;
 const TAIL = /^(?:IRELAND|ITALIA|ITALY|EUROPE|EU|LIMITED|LTD|AG|KG|INC|SARL|SA|TEXTILWERKE|MILAN|BRANCH)$/;
 
 /** Reduce a counterparty to its name: no address, legal form, country or branch words. */
@@ -39,6 +39,7 @@ export function bankCausale(movement: Movement): string {
   const party = original.match(/^\s*(?:ORDINANTE|BENEFICIARIO)\s*:\s*([^;]+)/i)?.[1];
   if (party?.trim()) return counterpartyName(party);
 
+  if (/^\s*SPESE\s+(?:DISTINTA|BONIFICO)/i.test(original)) return "BANCA";
   // Credem coded rows: "TYPE   CODE rest;causale interna: XX" (optionally after "rif. banca ...; ulteriori descrizioni:").
   const body = original.replace(/^\s*rif\.\s*banca:[^;]*;\s*ulteriori descrizioni:\s*/i, "").replace(/;\s*causale interna.*$/i, "");
   const coded = body.match(/^(.+?)\s{2,}([A-Z][A-Z0-9]{2,4})\b\s*(.*)$/);

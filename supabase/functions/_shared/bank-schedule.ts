@@ -1,7 +1,8 @@
 export const BANK_SYNC_TIMES = ["08:30", "15:00"];
-export function bankScheduleSlot(now = new Date()) {
+export const BANK_REFRESH_TIMES = ["08:30"];
+export function bankScheduleSlot(now = new Date(), bankRefresh = false) {
   const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
-  return BANK_SYNC_TIMES.includes(time);
+  return (bankRefresh ? BANK_REFRESH_TIMES : BANK_SYNC_TIMES).includes(time);
 }
 export async function authorizeBankSync(req: Request, client: any, admin: any, token: string | undefined) {
   let body: unknown;
@@ -12,6 +13,7 @@ export async function authorizeBankSync(req: Request, client: any, admin: any, t
   if (keys.length && !scheduled) return { error: "Richiesta non valida.", status: 400 };
   if (scheduled) {
     if (!token || req.headers.get("x-bank-schedule-token") !== token) return { error: "Non autorizzato.", status: 401 };
+    if (!bankScheduleSlot()) return { error: "Fuori dagli orari programmati.", status: 403 };
     const [{ data: config, error: configError }, { data: settings, error: settingsError }] = await Promise.all([
       admin.from("bank_schedule_config").select("enabled").eq("id", true).maybeSingle(),
       admin.from("bank_provider_settings").select("sync_enabled,provider,costs_verified,monthly_cost_eur,commercial_evidence").eq("id", true).maybeSingle(),

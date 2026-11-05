@@ -4,7 +4,8 @@ import { OpenBankingClient } from "npm:@open-banking-io/client@1.3.0";
 import { normalizeObioMovement, obioAccountRef, obioFallbackRef, obioTermsVerified } from "../_shared/obio-import.ts";
 import { syncDateFrom } from "../_shared/bank-identity.ts";
 import { blockedBankSync } from "../_shared/bank-sync-result.ts";
-import { authorizeBankSync } from "../_shared/bank-schedule.ts";
+import { authorizeBankSync, bankScheduleSlot } from "../_shared/bank-schedule.ts";
+import { registerAutomaticBankCash } from "../_shared/bank-auto-cash.ts";
 import { selectBankBalance } from "../_shared/bank-balance.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
@@ -16,6 +17,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
   const access = await authorizeBankSync(req, client, admin, Deno.env.get("BANK_SCHEDULE_TOKEN"));
   if (access.error) return json({ error: access.error }, access.status);
+  if (access.scheduled && !bankScheduleSlot(undefined, true)) return json(blockedBankSync("outside_schedule", "Credem e BNL si aggiornano solo alle 08:30."));
   const run = crypto.randomUUID();
   let locked = false;
   let imported = 0;
@@ -42,7 +44,7 @@ Deno.serve(async (req) => {
     if (initialAccounts.length !== supported.length || supported.some(a => a.currency !== "EUR" || a.needsReconnect || !connections.some(c => c.accountIds.includes(a.id) && c.isLive && new Date(c.validUntil).getTime() > Date.now() && /business|corporate/i.test(c.psuType ?? "")))) {
       return json(blockedBankSync("business_consent_required", "Verifica o rinnova i consensi aziendali su open-banking.io prima di sincronizzare."));
     }
-    // Banks allow only a few unattended reads per day: only the 08:30/15:00 schedule asks the bank
+    // Banks allow only a few unattended reads per day: only the 08:30 schedule asks the bank
     // for fresh data. Manual runs re-read what open-banking.io already holds so they never use that allowance.
     stage = "refresh_bank";
     const result = access.scheduled ? await provider.syncAll() : { accounts: 0, newTransactions: 0, failures: [] as { accountId: string; reason: string }[] };
@@ -95,7 +97,8 @@ Deno.serve(async (req) => {
       if (balanceError) throw new Error("balance_save_failed");
       await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: access.scheduled ? (balance ? "Movimenti e saldo open-banking.io aggiornati." : "Movimenti aggiornati; il servizio non ha fornito un saldo. Ultimo saldo conservato.") : "Riletti i movimenti già ricevuti, senza nuova richiesta alla banca." });
     }
-    return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 08:30 e alle 15:00, per non superare il limite giornaliero delle banche." });
+    await registerAutomaticBankCash(admin);
+    return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 08:30." });
   } catch (error) {
     const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
     const code = error instanceof Error && known.includes(error.message) ? error.message : stage;

@@ -1,5 +1,8 @@
 # Tasks
 
+- [x] Automatically register existing and future booked CARTA DI DEBITO, BANCA and GOOGLE movements directly in cash, retaining dates and duplicate protection. 51 focused tests passed; signed-in CSV direct cash and repeated import verified, bank dates read back; temporary test rows removed.
+- [x] Suspend Credem/BNL 15:00 refresh; retain 08:30 Europe/Rome and PayPal's existing two updates. Deployed dispatcher and obio morning-only gates, DST tests and signed-in Conti/cash GOOGLE read-back verified without bank refresh requests.
+
 - [x] Fix missing/stale balances for Credem, BNL and PayPal; shared booked/available snapshot selection, actual PayPal balance endpoint and refresh without bank sync. Signed-in Conti reads BNL 1681.28 EUR, Credem 40266.80 EUR, PayPal 313.74 EUR; stored snapshots verified, no accounting cash totals changed.
 
 - [x] Add atomic multi-movement / multi-competence reconciliation and bulk direct cash, with bank booking dates, amount balance and competence search; 19 tests pass, signed-in 4500 € split across four entries and bulk direct cash verified/read back with original bank dates; temporary records removed.

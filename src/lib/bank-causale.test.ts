@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("finds payer or recipient across real Credem formats", () => {
+    const c = (d: string, amount = -1) => bankCausale({ description: d, amount });
+    expect(c("Ordinante:  LSDM S.R.L. VIA MAGNA GRAECIA, 121; ulteriori descrizioni: BONIFICO A CREDITO          OCRET Fattura", 10)).toBe("LSDM");
+    expect(c("PAGAMENTO PREAUTORIZZATO    PDPRE LEASYS ITALIA S.P.A.          C.SO ORBASSANO 367   MANDATO 80T49")).toBe("LEASYS");
+    expect(c("PAGAMENTO EFFETTO           ERRIB RIF. FT. NR. 693 2026 DEL 05 08                    GRAF ADHESIVE S.R.L.;causale interna: ER")).toBe("GRAF ADHESIVE");
+    expect(c("COMMISSIONI VARIE           COVAR;causale interna: CO")).toBe("BANCA");
+  });
   it("keeps only the PayPal counterparty name", () => {
     expect(bankCausale({ amount: -30, description: "STEFANO PUGLISI · NASTRO BIADESIVO PER MOQUETTE APPROVATO NEC, 38 MM X 50 M." })).toBe("STEFANO PUGLISI");
   });

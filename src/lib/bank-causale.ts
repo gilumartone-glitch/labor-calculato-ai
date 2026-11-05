@@ -40,6 +40,7 @@ export function bankCausale(movement: Movement): string {
   if (party?.trim()) return counterpartyName(party);
 
   if (/^\s*SPESE\s+(?:DISTINTA|BONIFICO)/i.test(original)) return "BANCA";
+  if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
   // Credem coded rows: "TYPE   CODE rest;causale interna: XX" (optionally after "rif. banca ...; ulteriori descrizioni:").
   const body = original.replace(/^\s*rif\.\s*banca:[^;]*;\s*ulteriori descrizioni:\s*/i, "").replace(/;\s*causale interna.*$/i, "");
   const coded = body.match(/^(.+?)\s{2,}([A-Z][A-Z0-9]{2,4})\b\s*(.*)$/) ?? body.match(/^(.+?)\s+((?:PD|CO|ER|DI|OC)[A-Z0-9]{3})\b\s*(.*)$/);

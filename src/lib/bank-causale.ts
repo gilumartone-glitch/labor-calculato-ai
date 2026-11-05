@@ -15,6 +15,14 @@ export function bankCausale(movement: Movement): string {
   if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
   if (/^\s*COMM\s+BONIFICO\s+ISTANTANEO\b/i.test(original)) return "BANCA";
   if (/\bPAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE\b/i.test(original)) return "CARTA DI DEBITO";
+  // SEPA direct debits: creditor sits between "DA" and "MANDATO".
+  const sdd = original.match(/^\s*SEPA\s+DD\b.*?\bDA\s+(.+?)\s+(?:MANDATO|RIF\b|;|$)/i)?.[1];
+  if (sdd) {
+    const words = clean(sdd).split(" ");
+    const drop = /^(?:IRELAND|ITALIA|ITALY|EUROPE|EU|LIMITED|LTD|S\.?R\.?L\.?|S\.?P\.?A\.?|GMBH|INC|B\.?V\.?|SARL|SA)$/;
+    while (words.length > 1 && drop.test(words[words.length - 1])) words.pop();
+    return words.join(" ");
+  }
   const structured = movement.counterparty_name?.trim();
   if (structured) return clean(structured);
 

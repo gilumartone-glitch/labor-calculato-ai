@@ -3,6 +3,7 @@
 - Bank balances use shared ISO balance selection (booked first, labelled available fallback) and PayPal reporting total balance with its source date; never derive balances from imported movement totals or erase valid snapshots when the provider omits a balance. Conti reloads provider snapshots without requesting bank synchronization.
 
 - Bank causali use a shared presentation helper for structured payer/payee names and conservative bank-specific extraction; preserve original descriptions and import identity, and honor manual edits.
+- Automatic direct cash uses the same causale helper server-side and a service-only residual batch wrapper around the shared reconciliation core; owner and schedule authorization remain separate, with locked snapshot validation and bank booking dates.
 
 - Upholstery roll nesting compares shared cuts across all compatible heights with separate-height cuts by total cost; quote totals use `src/lib/upholstery-totals.ts` with the saved nesting settings and overrides to match the department cards.
 

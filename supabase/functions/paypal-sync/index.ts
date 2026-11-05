@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { authorizeBankSync } from "../_shared/bank-schedule.ts";
 import { paypalBalance } from "../_shared/bank-balance.ts";
+import { registerAutomaticBankCash } from "../_shared/bank-auto-cash.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const API = "https://api-m.paypal.com";
@@ -75,6 +76,7 @@ Deno.serve(async (req) => {
       await admin.from("bank_accounts").update({ last_sync_at: now }).eq("bank", "PayPal").eq("account_ref", "PAYPAL AZIENDALE");
       await admin.from("bank_sync_log").insert({ bank: "PayPal", outcome: "blocked", message: balanceWarning });
     }
+    await registerAutomaticBankCash(admin);
     return json({ imported, read: rows.length, skipped, balance_updated: !!snapshot, balance_warning: balanceWarning });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Importazione PayPal non riuscita." }, 500);

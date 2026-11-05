@@ -24,7 +24,7 @@ Deno.serve(async req => {
       if (body.action === "activate") {
         const { error } = await admin.rpc("activate_bank_schedule", { _token: token, _endpoint: `${url}/functions/v1/bank-scheduled-sync` });
         if (error) return json({ error: "Attivazione degli aggiornamenti non riuscita." }, 503);
-        return json({ enabled: true, times: ["08:30", "15:00"], timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
+        return json({ enabled: true, times: ["08:30", "15:00"], bank_times: ["08:30"], timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
       }
     }
     const [{ data: config }, { data: settings }] = await Promise.all([
@@ -32,7 +32,8 @@ Deno.serve(async req => {
       admin.from("bank_provider_settings").select("sync_enabled,provider,costs_verified").eq("id", true).maybeSingle(),
     ]);
     if (!config?.enabled || !settings?.sync_enabled || settings.provider !== "open_banking_io" || !settings.costs_verified) return json({ status: "blocked", reason: "schedule_disabled", imported: 0 });
-    const results = await Promise.all(["obio-sync", "paypal-sync"].map(async name => {
+    const providers = body.action === "scheduled" && bankScheduleSlot(undefined, true) ? ["obio-sync", "paypal-sync"] : body.action === "scheduled" ? ["paypal-sync"] : [];
+    const results = await Promise.all(providers.map(async name => {
       try {
         const response = await fetch(`${url}/functions/v1/${name}`, { method: "POST", headers: { "Content-Type": "application/json", "x-bank-schedule-token": token }, body: JSON.stringify({ action: "scheduled" }), signal: AbortSignal.timeout(120000) });
         const data = await response.json();

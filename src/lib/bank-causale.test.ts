@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("maps SEPA direct debit to creditor brand", () => {
+    expect(bankCausale({ amount: -10, description: "SEPA DD CORE PDDDC DA GOOGLE IRELAND LIMITED MANDATO 66372913;causale interna: PD" })).toBe("GOOGLE");
+  });
   it("maps instant transfer fee to BANCA", () => {
     expect(bankCausale({ amount: -1, description: "COMM BONIFICO ISTANTANEO COIST;causale interna: CO" })).toBe("BANCA");
   });

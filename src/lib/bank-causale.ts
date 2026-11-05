@@ -14,7 +14,7 @@ export function bankCausale(movement: Movement): string {
   const original = movement.description ?? "";
   if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
   if (/^\s*COMM\s+BONIFICO\s+ISTANTANEO\b/i.test(original)) return "BANCA";
-  if (/\bPAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE\b/i.test(original)) return "CARTA DI DEBITO";
+  if (/\b(?:PAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE|CANONE\s+CARTA\s+(?:DI\s+)?DEBITO)\b/i.test(original)) return "CARTA DI DEBITO";
   // SEPA direct debits: creditor sits between "DA" and "MANDATO".
   const sdd = original.match(/^\s*SEPA\s+DD\b.*?\bDA\s+(.+?)\s+(?:MANDATO|RIF\b|;|$)/i)?.[1];
   if (sdd) {

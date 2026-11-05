@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { bankCausale } from "./bank-causale";
 
 describe("bank payer and recipient causali", () => {
+  it("maps debit card fee to CARTA DI DEBITO", () => {
+    expect(bankCausale({ amount: -2, description: "CANONE CARTA DEBITO INT COINT CANONE CARTA DI DEBITO INTERNAZIONALE 537599******0775;causale interna: CO" })).toBe("CARTA DI DEBITO");
+  });
   it("maps SEPA direct debit to creditor brand", () => {
     expect(bankCausale({ amount: -10, description: "SEPA DD CORE PDDDC DA GOOGLE IRELAND LIMITED MANDATO 66372913;causale interna: PD" })).toBe("GOOGLE");
   });

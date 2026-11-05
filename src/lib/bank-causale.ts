@@ -19,6 +19,8 @@ function companyName(value: string) {
 export function bankCausale(movement: Movement): string {
   if (movement.manual_updated_at) return movement.description ?? "";
   const original = movement.description ?? "";
+  // PayPal descriptions are "name · subject · note": keep only the name.
+  if (original.includes(" · ")) return clean(original.split(" · ")[0]);
   if (/^\s*VIACARD\b/i.test(original)) return "VIACARD";
   if (/^\s*COMM\s+BONIFICO\s+ISTANTANEO\b/i.test(original)) return "BANCA";
   if (/\b(?:PAGAMENTO\s+CARTA\s+DI\s+DEBITO\s+INTERNAZIONALE|CANONE\s+CARTA\s+(?:DI\s+)?DEBITO)\b/i.test(original)) return "CARTA DI DEBITO";

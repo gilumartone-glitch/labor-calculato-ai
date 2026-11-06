@@ -44,12 +44,15 @@ export function bankCausale(movement: Movement): string {
   if (/^\s*SPESE\s+(?:DISTINTA|BONIFICO)/i.test(original)) return "BANCA";
   // Credem coded rows: "TYPE   CODE rest;causale interna: XX" (optionally after "rif. banca ...; ulteriori descrizioni:").
   const body = original.replace(/^\s*rif\.\s*banca:[^;]*;\s*ulteriori descrizioni:\s*/i, "").replace(/;\s*causale interna.*$/i, "");
-  const coded = body.match(/^(.+?)\s{2,}([A-Z][A-Z0-9]{2,4})\b\s*(.*)$/) ?? body.match(/^(.+?)\s+((?:PD|CO|ER|DI|OC)[A-Z0-9]{3})\b\s*(.*)$/);
+  // Only genuine Credem coded rows (with their internal code or bank reference) qualify, so names like COOP/CONAD never look like codes.
+  const internal = original.match(/;\s*causale interna:\s*([A-Z]{2})\b/i)?.[1]?.toUpperCase();
+  const credemCoded = !!internal || /^\s*rif\.\s*banca:/i.test(original) || /^\S.*?\s{2,}(?:PD|ER|DI|OC)[A-Z]{3}\s/.test(body);
+  const coded = !credemCoded || /^\s*(?:BONIFICO\s|YYY\d{8}\s)/i.test(body) ? null : body.match(/^(.+?)\s{2,}([A-Z][A-Z0-9]{2,4})\b\s*(.*)$/) ?? body.match(/^(.+?)\s+((?:PD|CO|ER|DI|OC)[A-Z0-9]{3})\b\s*(.*)$/);
   if (coded) {
     const [, type, code, rest] = coded;
     if (/^VIACARD/i.test(type)) return "VIACARD";
     if (/CARTA\s+(?:DI\s+)?DEBITO/i.test(body) || code === "PDINT") return "CARTA DI DEBITO";
-    if (/^CO/.test(code)) return "BANCA"; // commissioni, spese, canoni bancari
+    if (internal === "CO" && /^CO/.test(code)) return "BANCA"; // commissioni, spese, canoni bancari
     let name = "";
     if (code === "PDDDC") name = rest.match(/\bDA\s+(.+?)(?:\s+MANDATO\b|$)/i)?.[1] ?? "";
     else if (code === "ERRIB") name = rest.split(/\s{2,}/).pop() ?? ""; // ricevuta bancaria: creditore in fondo

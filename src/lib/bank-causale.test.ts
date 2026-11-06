@@ -56,3 +56,17 @@ describe("bank payer and recipient causali", () => {
     expect(bankCausale({ amount: -50, description: "AFFITTO", counterparty_name: "Mario Rossi", manual_updated_at: "2026-10-30T12:00:00Z" })).toBe("AFFITTO");
   });
 });
+import { automaticCashCausale } from "../../supabase/functions/_shared/bank-auto-cash-rules";
+describe("customer names are never bank fees", () => {
+  it("BNL payer COOP stays a customer", () => {
+    expect(bankCausale({ description: "YYY28102026      COOP ALLEANZA 3.0     B.ORD: X", amount: 100 })).toBe("COOP ALLEANZA 3.0");
+  });
+  it("CONAD transfer is not auto cash", () => {
+    const m = { description: "BONIFICO A CREDITO CONAD SRL SALDO FT 12", amount: 100 };
+    expect(bankCausale(m)).toBe("CONAD");
+    expect(automaticCashCausale(m)).toBeNull();
+  });
+  it("real Credem fee stays BANCA", () => {
+    expect(bankCausale({ description: "COMM BONIFICO ISTANTANEO COIST;causale interna: CO", amount: -1 })).toBe("BANCA");
+  });
+});

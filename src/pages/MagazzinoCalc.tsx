@@ -18,6 +18,7 @@ import { SUB_DEPT_SUFFIX } from "@/lib/produzione/types";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { CUSTOMER_LABEL, type CustomerType, type PriceMode, priceMultiplier, sellPrice } from "@/lib/pricing";
+import { saleMaterialPrice } from "@/lib/sale-material-pricing";
 
 /* ============== Tipi ============== */
 type DanceRoll = {
@@ -2710,11 +2711,12 @@ function SaleProductSection({
     }
     return p;
   };
-  // Prezzo di vendita = acquisto × moltiplicatore (rivenditore/finale × intero/taglio).
+  // Tappezzeria: prezzi di vendita del prodotto; Laboratorio: moltiplicatori legacy.
   const sellPerSaleUnit = (m: any, su: SaleUnit): number =>
-    sellPrice(purchasePerSaleUnit(m, su), customerType, priceMode);
+    m ? saleMaterialPrice(m, customerType, priceMode, unitOf(m), su) : 0;
 
   const selected = variants.find((v: any) => v.id === variantId) ?? variants[0];
+  const usesCatalogSellingPrices = typeof selected?.costPrice === "number";
   const baseUnit: SaleUnit = selected ? unitOf(selected) : defaultUnit;
   const canSwitchToMl = baseUnit === "m²" && heightMeters(selected) > 0;
   const effectiveSaleUnit: SaleUnit = saleUnitOverride && (saleUnitOverride === "m" || saleUnitOverride === "m²")
@@ -2859,10 +2861,12 @@ function SaleProductSection({
                 <Field label="Modalità">
                   <div className="flex gap-1 border border-input rounded-md p-0.5 bg-background">
                     {(["piece", "cut"] as PriceMode[]).map((m) => (
-                      <button key={m} type="button" onClick={() => setPriceMode(m)}
+                      <Button key={m} type="button" variant="ghost" onClick={() => setPriceMode(m)}
                         className={`flex-1 h-9 text-[12px] font-semibold rounded-sm transition-colors ${priceMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-                        {m === "piece" ? `Intero (×${priceMultiplier(customerType, "piece")})` : `Al taglio (×${priceMultiplier(customerType, "cut")})`}
-                      </button>
+                        {usesCatalogSellingPrices
+                          ? (m === "piece" ? "Intero" : "Al taglio")
+                          : (m === "piece" ? `Intero (×${priceMultiplier(customerType, "piece")})` : `Al taglio (×${priceMultiplier(customerType, "cut")})`)}
+                      </Button>
                     ))}
                   </div>
                 </Field>
@@ -2901,7 +2905,7 @@ function SaleProductSection({
                   <KPI
                     label="Prezzo vendita unitario"
                     value={`${eur(sellPerSaleUnit(selected, effectiveSaleUnit))}/${effectiveSaleUnit}`}
-                    hint={`×${priceMultiplier(customerType, priceMode)} · ${priceMode === "piece" ? "intero" : "al taglio"}`}
+                    hint={`${usesCatalogSellingPrices ? "listino" : `×${priceMultiplier(customerType, priceMode)}`} · ${priceMode === "piece" ? "intero" : "al taglio"}`}
                   />
                   <KPI label="Quantità" value={`${fmt(qty)} ${effectiveSaleUnit}`} hint={labelOf(selected)} />
                   <KPI label="Costo materiale" value={eur(purchasePerSaleUnit(selected, effectiveSaleUnit) * qty)} hint="totale d'acquisto" />

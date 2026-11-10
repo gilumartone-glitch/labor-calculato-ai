@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Material-only sales resolve department catalog prices through `sale-material-pricing.ts` and `materialUnitCost` before unit conversion; manual fabric selling prices must not receive laboratory multipliers.
+
 - Notification delivery uses one authenticated app-wide realtime listener with coalesced refresh and visible-page fallback; browser push registration must confirm persisted subscriptions and reuse the server's public VAPID key.
 - Notification push dispatch has one database trigger, a service-only database-generated credential, and stored notification lookup; interactive requests may only test the signed-in user's devices, never supply recipients or content.
 - Electron receives open-app OS notifications through a narrow origin-validated preload bridge; notification clicks stay inside app routes, and desktop delivery requires the updated installer.

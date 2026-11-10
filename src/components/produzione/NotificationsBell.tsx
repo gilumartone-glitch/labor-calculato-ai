@@ -13,6 +13,7 @@ import {
   pushAvailableHere, getNotificationStatus, subscribePush, unsubscribePush,
 } from "@/lib/push";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export const NotificationsBell = () => {
   const navigate = useNavigate();
@@ -46,19 +47,21 @@ export const NotificationsBell = () => {
     }
   };
 
+  const testPush = async () => {
+    setPushBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-push", { body: { action: "test" } });
+      if (error) throw new Error("Invio della notifica di prova non riuscito");
+      if (!data?.sent) throw new Error(data?.registered ? "Notifica non consegnata: disattiva e riattiva le notifiche" : "Nessun dispositivo registrato: attiva le notifiche");
+      toast.success(`Notifica di prova inviata a ${data.sent} dispositiv${data.sent === 1 ? "o" : "i"}`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Invio non riuscito"); }
+    finally { setPushBusy(false); }
+  };
+
   const unread = notifications.filter((n) => !n.read_at);
   const list = tab === "unread" ? unread : notifications;
   const hasUrgent = useMemo(() => unread.some((n) => n.is_urgent), [unread]);
 
-  useEffect(() => {
-    if (!user) return;
-    refresh(user.id);
-    const ch = supabase
-      .channel(`notifications-bell-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "prod_notifications", filter: `user_id=eq.${user.id}` }, () => refresh(user.id))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [user, refresh]);
 
   const markRead = async (id: string) => {
     await supabase.from("prod_notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
@@ -74,14 +77,14 @@ export const NotificationsBell = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="relative grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-ink/20 bg-background hover:bg-muted transition-colors" title="Notifiche" aria-label="Notifiche">
+        <Button variant="outline" size="icon" className="relative h-10 w-10 shrink-0" title="Notifiche" aria-label="Notifiche">
           <Bell className={`w-4 h-4 ${hasUrgent ? "text-destructive animate-pulse" : "text-ink/70"}`} />
           {unread.length > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold grid place-items-center">
               {unread.length}
             </span>
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[calc(100vw-1rem)] sm:w-96 p-0 max-h-[70vh] overflow-hidden flex flex-col">
         <div className="px-3 py-2 border-b flex items-center justify-between">
@@ -106,15 +109,16 @@ export const NotificationsBell = () => {
                 ? "Push attive su questo dispositivo"
                 : "Ricevi notifiche anche ad app chiusa"}
             </div>
-            <button
+            <Button size="sm"
               onClick={togglePush}
               disabled={pushBusy}
-              className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm bg-ink text-paper hover:bg-ink/80 disabled:opacity-50"
+              className="shrink-0"
             >
               {pushStatus === "subscribed" ? "Disattiva" : "Attiva"}
-            </button>
+            </Button>
           </div>
         )}
+        {pushStatus === "subscribed" && <div className="px-3 py-2 border-b"><Button variant="outline" size="sm" onClick={testPush} disabled={pushBusy}>Invia notifica di prova</Button></div>}
         {!pushAvailableHere() && typeof window !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent) && (
           <div className="px-3 py-2 border-b bg-amber-50 text-[10px] text-amber-900 leading-snug">
             <div className="font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1"><Smartphone className="w-3 h-3" /> iPhone: installa l'app</div>

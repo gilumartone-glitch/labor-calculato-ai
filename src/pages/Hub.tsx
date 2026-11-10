@@ -7,6 +7,7 @@ import { ChangePasswordButton } from "@/components/ChangePasswordButton";
 import { UpdateCheckButton } from "@/components/UpdateCheckButton";
 import { DownloadDesktopButton } from "@/components/DownloadDesktopButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationsBell } from "@/components/produzione/NotificationsBell";
 
 type Tile = {
   key: PageKey;
@@ -70,6 +71,7 @@ const Hub = () => {
           </div>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mx-1 sm:mx-0">
             <ThemeToggle />
+            <NotificationsBell />
             <UpdateCheckButton />
             <DownloadDesktopButton />
             <ChangePasswordButton variant="outline" />

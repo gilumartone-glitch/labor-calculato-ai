@@ -1,5 +1,8 @@
 # Architecture rules
 
+- Notification delivery uses one authenticated app-wide realtime listener with coalesced refresh and visible-page fallback; browser push registration must confirm persisted subscriptions and reuse the server's public VAPID key.
+- Notification push dispatch has one database trigger, a service-only database-generated credential, and stored notification lookup; interactive requests may only test the signed-in user's devices, never supply recipients or content.
+
 - Bank balances use shared ISO balance selection (booked first, labelled available fallback) and PayPal reporting total balance with its source date; never derive balances from imported movement totals or erase valid snapshots when the provider omits a balance. Conti reloads provider snapshots without requesting bank synchronization.
 
 - Bank causali use a shared presentation helper for structured payer/payee names and conservative bank-specific extraction; preserve original descriptions and import identity, and honor manual edits.

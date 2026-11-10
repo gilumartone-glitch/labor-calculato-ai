@@ -59,16 +59,26 @@ export async function subscribePush(userId: string) {
   if (perm === "default") perm = await Notification.requestPermission();
   if (perm !== "granted") throw new Error("Permesso negato");
 
-  const reg = (await ensureServiceWorker())!;
+  const reg = await ensureServiceWorker();
+  if (!reg) throw new Error("Impossibile attivare le notifiche su questo dispositivo");
+  const { data: configuration, error: configurationError } = await supabase.functions.invoke("send-push", { body: { action: "public-key" } });
+  if (configurationError || !configuration?.publicKey) throw new Error("Configurazione notifiche non disponibile");
+  const publicKey = urlBase64ToUint8Array(configuration.publicKey);
   let sub = await reg.pushManager.getSubscription();
+  const existingKey = sub?.options.applicationServerKey;
+  if (sub && existingKey && (new Uint8Array(existingKey).length !== publicKey.length || new Uint8Array(existingKey).some((v, i) => v !== publicKey[i]))) {
+    await sub.unsubscribe();
+    sub = null;
+  }
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey: publicKey,
     });
   }
   const json = sub.toJSON();
-  await supabase.from("push_subscriptions").upsert(
+  if (!json.keys?.p256dh || !json.keys.auth) throw new Error("Registrazione dispositivo incompleta");
+  const { error } = await supabase.from("push_subscriptions").upsert(
     {
       user_id: userId,
       endpoint: sub.endpoint,
@@ -78,6 +88,7 @@ export async function subscribePush(userId: string) {
     },
     { onConflict: "endpoint" },
   );
+  if (error) throw new Error("Il dispositivo non è stato registrato: riprova ad attivare le notifiche");
   return true;
 }
 
@@ -86,7 +97,8 @@ export async function unsubscribePush() {
   const reg = await navigator.serviceWorker.getRegistration("/sw.js");
   const sub = await reg?.pushManager.getSubscription();
   if (sub) {
-    await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+    const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+    if (error) throw new Error("Impossibile disattivare le notifiche: riprova");
     await sub.unsubscribe();
   }
 }

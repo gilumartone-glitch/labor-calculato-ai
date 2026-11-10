@@ -24,7 +24,9 @@ export function NotificationDelivery() {
       const url = safeNotificationPath(n.link || (n.order_id ? `/produzione/board?order=${n.order_id}` : "/hub"));
       toast(n.message, { id: n.id, duration: 10000, action: { label: "Apri", onClick: () => navigate(url) } });
       // Electron's file:// fallback has no web push; its open window can still show OS alerts.
-      if (window.electronAPI?.isElectron && "Notification" in window && Notification.permission === "granted") {
+      if (window.electronAPI?.showNotification && localStorage.getItem("notifications:desktop") !== "off") {
+        void window.electronAPI.showNotification(n.message, url).catch(() => {});
+      } else if (window.electronAPI?.isElectron && "Notification" in window && Notification.permission === "granted") {
         const note = new Notification("Tecnofra Flow", { body: n.message, tag: n.id });
         note.onclick = () => { window.focus(); navigate(url); };
       }
@@ -49,8 +51,9 @@ export function NotificationDelivery() {
       .subscribe();
     const timer = window.setInterval(() => { if (!document.hidden) reload(); }, 60000);
     const onFocus = () => reload();
+    const stopDesktopClick = window.electronAPI?.onNotificationOpen?.(url => navigate(safeNotificationPath(url)));
     window.addEventListener("focus", onFocus);
-    return () => { cancelled = true; reload.cancel(); clearInterval(timer); window.removeEventListener("focus", onFocus); void supabase.removeChannel(channel); };
+    return () => { cancelled = true; stopDesktopClick?.(); reload.cancel(); clearInterval(timer); window.removeEventListener("focus", onFocus); void supabase.removeChannel(channel); };
   }, [user?.id, refresh, navigate]);
   return null;
 }

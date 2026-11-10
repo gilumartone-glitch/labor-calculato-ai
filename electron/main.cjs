@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, shell, ipcMain, dialog, Notification } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
@@ -232,7 +232,21 @@ ipcMain.handle("check-for-updates", async (e) => {
 
 ipcMain.handle("get-app-version", () => APP_VERSION);
 
+ipcMain.handle("show-notification", (event, input) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || !Notification.isSupported() || !input || typeof input.message !== "string") return false;
+  let origin;
+  try { origin = new URL(event.sender.getURL()); } catch { return false; }
+  if (origin.origin !== "https://flow.tecnofra.it" && origin.protocol !== "file:" && !(isDev && origin.hostname === "localhost")) return false;
+  const url = typeof input.url === "string" && /^\/(?!\/)/.test(input.url) && !/[\\\r\n]/.test(input.url) ? input.url : "/hub";
+  const notification = new Notification({ title: "Tecnofra Flow", body: input.message.slice(0, 2000) });
+  notification.on("click", () => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); event.sender.send("notification-open", url); });
+  notification.show();
+  return true;
+});
+
 app.whenReady().then(() => {
+  if (process.platform === "win32") app.setAppUserModelId("it.tecnofra.workpricebuddy");
   createWindow();
 
   app.on("activate", () => {

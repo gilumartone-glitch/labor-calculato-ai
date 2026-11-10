@@ -25,13 +25,19 @@ export const NotificationsBell = () => {
   const [pushStatus, setPushStatus] = useState<string>("unsupported");
   const [pushBusy, setPushBusy] = useState(false);
 
-  const refreshPushStatus = async () => setPushStatus(await getNotificationStatus());
-  useEffect(() => { refreshPushStatus(); }, [user]);
+  const desktop = !!window.electronAPI?.showNotification;
+  const refreshPushStatus = async () => setPushStatus(desktop ? (localStorage.getItem("notifications:desktop") === "off" ? "default" : "subscribed") : await getNotificationStatus());
+  useEffect(() => { void refreshPushStatus().catch(() => setPushStatus("default")); }, [user, open]);
 
   const togglePush = async () => {
     if (!user) return;
     setPushBusy(true);
     try {
+      if (desktop) {
+        localStorage.setItem("notifications:desktop", pushStatus === "subscribed" ? "off" : "on");
+        await refreshPushStatus();
+        return;
+      }
       if (pushStatus === "subscribed") {
         await unsubscribePush();
         toast.success("Notifiche push disattivate");
@@ -50,6 +56,12 @@ export const NotificationsBell = () => {
   const testPush = async () => {
     setPushBusy(true);
     try {
+      if (desktop) {
+        const shown = await window.electronAPI?.showNotification?.("Le notifiche di Tecnofra Flow sono attive.", "/hub");
+        if (!shown) throw new Error("Notifiche desktop non disponibili");
+        toast.success("Notifica di prova inviata al desktop");
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("send-push", { body: { action: "test" } });
       if (error) throw new Error("Invio della notifica di prova non riuscito");
       if (!data?.sent) throw new Error(data?.registered ? "Notifica non consegnata: disattiva e riattiva le notifiche" : "Nessun dispositivo registrato: attiva le notifiche");
@@ -101,13 +113,13 @@ export const NotificationsBell = () => {
             Segna tutte
           </button>
         </div>
-        {pushAvailableHere() && pushStatus !== "denied" && (
+        {(desktop || pushAvailableHere()) && pushStatus !== "denied" && (
           <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[11px] text-ink/70">
               <Smartphone className="w-3.5 h-3.5" />
               {pushStatus === "subscribed"
-                ? "Push attive su questo dispositivo"
-                : "Ricevi notifiche anche ad app chiusa"}
+                ? (desktop ? "Notifiche desktop attive" : "Push attive su questo dispositivo")
+                : (desktop ? "Notifiche desktop disattivate" : "Ricevi notifiche anche ad app chiusa")}
             </div>
             <Button size="sm"
               onClick={togglePush}

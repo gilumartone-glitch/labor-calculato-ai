@@ -47,7 +47,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   let inIframe = false;
   try { inIframe = window.self !== window.top; } catch { inIframe = true; }
   if (isPreview || inIframe) {
-    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+    navigator.serviceWorker.getRegistrations().then((rs) => rs.filter(r => [r.active, r.waiting, r.installing].some(w => w && new URL(w.scriptURL).pathname === "/sw.js")).forEach((r) => r.unregister())).catch(() => {});
   } else {
     navigator.serviceWorker.addEventListener("message", (e) => {
       const url = (e.data && e.data.url) as string | undefined;

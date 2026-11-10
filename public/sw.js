@@ -24,11 +24,16 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  const requested = (event.notification.data && event.notification.data.url) || "/";
+  const url = typeof requested === "string" && /^\/(?!\/)/.test(requested) && !/[\\\r\n]/.test(requested) ? requested : "/hub";
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of all) {
-      try { await c.focus(); c.postMessage({ type: "navigate", url }); return; } catch (_) {}
+      try {
+        await c.navigate(new URL(url, self.location.origin).href);
+        await c.focus();
+        return;
+      } catch (_) {}
     }
     await self.clients.openWindow(url);
   })());

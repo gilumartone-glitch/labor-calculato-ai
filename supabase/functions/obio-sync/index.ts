@@ -7,6 +7,7 @@ import { blockedBankSync } from "../_shared/bank-sync-result.ts";
 import { authorizeBankSync, bankScheduleSlot } from "../_shared/bank-schedule.ts";
 import { registerAutomaticBankCash } from "../_shared/bank-auto-cash.ts";
 import { selectBankBalance } from "../_shared/bank-balance.ts";
+import { OBIO_REQUEST_TIMEOUT_MS, obioFailureCode } from "../_shared/obio-request.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async (req) => {
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
     const { data: acquired, error: lockError } = await admin.rpc("acquire_obio_sync", { _run: run });
     if (lockError || !acquired) return json(blockedBankSync("sync_in_progress", "Sincronizzazione già in corso: attendi il completamento."));
     locked = true;
-    const provider = new OpenBankingClient({ apiBaseUrl, apiKey, privateKeyPkcs8, timeoutMs: 20000 });
+    const provider = new OpenBankingClient({ apiBaseUrl, apiKey, privateKeyPkcs8, timeoutMs: OBIO_REQUEST_TIMEOUT_MS });
     stage = "read_accounts";
     const [initialAccounts, connections] = await Promise.all([provider.getAccounts(), provider.getConnections()]);
     const supported = initialAccounts.filter(a => /credem|emiliano|bnl|nazionale.*lavoro/i.test(a.aspspName));
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
     return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 08:30." });
   } catch (error) {
     const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
-    const code = error instanceof Error && known.includes(error.message) ? error.message : stage;
+    const code = error instanceof Error && known.includes(error.message) ? error.message : obioFailureCode(error, stage);
     console.warn("obio-sync blocked", code);
     return json({ status: "error", code, imported, error: "Sincronizzazione non completata. Controlla il consenso su open-banking.io e riprova; i movimenti già salvati non verranno duplicati." }, 502);
   } finally {

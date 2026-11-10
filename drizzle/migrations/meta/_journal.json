@@ -260,6 +260,13 @@
       "when": 1793904066362,
       "tag": "0036_bank_automatic_cash_and_morning_refresh",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794307542757,
+      "tag": "0037_repair_notification_push_dispatch",
+      "breakpoints": true
     }
   ]
 }

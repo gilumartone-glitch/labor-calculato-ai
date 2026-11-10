@@ -13,6 +13,7 @@ loadMaterialDependencies();
 import { RouteGuard } from "@/components/RouteGuard";
 import { FloatingHubButton } from "@/components/HubLink";
 import Index from "./pages/Index";
+import { NotificationDelivery } from "@/components/NotificationDelivery";
 
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
@@ -59,6 +60,7 @@ const App = () => (
       <Sonner />
       <Router>
         <AuthProvider>
+          <NotificationDelivery />
           <FloatingHubButton />
           <Suspense fallback={<div className="min-h-screen bg-background p-6 text-sm text-muted-foreground">Caricamento…</div>}>
           <Routes>

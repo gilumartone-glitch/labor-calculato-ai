@@ -26,4 +26,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   isElectron: true,
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  showNotification: (message, url) => ipcRenderer.invoke("show-notification", { message, url }),
+  onNotificationOpen: (callback) => {
+    const listener = (_event, url) => callback(url);
+    ipcRenderer.on("notification-open", listener);
+    return () => ipcRenderer.removeListener("notification-open", listener);
+  },
 });

@@ -8,6 +8,8 @@ declare global {
       isElectron: boolean;
       checkForUpdates: () => Promise<void>;
       getAppVersion: () => Promise<string>;
+      showNotification?: (message: string, url: string) => Promise<boolean>;
+      onNotificationOpen?: (callback: (url: string) => void) => () => void;
     };
   }
 }

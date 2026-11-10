@@ -1719,6 +1719,21 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_push_config: {
+        Row: {
+          id: boolean
+          token: string
+        }
+        Insert: {
+          id?: boolean
+          token?: string
+        }
+        Update: {
+          id?: boolean
+          token?: string
+        }
+        Relationships: []
+      }
       personal_record_shares: {
         Row: {
           created_at: string

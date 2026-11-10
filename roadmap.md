@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] Fix Vendita · Tessuti to use each variant's catalog selling prices rather than laboratory purchase multipliers; six tests passed and signed-in Seta Tempesta 5 m at 30 €/m = 150 € verified in calculation and cart read-back. Temporary cart line removed.
+
 - [x] Repair automatic notification dispatch: removed duplicate trigger, service-only credential and stored-notification lookup; deployed and verified automatic delivery accepted by both registered devices (sent 2, failed 0). Unauthorized request denied; three safety tests passed, temporary notifications removed.
 - [x] Repair checked device registration using server public key, add one app-wide foreground listener and Hub bell/test controls; authenticated realtime receipt and mobile panel verified. Added narrow native Electron notification/click bridge; syntax and preview checks passed.
 - [ ] Verify actual OS banners on desktop and mobile and new-device web-push registration: requires updated desktop installer, published frontend and physical devices granting notification permission; sandbox verified provider acceptance and in-app receipt only.

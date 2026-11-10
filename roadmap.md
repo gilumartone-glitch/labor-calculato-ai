@@ -1,7 +1,8 @@
 # Tasks
 
-- [ ] Repair automatic notification dispatch and verify secure push delivery.
-- [ ] Repair device registration and foreground notification delivery on all authenticated pages, including desktop; verify browser flow and document physical-device limits.
+- [x] Repair automatic notification dispatch: removed duplicate trigger, service-only credential and stored-notification lookup; deployed and verified automatic delivery accepted by both registered devices (sent 2, failed 0). Unauthorized request denied; three safety tests passed, temporary notifications removed.
+- [x] Repair checked device registration using server public key, add one app-wide foreground listener and Hub bell/test controls; authenticated realtime receipt and mobile panel verified. Added narrow native Electron notification/click bridge; syntax and preview checks passed.
+- [ ] Verify actual OS banners on desktop and mobile and new-device web-push registration: requires updated desktop installer, published frontend and physical devices granting notification permission; sandbox verified provider acceptance and in-app receipt only.
 
 - [x] Investigate the 10 November morning BNL interruption: recorded refresh_bank failure after about 24 seconds; restored sixty-second SDK wait and safe diagnostics (exact original cause unavailable). Deployed, 15 tests passed; authenticated cache-only recovery imported 16 movements across both banks and Conti read-back verified, latest BNL booking 9 November. No additional bank refresh issued.
 

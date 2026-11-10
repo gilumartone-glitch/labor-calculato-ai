@@ -1,5 +1,8 @@
 # Tasks
 
+- [ ] Repair automatic notification dispatch and verify secure push delivery.
+- [ ] Repair device registration and foreground notification delivery on all authenticated pages, including desktop; verify browser flow and document physical-device limits.
+
 - [x] Investigate the 10 November morning BNL interruption: recorded refresh_bank failure after about 24 seconds; restored sixty-second SDK wait and safe diagnostics (exact original cause unavailable). Deployed, 15 tests passed; authenticated cache-only recovery imported 16 movements across both banks and Conti read-back verified, latest BNL booking 9 November. No additional bank refresh issued.
 
 - [x] Automatically register existing and future booked CARTA DI DEBITO, BANCA and GOOGLE movements directly in cash, retaining dates and duplicate protection. 51 focused tests passed; signed-in CSV direct cash and repeated import verified, bank dates read back; temporary test rows removed.

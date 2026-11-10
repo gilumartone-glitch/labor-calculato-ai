@@ -1,5 +1,7 @@
 # Tasks
 
+- [ ] Investigate the 10 November morning BNL interruption, restore the sixty-second SDK wait and safe failure diagnostics, and verify cached-data recovery without another bank refresh.
+
 - [x] Automatically register existing and future booked CARTA DI DEBITO, BANCA and GOOGLE movements directly in cash, retaining dates and duplicate protection. 51 focused tests passed; signed-in CSV direct cash and repeated import verified, bank dates read back; temporary test rows removed.
 - [x] Suspend Credem/BNL 15:00 refresh; retain 08:30 Europe/Rome and PayPal's existing two updates. Deployed dispatcher and obio morning-only gates, DST tests and signed-in Conti/cash GOOGLE read-back verified without bank refresh requests.
 

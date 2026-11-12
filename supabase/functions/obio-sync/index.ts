@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
         if (refusal.reason === "rate_limited") rateLimited++;
         const reason = ["reconnect_needed", "consent_withdrawn", "uid_outdated", "psu_present_required", "rate_limited", "bank_error", "transient", "partner_app_inactive"].includes(refusal.reason) ? refusal.reason : "provider_refused";
         await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "blocked", message: `Aggiornamento non eseguito: ${reason}.` });
-        continue;
+        // A refused bank refresh must not hide movements the provider already holds.
+        if (!["transient", "bank_error", "rate_limited"].includes(reason)) continue;
       }
       const rows = [];
       const occurrences = new Map<string, number>();
@@ -94,9 +95,9 @@ Deno.serve(async (req) => {
         imported += Number(count ?? 0);
       }
       const balance = selectBankBalance(a.balances, "EUR");
-      const { error: balanceError } = await admin.from("bank_accounts").update({ ...(balance ? { balance: balance.amount, balance_date: balance.referenceDate } : {}), last_sync_at: new Date().toISOString() }).eq("id", saved.id);
+      const { error: balanceError } = await admin.from("bank_accounts").update({ ...(balance ? { balance: balance.amount, balance_date: balance.referenceDate } : {}), ...(refusal ? {} : { last_sync_at: new Date().toISOString() }) }).eq("id", saved.id);
       if (balanceError) throw new Error("balance_save_failed");
-      await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: access.scheduled ? (balance ? "Movimenti e saldo open-banking.io aggiornati." : "Movimenti aggiornati; il servizio non ha fornito un saldo. Ultimo saldo conservato.") : "Riletti i movimenti già ricevuti, senza nuova richiesta alla banca." });
+      await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: refusal ? "Riletti i movimenti già ricevuti dal servizio; la banca non ha risposto all'aggiornamento." : access.scheduled ? (balance ? "Movimenti e saldo open-banking.io aggiornati." : "Movimenti aggiornati; il servizio non ha fornito un saldo. Ultimo saldo conservato.") : "Riletti i movimenti già ricevuti, senza nuova richiesta alla banca." });
     }
     await registerAutomaticBankCash(admin);
     return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 08:30." });

@@ -849,7 +849,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             ))}
           </div>
           <div className="font-mono text-[10px] text-muted-foreground mt-1">
-            Area: {areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+            Area: {areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m²
+            {qty > 1 && ` · totale ${(areaM2 * qty).toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²`}
           </div>
         </div>
         <div className="col-span-12 md:col-span-3">
@@ -1306,7 +1307,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
             <div className="col-span-6 md:col-span-3">
               <div className="label-cap mb-0.5">Area stampa</div>
               <div className="font-mono tabular-nums font-semibold">
-                {areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                {areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m²
               </div>
             </div>
             <div className="col-span-12 md:col-span-3">
@@ -1938,7 +1939,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                         : isMin
                         ? `Quantità (${isPz ? "pezzi" : "minuti"})`
                         : isMq
-                        ? `Area pezzo · ${areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²`
+                        ? `Area pezzo · ${areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m²`
                         : showSides
                         ? `Lati (${pp.sides.length}/4)`
                         : `Lunghezza · ${meters.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m`}
@@ -1975,7 +1976,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                     ) : !showSides ? (
                       <div className="px-2 py-1.5 border border-dashed border-ink/30 rounded-sm font-mono text-[10px] text-muted-foreground bg-muted/20">
                         {isMq
-                          ? `Area = ${areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m² × ${eur(opPrice)}/mq`
+                          ? `Area = ${areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m² × ${eur(opPrice)}/mq`
                           : `Lunghezza = ${meters > 0 ? meters.toLocaleString("it-IT", { maximumFractionDigits: 2 }) : "—"} m × ${eur(opPrice)}/m`}
                       </div>
                     ) : (
@@ -2010,7 +2011,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                         : isManualQty
                         ? `${manualQ} ${isPz ? "pz" : "min"}`
                         : isMq
-                        ? `${areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²`
+                        ? `${areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m²`
                         : `${meters.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m`}
                     </div>
                   </div>

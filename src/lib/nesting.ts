@@ -998,10 +998,14 @@ const stripPack = (
 
 /** Prova più strategie (shelf/FFD + strip MaxRects con vari ordinamenti) e
  *  tiene il risultato che piazza più pezzi consumando meno rotolo. */
+const ROLL_MAXRECTS_LIMIT = 300;
 const rollPackBest = (
   units: PairedUnit[],
   rollWidthM: number,
 ): { items: NestingPieceItem[]; totalLengthM: number; unplaced: PairedUnit[] } => {
+  // Con molte copie (es. 4000 pezzi piccoli) MaxRects diventa troppo lento e
+  // blocca la pagina: lo shelf packer è lineare e per pezzi ripetuti è già ottimale.
+  if (units.length > ROLL_MAXRECTS_LIMIT) return shelfPack(units, rollWidthM);
   const candidates = [
     shelfPack(units, rollWidthM),
     ...sortedUnitVariants(units).map((sorted) => stripPack(sorted, rollWidthM)),

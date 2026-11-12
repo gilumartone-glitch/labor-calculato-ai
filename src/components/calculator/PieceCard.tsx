@@ -21,6 +21,9 @@ import {
 } from "@/lib/piece";
 import { TechnicalDrawing, DrawingSide } from "./TechnicalDrawing";
 import { CustomerType, priceMultiplier } from "@/lib/pricing";
+
+const fmtAreaM2 = (v: number) =>
+  v.toLocaleString("it-IT", Math.abs(v) > 0 && Math.abs(v) < 0.1 ? { maximumSignificantDigits: 3 } : { maximumFractionDigits: 2 });
 import { resolveHeightOrientation } from "@/lib/piece-catalog";
 
 interface Props {
@@ -850,7 +853,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
           </div>
           <div className="font-mono text-[10px] text-muted-foreground mt-1">
             Area: {areaM2.toLocaleString("it-IT", { maximumSignificantDigits: 3 })} m²
-            {qty > 1 && ` · totale ${(areaM2 * qty).toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²`}
+            {qty > 1 && ` · totale ${fmtAreaM2((areaM2 * qty))} m²`}
           </div>
         </div>
         <div className="col-span-12 md:col-span-3">
@@ -1339,7 +1342,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   <div>
                     Materiale stampato: {fmtM(mat.pieceHeightM)} m × {fmtM(mat.pieceWidthM)} m ={" "}
                     <span className="text-ink font-semibold">
-                      {materialEffectiveAreaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                      {fmtAreaM2(materialEffectiveAreaM2)} m²
                     </span>
                   </div>
                   {(() => {
@@ -1356,7 +1359,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                       <div>
                         Sfrido iniziale = 1,50 m × {fmtM(mat.rollWidthM)} m ={" "}
                         <span className="text-ink">
-                          {initialScrapAreaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                          {fmtAreaM2(initialScrapAreaM2)} m²
                         </span>{" "}
                         × {eur(purchasePerSqm)}/mq × 1,3 ={" "}
                         <span className="text-ink font-semibold">{eur(mat.initialScrapSellCost)}</span>
@@ -1376,20 +1379,20 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   <div>
                     Area teli: {mat.panels} × ({fmtM(mat.rollWidthM)} m × {fmtM(mat.panelLengthM)} m) ={" "}
                     <span className="text-ink">
-                      {(mat.panels * mat.rollWidthM * mat.panelLengthM).toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                      {fmtAreaM2((mat.panels * mat.rollWidthM * mat.panelLengthM))} m²
                     </span>
                   </div>
                   <div>
                     Area occupata dal pezzo sui teli: {fmtM(mat.pieceWidthM)} m × {fmtM(mat.panelLengthM)} m ={" "}
                     <span className="text-ink">
-                      {(mat.pieceWidthM * mat.panelLengthM).toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                      {fmtAreaM2((mat.pieceWidthM * mat.panelLengthM))} m²
                     </span>
                   </div>
                   <div>
                     Scarto di lavorazione = area teli − area occupata ={" "}
                     <span className="text-ink font-semibold">
                       {fmtM(scrapWidthM)} m × {fmtM(mat.panelLengthM)} m ={" "}
-                      {leftoverM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²
+                      {fmtAreaM2(leftoverM2)} m²
                     </span>
                   </div>
                   {(() => {
@@ -1404,7 +1407,7 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                     const purchasePerSqm = priceUnitOf(m) === "mq" ? purchase : purchase / mat.rollWidthM;
                     return (
                       <div>
-                        Costo = {leftoverM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m² × {eur(purchasePerSqm)}/mq × 1,3 ={" "}
+                        Costo = {fmtAreaM2(leftoverM2)} m² × {eur(purchasePerSqm)}/mq × 1,3 ={" "}
                         <span className="text-ink font-semibold">{eur(leftoverScrap)}</span>
                       </div>
                     );

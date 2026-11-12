@@ -37,6 +37,9 @@ import { CommessaReparto } from "@/components/flow/types";
 import { copyLabDimensions, findLabDimensionSource } from "@/lib/lab-sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+
+const fmtAreaM2 = (v: number) =>
+  v.toLocaleString("it-IT", Math.abs(v) > 0 && Math.abs(v) < 0.1 ? { maximumSignificantDigits: 3 } : { maximumFractionDigits: 2 });
 import { mmToCm, mToCm } from "@/lib/fmt";
 
 interface DepartmentViewProps {
@@ -1061,7 +1064,7 @@ export const DepartmentView = ({
                               {pricePerSqm > 0 && (
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">
-                                    Prezzo al m² ({areaM2.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m²)
+                                    Prezzo al m² ({fmtAreaM2(areaM2)} m²)
                                   </span>
                                   <span className="tabular-nums font-semibold">
                                     {eur(pricePerSqm)}/m²

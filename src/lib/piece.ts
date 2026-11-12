@@ -882,6 +882,17 @@ export const pieceSeamTotal = (
 };
 
 /** Costo lavorazioni perimetrali del pezzo (esclude cucitura tra teli, che è separata). */
+/** Costo a tempo per singola copia: (minuti totali / 60) × €/ora ÷ quantità pezzi. */
+export const perimeterTimeCostPerPiece = (
+  pp: { timeMinutes?: number; timeRate?: number },
+  quantity: unknown,
+): number => {
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+  const min = Math.max(0, Number(pp.timeMinutes) || 0);
+  const rate = Math.max(0, Number(pp.timeRate) || 0);
+  return (min / 60) * rate / qty;
+};
+
 export const piecePerimetersTotal = (
   pieceIn: PieceLine,
   catalog: Catalog,
@@ -891,6 +902,7 @@ export const piecePerimetersTotal = (
   return piece.perimeters.reduce((acc, pp) => {
     const op = catalog.perimeterOps.find((o) => o.id === pp.opId);
     if (!op) return acc;
+    if (pp.timeMode) return acc + perimeterTimeCostPerPiece(pp, piece.quantity);
     const virt: PerimeterLine = {
       id: pp.id,
       catalogId: op.id,

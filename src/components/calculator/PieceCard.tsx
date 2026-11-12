@@ -18,6 +18,7 @@ import {
   rollQuantityNestingPlan,
   MARGIN_WIDTH_CM,
   MARGIN_HEIGHT_CM,
+  perimeterTimeCostPerPiece,
 } from "@/lib/piece";
 import { TechnicalDrawing, DrawingSide } from "./TechnicalDrawing";
 import { CustomerType, priceMultiplier } from "@/lib/pricing";
@@ -493,6 +494,13 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
       perimeters: line.perimeters.map((pp) =>
         pp.id === perimId ? { ...pp, quantity: q } : pp,
       ),
+    });
+  };
+
+  const patchPerimeter = (perimId: string, patch: Record<string, unknown>) => {
+    onChange({
+      ...line,
+      perimeters: line.perimeters.map((pp) => (pp.id === perimId ? { ...pp, ...patch } : pp)),
     });
   };
 
@@ -1907,7 +1915,8 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                 : isMq
                 ? areaM2
                 : meters;
-              const cost = opPrice * perimQty;
+              const timeMode = activeCategory === "taglio" && !!pp.timeMode;
+              const cost = timeMode ? perimeterTimeCostPerPiece(pp, line.quantity) : opPrice * perimQty;
               return (
                 <div key={pp.id} className="grid grid-cols-12 gap-2 items-end p-2 border border-ink/10 rounded-sm">
                   <div className="col-span-12 md:col-span-3">
@@ -1947,7 +1956,39 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                         ? `Lati (${pp.sides.length}/4)`
                         : `Lunghezza · ${meters.toLocaleString("it-IT", { maximumFractionDigits: 2 })} m`}
                     </label>
-                    {isTiro ? (
+                    {activeCategory === "taglio" && (
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider mb-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={timeMode}
+                          onChange={(e) => patchPerimeter(pp.id, { timeMode: e.target.checked, timeRate: pp.timeRate ?? 60 })}
+                        />
+                        A tempo
+                      </label>
+                    )}
+                    {timeMode ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[10px] text-muted-foreground">
+                          Minuti totali ({qty} pz)
+                          <input
+                            type="number" min={0} step={1}
+                            value={pp.timeMinutes || ""}
+                            onChange={(e) => patchPerimeter(pp.id, { timeMinutes: parseFloat(e.target.value) || 0 })}
+                            placeholder="minuti"
+                            className="input-bare w-full font-mono text-sm text-right"
+                          />
+                        </label>
+                        <label className="text-[10px] text-muted-foreground">
+                          €/ora
+                          <input
+                            type="number" min={0} step={1}
+                            value={pp.timeRate ?? ""}
+                            onChange={(e) => patchPerimeter(pp.id, { timeRate: parseFloat(e.target.value) || 0 })}
+                            className="input-bare w-full font-mono text-sm text-right"
+                          />
+                        </label>
+                      </div>
+                    ) : isTiro ? (
                       <div className="px-2 py-1.5 border border-dashed border-ink/30 rounded-sm font-mono text-[10px] text-muted-foreground bg-muted/20">
                         {widthM <= 0 || heightM <= 0
                           ? "Imposta dimensioni del pezzo"
@@ -2008,8 +2049,13 @@ export const PieceCard = ({ index, line, catalog, dept, customerType, labCatalog
                   <div className="col-span-12 md:col-span-2 text-right">
                     <div className="label-cap mb-1">Costo</div>
                     <div className="font-mono text-sm font-semibold tabular-nums">{eur(cost)}</div>
+                    {qty > 1 && (
+                      <div className="font-mono text-[10px] tabular-nums">× {qty} pz = {eur(cost * qty)}</div>
+                    )}
                     <div className="font-mono text-[9px] text-muted-foreground">
-                      {isTiro
+                      {timeMode
+                        ? `${pp.timeMinutes || 0} min × ${eur(pp.timeRate || 0)}/h`
+                        : isTiro
                         ? `${files} × ${fmtM(heightM)} m`
                         : isManualQty
                         ? `${manualQ} ${isPz ? "pz" : "min"}`

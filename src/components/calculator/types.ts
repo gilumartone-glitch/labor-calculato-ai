@@ -236,7 +236,11 @@ export type PieceLine = {
    *  tessuto e lavorazioni. Es. 100 = base doppia, 50 = base × 1,5. */
   fullnessPct?: number;
   /** Lavorazioni perimetrali applicate (riusano CatalogPerimeterOp + lati) */
-  perimeters: { id: string; opId: string; sides: PerimeterSide[]; quantity?: number }[];
+  perimeters: {
+    id: string; opId: string; sides: PerimeterSide[]; quantity?: number;
+    /** Lavorazione calcolata a tempo: minuti totali per TUTTE le copie × €/ora. */
+    timeMode?: boolean; timeMinutes?: number; timeRate?: number;
+  }[];
   /** Lavorazioni libere "una tantum": nome + prezzo forfettario inseriti al volo */
   customWorks?: { id: string; name: string; price: number }[];
   /** Permetti al sistema di ruotare il tessuto (scambiando trama/ordito) per risparmiare */

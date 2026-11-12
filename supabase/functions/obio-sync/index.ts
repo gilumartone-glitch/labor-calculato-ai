@@ -4,7 +4,7 @@ import { OpenBankingClient } from "npm:@open-banking-io/client@1.3.0";
 import { normalizeObioMovement, obioAccountRef, obioFallbackRef, obioTermsVerified } from "../_shared/obio-import.ts";
 import { syncDateFrom } from "../_shared/bank-identity.ts";
 import { blockedBankSync } from "../_shared/bank-sync-result.ts";
-import { authorizeBankSync, bankScheduleSlot } from "../_shared/bank-schedule.ts";
+import { authorizeBankSync, bankScheduleSlot, BANK_RECOVERY_TIME, romeTime } from "../_shared/bank-schedule.ts";
 import { registerAutomaticBankCash } from "../_shared/bank-auto-cash.ts";
 import { selectBankBalance } from "../_shared/bank-balance.ts";
 import { OBIO_REQUEST_TIMEOUT_MS, obioFailureCode } from "../_shared/obio-request.ts";
@@ -47,6 +47,13 @@ Deno.serve(async (req) => {
     }
     // Banks allow only a few unattended reads per day: only the 08:30 schedule asks the bank
     // for fresh data. Manual runs re-read what open-banking.io already holds so they never use that allowance.
+    if (access.scheduled && romeTime() === BANK_RECOVERY_TIME) {
+      // Recovery slot: ask the bank again only if some account had no successful morning refresh today.
+      const romeMidnight = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Rome" }).replace(/,.*/, "") + " 00:00 GMT+0100").toISOString();
+      const { data: ok } = await admin.from("bank_sync_log").select("bank").eq("outcome", "success").like("message", "Movimenti%").gte("created_at", romeMidnight).in("bank", ["Credem", "BNL"]);
+      const banks = new Set(supported.map(a => /credem|emiliano/i.test(a.aspspName) ? "Credem" : "BNL"));
+      if ([...banks].every(b => (ok ?? []).some(r => r.bank === b))) return json(blockedBankSync("not_needed", "Aggiornamento del mattino già riuscito."));
+    }
     stage = "refresh_bank";
     const result = access.scheduled ? await provider.syncAll() : { accounts: 0, newTransactions: 0, failures: [] as { accountId: string; reason: string }[] };
     stage = "read_updated_accounts";

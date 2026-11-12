@@ -24,7 +24,7 @@ Deno.serve(async req => {
       if (body.action === "activate") {
         const { error } = await admin.rpc("activate_bank_schedule", { _token: token, _endpoint: `${url}/functions/v1/bank-scheduled-sync` });
         if (error) return json({ error: "Attivazione degli aggiornamenti non riuscita." }, 503);
-        return json({ enabled: true, times: ["08:30", "15:00"], bank_times: ["08:30"], timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
+        return json({ enabled: true, times: ["08:30", "10:30", "15:00"], bank_times: ["08:30", "10:30"], timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
       }
     }
     const [{ data: config }, { data: settings }] = await Promise.all([
@@ -39,7 +39,7 @@ Deno.serve(async req => {
         const data = await response.json();
         const status = !response.ok || data.error ? "error" : data.status ?? "success";
         // Store only sanitized result codes and counts, never headers or raw errors.
-        if (name === "obio-sync" && !Array.isArray(data.results) && (status !== "success" && status !== "partial")) await admin.from("bank_sync_log").insert({ bank: "Credem/BNL", outcome: status === "blocked" ? "blocked" : "error", message: `Aggiornamento automatico non eseguito: ${String(data.reason ?? data.code ?? "errore").replace(/[^a-z_]/gi, "").slice(0, 40) || "errore"}.` });
+        if (name === "obio-sync" && !Array.isArray(data.results) && (data.code ?? data.reason) !== "not_needed" && (status !== "success" && status !== "partial")) await admin.from("bank_sync_log").insert({ bank: "Credem/BNL", outcome: status === "blocked" ? "blocked" : "error", message: `Aggiornamento automatico non eseguito: ${String(data.reason ?? data.code ?? "errore").replace(/[^a-z_]/gi, "").slice(0, 40) || "errore"}.` });
         if (name === "paypal-sync") await admin.from("bank_sync_log").insert({ bank: "PayPal", outcome: status === "success" ? "success" : "error", message: status === "success" ? `Aggiornamento automatico PayPal: ${Number(data.imported ?? 0)} nuovi movimenti.` : "Aggiornamento automatico PayPal non completato." });
         return { provider: name === "obio-sync" ? "Credem e BNL" : "PayPal", status, imported: Number(data.imported ?? 0), failed: Number(data.failed ?? 0) };
       } catch {

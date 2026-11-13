@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { bankScheduleSlot } from "../_shared/bank-schedule.ts";
+import { bankScheduleSlot, BANK_SYNC_TIMES, BANK_REFRESH_TIMES } from "../_shared/bank-schedule.ts";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -24,7 +24,7 @@ Deno.serve(async req => {
       if (body.action === "activate") {
         const { error } = await admin.rpc("activate_bank_schedule", { _token: token, _endpoint: `${url}/functions/v1/bank-scheduled-sync` });
         if (error) return json({ error: "Attivazione degli aggiornamenti non riuscita." }, 503);
-        return json({ enabled: true, times: ["08:30", "10:00", "12:00", "15:00"], bank_times: ["10:00", "12:00"], timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
+        return json({ enabled: true, times: BANK_SYNC_TIMES, bank_times: BANK_REFRESH_TIMES, timezone: "Europe/Rome", banks: ["Credem", "BNL", "PayPal"] });
       }
     }
     const [{ data: config }, { data: settings }] = await Promise.all([

@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] Restore a single daily 08:30 Europe/Rome reading for Credem, BNL and PayPal; recovery and afternoon slots removed, functions deployed, active DST-aware timer and database slot gate verified; 16 tests passed without an extra bank request. The next automatic bank response remains to be observed.
+
 - [x] Fix Vendita · Tessuti to use each variant's catalog selling prices rather than laboratory purchase multipliers; six tests passed and signed-in Seta Tempesta 5 m at 30 €/m = 150 € verified in calculation and cart read-back. Temporary cart line removed.
 
 - [x] Repair automatic notification dispatch: removed duplicate trigger, service-only credential and stored-notification lookup; deployed and verified automatic delivery accepted by both registered devices (sent 2, failed 0). Unauthorized request denied; three safety tests passed, temporary notifications removed.

@@ -1,0 +1,15 @@
+CREATE OR REPLACE FUNCTION public.dispatch_bank_schedule()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $function$
+DECLARE c public.bank_schedule_config%ROWTYPE; local_now timestamp:=now() AT TIME ZONE 'Europe/Rome'; slot text:=to_char(local_now,'YYYY-MM-DD HH24:MI');
+BEGIN
+  IF to_char(local_now,'HH24:MI') <> '08:30' THEN RETURN; END IF;
+  SELECT * INTO c FROM public.bank_schedule_config WHERE id=true AND enabled=true FOR UPDATE;
+  IF NOT FOUND OR c.last_dispatched_slot=slot THEN RETURN; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.bank_provider_settings WHERE id=true AND provider='open_banking_io' AND costs_verified AND sync_enabled AND monthly_cost_eur IS NOT NULL AND length(trim(commercial_evidence))>0) THEN RETURN; END IF;
+  PERFORM net.http_post(url:=c.endpoint,headers:=jsonb_build_object('Content-Type','application/json','x-bank-schedule-token',c.token),body:='{"action":"scheduled"}'::jsonb,timeout_milliseconds:=10000);
+  UPDATE public.bank_schedule_config SET last_dispatched_slot=slot WHERE id=true;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.dispatch_bank_schedule() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.dispatch_bank_schedule() TO service_role;

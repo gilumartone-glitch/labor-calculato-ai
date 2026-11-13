@@ -12,6 +12,7 @@
 - Automatic direct cash uses the same causale helper server-side and a service-only residual batch wrapper around the shared reconciliation core; owner and schedule authorization remain separate, with locked snapshot validation and bank booking dates.
 
 - Upholstery roll nesting compares shared cuts across all compatible heights with separate-height cuts by total cost; quote totals use `src/lib/upholstery-totals.ts` with the saved nesting settings and overrides to match the department cards.
+- Time-based perimeter work uses `perimeterTimeCostPerPiece` in both piece costs and category breakdowns so department and redistributed upholstery totals include the entered batch time exactly once.
 
 - Accounting writes, including owner and page-close saves, use the authorized merge RPC to avoid overwriting another user's hours.
 - Hours merge uses stable employee/row identity, deletion tombstones, and per-day edit timestamps; cleared days remain explicit empty cells so stale copies cannot restore them.

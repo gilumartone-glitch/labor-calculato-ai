@@ -1018,7 +1018,9 @@ export const pieceWorkBreakdown = (
     };
     virtShaped.shape = pf.shape;
     virtShaped.widthBottom = pf.widthBottom;
-    const cost = perimeterCost(virtShaped, customer);
+    const cost = pp.timeMode
+      ? perimeterTimeCostPerPiece(pp, qty)
+      : perimeterCost(virtShaped, customer);
     const cat = (op.category ?? "perimetrale") as keyof Pick<
       PieceWorkBreakdown,
       "stampa" | "taglio" | "perimetrale" | "altre"

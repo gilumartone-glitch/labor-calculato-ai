@@ -274,6 +274,13 @@
       "when": 1794473078621,
       "tag": "0038_bank_morning_recovery_slot",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1794560215972,
+      "tag": "0039_bank_refresh_at_ten",
+      "breakpoints": true
     }
   ]
 }

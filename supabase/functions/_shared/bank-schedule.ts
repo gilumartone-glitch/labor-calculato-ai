@@ -1,7 +1,7 @@
-export const BANK_SYNC_TIMES = ["08:30", "10:30", "15:00"];
-export const BANK_REFRESH_TIMES = ["08:30", "10:30"];
-// 10:30 asks the bank again only for accounts whose 08:30 refresh did not succeed that day.
-export const BANK_RECOVERY_TIME = "10:30";
+export const BANK_SYNC_TIMES = ["08:30", "10:00", "12:00", "15:00"];
+export const BANK_REFRESH_TIMES = ["10:00", "12:00"];
+// 12:00 asks the bank again only for accounts whose 10:00 refresh did not succeed that day.
+export const BANK_RECOVERY_TIME = "12:00";
 export function romeTime(now = new Date()) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
 }

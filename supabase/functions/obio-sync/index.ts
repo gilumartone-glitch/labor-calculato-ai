@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
   const access = await authorizeBankSync(req, client, admin, Deno.env.get("BANK_SCHEDULE_TOKEN"));
   if (access.error) return json({ error: access.error }, access.status);
-  if (access.scheduled && !bankScheduleSlot(undefined, true)) return json(blockedBankSync("outside_schedule", "Credem e BNL si aggiornano solo alle 08:30."));
+  if (access.scheduled && !bankScheduleSlot(undefined, true)) return json(blockedBankSync("outside_schedule", "Credem e BNL si aggiornano solo alle 10:00."));
   const run = crypto.randomUUID();
   let locked = false;
   let imported = 0;
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     if (initialAccounts.length !== supported.length || supported.some(a => a.currency !== "EUR" || a.needsReconnect || !connections.some(c => c.accountIds.includes(a.id) && c.isLive && new Date(c.validUntil).getTime() > Date.now() && /business|corporate/i.test(c.psuType ?? "")))) {
       return json(blockedBankSync("business_consent_required", "Verifica o rinnova i consensi aziendali su open-banking.io prima di sincronizzare."));
     }
-    // Banks allow only a few unattended reads per day: only the 08:30 schedule asks the bank
+    // Banks allow only a few unattended reads per day: only the 10:00 schedule asks the bank
     // for fresh data. Manual runs re-read what open-banking.io already holds so they never use that allowance.
     if (access.scheduled && romeTime() === BANK_RECOVERY_TIME) {
       // Recovery slot: ask the bank again only if some account had no successful morning refresh today.
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       await admin.from("bank_sync_log").insert({ account_id: saved.id, bank, outcome: "success", message: refusal ? "Riletti i movimenti già ricevuti dal servizio; la banca non ha risposto all'aggiornamento." : access.scheduled ? (balance ? "Movimenti e saldo open-banking.io aggiornati." : "Movimenti aggiornati; il servizio non ha fornito un saldo. Ultimo saldo conservato.") : "Riletti i movimenti già ricevuti, senza nuova richiesta alla banca." });
     }
     await registerAutomaticBankCash(admin);
-    return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 08:30." });
+    return json({ status: failed ? "partial" : "success", imported, failed, message: rateLimited === accounts.length ? "Le banche hanno limitato gli aggiornamenti ravvicinati. I movimenti già importati restano disponibili; riprova più tardi." : failed ? "Alcuni conti richiedono una verifica: consulta gli ultimi aggiornamenti." : access.scheduled ? "Movimenti e saldi aggiornati." : "Riletti i movimenti già ricevuti. La richiesta alla banca avviene solo alle 10:00." });
   } catch (error) {
     const known = ["unsupported_currency", "unknown_status", "missing_booking_date", "invalid_amount", "unknown_direction", "inconsistent_direction", "account_save_failed", "history_limit", "storage_failed", "balance_save_failed"];
     const code = error instanceof Error && known.includes(error.message) ? error.message : obioFailureCode(error, stage);

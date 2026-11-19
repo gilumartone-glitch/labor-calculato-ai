@@ -163,8 +163,27 @@ export type Riga = {
   importo: number;
 };
 
+/**
+ * Dettaglio pezze di una riga di tessuto.
+ * Bolla di carico: le pezze arrivate (bagno, metri, posizione). DDT: le pezze da cui si taglia.
+ */
+export type PezzaRiga = {
+  pezza_id: string | null;
+  /** Codice della pezza, quando esiste già (DDT, o bolla confermata). */
+  pezza_codice?: string | null;
+  codice_bagno: string | null;
+  posizione: string | null;
+  metri: number;
+};
+
 /** Riga in modifica: senza id finché non è salvata. */
-export type RigaBozza = Omit<Riga, "id" | "documento_id" | "posizione" | "importo"> & { id?: string };
+export type RigaBozza = Omit<Riga, "id" | "documento_id" | "posizione" | "importo"> & { id?: string; pezze?: PezzaRiga[] };
+
+/** Documenti che muovono il magazzino alla conferma. */
+export const muoveMagazzino = (t: TipoDocumento) => t === "bolla_carico" || t === "ddt";
+
+export const sommaPezze = (pezze: PezzaRiga[] | undefined): number =>
+  Math.round(((pezze ?? []).reduce((s, p) => s + (Number(p.metri) || 0), 0) + Number.EPSILON) * 100) / 100;
 
 export type RiepilogoIva = { aliquota_id: string; codice: string; descrizione: string; percentuale: number; imponibile: number; imposta: number };
 
@@ -294,15 +313,29 @@ export async function elencoDocumenti(tipo: TipoDocumento, limite = 300): Promis
   return righe.filter((d) => !(d.stato === "annullato" && d.numero == null)).map(normalizzaDocumento);
 }
 
-export async function leggiDocumento(id: string): Promise<{ documento: Documento; righe: Riga[]; iva: RiepilogoIva[] }> {
+export async function leggiDocumento(id: string): Promise<{ documento: Documento; righe: Array<Riga & { pezze?: PezzaRiga[] }>; iva: RiepilogoIva[] }> {
   const [doc, righe, iva] = await Promise.all([
     db.from("gest_documenti").select("*").eq("id", id).single(),
     db.from("gest_documenti_righe").select("*").eq("documento_id", id).order("posizione").order("created_at"),
     db.from("gest_documenti_iva").select("*").eq("documento_id", id).order("percentuale", { ascending: false }),
   ]);
+  const righeDoc = esito<Riga[]>(righe).map(normalizzaRiga);
+  const pezzePerRiga = new Map<string, PezzaRiga[]>();
+  if (righeDoc.length > 0) {
+    type RigaPezzaDb = { riga_id: string; pezza_id: string | null; codice_bagno: string | null; posizione: string | null; metri: number; pezza: { codice: string } | null };
+    const dettaglio = esito<RigaPezzaDb[]>(
+      await db.from("gest_documenti_righe_pezze").select("riga_id, pezza_id, codice_bagno, posizione, metri, pezza:gest_pezze(codice)")
+        .in("riga_id", righeDoc.map((r) => r.id)).order("ordine").order("created_at"),
+    );
+    for (const p of dettaglio) {
+      const elenco = pezzePerRiga.get(p.riga_id) ?? [];
+      elenco.push({ pezza_id: p.pezza_id, pezza_codice: p.pezza?.codice ?? null, codice_bagno: p.codice_bagno, posizione: p.posizione, metri: num(p.metri) });
+      pezzePerRiga.set(p.riga_id, elenco);
+    }
+  }
   return {
     documento: normalizzaDocumento(esito<Documento>(doc)),
-    righe: esito<Riga[]>(righe).map(normalizzaRiga),
+    righe: righeDoc.map((r) => (pezzePerRiga.has(r.id) ? { ...r, pezze: pezzePerRiga.get(r.id) } : r)),
     iva: esito<RiepilogoIva[]>(iva).map((r) => ({ ...r, percentuale: num(r.percentuale), imponibile: num(r.imponibile), imposta: num(r.imposta) })),
   };
 }
@@ -331,12 +364,25 @@ export async function salvaBozza(id: string, testata: Partial<Testata>, righe: R
   }
 
   for (let i = 0; i < righe.length; i++) {
-    const { id: rigaId, ...campi } = righe[i];
+    const { id: rigaEsistente, pezze, ...campi } = righe[i];
     const valori = { ...campi, posizione: i + 1 };
+    let rigaId = rigaEsistente;
     if (rigaId) {
       esito(await db.from("gest_documenti_righe").update(valori).eq("id", rigaId));
     } else {
-      esito(await db.from("gest_documenti_righe").insert({ ...valori, documento_id: id }));
+      rigaId = esito<{ id: string }>(
+        await db.from("gest_documenti_righe").insert({ ...valori, documento_id: id }).select("id").single(),
+      ).id;
+    }
+    // Dettaglio pezze: si riscrive per intero. `undefined` = la riga non lo gestisce, non si tocca.
+    if (pezze !== undefined) {
+      esito(await db.from("gest_documenti_righe_pezze").delete().eq("riga_id", rigaId));
+      const valide = pezze.filter((p) => (Number(p.metri) || 0) > 0);
+      if (valide.length > 0) {
+        esito(await db.from("gest_documenti_righe_pezze").insert(valide.map((p, ordine) => ({
+          riga_id: rigaId, pezza_id: p.pezza_id, codice_bagno: p.codice_bagno, posizione: p.posizione, metri: p.metri, ordine: ordine + 1,
+        }))));
+      }
     }
   }
 }

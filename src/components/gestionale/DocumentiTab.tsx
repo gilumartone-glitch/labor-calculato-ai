@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +15,12 @@ import { descriviVariante, type Articolo, type Variante } from "@/lib/gestionale
 import {
   TIPI_DOCUMENTO, TIPO_LABEL, TIPO_LABEL_PLURALE, TIPO_RIGA_LABEL, TRASFORMAZIONI, isPassivo,
   annullaDocumento, calcolaTotali, confermaDocumento, creaDocumento, documentiCollegati, elencoDocumenti,
-  importoRiga, leggiDocumento, rigaVuota, salvaBozza, titoloDocumento, trasformaDocumento,
-  type AliquotaIva, type Anagrafica, type Documento, type RiepilogoIva, type RigaBozza, type Testata,
+  importoRiga, leggiDocumento, muoveMagazzino, rigaVuota, salvaBozza, sommaPezze, titoloDocumento, trasformaDocumento,
+  type AliquotaIva, type Anagrafica, type Documento, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
   type TipoDocumento, type TipoRiga,
 } from "@/lib/gestionale/documenti";
+import { elencoPezze } from "@/lib/gestionale/api";
+import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -84,6 +86,80 @@ const AnagraficaPicker = ({ anagrafiche, valore, disabled, onSelect }: {
 };
 
 /* ------------------------------------------------------------------ */
+/* Dettaglio pezze di una riga di tessuto (bolla di carico e DDT)      */
+/* ------------------------------------------------------------------ */
+const fmtMetri = (n: number) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
+
+const PezzeRiga = ({ carico, pezze, disponibili, modificabile, onChange }: {
+  /** true = bolla di carico (pezze in arrivo); false = DDT (pezze da cui tagliare). */
+  carico: boolean;
+  pezze: PezzaRiga[];
+  /** Pezze a magazzino della variante: servono al DDT per scegliere da dove tagliare. */
+  disponibili: PezzaGiacenza[] | undefined;
+  modificabile: boolean;
+  onChange: (pezze: PezzaRiga[]) => void;
+}) => {
+  const set = (i: number, patch: Partial<PezzaRiga>) => onChange(pezze.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const aggiungi = () => onChange([...pezze, { pezza_id: null, codice_bagno: pezze[pezze.length - 1]?.codice_bagno ?? null, posizione: pezze[pezze.length - 1]?.posizione ?? null, metri: 0 }]);
+  const togli = (i: number) => onChange(pezze.filter((_, j) => j !== i));
+  const usabili = (disponibili ?? []).filter((p) => p.stato === "disponibile" && p.residuo_m > 0);
+
+  return (
+    <div className="border border-ink/15 rounded-sm bg-background/60 p-2 grid gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          {carico ? "Pezze in arrivo" : "Pezze da cui tagliare"} · totale {fmtMetri(sommaPezze(pezze))} m
+        </span>
+        {modificabile && <Button size="sm" variant="outline" className="h-7" onClick={aggiungi}><Plus className="w-3.5 h-3.5 mr-1" /> Pezza</Button>}
+      </div>
+      {pezze.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          {carico ? "Indica ogni pezza arrivata con il suo bagno e i metri." : "Scegli da quali pezze si taglia e quanti metri."}
+        </p>
+      )}
+      {!carico && modificabile && disponibili !== undefined && usabili.length === 0 && (
+        <p className="text-xs text-destructive">Nessuna pezza disponibile a magazzino per questo articolo.</p>
+      )}
+      {pezze.map((p, i) => {
+        const scelta = usabili.find((x) => x.id === p.pezza_id);
+        return (
+          <div key={i} className="flex flex-wrap items-center gap-1.5">
+            {carico ? (
+              <>
+                <Input className="w-40 h-8" value={p.codice_bagno ?? ""} disabled={!modificabile} placeholder="Bagno" aria-label="Bagno" onChange={(e) => set(i, { codice_bagno: testoOppureNull(e.target.value) })} />
+                <Input className="w-24 h-8 text-right" type="number" step="any" min={0} value={p.metri || ""} disabled={!modificabile} placeholder="Metri" aria-label="Metri" onChange={(e) => set(i, { metri: numero(e.target.value) })} />
+                <Input className="w-36 h-8" value={p.posizione ?? ""} disabled={!modificabile} placeholder="Posizione" aria-label="Posizione" onChange={(e) => set(i, { posizione: testoOppureNull(e.target.value) })} />
+                {p.pezza_codice && <span className="font-mono text-xs text-muted-foreground">→ {p.pezza_codice}</span>}
+              </>
+            ) : modificabile ? (
+              <>
+                <div className="w-72">
+                  <Select value={p.pezza_id ?? ""} onValueChange={(v) => set(i, { pezza_id: v })}>
+                    <SelectTrigger className="h-8" aria-label="Pezza"><SelectValue placeholder={disponibili === undefined ? "Carico le pezze…" : "Scegli la pezza"} /></SelectTrigger>
+                    <SelectContent>
+                      {usabili.map((x) => (
+                        <SelectItem key={x.id} value={x.id}>
+                          {x.codice} · {x.codice_bagno ? `bagno ${x.codice_bagno}` : "senza bagno"} · {fmtMetri(x.residuo_m)} m{x.posizione ? ` · ${x.posizione}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input className="w-24 h-8 text-right" type="number" step="any" min={0} value={p.metri || ""} placeholder="Metri" aria-label="Metri" onChange={(e) => set(i, { metri: numero(e.target.value) })} />
+                {scelta && p.metri > scelta.residuo_m && <span className="text-xs text-destructive">Residuo: {fmtMetri(scelta.residuo_m)} m</span>}
+              </>
+            ) : (
+              <span className="text-sm"><span className="font-mono">{p.pezza_codice ?? "—"}</span> · {fmtMetri(p.metri)} m</span>
+            )}
+            {modificabile && <Button size="icon" variant="ghost" className="h-7 w-7" title="Togli pezza" onClick={() => togli(i)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /* Scheda di un documento                                              */
 /* ------------------------------------------------------------------ */
 type EditorProps = {
@@ -116,7 +192,9 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
       const [{ documento: d, righe: r, iva: i }, c] = await Promise.all([leggiDocumento(documentoId), documentiCollegati(documentoId)]);
       setDocumento(d);
       setTestata(testataDa(d));
-      setRighe(r.map(({ documento_id: _d, posizione: _p, importo: _i, ...resto }) => resto));
+      setRighe(r.map(({ documento_id: _d, posizione: _p, importo: _i, ...resto }) => (
+        muoveMagazzino(d.tipo) && resto.tipo_riga === "articolo" && resto.variante_id ? { ...resto, pezze: resto.pezze ?? [] } : resto
+      )));
       setIdEsistenti(r.map((x) => x.id));
       setIva(i);
       setCollegati(c);
@@ -127,6 +205,25 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
   useEffect(() => { carica(); }, [carica]);
 
   const articoloById = useMemo(() => new Map(articoli.map((a) => [a.id, a])), [articoli]);
+  const varianteById = useMemo(() => new Map(varianti.map((v) => [v.id, v])), [varianti]);
+  /** Pezze a magazzino per variante, caricate quando servono (DDT). */
+  const [pezzeMagazzino, setPezzeMagazzino] = useState<Record<string, PezzaGiacenza[]>>({});
+  const tipoDoc = documento?.tipo;
+  const variantiTessutoInRiga = useMemo(() => Array.from(new Set(
+    righe.filter((r) => r.tipo_riga === "articolo" && r.variante_id).map((r) => r.variante_id as string)
+      .filter((id) => { const v = varianteById.get(id); return v ? articoloById.get(v.articolo_id)?.categoria === "tessuto" : false; }),
+  )), [righe, varianteById, articoloById]);
+  const pezzeRichieste = useRef(new Set<string>());
+  useEffect(() => {
+    if (tipoDoc !== "ddt") return;
+    for (const id of variantiTessutoInRiga) {
+      if (pezzeRichieste.current.has(id)) continue;
+      pezzeRichieste.current.add(id);
+      elencoPezze(id)
+        .then((p) => setPezzeMagazzino((prev) => ({ ...prev, [id]: p })))
+        .catch((e) => { pezzeRichieste.current.delete(id); errore(e); });
+    }
+  }, [tipoDoc, variantiTessutoInRiga]);
   const aliquotaPredefinita = useMemo(() => aliquote.find((a) => a.codice === "22")?.id ?? aliquote[0]?.id ?? null, [aliquote]);
   const totali = useMemo(() => calcolaTotali(righe, aliquote), [righe, aliquote]);
 
@@ -135,6 +232,17 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
   }
 
   const passivo = isPassivo(documento.tipo);
+  const conMagazzino = muoveMagazzino(documento.tipo);
+  /** Riga di tessuto su bolla di carico o DDT: la quantità è la somma delle sue pezze. */
+  const rigaConPezze = (r: RigaBozza): boolean => {
+    if (!conMagazzino || r.tipo_riga !== "articolo" || !r.variante_id) return false;
+    const v = varianteById.get(r.variante_id);
+    return v ? articoloById.get(v.articolo_id)?.categoria === "tessuto" : false;
+  };
+  const setPezze = (i: number, pezze: PezzaRiga[]) => {
+    const somma = sommaPezze(pezze);
+    setRiga(i, { pezze, ...(somma > 0 ? { quantita: somma } : {}) });
+  };
   const bozza = documento.stato === "bozza";
   const modificabile = bozza && puoScrivere;
   const scelte = anagrafiche.filter((a) => (passivo ? a.is_fornitore : a.is_cliente) || a.id === testata.anagrafica_id);
@@ -169,6 +277,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
     const prezzo = passivo ? v.costo_um : v.prezzo_um;
     setRiga(i, {
       variante_id: v.id,
+      ...(conMagazzino ? { pezze: [] } : {}),
       codice: v.codice,
       descrizione: [a?.nome, descriviVariante(v)].filter(Boolean).join(" — "),
       um: a?.um ?? null,
@@ -279,6 +388,14 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
       {bozza && (documento.tipo === "fattura" || documento.tipo === "nota_credito") && (
         <p className="text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2 text-muted-foreground">
           Fatture e note di credito qui restano bozze fino all'attivazione dell'invio allo SDI: quelle valide partono ancora dal sistema precedente.
+        </p>
+      )}
+      {bozza && conMagazzino && (
+        <p className="text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2 text-muted-foreground">
+          {documento.tipo === "bolla_carico"
+            ? "Alla conferma le righe «Articolo» caricano il magazzino: per i tessuti nasce una pezza per ogni riga del dettaglio, con il suo bagno."
+            : "Alla conferma le righe «Articolo» scaricano il magazzino: per i tessuti dalle pezze indicate nel dettaglio."}
+          {" "}Le altre righe non muovono giacenze.
         </p>
       )}
       {(documento.origine_id || collegati.length > 0) && (
@@ -422,7 +539,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
                         {!nota && (
                           <>
                             <Input value={r.um ?? ""} disabled={!modificabile} aria-label="Unità di misura" onChange={(e) => setRiga(i, { um: testoOppureNull(e.target.value) })} />
-                            <Input type="number" step="any" value={r.quantita} disabled={!modificabile} aria-label="Quantità" className="text-right" onChange={(e) => setRiga(i, { quantita: numero(e.target.value) })} />
+                            <Input type="number" step="any" value={r.quantita} disabled={!modificabile || rigaConPezze(r)} title={rigaConPezze(r) ? "Somma delle pezze indicate sotto" : undefined} aria-label="Quantità" className="text-right" onChange={(e) => setRiga(i, { quantita: numero(e.target.value) })} />
                             <Input type="number" step="any" value={r.prezzo_unitario} disabled={!modificabile} aria-label="Prezzo unitario" className="text-right" onChange={(e) => setRiga(i, { prezzo_unitario: numero(e.target.value) })} />
                             <Input type="number" step="any" min={0} max={100} value={r.sconto_pct} disabled={!modificabile} aria-label="Sconto percentuale" className="text-right" onChange={(e) => setRiga(i, { sconto_pct: Math.min(100, Math.max(0, numero(e.target.value))) })} />
                             <Select value={r.aliquota_id ?? ""} disabled={!modificabile} onValueChange={(v) => setRiga(i, { aliquota_id: v })}>
@@ -444,6 +561,19 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
                           )}
                         </div>
                       </div>
+                      {rigaConPezze(r) && (
+                        <div className="grid gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
+                          <div style={{ gridColumn: "3 / span 8" }}>
+                            <PezzeRiga
+                              carico={documento.tipo === "bolla_carico"}
+                              pezze={r.pezze ?? []}
+                              disponibili={r.variante_id ? pezzeMagazzino[r.variante_id] : undefined}
+                              modificabile={modificabile}
+                              onChange={(pezze) => setPezze(i, pezze)}
+                            />
+                          </div>
+                        </div>
+                      )}
                       {(r.tipo_riga === "lavorazione" || r.dettagli) && (
                         <div className="grid gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
                           <Textarea

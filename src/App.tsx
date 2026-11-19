@@ -30,6 +30,7 @@ const MagazzinoView = lazy(() => import("./pages/MagazzinoView.tsx"));
 const Marketing = lazy(() => import("./pages/Marketing.tsx"));
 const Record = lazy(() => import("./pages/Record.tsx"));
 const Dipendenti = lazy(() => import("./pages/Dipendenti.tsx"));
+const Gestionale = lazy(() => import("./pages/Gestionale.tsx"));
 const ProdDashboard = lazy(() => import("./pages/produzione/ProdDashboard.tsx"));
 const ProdBoard = lazy(() => import("./pages/produzione/ProdBoard.tsx"));
 const ProdOggi = lazy(() => import("./pages/produzione/ProdOggi.tsx"));
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/record" element={<Record />} />
             <Route path="/dipendenti" element={<RouteGuard page="dipendenti"><Dipendenti /></RouteGuard>} />
+            <Route path="/gestionale" element={<RouteGuard page="gestionale"><Gestionale /></RouteGuard>} />
             <Route path="/flow" element={<RouteGuard page="flow"><Flow /></RouteGuard>} />
             <Route path="/falegnameria" element={<RouteGuard page="falegnameria"><Falegnameria /></RouteGuard>} />
             <Route path="/montaggi" element={<RouteGuard page="montaggi"><Montaggi /></RouteGuard>} />

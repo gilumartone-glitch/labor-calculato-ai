@@ -1,5 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
-import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat, Hammer, BookMarked, Users } from "lucide-react";
+import { Calculator, Workflow, Landmark, LogOut, Loader2, ShieldCheck, Factory, Package, Megaphone, HardHat, Hammer, BookMarked, Users, Boxes } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { AdminUsersLink } from "@/components/AdminUsersLink";
@@ -27,6 +27,7 @@ const TILES: Tile[] = [
   
   { key: "pianificazione", label: "Pianificazione", description: "Cantieri, operai e calendario settimanale per montaggi, laboratorio e tappezzeria", to: "/montaggi-pianificazione", Icon: HardHat, color: "bg-[hsl(35_80%_42%)] text-white border-[hsl(35_80%_28%)]", iconBg: "bg-[hsl(35_80%_28%)]" },
   { key: "dipendenti",   label: "Dipendenti",    description: "Anagrafica dipendenti con reparti, funzione e costi orari", to: "/dipendenti", Icon: Users, color: "bg-[hsl(15_70%_42%)] text-white border-[hsl(15_70%_28%)]", iconBg: "bg-[hsl(15_70%_28%)]" },
+  { key: "gestionale",   label: "Gestionale",    description: "Articoli e varianti, bagni e pezze, movimenti di magazzino", to: "/gestionale", Icon: Boxes, color: "bg-[hsl(200_60%_30%)] text-white border-[hsl(200_60%_20%)]", iconBg: "bg-[hsl(200_60%_20%)]" },
 ];
 
 const Hub = () => {

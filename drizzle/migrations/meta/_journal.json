@@ -302,6 +302,13 @@
       "when": 1794579206938,
       "tag": "0042_bank_single_daily_rome_slot",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795087470993,
+      "tag": "0043_gestion_ale_magazzino",
+      "breakpoints": true
     }
   ]
 }

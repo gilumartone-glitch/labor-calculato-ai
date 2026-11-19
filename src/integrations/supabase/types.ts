@@ -1032,6 +1032,355 @@ export type Database = {
         }
         Relationships: []
       }
+      gest_articoli: {
+        Row: {
+          archiviato_il: string | null
+          categoria: string
+          codice: string
+          created_at: string
+          id: string
+          nome: string
+          note: string | null
+          um: string
+          updated_at: string
+        }
+        Insert: {
+          archiviato_il?: string | null
+          categoria: string
+          codice: string
+          created_at?: string
+          id?: string
+          nome: string
+          note?: string | null
+          um: string
+          updated_at?: string
+        }
+        Update: {
+          archiviato_il?: string | null
+          categoria?: string
+          codice?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          note?: string | null
+          um?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gest_bagni: {
+        Row: {
+          archiviato_il: string | null
+          codice_bagno: string
+          created_at: string
+          data_arrivo: string | null
+          fornitore: string | null
+          id: string
+          note: string | null
+          updated_at: string
+          variante_id: string
+        }
+        Insert: {
+          archiviato_il?: string | null
+          codice_bagno: string
+          created_at?: string
+          data_arrivo?: string | null
+          fornitore?: string | null
+          id?: string
+          note?: string | null
+          updated_at?: string
+          variante_id: string
+        }
+        Update: {
+          archiviato_il?: string | null
+          codice_bagno?: string
+          created_at?: string
+          data_arrivo?: string | null
+          fornitore?: string | null
+          id?: string
+          note?: string | null
+          updated_at?: string
+          variante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_bagni_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_bagni_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_movimenti: {
+        Row: {
+          creato_il: string
+          id: number
+          nota: string | null
+          pezza_id: string | null
+          quantita: number
+          riferimento_id: string | null
+          riferimento_tipo: string | null
+          sfrido_codice: string | null
+          storno_di: number | null
+          tipo: string
+          utente: string | null
+          variante_id: string
+        }
+        Insert: {
+          creato_il?: string
+          id?: never
+          nota?: string | null
+          pezza_id?: string | null
+          quantita: number
+          riferimento_id?: string | null
+          riferimento_tipo?: string | null
+          sfrido_codice?: string | null
+          storno_di?: number | null
+          tipo: string
+          utente?: string | null
+          variante_id: string
+        }
+        Update: {
+          creato_il?: string
+          id?: never
+          nota?: string | null
+          pezza_id?: string | null
+          quantita?: number
+          riferimento_id?: string | null
+          riferimento_tipo?: string | null
+          sfrido_codice?: string | null
+          storno_di?: number | null
+          tipo?: string
+          utente?: string | null
+          variante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_movimenti_pezza_id_fkey"
+            columns: ["pezza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_pezze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_movimenti_pezza_id_fkey"
+            columns: ["pezza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_pezze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_movimenti_storno_di_fkey"
+            columns: ["storno_di"]
+            isOneToOne: false
+            referencedRelation: "gest_movimenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_movimenti_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_movimenti_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_pezze: {
+        Row: {
+          archiviato_il: string | null
+          bagno_id: string | null
+          codice: string
+          created_at: string
+          id: string
+          lunghezza_iniziale_m: number
+          note: string | null
+          posizione: string | null
+          stato: string
+          updated_at: string
+          variante_id: string
+        }
+        Insert: {
+          archiviato_il?: string | null
+          bagno_id?: string | null
+          codice: string
+          created_at?: string
+          id?: string
+          lunghezza_iniziale_m: number
+          note?: string | null
+          posizione?: string | null
+          stato?: string
+          updated_at?: string
+          variante_id: string
+        }
+        Update: {
+          archiviato_il?: string | null
+          bagno_id?: string | null
+          codice?: string
+          created_at?: string
+          id?: string
+          lunghezza_iniziale_m?: number
+          note?: string | null
+          posizione?: string | null
+          stato?: string
+          updated_at?: string
+          variante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_pezze_bagno_id_fkey"
+            columns: ["bagno_id"]
+            isOneToOne: false
+            referencedRelation: "gest_bagni"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_storico: {
+        Row: {
+          dopo: Json | null
+          id: number
+          operazione: string
+          prima: Json | null
+          quando: string
+          record_id: string
+          tabella: string
+          utente: string | null
+        }
+        Insert: {
+          dopo?: Json | null
+          id?: never
+          operazione: string
+          prima?: Json | null
+          quando?: string
+          record_id: string
+          tabella: string
+          utente?: string | null
+        }
+        Update: {
+          dopo?: Json | null
+          id?: never
+          operazione?: string
+          prima?: Json | null
+          quando?: string
+          record_id?: string
+          tabella?: string
+          utente?: string | null
+        }
+        Relationships: []
+      }
+      gest_varianti: {
+        Row: {
+          altezza_cm: number | null
+          archiviato_il: string | null
+          articolo_id: string
+          certificato_rif: string | null
+          classe_reazione: string | null
+          codice: string
+          colore: string | null
+          costo_um: number | null
+          created_at: string
+          finitura: string | null
+          formato_altezza_mm: number | null
+          formato_larghezza_mm: number | null
+          id: string
+          ignifugo: boolean
+          inventory_item_id: string | null
+          note: string | null
+          peso_gm2: number | null
+          prezzo_um: number | null
+          spessore_mm: number | null
+          updated_at: string
+        }
+        Insert: {
+          altezza_cm?: number | null
+          archiviato_il?: string | null
+          articolo_id: string
+          certificato_rif?: string | null
+          classe_reazione?: string | null
+          codice: string
+          colore?: string | null
+          costo_um?: number | null
+          created_at?: string
+          finitura?: string | null
+          formato_altezza_mm?: number | null
+          formato_larghezza_mm?: number | null
+          id?: string
+          ignifugo?: boolean
+          inventory_item_id?: string | null
+          note?: string | null
+          peso_gm2?: number | null
+          prezzo_um?: number | null
+          spessore_mm?: number | null
+          updated_at?: string
+        }
+        Update: {
+          altezza_cm?: number | null
+          archiviato_il?: string | null
+          articolo_id?: string
+          certificato_rif?: string | null
+          classe_reazione?: string | null
+          codice?: string
+          colore?: string | null
+          costo_um?: number | null
+          created_at?: string
+          finitura?: string | null
+          formato_altezza_mm?: number | null
+          formato_larghezza_mm?: number | null
+          id?: string
+          ignifugo?: boolean
+          inventory_item_id?: string | null
+          note?: string | null
+          peso_gm2?: number | null
+          prezzo_um?: number | null
+          spessore_mm?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_varianti_articolo_id_fkey"
+            columns: ["articolo_id"]
+            isOneToOne: false
+            referencedRelation: "gest_articoli"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_varianti_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           code: string
@@ -2412,7 +2761,105 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      gest_giacenze_bagno: {
+        Row: {
+          bagno_id: string | null
+          codice_bagno: string | null
+          metri: number | null
+          pezza_piu_lunga_m: number | null
+          pezze: number | null
+          variante_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_pezze_bagno_id_fkey"
+            columns: ["bagno_id"]
+            isOneToOne: false
+            referencedRelation: "gest_bagni"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_giacenze_pezze: {
+        Row: {
+          bagno_id: string | null
+          codice: string | null
+          codice_bagno: string | null
+          created_at: string | null
+          id: string | null
+          lunghezza_iniziale_m: number | null
+          posizione: string | null
+          residuo_m: number | null
+          stato: string | null
+          variante_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_pezze_bagno_id_fkey"
+            columns: ["bagno_id"]
+            isOneToOne: false
+            referencedRelation: "gest_bagni"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_pezze_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_giacenze_varianti: {
+        Row: {
+          articolo_id: string | null
+          codice: string | null
+          giacenza: number | null
+          variante_id: string | null
+        }
+        Insert: {
+          articolo_id?: string | null
+          codice?: string | null
+          giacenza?: never
+          variante_id?: string | null
+        }
+        Update: {
+          articolo_id?: string | null
+          codice?: string | null
+          giacenza?: never
+          variante_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_varianti_articolo_id_fkey"
+            columns: ["articolo_id"]
+            isOneToOne: false
+            referencedRelation: "gest_articoli"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       acquire_obio_sync: { Args: { _run: string }; Returns: boolean }
@@ -2485,6 +2932,49 @@ export type Database = {
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
+        Returns: number
+      }
+      gest_carica_pezza: {
+        Args: {
+          _codice_bagno?: string
+          _fornitore?: string
+          _metri: number
+          _nota?: string
+          _posizione?: string
+          _variante_id: string
+        }
+        Returns: {
+          archiviato_il: string | null
+          bagno_id: string | null
+          codice: string
+          created_at: string
+          id: string
+          lunghezza_iniziale_m: number
+          note: string | null
+          posizione: string | null
+          stato: string
+          updated_at: string
+          variante_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gest_pezze"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gest_storna_movimento: {
+        Args: { _movimento_id: number; _nota?: string }
+        Returns: number
+      }
+      gest_taglia_pezza: {
+        Args: {
+          _metri: number
+          _nota?: string
+          _pezza_id: string
+          _rif_id?: string
+          _rif_tipo?: string
+        }
         Returns: number
       }
       get_admin_user_ids: { Args: never; Returns: string[] }

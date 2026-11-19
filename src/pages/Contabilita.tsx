@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { ArrowDownCircle, ArrowUpCircle, CalendarClock, Check, ChevronRight, History, Landmark, Loader2, Pencil, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from "lucide-react";
 import { useConfirmShortcut } from "@/hooks/useConfirmShortcut";
 import { StepDateInput } from "@/components/contabilita/StepDateInput";
+import { QuickDateInput } from "@/components/contabilita/QuickDateInput";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -2033,95 +2034,6 @@ const DateInput = ({
           (e.currentTarget as HTMLInputElement).blur();
         } else if (e.key === "Escape") {
           setDraft(value);
-          (e.currentTarget as HTMLInputElement).blur();
-        }
-      }}
-      onBlur={commit}
-    />
-  );
-};
-
-// Input data leggero, da tastiera. Accetta "g", "gg", "gg/mm", "gg/mm/aaaa".
-// Completa automaticamente con il mese/anno della scheda corrente.
-const QuickDateInput = ({
-  value,
-  onCommit,
-  monthIndex,
-  className,
-  ariaLabel,
-}: {
-  value: string;
-  onCommit: (v: string) => void;
-  monthIndex: number;
-  className?: string;
-  ariaLabel?: string;
-}) => {
-  const fmt = (iso: string) => {
-    if (!isCompleteDate(iso)) return "";
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y.slice(2)}`;
-  };
-  const [draft, setDraft] = useState(fmt(value));
-  useEffect(() => { setDraft(fmt(value)); }, [value]);
-  const parse = (raw: string): string | null => {
-    const s = raw.trim().replace(/[.\-\s]/g, "/");
-    if (!s) return null;
-    const parts = s.split("/").filter(Boolean);
-    const today = new Date();
-    const baseYear = today.getFullYear();
-    let d = NaN, m = monthIndex + 1, y = baseYear;
-    if (parts.length === 1) { d = Number(parts[0]); }
-    else if (parts.length === 2) { d = Number(parts[0]); m = Number(parts[1]); }
-    else if (parts.length >= 3) {
-      d = Number(parts[0]); m = Number(parts[1]);
-      let yy = Number(parts[2]);
-      if (yy < 100) yy += 2000;
-      y = yy;
-    }
-    if (!Number.isFinite(d) || d < 1 || d > 31) return null;
-    if (!Number.isFinite(m) || m < 1 || m > 12) return null;
-    if (!Number.isFinite(y)) return null;
-    const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    return isCompleteDate(iso) ? iso : null;
-  };
-  const commit = () => {
-    const iso = parse(draft);
-    if (iso && iso !== value) { onCommit(iso); return; }
-    if (!iso) setDraft(fmt(value));
-  };
-  return (
-    <Input
-      aria-label={ariaLabel}
-      className={className}
-      type="text"
-      inputMode="numeric"
-      placeholder="gg/mm/aa"
-      value={draft}
-      onFocus={(e) => { e.currentTarget.select(); }}
-      onChange={(e) => {
-        let raw = e.target.value.replace(/[^\d/]/g, "");
-        const isDeleting = raw.length < draft.length;
-        // Estrai solo cifre per auto-formattazione
-        const digitsOnly = raw.replace(/\D/g, "");
-        // Se l'utente sta inserendo cifre (anche pasting o sostituendo tutto),
-        // riformatta come gg/mm/aa man mano che digita.
-        if (!isDeleting) {
-          const d = digitsOnly.slice(0, 8);
-          if (d.length === 0) raw = "";
-          else if (d.length <= 2) raw = d;
-          else if (d.length <= 4) raw = d.slice(0, 2) + "/" + d.slice(2);
-          else raw = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
-        }
-        if (raw.length > 10) raw = raw.slice(0, 10);
-        setDraft(raw);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit();
-          (e.currentTarget as HTMLInputElement).blur();
-        } else if (e.key === "Escape") {
-          setDraft(fmt(value));
           (e.currentTarget as HTMLInputElement).blur();
         }
       }}

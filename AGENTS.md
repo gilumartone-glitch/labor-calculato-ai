@@ -33,3 +33,5 @@
 - Open-banking SDK sync requests (obio-sync) use the shared sixty-second timeout and allowlisted failure classification, while read-only obio-accounts and obio-test use 20 seconds; longer waiting must not add refresh retries or expose provider errors.
 - Manual open-banking.io imports use obio-sync with provider-specific verified commercial terms, live business consent, a service-only run lock, stable hashed account identity, decimal-string normalization and the shared storage RPC; this does not enable scheduled synchronization.
 - Bank bulk changes use the authorized manage_bank_transactions RPC with ordered row locks, optimistic updated_at checks and allocated-row protection; soft deletion and original import identity preserve tombstones and manual edits, while a storage trigger enforces the configured historical starting boundary for all import channels.
+
+- Monthly movement keyboard dates use QuickDateInput with separator normalization and edit protection so explicit years survive confirmation and realtime refreshes.

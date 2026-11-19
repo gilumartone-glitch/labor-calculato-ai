@@ -16,6 +16,9 @@ import {
   elencoArticoli, elencoVarianti, creaArticolo, creaVariante, archiviaArticolo, archiviaVariante,
   giacenzeVarianti, giacenzeBagni, elencoPezze, caricaPezza, tagliaPezza, elencoMovimenti, stornaMovimento,
 } from "@/lib/gestionale/api";
+import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } from "@/lib/gestionale/documenti";
+import DocumentiTab from "@/components/gestionale/DocumentiTab";
+import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
 import {
   CATEGORIA_LABEL, descriviVariante, numeroOppureNull,
   type Articolo, type Variante, type Categoria, type UnitaMisura, type GiacenzaBagno,
@@ -300,7 +303,9 @@ const Gestionale = () => {
   const { can } = usePermissions();
   const puoScrivere = can("gestionale", "write");
 
-  const [tab, setTab] = useState("articoli");
+  const [tab, setTab] = useState("documenti");
+  const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
+  const [aliquote, setAliquote] = useState<AliquotaIva[]>([]);
   const [loading, setLoading] = useState(true);
   const [articoli, setArticoli] = useState<Articolo[]>([]);
   const [varianti, setVarianti] = useState<Variante[]>([]);
@@ -343,7 +348,16 @@ const Gestionale = () => {
     try { setMovimenti(await elencoMovimenti()); } catch (e) { errore(e); } finally { setLoadingMov(false); }
   }, []);
 
+  const caricaClientiFornitori = useCallback(async () => {
+    try {
+      const [a, i] = await Promise.all([elencoAnagrafiche(), elencoAliquote()]);
+      setAnagrafiche(a);
+      setAliquote(i);
+    } catch (e) { errore(e); }
+  }, []);
+
   useEffect(() => { caricaAnagrafiche(); }, [caricaAnagrafiche]);
+  useEffect(() => { caricaClientiFornitori(); }, [caricaClientiFornitori]);
   useEffect(() => { caricaPezzeVariante(varianteSel); }, [varianteSel, caricaPezzeVariante]);
   useEffect(() => { if (tab === "movimenti") caricaMovimenti(); }, [tab, caricaMovimenti]);
 
@@ -393,11 +407,24 @@ const Gestionale = () => {
           <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="documenti">Documenti</TabsTrigger>
+              <TabsTrigger value="anagrafiche">Clienti e fornitori</TabsTrigger>
               <TabsTrigger value="articoli">Articoli e varianti</TabsTrigger>
               <TabsTrigger value="pezze">Bagni e pezze</TabsTrigger>
               <TabsTrigger value="movimenti">Movimenti</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="documenti">
+              <DocumentiTab
+                anagrafiche={anagrafiche} aliquote={aliquote} articoli={articoli} varianti={varianti}
+                puoScrivere={puoScrivere} onAnagraficheChanged={caricaClientiFornitori}
+              />
+            </TabsContent>
+
+            <TabsContent value="anagrafiche">
+              <AnagraficheTab anagrafiche={anagrafiche} puoScrivere={puoScrivere} onChanged={caricaClientiFornitori} />
+            </TabsContent>
 
             {/* ---------------- Articoli e varianti ---------------- */}
             <TabsContent value="articoli" className="space-y-4">

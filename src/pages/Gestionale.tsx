@@ -18,6 +18,8 @@ import {
 } from "@/lib/gestionale/api";
 import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } from "@/lib/gestionale/documenti";
 import DocumentiTab from "@/components/gestionale/DocumentiTab";
+import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
+import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
 import {
   CATEGORIA_LABEL, descriviVariante, numeroOppureNull,
@@ -308,6 +310,11 @@ const Gestionale = () => {
   const [tab, setTab] = useState("documenti");
   const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
   const [aliquote, setAliquote] = useState<AliquotaIva[]>([]);
+  const [condizioni, setCondizioni] = useState<CondizionePagamento[]>([]);
+  const caricaCondizioni = useCallback(async () => {
+    try { setCondizioni(await elencoCondizioni()); } catch (e) { errore(e); }
+  }, []);
+  useEffect(() => { caricaCondizioni(); }, [caricaCondizioni]);
   const [loading, setLoading] = useState(true);
   const [articoli, setArticoli] = useState<Articolo[]>([]);
   const [varianti, setVarianti] = useState<Variante[]>([]);
@@ -411,6 +418,7 @@ const Gestionale = () => {
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="documenti">Documenti</TabsTrigger>
+              <TabsTrigger value="scadenzario">Scadenzario</TabsTrigger>
               <TabsTrigger value="anagrafiche">Clienti e fornitori</TabsTrigger>
               <TabsTrigger value="articoli">Articoli e varianti</TabsTrigger>
               <TabsTrigger value="pezze">Bagni e pezze</TabsTrigger>
@@ -419,10 +427,14 @@ const Gestionale = () => {
 
             <TabsContent value="documenti">
               <DocumentiTab
-                anagrafiche={anagrafiche} aliquote={aliquote} articoli={articoli} varianti={varianti}
+                anagrafiche={anagrafiche} aliquote={aliquote} condizioni={condizioni} articoli={articoli} varianti={varianti}
                 puoScrivere={puoScrivere} onAnagraficheChanged={caricaClientiFornitori}
                 documentoIniziale={documentoIniziale}
               />
+            </TabsContent>
+
+            <TabsContent value="scadenzario">
+              <ScadenzarioTab condizioni={condizioni} puoScrivere={puoScrivere} onCondizioniChanged={caricaCondizioni} />
             </TabsContent>
 
             <TabsContent value="anagrafiche">

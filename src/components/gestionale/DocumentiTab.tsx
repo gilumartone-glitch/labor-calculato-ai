@@ -15,11 +15,12 @@ import { descriviVariante, type Articolo, type Variante } from "@/lib/gestionale
 import {
   TIPI_DOCUMENTO, TIPO_LABEL, TIPO_LABEL_PLURALE, TIPO_RIGA_LABEL, TRASFORMAZIONI, isPassivo,
   annullaDocumento, calcolaTotali, confermaDocumento, creaDocumento, documentiCollegati, elencoDocumenti,
-  importoRiga, leggiDocumento, muoveMagazzino, rigaVuota, salvaBozza, sommaPezze, titoloDocumento, trasformaDocumento,
+  generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, rigaVuota, salvaBozza, sommaPezze, titoloDocumento, trasformaDocumento,
   type AliquotaIva, type Anagrafica, type Documento, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
   type TipoDocumento, type TipoRiga,
 } from "@/lib/gestionale/documenti";
 import { elencoPezze } from "@/lib/gestionale/api";
+import { anteprimaScadenze, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 
@@ -39,7 +40,7 @@ const STATO_VARIANT: Record<Documento["stato"], "default" | "outline" | "destruc
 
 const testataDa = (d: Documento): Testata => ({
   data: d.data, anagrafica_id: d.anagrafica_id, oggetto: d.oggetto, riferimento_esterno: d.riferimento_esterno,
-  data_esterna: d.data_esterna, pagamento: d.pagamento, validita_giorni: d.validita_giorni,
+  data_esterna: d.data_esterna, pagamento: d.pagamento, condizione_pagamento_id: d.condizione_pagamento_id, validita_giorni: d.validita_giorni,
   consegna_prevista: d.consegna_prevista, destinazione: d.destinazione, causale_trasporto: d.causale_trasporto,
   aspetto_beni: d.aspetto_beni, colli: d.colli, peso_kg: d.peso_kg, vettore: d.vettore, porto: d.porto,
   note: d.note, note_interne: d.note_interne,
@@ -166,6 +167,7 @@ type EditorProps = {
   documentoId: string;
   anagrafiche: Anagrafica[];
   aliquote: AliquotaIva[];
+  condizioni: CondizionePagamento[];
   articoli: Articolo[];
   varianti: Variante[];
   puoScrivere: boolean;
@@ -174,7 +176,7 @@ type EditorProps = {
   onAnagraficheChanged: () => void;
 };
 
-const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, varianti, puoScrivere, onBack, onApri, onAnagraficheChanged }: EditorProps) => {
+const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onBack, onApri, onAnagraficheChanged }: EditorProps) => {
   const [loading, setLoading] = useState(true);
   const [documento, setDocumento] = useState<Documento | null>(null);
   const [testata, setTestata] = useState<Testata | null>(null);
@@ -430,7 +432,28 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
               <Input value={intestatario?.ragione_sociale ?? ""} disabled />
             )}
           </div>
-          {campoTesto("pagamento", "Pagamento")}
+          <div>
+            <Label>Pagamento</Label>
+            {modificabile && condizioni.length > 0 ? (
+              <Select
+                value={testata.condizione_pagamento_id ?? "__libero"}
+                onValueChange={(v) => {
+                  const c = condizioni.find((x) => x.id === v);
+                  setTestata((p) => (p ? { ...p, condizione_pagamento_id: c ? c.id : null, pagamento: c ? c.descrizione : p.pagamento } : p));
+                  setModificato(true);
+                }}
+              >
+                <SelectTrigger aria-label="Condizione di pagamento"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__libero">Testo libero / a vista</SelectItem>
+                  {condizioni.map((c) => <SelectItem key={c.id} value={c.id}>{c.descrizione}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : null}
+            {(!modificabile || condizioni.length === 0 || !testata.condizione_pagamento_id) && (
+              <Input className={modificabile && condizioni.length > 0 ? "mt-1.5" : undefined} value={testata.pagamento ?? ""} disabled={!modificabile} placeholder="Condizioni di pagamento" onChange={(e) => setT("pagamento", testoOppureNull(e.target.value))} />
+            )}
+          </div>
         </div>
         {intestatario && (
           <p className="text-xs text-muted-foreground">
@@ -617,6 +640,20 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
             <span>Totale</span><span className="tabular-nums">{eur(modificato ? totali.totale : documento.totale)}</span>
           </div>
           {modificato && <p className="text-xs text-muted-foreground pt-1">Anteprima: i totali definitivi si aggiornano al salvataggio.</p>}
+          {bozza && generaScadenze(documento.tipo) && (modificato ? totali.totale : documento.totale) !== 0 && (
+            <div className="border-t border-ink/20 pt-2 mt-2">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Scadenze alla conferma</div>
+              {anteprimaScadenze(
+                (modificato ? totali.totale : documento.totale) * (documento.tipo === "nota_credito" ? -1 : 1),
+                (passivo ? testata.data_esterna : null) ?? testata.data,
+                condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
+              ).map((r, i) => (
+                <div key={i} className="flex justify-between text-muted-foreground">
+                  <span>{fmtData(r.data)}</span><span className="tabular-nums">{eur(r.importo)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
@@ -632,9 +669,10 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
 /* ------------------------------------------------------------------ */
 /* Elenco documenti                                                    */
 /* ------------------------------------------------------------------ */
-const DocumentiTab = ({ anagrafiche, aliquote, articoli, varianti, puoScrivere, onAnagraficheChanged, documentoIniziale }: {
+const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onAnagraficheChanged, documentoIniziale }: {
   anagrafiche: Anagrafica[];
   aliquote: AliquotaIva[];
+  condizioni: CondizionePagamento[];
   articoli: Articolo[];
   varianti: Variante[];
   puoScrivere: boolean;
@@ -667,7 +705,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, articoli, varianti, puoScrivere, 
       <DocumentoEditor
         key={aperto}
         documentoId={aperto}
-        anagrafiche={anagrafiche} aliquote={aliquote} articoli={articoli} varianti={varianti}
+        anagrafiche={anagrafiche} aliquote={aliquote} condizioni={condizioni} articoli={articoli} varianti={varianti}
         puoScrivere={puoScrivere}
         onBack={() => setAperto(null)}
         onApri={(id, t) => { setTipo(t); setAperto(id); }}

@@ -120,6 +120,7 @@ export type Documento = {
   riferimento_esterno: string | null;
   data_esterna: string | null;
   pagamento: string | null;
+  condizione_pagamento_id: string | null;
   validita_giorni: number | null;
   consegna_prevista: string | null;
   destinazione: string | null;
@@ -142,7 +143,7 @@ export type Documento = {
 
 /** Campi di testata modificabili finché il documento è in bozza. */
 export type Testata = Pick<Documento,
-  "data" | "anagrafica_id" | "oggetto" | "riferimento_esterno" | "data_esterna" | "pagamento" | "validita_giorni"
+  "data" | "anagrafica_id" | "oggetto" | "riferimento_esterno" | "data_esterna" | "pagamento" | "condizione_pagamento_id" | "validita_giorni"
   | "consegna_prevista" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "colli" | "peso_kg" | "vettore"
   | "porto" | "note" | "note_interne">;
 
@@ -178,6 +179,9 @@ export type PezzaRiga = {
 
 /** Riga in modifica: senza id finché non è salvata. */
 export type RigaBozza = Omit<Riga, "id" | "documento_id" | "posizione" | "importo"> & { id?: string; pezze?: PezzaRiga[] };
+
+/** Documenti che alla conferma generano le scadenze di incasso o pagamento. */
+export const generaScadenze = (t: TipoDocumento) => t === "fattura" || t === "nota_credito" || t === "fattura_fornitore";
 
 /** Documenti che muovono il magazzino alla conferma. */
 export const muoveMagazzino = (t: TipoDocumento) => t === "bolla_carico" || t === "ddt";

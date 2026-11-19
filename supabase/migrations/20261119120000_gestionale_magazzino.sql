@@ -352,5 +352,26 @@ CREATE POLICY gest_storico_select ON public.gest_storico FOR SELECT TO authentic
   USING (public.has_permission(auth.uid(), 'gestionale', 'read'));
 -- nessuna policy di scrittura: lo storico si alimenta solo dai trigger
 
-REVOKE ALL ON FUNCTION public.gest_fn_storico() FROM PUBLIC, anon, authenticated;
+-- 10. Privilegi espliciti (minimo necessario) ------------------------
+-- Tabelle anagrafiche: lettura, inserimento, modifica. Nessun DELETE.
+GRANT SELECT, INSERT, UPDATE ON public.gest_articoli, public.gest_varianti, public.gest_bagni, public.gest_pezze TO authenticated;
+-- Registro movimenti: solo lettura e inserimento.
+GRANT SELECT, INSERT ON public.gest_movimenti TO authenticated;
+-- Storico: sola lettura (lo scrivono i trigger).
+GRANT SELECT ON public.gest_storico TO authenticated;
+GRANT SELECT ON public.gest_giacenze_pezze, public.gest_giacenze_bagno, public.gest_giacenze_varianti TO authenticated;
 GRANT USAGE ON SEQUENCE public.gest_pezze_codice_seq TO authenticated;
+
+GRANT ALL ON public.gest_articoli, public.gest_varianti, public.gest_bagni, public.gest_pezze,
+             public.gest_movimenti, public.gest_storico TO service_role;
+GRANT SELECT ON public.gest_giacenze_pezze, public.gest_giacenze_bagno, public.gest_giacenze_varianti TO service_role;
+GRANT USAGE ON SEQUENCE public.gest_pezze_codice_seq TO service_role;
+
+-- Funzioni: nessun accesso anonimo.
+REVOKE ALL ON FUNCTION public.gest_fn_storico() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.gest_carica_pezza(UUID, NUMERIC, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gest_taglia_pezza(UUID, NUMERIC, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gest_storna_movimento(BIGINT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.gest_carica_pezza(UUID, NUMERIC, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gest_taglia_pezza(UUID, NUMERIC, TEXT, TEXT, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gest_storna_movimento(BIGINT, TEXT) TO authenticated, service_role;

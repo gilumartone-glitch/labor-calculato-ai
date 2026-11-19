@@ -1494,6 +1494,61 @@ export type Database = {
           },
         ]
       }
+      gest_documenti_righe_pezze: {
+        Row: {
+          codice_bagno: string | null
+          created_at: string
+          id: string
+          metri: number
+          ordine: number
+          pezza_id: string | null
+          posizione: string | null
+          riga_id: string
+        }
+        Insert: {
+          codice_bagno?: string | null
+          created_at?: string
+          id?: string
+          metri: number
+          ordine?: number
+          pezza_id?: string | null
+          posizione?: string | null
+          riga_id: string
+        }
+        Update: {
+          codice_bagno?: string | null
+          created_at?: string
+          id?: string
+          metri?: number
+          ordine?: number
+          pezza_id?: string | null
+          posizione?: string | null
+          riga_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_documenti_righe_pezze_pezza_id_fkey"
+            columns: ["pezza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_pezze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_pezze_pezza_id_fkey"
+            columns: ["pezza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_pezze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_pezze_riga_id_fkey"
+            columns: ["riga_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti_righe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_impostazioni: {
         Row: {
           chiave: string
@@ -1518,12 +1573,14 @@ export type Database = {
       gest_movimenti: {
         Row: {
           creato_il: string
+          documento_id: string | null
           id: number
           nota: string | null
           pezza_id: string | null
           quantita: number
           riferimento_id: string | null
           riferimento_tipo: string | null
+          riga_id: string | null
           sfrido_codice: string | null
           storno_di: number | null
           tipo: string
@@ -1532,12 +1589,14 @@ export type Database = {
         }
         Insert: {
           creato_il?: string
+          documento_id?: string | null
           id?: never
           nota?: string | null
           pezza_id?: string | null
           quantita: number
           riferimento_id?: string | null
           riferimento_tipo?: string | null
+          riga_id?: string | null
           sfrido_codice?: string | null
           storno_di?: number | null
           tipo: string
@@ -1546,12 +1605,14 @@ export type Database = {
         }
         Update: {
           creato_il?: string
+          documento_id?: string | null
           id?: never
           nota?: string | null
           pezza_id?: string | null
           quantita?: number
           riferimento_id?: string | null
           riferimento_tipo?: string | null
+          riga_id?: string | null
           sfrido_codice?: string | null
           storno_di?: number | null
           tipo?: string
@@ -1559,6 +1620,13 @@ export type Database = {
           variante_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gest_movimenti_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gest_movimenti_pezza_id_fkey"
             columns: ["pezza_id"]
@@ -3456,7 +3524,15 @@ export type Database = {
         Args: { _origine_id: string; _tipo: string }
         Returns: string
       }
+      gest_movimenta_documento: {
+        Args: { _documento_id: string }
+        Returns: undefined
+      }
       gest_ricalcola_totali: {
+        Args: { _documento_id: string }
+        Returns: undefined
+      }
+      gest_storna_documento: {
         Args: { _documento_id: string }
         Returns: undefined
       }

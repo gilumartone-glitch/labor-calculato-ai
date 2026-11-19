@@ -5,6 +5,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangl
 import { toast } from "sonner";
 import { QuickCantiereDialog } from "./QuickCantiereDialog";
 import { ProjectPlanningDialog } from "./ProjectPlanningDialog";
+import { PlanningProjectDetails } from "./PlanningProjectDetails";
+import { readPlanningDescription, writePlanningDescription } from "@/lib/planning-description";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -644,11 +646,12 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
             <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
             <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-2xl">{crew?.cantiere}</DialogTitle>
                   <p className="text-base text-muted-foreground capitalize">{crew && new Date(crew.date + "T00:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}</p>
                 </DialogHeader>
+                {crew && <PlanningProjectDetails commessaId={crewList[0]?.commessa_id} notes={crewList[0]?.notes} />}
                 <div className="font-semibold text-base">Operai in questo giorno ({crew?.sel.length ?? 0})</div>
                 <div className="flex flex-wrap gap-2 max-h-[50vh] overflow-y-auto">
                   {displayedOps.map((o) => {
@@ -1283,13 +1286,15 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
   const [hours, setHours] = useState<number>(ex?.hours ?? 8);
   const [cantiere, setCantiere] = useState(ex?.cantiere_label ?? "");
   const [notes, setNotes] = useState(ex?.notes ?? "");
+  const [description, setDescription] = useState(readPlanningDescription(ex?.notes ?? null).description);
+  const [manualNotes, setManualNotes] = useState(readPlanningDescription(ex?.notes ?? null).notes);
   const [reparto, setReparto] = useState<Reparto>((ex?.reparto as Reparto) ?? defaultReparto);
 
   const currentOperator = operators.find((o) => o.id === operatorId);
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <span>{ex ? "Dettagli attività" : "Nuovo impegno"}</span>
@@ -1330,15 +1335,16 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
                 </div>
               </div>
             </div>
-            {notes && (
+            {readPlanningDescription(notes).notes && (
               <div>
                 <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Note</div>
-                <div className="text-xs whitespace-pre-wrap">{notes}</div>
+                <div className="text-xs whitespace-pre-wrap">{readPlanningDescription(notes).notes}</div>
               </div>
             )}
           </div>
         )}
         {ex?.commessa_id && <LinkedProjectPreview id={ex.commessa_id} />}
+        {ex && <PlanningProjectDetails commessaId={ex.commessa_id} notes={ex.notes} />}
         {onEditProjectDates && <Button variant="secondary" onClick={onEditProjectDates}><CalendarDays className="h-4 w-4" />Modifica tutte le date del progetto</Button>}
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
@@ -1379,8 +1385,9 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
           </div>
           <div className="space-y-1.5">
             <Label>Note</Label>
-            <Input value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali" />
+            <Input value={ex?.commessa_id ? notes : manualNotes} onChange={(e) => ex?.commessa_id ? setNotes(e.target.value) : setManualNotes(e.target.value)} placeholder="Note opzionali" />
           </div>
+          {!ex?.commessa_id && <label className="block space-y-1.5"><span className="text-sm font-medium">Di cosa si tratta / Descrizione progetto</span><textarea aria-label="Descrizione progetto" value={description} onChange={event => setDescription(event.target.value)} rows={3} className="w-full rounded-md border border-input bg-background p-2 text-sm" /></label>}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           {onDelete && (
@@ -1389,7 +1396,7 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
             </Button>
           )}
           <Button variant="outline" onClick={onClose}>Annulla</Button>
-          <Button onClick={() => onSave({ id: ex?.id, operator_id: operatorId, date, hours, cantiere_label: cantiere, notes, reparto })}>
+          <Button onClick={() => onSave({ id: ex?.id, operator_id: operatorId, date, hours, cantiere_label: cantiere, notes: ex?.commessa_id ? notes : writePlanningDescription(manualNotes, description), reparto })}>
             <Save className="h-4 w-4" />Salva
           </Button>
         </DialogFooter>

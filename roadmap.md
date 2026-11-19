@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] Show project contents in planning popups and save descriptions for manual activities; real Umbria fabric pieces/measurements verified, temporary multiline description saved and read back through calendar and editor, mobile display checked, test data removed.
+
 - [x] Allow opening a project in Pianificazione to edit all its dates and restore Flow projects whose planning was deleted; verified the two distinct Umbria orders, temporary-project restore/date edit/save/read-back, preserved assignment IDs, and desktop/mobile display. Real Umbria projects left unchanged.
 
 - [x] Apply unchanged Gestionale document schema, regenerate types, insert the four requested initial records and verify new tables and row counts; six tables with RLS/service grants verified, original byte-identical duplicate removed.

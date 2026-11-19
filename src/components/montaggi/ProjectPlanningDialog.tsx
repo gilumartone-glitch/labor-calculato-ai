@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PlanningDatePicker } from "./PlanningDatePicker";
+import { PlanningProjectDetails } from "./PlanningProjectDetails";
 import { buildProjectPlanning, type DepartmentDates, type PlanningDay } from "@/lib/project-planning";
 
 type Project = { id: string; code: string; cliente: string; production_name: string | null; source_commessa_id: string | null };
@@ -119,6 +120,7 @@ export function ProjectPlanningDialog({ open, projectId, onClose, onSaved }: {
         <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">{filtered.map(project => <Button key={project.id} variant="ghost" className="w-full h-auto justify-start py-3 whitespace-normal text-left" onClick={() => setSelected(project)}><span><strong>{project.code}</strong><span className="block">{project.production_name || project.cliente}</span></span></Button>)}{!filtered.length && <p className="py-4 text-muted-foreground">Nessun progetto trovato.</p>}</div>
       </> : <div className="space-y-5">
         <div><strong>{selected.production_name || selected.cliente}</strong><span className="block text-sm text-muted-foreground">{existing.length ? `${existing.length} impegni pianificati` : "Nessun impegno pianificato"}</span></div>
+        <PlanningProjectDetails commessaId={selected.source_commessa_id} />
         <div className="space-y-1"><span className="text-sm font-medium">Consegna progetto</span><div className="max-w-56"><PlanningDatePicker label="Consegna progetto" value={deadline} onChange={setDeadline} /></div></div>
         {departments.map(department => <section key={department.dept} className="border-t border-border pt-4 space-y-3">
           <h3 className="font-semibold capitalize">{department.label}</h3>

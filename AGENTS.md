@@ -37,3 +37,5 @@
 - Monthly movement keyboard dates use QuickDateInput with separator normalization and edit protection so explicit years survive confirmation and realtime refreshes.
 
 - Flow planning date edits and restoration target the stable source_commessa_id, preserving daily assignment IDs and crews; project labels are not unique, so ambiguous calendar names require explicit order selection.
+
+- Planning popups read linked project contents from existing snapshots; manual descriptions use a JSON-encoded notes marker to preserve multiline text and legacy notes without schema changes.

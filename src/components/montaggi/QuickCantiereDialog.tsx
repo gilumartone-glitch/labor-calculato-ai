@@ -7,6 +7,7 @@ import { useSharedCloudState } from "@/hooks/useSharedCloudState";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { readPlanningDescription, writePlanningDescription } from "@/lib/planning-description";
 
 const REPARTI = [
   { k: "montaggi", label: "Montaggi" },
@@ -50,6 +51,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
   const [cliente, setCliente] = useState("");
   const [luogo, setLuogo] = useState("");
   const [note, setNote] = useState("");
+  const [description, setDescription] = useState("");
   const [from, setFrom] = useState(todayStr());
   const [to, setTo] = useState(todayStr());
   const [hours, setHours] = useState(8);
@@ -63,7 +65,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
   const [commessaId, setCommessaId] = useState<string | null>(null);
 
   const reset = () => {
-    setEditLabel(""); setNome(""); setCliente(""); setLuogo(""); setNote("");
+    setEditLabel(""); setNome(""); setCliente(""); setLuogo(""); setNote(""); setDescription("");
     setFrom(todayStr()); setTo(todayStr()); setHours(8); setWeekend(false); setReparto(defaultReparto); setOps([]); setDayOps({}); setShowDays(false); setDayRep({}); setCommessaId(null);
   };
 
@@ -98,7 +100,9 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
     const rows = src.filter((r) => r.cantiere_label === label);
     if (!rows.length) return;
     const dates = rows.map((r) => r.date).sort();
-    const n = parseNotes(rows[0].notes);
+    const saved = readPlanningDescription(rows[0].notes);
+    const n = parseNotes(saved.notes);
+    setDescription(saved.description);
     setNome(label); setCliente(n.cliente); setLuogo(n.luogo); setNote(n.note);
     setFrom(dates[0]); setTo(dates[dates.length - 1]);
     setHours(Number(rows[0].hours) || 8); setReparto(rows[0].reparto || defaultReparto);
@@ -163,7 +167,7 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
         }
       }
       const doneAt = doneFlag ? (editRows.find((r) => r.completed_at)?.completed_at ?? new Date().toISOString()) : null;
-      const notes = buildNotes(cliente.trim(), luogo.trim(), note.trim());
+      const notes = writePlanningDescription(buildNotes(cliente.trim(), luogo.trim(), note.trim()), description);
       const rows = days.flatMap((date) => opsFor(date).map((op) => ({
         commessa_id: commessaId, cantiere_label: nome.trim(), operator_id: op, date, hours, notes, reparto: dayRep[date] ?? reparto, created_by: user.id, completed_at: doneAt,
       })));
@@ -220,6 +224,9 @@ export const QuickCantiereDialog = ({ open, onOpenChange, onSaved, defaultRepart
 
           <label className="block"><span className="font-semibold">Nome cantiere *</span>
             <Input className="mt-1 h-11 text-base" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="es. Teatro San Carlo" autoFocus />
+          </label>
+          <label className="block"><span className="font-semibold">Di cosa si tratta / Descrizione progetto</span>
+            <textarea aria-label="Descrizione progetto" value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Lavoro da eseguire, materiali, misure e dettagli" className="mt-1 w-full border-2 border-input rounded-sm p-2 bg-background" />
           </label>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block"><span className="font-semibold">Cliente</span>

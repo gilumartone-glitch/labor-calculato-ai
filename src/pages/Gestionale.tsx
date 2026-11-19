@@ -19,6 +19,7 @@ import {
 import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } from "@/lib/gestionale/documenti";
 import DocumentiTab from "@/components/gestionale/DocumentiTab";
 import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
+import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
 import {
@@ -306,8 +307,10 @@ const Gestionale = () => {
   const puoScrivere = can("gestionale", "write");
 
   const [parametri] = useSearchParams();
-  const documentoIniziale = parametri.get("doc");
+  const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
+  // dalla prima nota si salta al documento: la scheda Documenti si riapre su quello
+  const apriDocumento = useCallback((id: string) => { setDocumentoIniziale(id); setTab("documenti"); }, []);
   const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
   const [aliquote, setAliquote] = useState<AliquotaIva[]>([]);
   const [condizioni, setCondizioni] = useState<CondizionePagamento[]>([]);
@@ -419,6 +422,7 @@ const Gestionale = () => {
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="documenti">Documenti</TabsTrigger>
               <TabsTrigger value="scadenzario">Scadenzario</TabsTrigger>
+              <TabsTrigger value="prima-nota">Prima nota</TabsTrigger>
               <TabsTrigger value="anagrafiche">Clienti e fornitori</TabsTrigger>
               <TabsTrigger value="articoli">Articoli e varianti</TabsTrigger>
               <TabsTrigger value="pezze">Bagni e pezze</TabsTrigger>
@@ -435,6 +439,10 @@ const Gestionale = () => {
 
             <TabsContent value="scadenzario">
               <ScadenzarioTab condizioni={condizioni} puoScrivere={puoScrivere} onCondizioniChanged={caricaCondizioni} />
+            </TabsContent>
+
+            <TabsContent value="prima-nota">
+              <PrimaNotaTab puoScrivere={puoScrivere} onApriDocumento={apriDocumento} />
             </TabsContent>
 
             <TabsContent value="anagrafiche">

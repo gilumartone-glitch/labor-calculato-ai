@@ -113,6 +113,8 @@ export type Scadenza = {
   residuo: number;
   ultimo_pagamento: string | null;
   stato: StatoScadenza;
+  /** true se la scadenza ha la sua voce «in competenza» nella Contabilità */
+  in_contabilita: boolean;
 };
 
 export type Pagamento = {
@@ -121,6 +123,8 @@ export type Pagamento = {
   data: string;
   importo: number;
   modalita: string | null;
+  conto: string | null;
+  origine: "manuale" | "banca";
   nota: string | null;
   storno_di: number | null;
   creato_il: string;
@@ -144,11 +148,25 @@ export async function elencoPagamenti(scadenzaId: string): Promise<Pagamento[]> 
   return righe.map((p) => ({ ...p, importo: num(p.importo) }));
 }
 
-/** Registra un incasso o un pagamento e restituisce il residuo della scadenza. */
-export async function registraPagamento(p: { scadenzaId: string; importo: number; data: string; modalita?: string | null; nota?: string | null }): Promise<number> {
+/**
+ * Registra un incasso o un pagamento e restituisce il residuo della scadenza.
+ * Sulle scadenze collegate alla Contabilità da qui passano solo i contanti: i movimenti
+ * in banca arrivano dall'associazione fatta in Contabilità → Conti.
+ */
+export async function registraPagamento(p: { scadenzaId: string; importo: number; data: string; conto: string; modalita?: string | null; nota?: string | null }): Promise<number> {
   return num(esito<number>(await db.rpc("gest_registra_pagamento", {
-    _scadenza_id: p.scadenzaId, _importo: p.importo, _data: p.data, _modalita: p.modalita ?? null, _nota: p.nota ?? null,
+    _scadenza_id: p.scadenzaId, _importo: p.importo, _data: p.data, _conto: p.conto, _modalita: p.modalita ?? null, _nota: p.nota ?? null,
   })));
+}
+
+/** Crea la voce in competenza di una scadenza rimasta fuori dalla Contabilità. false = anno contabile non ancora aperto. */
+export async function collegaScadenza(scadenzaId: string): Promise<boolean> {
+  return Boolean(esito<boolean>(await db.rpc("gest_collega_scadenza", { _scadenza_id: scadenzaId })));
+}
+
+/** Recupera le associazioni bancarie non ancora riportate sulle scadenze. Restituisce quante. */
+export async function riallineaBanca(): Promise<number> {
+  return num(esito<number>(await db.rpc("gest_riallinea_banca")));
 }
 
 export async function stornaPagamento(pagamentoId: number): Promise<void> {

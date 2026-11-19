@@ -32,7 +32,7 @@ const interoOppureNull = (v: string): number | null => { const n = parseInt(v, 1
 const testoOppureNull = (v: string): string | null => (v.trim() === "" ? null : v);
 
 /** Colonne della griglia delle righe: n., tipo, da magazzino, descrizione, UM, q.tà, prezzo, sconto, IVA, importo, azioni. */
-const COLONNE_RIGHE = "20px 88px 150px minmax(170px, 1fr) 52px 78px 92px 64px 100px 92px 90px";
+const COLONNE_RIGHE = "20px 104px 150px minmax(160px, 1fr) 52px 78px 92px 64px 100px 92px 90px";
 
 const STATO_VARIANT: Record<Documento["stato"], "default" | "outline" | "destructive"> = {
   bozza: "outline", confermato: "default", annullato: "destructive",

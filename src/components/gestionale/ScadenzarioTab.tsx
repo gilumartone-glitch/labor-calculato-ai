@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Search, Undo2, Pencil, Archive, Settings2, CalendarClock } from "lucide-react";
+import { Loader2, Plus, Search, Undo2, Pencil, Archive, Settings2, CalendarClock, Link2, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,16 +11,18 @@ import { toast } from "@/hooks/use-toast";
 import { eur } from "@/lib/format";
 import { TIPO_LABEL } from "@/lib/gestionale/documenti";
 import {
-  archiviaCondizione, elencoPagamenti, elencoScadenze, giorniDaRate, rateDaGiorni, registraPagamento,
-  riepilogoScadenze, salvaCondizione, spostaScadenza, stornaPagamento,
+  archiviaCondizione, collegaScadenza, elencoPagamenti, elencoScadenze, giorniDaRate, rateDaGiorni, registraPagamento,
+  riallineaBanca, riepilogoScadenze, salvaCondizione, spostaScadenza, stornaPagamento,
   type CondizionePagamento, type Pagamento, type Scadenza, type StatoScadenza, type Verso,
 } from "@/lib/gestionale/scadenzario";
+import { CONTI, etichettaConto } from "@/lib/gestionale/prima-nota";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const errore = (e: unknown) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" });
 const fmtData = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("it-IT") : "—");
 const oggi = () => new Date().toISOString().slice(0, 10);
 const numero = (v: string): number => { const n = Number(v.replace(",", ".")); return Number.isFinite(n) ? n : 0; };
+const selectClass = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 const STATO_VARIANT: Record<StatoScadenza, "default" | "outline" | "destructive" | "secondary"> = {
   aperta: "outline", parziale: "secondary", scaduta: "destructive", saldata: "default",
@@ -43,6 +45,8 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
   const [importo, setImporto] = useState("");
   const [data, setData] = useState(oggi());
   const [modalita, setModalita] = useState("");
+  const [conto, setConto] = useState("contanti");
+  const [collegata, setCollegata] = useState(false);
   const [nota, setNota] = useState("");
   const [nuovaData, setNuovaData] = useState("");
   const [occupato, setOccupato] = useState(false);
@@ -57,6 +61,8 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
     setImporto(String(scadenza.residuo));
     setData(oggi());
     setModalita(scadenza.modalita ?? "");
+    setConto("contanti");
+    setCollegata(scadenza.in_contabilita);
     setNota("");
     setNuovaData(scadenza.data_scadenza);
     setPagamenti([]);
@@ -75,7 +81,10 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
     }
     setOccupato(true);
     try {
-      const nuovoResiduo = await registraPagamento({ scadenzaId: scadenza.id, importo: valore, data, modalita: modalita.trim() || null, nota: nota.trim() || null });
+      const nuovoResiduo = await registraPagamento({
+        scadenzaId: scadenza.id, importo: valore, data, conto: collegata ? "contanti" : conto,
+        modalita: collegata ? "Contanti" : modalita.trim() || null, nota: nota.trim() || null,
+      });
       toast({ title: incasso ? "Incasso registrato" : "Pagamento registrato", description: `Residuo: ${eur(nuovoResiduo)}` });
       setResiduo(nuovoResiduo);
       setImporto(String(nuovoResiduo));
@@ -93,6 +102,19 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
       setResiduo((r) => Math.round((r + p.importo) * 100) / 100);
       onChanged();
       await carica(scadenza);
+    } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
+
+  const collega = async () => {
+    setOccupato(true);
+    try {
+      if (await collegaScadenza(scadenza.id)) {
+        setCollegata(true);
+        toast({ title: "Collegata alla Contabilità", description: "La voce è ora in competenza alla data della scadenza." });
+        onChanged();
+      } else {
+        toast({ title: "Non ancora collegabile", description: `Apri prima in Contabilità l'anno ${scadenza.data_scadenza.slice(0, 4)}, poi riprova.`, variant: "destructive" });
+      }
     } catch (e) { errore(e); } finally { setOccupato(false); }
   };
 
@@ -120,17 +142,44 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
             <div><div className="text-xs text-muted-foreground">Residuo</div><div className="font-semibold tabular-nums">{eur(residuo)}</div></div>
           </div>
 
+          {collegata ? (
+            <div className="flex gap-2 border-2 border-ink/20 rounded-sm p-3 text-xs text-muted-foreground">
+              <Landmark className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Questa scadenza è in Contabilità come voce in competenza. <strong className="text-foreground">Bonifici, RiBa, PayPal</strong>: associa
+                il movimento bancario alla voce in Contabilità → Conti e qui risulterà {incasso ? "incassata" : "pagata"} da sola.
+                Da qui si registrano solo i <strong className="text-foreground">contanti</strong>.
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-2 border-ink/20 rounded-sm p-3 text-xs text-muted-foreground">
+              <span>Questa scadenza non è in Contabilità (anno contabile non aperto, o scadenza nata prima del collegamento).</span>
+              {puoScrivere && residuo !== 0 && (
+                <Button size="sm" variant="outline" disabled={occupato} onClick={collega}><Link2 className="w-4 h-4 mr-1" /> Collega alla Contabilità</Button>
+              )}
+            </div>
+          )}
+
           {puoScrivere && residuo !== 0 && (
             <div className="grid gap-3 border-2 border-ink/20 rounded-sm p-3">
               <div className="grid grid-cols-3 gap-3">
                 <div><Label>Data</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value || oggi())} /></div>
                 <div><Label>Importo (€)</Label><Input inputMode="decimal" className="text-right" value={importo} onChange={(e) => setImporto(e.target.value)} /></div>
-                <div><Label>Modalità</Label><Input value={modalita} onChange={(e) => setModalita(e.target.value)} placeholder="Bonifico, RiBa…" /></div>
+                <div>
+                  <Label>Conto</Label>
+                  {collegata ? (
+                    <Input value="Contanti" readOnly disabled />
+                  ) : (
+                    <select className={selectClass} value={conto} onChange={(e) => setConto(e.target.value)}>
+                      {CONTI.map((c) => <option key={c.codice} value={c.codice}>{c.etichetta}</option>)}
+                    </select>
+                  )}
+                </div>
               </div>
               <div><Label>Nota</Label><Input value={nota} onChange={(e) => setNota(e.target.value)} /></div>
               <div className="flex justify-end">
                 <Button onClick={registra} disabled={occupato}>
-                  {occupato && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Registra {incasso ? "incasso" : "pagamento"}
+                  {occupato && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Registra {incasso ? "incasso" : "pagamento"}{collegata ? " in contanti" : ""}
                 </Button>
               </div>
             </div>
@@ -150,7 +199,7 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead><TableHead>Modalità</TableHead><TableHead>Nota</TableHead>
+                    <TableHead>Data</TableHead><TableHead>Conto</TableHead><TableHead>Nota</TableHead>
                     <TableHead className="text-right">Importo</TableHead><TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -160,11 +209,11 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
                     return (
                       <TableRow key={p.id} className={annullato ? "opacity-60" : undefined}>
                         <TableCell className="whitespace-nowrap">{fmtData(p.data)}</TableCell>
-                        <TableCell>{p.modalita ?? "—"}</TableCell>
+                        <TableCell>{p.conto ? etichettaConto(p.conto) : p.modalita ?? "—"}</TableCell>
                         <TableCell className="text-xs">{p.storno_di != null ? `Storno del n. ${p.storno_di}` : p.nota ?? "—"}{stornati.has(p.id) ? " · stornato" : ""}</TableCell>
                         <TableCell className="text-right tabular-nums">{eur(p.importo)}</TableCell>
                         <TableCell>
-                          {puoScrivere && !annullato && (
+                          {puoScrivere && !annullato && p.origine !== "banca" && (
                             <Button size="icon" variant="ghost" className="h-7 w-7" title="Storna" disabled={occupato} onClick={() => storna(p)}><Undo2 className="w-4 h-4" /></Button>
                           )}
                         </TableCell>
@@ -312,7 +361,13 @@ const ScadenzarioTab = ({ condizioni, puoScrivere, onCondizioniChanged }: {
   const carica = useCallback(async () => {
     try { setScadenze(await elencoScadenze()); } catch (e) { errore(e); } finally { setLoading(false); }
   }, []);
-  useEffect(() => { carica(); }, [carica]);
+  useEffect(() => {
+    (async () => {
+      // rete di sicurezza: riporta sulle scadenze eventuali associazioni bancarie rimaste indietro
+      if (puoScrivere) { try { await riallineaBanca(); } catch { /* non blocca l'elenco */ } }
+      await carica();
+    })();
+  }, [carica, puoScrivere]);
 
   const totali = useMemo(() => riepilogoScadenze(scadenze), [scadenze]);
   const filtrate = useMemo(() => {
@@ -395,7 +450,10 @@ const ScadenzarioTab = ({ condizioni, puoScrivere, onCondizioniChanged }: {
                   <TableCell>{s.modalita ?? "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{eur(s.importo)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{eur(s.residuo)}</TableCell>
-                  <TableCell><Badge variant={STATO_VARIANT[s.stato]}>{s.stato}</Badge></TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge variant={STATO_VARIANT[s.stato]}>{s.stato}</Badge>
+                    {!s.in_contabilita && s.stato !== "saldata" && <Badge variant="outline" className="ml-1" title="Non ancora in Contabilità: apri la scadenza per collegarla">fuori contabilità</Badge>}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => setAperta(s)}>
                       {s.stato === "saldata" || !puoScrivere ? "Dettagli" : s.verso === "incasso" ? "Incassa" : "Paga"}

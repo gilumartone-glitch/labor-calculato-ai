@@ -1086,6 +1086,7 @@ export type Database = {
           codice_mexal: string | null
           codice_pagamento: string | null
           codice_sdi: string | null
+          condizione_pagamento_id: string | null
           created_at: string
           dati_origine: Json | null
           email: string | null
@@ -1121,6 +1122,7 @@ export type Database = {
           codice_mexal?: string | null
           codice_pagamento?: string | null
           codice_sdi?: string | null
+          condizione_pagamento_id?: string | null
           created_at?: string
           dati_origine?: Json | null
           email?: string | null
@@ -1156,6 +1158,7 @@ export type Database = {
           codice_mexal?: string | null
           codice_pagamento?: string | null
           codice_sdi?: string | null
+          condizione_pagamento_id?: string | null
           created_at?: string
           dati_origine?: Json | null
           email?: string | null
@@ -1177,7 +1180,15 @@ export type Database = {
           telefono?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gest_anagrafiche_condizione_pagamento_id_fkey"
+            columns: ["condizione_pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_condizioni_pagamento"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gest_articoli: {
         Row: {
@@ -1266,6 +1277,42 @@ export type Database = {
           },
         ]
       }
+      gest_condizioni_pagamento: {
+        Row: {
+          archiviato_il: string | null
+          codice: string
+          created_at: string
+          descrizione: string
+          fine_mese: boolean
+          id: string
+          modalita: string | null
+          rate: Json
+          updated_at: string
+        }
+        Insert: {
+          archiviato_il?: string | null
+          codice: string
+          created_at?: string
+          descrizione: string
+          fine_mese?: boolean
+          id?: string
+          modalita?: string | null
+          rate?: Json
+          updated_at?: string
+        }
+        Update: {
+          archiviato_il?: string | null
+          codice?: string
+          created_at?: string
+          descrizione?: string
+          fine_mese?: boolean
+          id?: string
+          modalita?: string | null
+          rate?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gest_documenti: {
         Row: {
           anagrafica_id: string | null
@@ -1274,6 +1321,7 @@ export type Database = {
           aspetto_beni: string | null
           causale_trasporto: string | null
           colli: number | null
+          condizione_pagamento_id: string | null
           confermato_da: string | null
           confermato_il: string | null
           consegna_prevista: string | null
@@ -1312,6 +1360,7 @@ export type Database = {
           aspetto_beni?: string | null
           causale_trasporto?: string | null
           colli?: number | null
+          condizione_pagamento_id?: string | null
           confermato_da?: string | null
           confermato_il?: string | null
           consegna_prevista?: string | null
@@ -1350,6 +1399,7 @@ export type Database = {
           aspetto_beni?: string | null
           causale_trasporto?: string | null
           colli?: number | null
+          condizione_pagamento_id?: string | null
           confermato_da?: string | null
           confermato_il?: string | null
           consegna_prevista?: string | null
@@ -1387,6 +1437,13 @@ export type Database = {
             columns: ["anagrafica_id"]
             isOneToOne: false
             referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_condizione_pagamento_id_fkey"
+            columns: ["condizione_pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_condizioni_pagamento"
             referencedColumns: ["id"]
           },
           {
@@ -1685,6 +1742,64 @@ export type Database = {
         }
         Relationships: []
       }
+      gest_pagamenti: {
+        Row: {
+          creato_il: string
+          data: string
+          id: number
+          importo: number
+          modalita: string | null
+          nota: string | null
+          scadenza_id: string
+          storno_di: number | null
+          utente: string | null
+        }
+        Insert: {
+          creato_il?: string
+          data?: string
+          id?: never
+          importo: number
+          modalita?: string | null
+          nota?: string | null
+          scadenza_id: string
+          storno_di?: number | null
+          utente?: string | null
+        }
+        Update: {
+          creato_il?: string
+          data?: string
+          id?: never
+          importo?: number
+          modalita?: string | null
+          nota?: string | null
+          scadenza_id?: string
+          storno_di?: number | null
+          utente?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_pagamenti_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_scadenzario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_pagamenti_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "gest_scadenze"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_pagamenti_storno_di_fkey"
+            columns: ["storno_di"]
+            isOneToOne: false
+            referencedRelation: "gest_pagamenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_pezze: {
         Row: {
           archiviato_il: string | null
@@ -1745,6 +1860,66 @@ export type Database = {
             columns: ["variante_id"]
             isOneToOne: false
             referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_scadenze: {
+        Row: {
+          anagrafica_id: string | null
+          annullata_il: string | null
+          created_at: string
+          data_scadenza: string
+          documento_id: string
+          id: string
+          importo: number
+          modalita: string | null
+          note: string | null
+          numero_rata: number
+          updated_at: string
+          verso: string
+        }
+        Insert: {
+          anagrafica_id?: string | null
+          annullata_il?: string | null
+          created_at?: string
+          data_scadenza: string
+          documento_id: string
+          id?: string
+          importo: number
+          modalita?: string | null
+          note?: string | null
+          numero_rata?: number
+          updated_at?: string
+          verso: string
+        }
+        Update: {
+          anagrafica_id?: string | null
+          annullata_il?: string | null
+          created_at?: string
+          data_scadenza?: string
+          documento_id?: string
+          id?: string
+          importo?: number
+          modalita?: string | null
+          note?: string | null
+          numero_rata?: number
+          updated_at?: string
+          verso?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_scadenze_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_scadenze_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
             referencedColumns: ["id"]
           },
         ]
@@ -3366,6 +3541,46 @@ export type Database = {
           },
         ]
       }
+      gest_scadenzario: {
+        Row: {
+          anagrafica_id: string | null
+          data_scadenza: string | null
+          documento_anno: number | null
+          documento_data: string | null
+          documento_id: string | null
+          documento_numero: number | null
+          documento_serie: string | null
+          documento_tipo: string | null
+          id: string | null
+          importo: number | null
+          modalita: string | null
+          note: string | null
+          numero_rata: number | null
+          pagato: number | null
+          ragione_sociale: string | null
+          residuo: number | null
+          riferimento_esterno: string | null
+          stato: string | null
+          ultimo_pagamento: string | null
+          verso: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_scadenze_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_scadenze_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       acquire_obio_sync: { Args: { _run: string }; Returns: boolean }
@@ -3482,6 +3697,7 @@ export type Database = {
           aspetto_beni: string | null
           causale_trasporto: string | null
           colli: number | null
+          condizione_pagamento_id: string | null
           confermato_da: string | null
           confermato_il: string | null
           consegna_prevista: string | null
@@ -3524,9 +3740,23 @@ export type Database = {
         Args: { _origine_id: string; _tipo: string }
         Returns: string
       }
+      gest_genera_scadenze: {
+        Args: { _documento_id: string }
+        Returns: undefined
+      }
       gest_movimenta_documento: {
         Args: { _documento_id: string }
         Returns: undefined
+      }
+      gest_registra_pagamento: {
+        Args: {
+          _data?: string
+          _importo: number
+          _modalita?: string
+          _nota?: string
+          _scadenza_id: string
+        }
+        Returns: number
       }
       gest_ricalcola_totali: {
         Args: { _documento_id: string }
@@ -3539,6 +3769,10 @@ export type Database = {
       gest_storna_movimento: {
         Args: { _movimento_id: number; _nota?: string }
         Returns: number
+      }
+      gest_storna_pagamento: {
+        Args: { _nota?: string; _pagamento_id: number }
+        Returns: undefined
       }
       gest_taglia_pezza: {
         Args: {

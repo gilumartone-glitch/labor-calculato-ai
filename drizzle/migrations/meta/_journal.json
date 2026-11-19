@@ -316,6 +316,13 @@
       "when": 1795089518028,
       "tag": "0044_gestionale_documenti",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795090502463,
+      "tag": "0045_gestionale_anagrafiche_mexal",
+      "breakpoints": true
     }
   ]
 }

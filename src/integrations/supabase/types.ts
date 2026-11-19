@@ -1073,74 +1073,107 @@ export type Database = {
       }
       gest_anagrafiche: {
         Row: {
+          abi: string | null
           archiviato_il: string | null
+          banca_appoggio: string | null
+          banca_presentazione: string | null
+          cab: string | null
           cap: string | null
           citta: string | null
           codice: string
           codice_fiscale: string | null
+          codice_iva_esenzione: string | null
           codice_mexal: string | null
+          codice_pagamento: string | null
           codice_sdi: string | null
           created_at: string
+          dati_origine: Json | null
           email: string | null
+          fido: number | null
           id: string
+          importato_il: string | null
           indirizzo: string | null
           is_cliente: boolean
           is_fornitore: boolean
           nazione: string
           note: string | null
+          origine: string | null
           pagamento: string | null
           partita_iva: string | null
           pec: string | null
           provincia: string | null
           ragione_sociale: string
+          senza_partita_iva: boolean
           telefono: string | null
           updated_at: string
         }
         Insert: {
+          abi?: string | null
           archiviato_il?: string | null
+          banca_appoggio?: string | null
+          banca_presentazione?: string | null
+          cab?: string | null
           cap?: string | null
           citta?: string | null
           codice: string
           codice_fiscale?: string | null
+          codice_iva_esenzione?: string | null
           codice_mexal?: string | null
+          codice_pagamento?: string | null
           codice_sdi?: string | null
           created_at?: string
+          dati_origine?: Json | null
           email?: string | null
+          fido?: number | null
           id?: string
+          importato_il?: string | null
           indirizzo?: string | null
           is_cliente?: boolean
           is_fornitore?: boolean
           nazione?: string
           note?: string | null
+          origine?: string | null
           pagamento?: string | null
           partita_iva?: string | null
           pec?: string | null
           provincia?: string | null
           ragione_sociale: string
+          senza_partita_iva?: boolean
           telefono?: string | null
           updated_at?: string
         }
         Update: {
+          abi?: string | null
           archiviato_il?: string | null
+          banca_appoggio?: string | null
+          banca_presentazione?: string | null
+          cab?: string | null
           cap?: string | null
           citta?: string | null
           codice?: string
           codice_fiscale?: string | null
+          codice_iva_esenzione?: string | null
           codice_mexal?: string | null
+          codice_pagamento?: string | null
           codice_sdi?: string | null
           created_at?: string
+          dati_origine?: Json | null
           email?: string | null
+          fido?: number | null
           id?: string
+          importato_il?: string | null
           indirizzo?: string | null
           is_cliente?: boolean
           is_fornitore?: boolean
           nazione?: string
           note?: string | null
+          origine?: string | null
           pagamento?: string | null
           partita_iva?: string | null
           pec?: string | null
           provincia?: string | null
           ragione_sociale?: string
+          senza_partita_iva?: boolean
           telefono?: string | null
           updated_at?: string
         }

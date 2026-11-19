@@ -337,6 +337,13 @@
       "when": 1795099627052,
       "tag": "0047_gestionale_scadenzario",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795101982526,
+      "tag": "0048_gestionale_prima_nota_contabilita",
+      "breakpoints": true
     }
   ]
 }

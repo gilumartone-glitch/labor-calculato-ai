@@ -1744,34 +1744,46 @@ export type Database = {
       }
       gest_pagamenti: {
         Row: {
+          bank_allocation_id: string | null
+          bank_transaction_id: string | null
+          conto: string | null
           creato_il: string
           data: string
           id: number
           importo: number
           modalita: string | null
           nota: string | null
+          origine: string
           scadenza_id: string
           storno_di: number | null
           utente: string | null
         }
         Insert: {
+          bank_allocation_id?: string | null
+          bank_transaction_id?: string | null
+          conto?: string | null
           creato_il?: string
           data?: string
           id?: never
           importo: number
           modalita?: string | null
           nota?: string | null
+          origine?: string
           scadenza_id: string
           storno_di?: number | null
           utente?: string | null
         }
         Update: {
+          bank_allocation_id?: string | null
+          bank_transaction_id?: string | null
+          conto?: string | null
           creato_il?: string
           data?: string
           id?: never
           importo?: number
           modalita?: string | null
           nota?: string | null
+          origine?: string
           scadenza_id?: string
           storno_di?: number | null
           utente?: string | null
@@ -1864,10 +1876,69 @@ export type Database = {
           },
         ]
       }
+      gest_prima_nota: {
+        Row: {
+          anagrafica_id: string | null
+          conto: string
+          creato_il: string
+          data: string
+          descrizione: string
+          documento_rif: string
+          id: number
+          importo: number
+          storno_di: number | null
+          utente: string | null
+          verso: string
+        }
+        Insert: {
+          anagrafica_id?: string | null
+          conto: string
+          creato_il?: string
+          data?: string
+          descrizione: string
+          documento_rif: string
+          id?: never
+          importo: number
+          storno_di?: number | null
+          utente?: string | null
+          verso: string
+        }
+        Update: {
+          anagrafica_id?: string | null
+          conto?: string
+          creato_il?: string
+          data?: string
+          descrizione?: string
+          documento_rif?: string
+          id?: never
+          importo?: number
+          storno_di?: number | null
+          utente?: string | null
+          verso?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_prima_nota_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_prima_nota_storno_di_fkey"
+            columns: ["storno_di"]
+            isOneToOne: false
+            referencedRelation: "gest_prima_nota"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_scadenze: {
         Row: {
           anagrafica_id: string | null
           annullata_il: string | null
+          contabilita_key: string | null
+          contabilita_movimento_id: string | null
           created_at: string
           data_scadenza: string
           documento_id: string
@@ -1882,6 +1953,8 @@ export type Database = {
         Insert: {
           anagrafica_id?: string | null
           annullata_il?: string | null
+          contabilita_key?: string | null
+          contabilita_movimento_id?: string | null
           created_at?: string
           data_scadenza: string
           documento_id: string
@@ -1896,6 +1969,8 @@ export type Database = {
         Update: {
           anagrafica_id?: string | null
           annullata_il?: string | null
+          contabilita_key?: string | null
+          contabilita_movimento_id?: string | null
           created_at?: string
           data_scadenza?: string
           documento_id?: string
@@ -3541,6 +3616,28 @@ export type Database = {
           },
         ]
       }
+      gest_prima_nota_vista: {
+        Row: {
+          conto: string | null
+          creato_il: string | null
+          data: string | null
+          descrizione: string | null
+          documento_id: string | null
+          documento_numero: string | null
+          documento_rif: string | null
+          documento_tipo: string | null
+          e_storno: boolean | null
+          id: string | null
+          importo: number | null
+          manuale_id: number | null
+          origine: string | null
+          pagamento_id: number | null
+          ragione_sociale: string | null
+          scadenza_id: string | null
+          verso: string | null
+        }
+        Relationships: []
+      }
       gest_scadenzario: {
         Row: {
           anagrafica_id: string | null
@@ -3553,6 +3650,7 @@ export type Database = {
           documento_tipo: string | null
           id: string | null
           importo: number | null
+          in_contabilita: boolean | null
           modalita: string | null
           note: string | null
           numero_rata: number | null
@@ -3688,6 +3786,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gest_collega_scadenza: {
+        Args: { _scadenza_id: string }
+        Returns: boolean
+      }
       gest_conferma_documento: {
         Args: { _documento_id: string }
         Returns: {
@@ -3736,6 +3838,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gest_cont_incasso_contanti: {
+        Args: { _pagamento_id: number }
+        Returns: undefined
+      }
+      gest_cont_key: { Args: { _data: string }; Returns: string }
+      gest_cont_rimuovi_voce: {
+        Args: { _id: string; _key: string }
+        Returns: boolean
+      }
+      gest_cont_scrivi_competenza: {
+        Args: { _importo: number; _scadenza_id: string }
+        Returns: string
+      }
+      gest_cont_storno_contanti: {
+        Args: { _pagamento_id: number }
+        Returns: undefined
+      }
+      gest_cont_togli_competenza: {
+        Args: { _scadenza_id: string }
+        Returns: undefined
+      }
       gest_deriva_documento: {
         Args: { _origine_id: string; _tipo: string }
         Returns: string
@@ -3748,8 +3871,22 @@ export type Database = {
         Args: { _documento_id: string }
         Returns: undefined
       }
+      gest_prima_nota_registra: {
+        Args: {
+          _anagrafica_id?: string
+          _conto: string
+          _data: string
+          _descrizione: string
+          _documento_rif: string
+          _importo: number
+          _verso: string
+        }
+        Returns: number
+      }
+      gest_prima_nota_storna: { Args: { _id: number }; Returns: undefined }
       gest_registra_pagamento: {
         Args: {
+          _conto?: string
           _data?: string
           _importo: number
           _modalita?: string
@@ -3758,6 +3895,7 @@ export type Database = {
         }
         Returns: number
       }
+      gest_riallinea_banca: { Args: never; Returns: number }
       gest_ricalcola_totali: {
         Args: { _documento_id: string }
         Returns: undefined

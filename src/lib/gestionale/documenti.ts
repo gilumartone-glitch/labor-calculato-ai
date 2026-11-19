@@ -81,12 +81,25 @@ export type Anagrafica = {
   provincia: string | null;
   nazione: string;
   pagamento: string | null;
+  codice_pagamento: string | null;
+  senza_partita_iva: boolean;
+  banca_appoggio: string | null;
+  abi: string | null;
+  cab: string | null;
+  banca_presentazione: string | null;
+  codice_iva_esenzione: string | null;
+  fido: number | null;
   codice_mexal: string | null;
+  /** Sistema di provenienza della scheda (es. "mexal") e copia fedele dei suoi campi originali. */
+  origine: string | null;
+  dati_origine: Record<string, string> | null;
+  importato_il: string | null;
   note: string | null;
   archiviato_il: string | null;
 };
 
-export type DatiAnagrafica = Omit<Anagrafica, "id" | "codice" | "archiviato_il" | "codice_mexal">;
+export type DatiAnagrafica = Omit<Anagrafica,
+  "id" | "codice" | "archiviato_il" | "codice_mexal" | "origine" | "dati_origine" | "importato_il">;
 
 export type AliquotaIva = { id: string; codice: string; descrizione: string; percentuale: number; natura: string | null };
 
@@ -198,10 +211,46 @@ export const rigaVuota = (aliquotaId: string | null): RigaBozza => ({
 /* ------------------------------------------------------------------ */
 /* Anagrafiche                                                         */
 /* ------------------------------------------------------------------ */
+const PAGINA = 1000;
+
+/** Tutte le anagrafiche attive. Legge a pagine: il database restituisce al massimo 1000 righe per richiesta. */
 export async function elencoAnagrafiche(): Promise<Anagrafica[]> {
-  return esito<Anagrafica[]>(
-    await db.from("gest_anagrafiche").select("*").is("archiviato_il", null).order("ragione_sociale"),
-  );
+  const tutte: Anagrafica[] = [];
+  for (let da = 0; ; da += PAGINA) {
+    const pagina = esito<Anagrafica[]>(
+      await db.from("gest_anagrafiche").select("*").is("archiviato_il", null)
+        .order("ragione_sociale").order("id").range(da, da + PAGINA - 1),
+    );
+    tutte.push(...pagina);
+    if (pagina.length < PAGINA) break;
+  }
+  return tutte.map((a) => ({ ...a, fido: a.fido == null ? null : Number(a.fido) }));
+}
+
+/**
+ * Importa (o aggiorna) le schede arrivate da un altro sistema, a blocchi.
+ * La chiave è il codice conto di provenienza: reimportare lo stesso file aggiorna, non duplica.
+ */
+export async function importaAnagrafiche(
+  schede: Array<Record<string, unknown> & { codice_mexal: string }>,
+  avanzamento?: (fatte: number, totale: number) => void,
+): Promise<number> {
+  const BLOCCO = 200;
+  let fatte = 0;
+  for (let i = 0; i < schede.length; i += BLOCCO) {
+    const blocco = schede.slice(i, i + BLOCCO);
+    esito(await db.from("gest_anagrafiche").upsert(blocco, { onConflict: "codice_mexal" }));
+    fatte += blocco.length;
+    avanzamento?.(fatte, schede.length);
+  }
+  return fatte;
+}
+
+/** Quante schede attive arrivano da un dato sistema di provenienza. */
+export async function contaAnagraficheImportate(origine: string): Promise<number> {
+  const res = await db.from("gest_anagrafiche").select("id", { count: "exact", head: true }).eq("origine", origine);
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
 }
 
 export async function salvaAnagrafica(dati: DatiAnagrafica, id?: string): Promise<Anagrafica> {

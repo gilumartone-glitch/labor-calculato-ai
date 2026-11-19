@@ -22,7 +22,7 @@ const VUOTA: DatiAnagrafica = {
   codice_sdi: null, pec: null, email: null, telefono: null, indirizzo: null, cap: null, citta: null,
   provincia: null, nazione: "IT", pagamento: null, note: null,
   codice_pagamento: null, senza_partita_iva: false, banca_appoggio: null, abi: null, cab: null,
-  banca_presentazione: null, codice_iva_esenzione: null, fido: null,
+  banca_presentazione: null, codice_iva_esenzione: null, fido: null, esigibilita_iva: "I",
 };
 
 const daAnagrafica = (a: Anagrafica): DatiAnagrafica => ({
@@ -32,10 +32,10 @@ const daAnagrafica = (a: Anagrafica): DatiAnagrafica => ({
   provincia: a.provincia, nazione: a.nazione, pagamento: a.pagamento, note: a.note,
   codice_pagamento: a.codice_pagamento, senza_partita_iva: a.senza_partita_iva, banca_appoggio: a.banca_appoggio,
   abi: a.abi, cab: a.cab, banca_presentazione: a.banca_presentazione, codice_iva_esenzione: a.codice_iva_esenzione,
-  fido: a.fido,
+  fido: a.fido, esigibilita_iva: a.esigibilita_iva ?? "I",
 });
 
-type CampoTesto = Exclude<keyof DatiAnagrafica, "is_cliente" | "is_fornitore" | "senza_partita_iva" | "fido">;
+type CampoTesto = Exclude<keyof DatiAnagrafica, "is_cliente" | "is_fornitore" | "senza_partita_iva" | "fido" | "esigibilita_iva">;
 
 export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, onSaved }: {
   open: boolean;
@@ -126,6 +126,15 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
             {campo("nazione", "Nazione", { placeholder: "IT" })}
             {campo("email", "Email")}
             {campo("telefono", "Telefono")}
+          </div>
+          <div>
+            <Label>IVA in fattura</Label>
+            <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={f.esigibilita_iva}
+              onChange={(e) => setF((p) => ({ ...p, esigibilita_iva: e.target.value as DatiAnagrafica["esigibilita_iva"] }))}>
+              <option value="I">Normale (esigibilità immediata)</option>
+              <option value="S">Scissione dei pagamenti (split payment): PA e società controllate</option>
+              <option value="D">Esigibilità differita</option>
+            </select>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {campo("codice_pagamento", "Cod. pag.")}

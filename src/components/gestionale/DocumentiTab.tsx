@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,8 @@ import { elencoPezze } from "@/lib/gestionale/api";
 import { anteprimaScadenze, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
+import { FatturaElettronicaDialog } from "./FatturaElettronica";
+import { Switch } from "@/components/ui/switch";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const errore = (e: unknown) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" });
@@ -44,6 +46,7 @@ const testataDa = (d: Documento): Testata => ({
   consegna_prevista: d.consegna_prevista, destinazione: d.destinazione, causale_trasporto: d.causale_trasporto,
   aspetto_beni: d.aspetto_beni, colli: d.colli, peso_kg: d.peso_kg, vettore: d.vettore, porto: d.porto,
   note: d.note, note_interne: d.note_interne,
+  cig: d.cig ?? null, cup: d.cup ?? null, esigibilita_iva: d.esigibilita_iva ?? "I", bollo_virtuale: d.bollo_virtuale ?? false,
 });
 
 /* ------------------------------------------------------------------ */
@@ -187,6 +190,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [modificato, setModificato] = useState(false);
   const [occupato, setOccupato] = useState(false);
   const [nuovaAnagrafica, setNuovaAnagrafica] = useState(false);
+  const [fatturaElettronica, setFatturaElettronica] = useState(false);
 
   const carica = useCallback(async () => {
     setLoading(true);
@@ -250,6 +254,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const scelte = anagrafiche.filter((a) => (passivo ? a.is_fornitore : a.is_cliente) || a.id === testata.anagrafica_id);
   const anagrafica = anagrafiche.find((a) => a.id === testata.anagrafica_id) ?? null;
   const intestatario = documento.intestatario ?? anagrafica;
+  const eFattura = documento.tipo === "fattura" || documento.tipo === "nota_credito";
 
   const setT = <K extends keyof Testata>(k: K, v: Testata[K]) => { setTestata((p) => (p ? { ...p, [k]: v } : p)); setModificato(true); };
   const setRiga = (i: number, patch: Partial<RigaBozza>) => { setRighe((p) => p.map((r, j) => (j === i ? { ...r, ...patch } : r))); setModificato(true); };
@@ -268,7 +273,11 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
 
   const scegliAnagrafica = (id: string) => {
     const a = anagrafiche.find((x) => x.id === id);
-    setTestata((p) => (p ? { ...p, anagrafica_id: id, pagamento: p.pagamento ?? a?.pagamento ?? null } : p));
+    setTestata((p) => (p ? {
+      ...p, anagrafica_id: id, pagamento: p.pagamento ?? a?.pagamento ?? null,
+      // la scissione dei pagamenti segue il cliente
+      esigibilita_iva: passivo ? p.esigibilita_iva : a?.esigibilita_iva ?? "I",
+    } : p));
     setModificato(true);
   };
 
@@ -372,6 +381,9 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
               </Button>
               <Button size="sm" disabled={occupato} onClick={conferma}><Check className="w-4 h-4 mr-1" /> Conferma</Button>
             </>
+          )}
+          {eFattura && documento.stato !== "annullato" && (
+            <Button size="sm" variant="outline" onClick={() => setFatturaElettronica(true)}><FileCode2 className="w-4 h-4 mr-1" /> Fattura elettronica</Button>
           )}
           {puoScrivere && documento.stato === "confermato" && TRASFORMAZIONI[documento.tipo].map((t) => (
             <Button key={t} size="sm" disabled={occupato} onClick={() => trasforma(t)}><ArrowRight className="w-4 h-4 mr-1" /> {TIPO_LABEL[t]}</Button>
@@ -482,6 +494,37 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
             </>
           )}
         </div>
+        {eFattura && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <Label>IVA</Label>
+              <Select value={testata.esigibilita_iva} disabled={!modificabile} onValueChange={(v) => setT("esigibilita_iva", v as Testata["esigibilita_iva"])}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="I">Normale</SelectItem>
+                  <SelectItem value="S">Scissione dei pagamenti</SelectItem>
+                  <SelectItem value="D">Esigibilità differita</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>CIG</Label>
+              <Input value={testata.cig ?? ""} disabled={!modificabile} placeholder="gare e appalti" onChange={(e) => setT("cig", testoOppureNull(e.target.value.toUpperCase()))} />
+            </div>
+            <div>
+              <Label>CUP</Label>
+              <Input value={testata.cup ?? ""} disabled={!modificabile} onChange={(e) => setT("cup", testoOppureNull(e.target.value.toUpperCase()))} />
+            </div>
+            <label className="flex items-center gap-2 text-sm self-end pb-2">
+              <Switch checked={testata.bollo_virtuale} disabled={!modificabile} onCheckedChange={(v) => setT("bollo_virtuale", v)} /> Bollo virtuale 2 €
+            </label>
+          </div>
+        )}
+        {eFattura && testata.esigibilita_iva === "S" && (
+          <p className="text-xs text-muted-foreground">
+            Scissione dei pagamenti: l'IVA resta in fattura ma la versa il cliente. Si incassa l'imponibile, {eur(totali.imponibile)}: lo scadenzario parte da questa cifra.
+          </p>
+        )}
         {documento.tipo === "ddt" && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -661,6 +704,17 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
         open={nuovaAnagrafica} anagrafica={null} predefinito={passivo ? "fornitore" : "cliente"}
         onOpenChange={setNuovaAnagrafica}
         onSaved={(a) => { onAnagraficheChanged(); setTestata((p) => (p ? { ...p, anagrafica_id: a.id, pagamento: p.pagamento ?? a.pagamento } : p)); setModificato(true); }}
+      />
+      <FatturaElettronicaDialog
+        onClose={() => setFatturaElettronica(false)}
+        fattura={fatturaElettronica && eFattura ? {
+          tipo: documento.tipo as "fattura" | "nota_credito", numero: documento.numero, anno: documento.anno, serie: documento.serie,
+          data: testata.data, oggetto: testata.oggetto, riferimento_esterno: testata.riferimento_esterno, data_esterna: testata.data_esterna,
+          cig: testata.cig, cup: testata.cup, esigibilita_iva: testata.esigibilita_iva, bollo_virtuale: testata.bollo_virtuale,
+          cliente: intestatario ?? {}, righe, aliquote,
+          condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
+          origine_id: documento.origine_id,
+        } : null}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Boxes, Plus, Loader2, Scissors, Undo2, Archive, Flame } from "lucide-react";
+import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } 
 import DocumentiTab from "@/components/gestionale/DocumentiTab";
 import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
+import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
 import {
@@ -309,6 +310,7 @@ const Gestionale = () => {
   const [parametri] = useSearchParams();
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
+  const [datiAzienda, setDatiAzienda] = useState(false);
   // dalla prima nota si salta al documento: la scheda Documenti si riapre su quello
   const apriDocumento = useCallback((id: string) => { setDocumentoIniziale(id); setTab("documenti"); }, []);
   const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
@@ -411,6 +413,7 @@ const Gestionale = () => {
             <ArrowLeft className="w-3 h-3" /> Hub
           </Link>
           <h1 className="font-display text-2xl font-semibold flex items-center gap-2"><Boxes className="w-6 h-6" /> Gestionale</h1>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setDatiAzienda(true)}><Building2 className="w-4 h-4 mr-1" /> Dati azienda</Button>
         </div>
       </header>
 
@@ -668,6 +671,7 @@ const Gestionale = () => {
           </Tabs>
         )}
       </main>
+      <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
 
       <ArticoloDialog open={articoloDialog} onOpenChange={setArticoloDialog} onSaved={caricaAnagrafiche} />
       <VarianteDialog articolo={varianteDi} onClose={() => setVarianteDi(null)} onSaved={caricaAnagrafiche} />

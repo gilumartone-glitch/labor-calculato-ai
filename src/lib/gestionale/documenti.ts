@@ -89,6 +89,8 @@ export type Anagrafica = {
   banca_presentazione: string | null;
   codice_iva_esenzione: string | null;
   fido: number | null;
+  /** Esigibilità IVA abituale: I immediata, D differita, S scissione dei pagamenti */
+  esigibilita_iva: "I" | "D" | "S";
   codice_mexal: string | null;
   /** Sistema di provenienza della scheda (es. "mexal") e copia fedele dei suoi campi originali. */
   origine: string | null;
@@ -134,6 +136,10 @@ export type Documento = {
   note_interne: string | null;
   origine_id: string | null;
   design_draft_id: string | null;
+  cig: string | null;
+  cup: string | null;
+  esigibilita_iva: "I" | "D" | "S";
+  bollo_virtuale: boolean;
   imponibile: number;
   imposta: number;
   totale: number;
@@ -145,7 +151,7 @@ export type Documento = {
 export type Testata = Pick<Documento,
   "data" | "anagrafica_id" | "oggetto" | "riferimento_esterno" | "data_esterna" | "pagamento" | "condizione_pagamento_id" | "validita_giorni"
   | "consegna_prevista" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "colli" | "peso_kg" | "vettore"
-  | "porto" | "note" | "note_interne">;
+  | "porto" | "note" | "note_interne" | "cig" | "cup" | "esigibilita_iva" | "bollo_virtuale">;
 
 export type Riga = {
   id: string;

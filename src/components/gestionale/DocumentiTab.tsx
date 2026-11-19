@@ -28,6 +28,9 @@ const numero = (v: string): number => { const n = Number(v.replace(",", ".")); r
 const interoOppureNull = (v: string): number | null => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
 const testoOppureNull = (v: string): string | null => (v.trim() === "" ? null : v);
 
+/** Colonne della griglia delle righe: n., tipo, da magazzino, descrizione, UM, q.tà, prezzo, sconto, IVA, importo, azioni. */
+const COLONNE_RIGHE = "20px 88px 150px minmax(170px, 1fr) 52px 78px 92px 64px 100px 92px 90px";
+
 const STATO_VARIANT: Record<Documento["stato"], "default" | "outline" | "destructive"> = {
   bozza: "outline", confermato: "default", annullato: "destructive",
 };
@@ -377,62 +380,85 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
         {righe.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground text-center">Nessuna riga.</p>
         ) : (
-          <div className="divide-y divide-ink/10">
-            {righe.map((r, i) => {
-              const nota = r.tipo_riga === "nota";
-              return (
-                <div key={r.id ?? `nuova-${i}`} className="px-4 py-3 grid gap-2">
-                  <div className="flex flex-wrap items-end gap-2">
-                    <span className="font-mono text-xs text-muted-foreground w-6 pb-2.5">{i + 1}</span>
-                    <Badge variant="outline" className="mb-2">{TIPO_RIGA_LABEL[r.tipo_riga]}</Badge>
-                    {r.tipo_riga === "articolo" && modificabile && (
-                      <div className="w-56">
-                        <Select value={r.variante_id ?? ""} onValueChange={(v) => scegliVariante(i, v)}>
-                          <SelectTrigger><SelectValue placeholder="Scegli dal magazzino" /></SelectTrigger>
-                          <SelectContent>
-                            {varianti.map((v) => <SelectItem key={v.id} value={v.id}>{v.codice} — {articoloById.get(v.articolo_id)?.nome}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-[220px]">
-                      <Input value={r.descrizione} disabled={!modificabile} placeholder={nota ? "Testo della nota" : "Descrizione"} onChange={(e) => setRiga(i, { descrizione: e.target.value })} />
-                    </div>
-                    {!nota && (
-                      <>
-                        <div className="w-16"><Input value={r.um ?? ""} disabled={!modificabile} placeholder="UM" onChange={(e) => setRiga(i, { um: testoOppureNull(e.target.value) })} /></div>
-                        <div className="w-24"><Input type="number" step="any" value={r.quantita} disabled={!modificabile} title="Quantità" className="text-right" onChange={(e) => setRiga(i, { quantita: numero(e.target.value) })} /></div>
-                        <div className="w-28"><Input type="number" step="any" value={r.prezzo_unitario} disabled={!modificabile} title="Prezzo unitario" className="text-right" onChange={(e) => setRiga(i, { prezzo_unitario: numero(e.target.value) })} /></div>
-                        <div className="w-20"><Input type="number" step="any" min={0} max={100} value={r.sconto_pct} disabled={!modificabile} title="Sconto %" className="text-right" onChange={(e) => setRiga(i, { sconto_pct: Math.min(100, Math.max(0, numero(e.target.value))) })} /></div>
-                        <div className="w-28">
-                          <Select value={r.aliquota_id ?? ""} disabled={!modificabile} onValueChange={(v) => setRiga(i, { aliquota_id: v })}>
-                            <SelectTrigger title="Aliquota IVA"><SelectValue placeholder="IVA" /></SelectTrigger>
+          <div className="overflow-x-auto">
+            <div className="min-w-[1090px]">
+              <div className="grid items-center gap-1.5 px-4 py-2 border-b border-ink/10 text-[11px] uppercase tracking-wider text-muted-foreground" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
+                <span>N.</span>
+                <span>Tipo</span>
+                <span>Da magazzino</span>
+                <span>Descrizione</span>
+                <span>UM</span>
+                <span className="text-right">Quantità</span>
+                <span className="text-right">Prezzo unit.</span>
+                <span className="text-right">Sconto %</span>
+                <span>IVA</span>
+                <span className="text-right">Importo</span>
+                <span />
+              </div>
+              <div className="divide-y divide-ink/10">
+                {righe.map((r, i) => {
+                  const nota = r.tipo_riga === "nota";
+                  const daMagazzino = r.tipo_riga === "articolo";
+                  return (
+                    <div key={r.id ?? `nuova-${i}`} className="px-4 py-2 grid gap-2">
+                      <div className="grid items-center gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
+                        <span className="font-mono text-xs text-muted-foreground">{i + 1}</span>
+                        <Badge variant="outline" className="justify-self-start">{TIPO_RIGA_LABEL[r.tipo_riga]}</Badge>
+                        {daMagazzino && (
+                          <Select value={r.variante_id ?? ""} disabled={!modificabile} onValueChange={(v) => scegliVariante(i, v)}>
+                            <SelectTrigger aria-label="Articolo di magazzino"><SelectValue placeholder="Scegli…" /></SelectTrigger>
                             <SelectContent>
-                              {aliquote.map((a) => <SelectItem key={a.id} value={a.id}>{a.descrizione}</SelectItem>)}
+                              {varianti.length === 0 && <div className="px-2 py-1.5 text-sm text-muted-foreground">Nessun articolo in magazzino</div>}
+                              {varianti.map((v) => <SelectItem key={v.id} value={v.id}>{v.codice} — {articoloById.get(v.articolo_id)?.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                        )}
+                        <Input
+                          value={r.descrizione} disabled={!modificabile} aria-label="Descrizione"
+                          placeholder={nota ? "Testo della nota" : "Descrizione"}
+                          style={{ gridColumn: nota ? "3 / span 8" : daMagazzino ? undefined : "3 / span 2" }}
+                          onChange={(e) => setRiga(i, { descrizione: e.target.value })}
+                        />
+                        {!nota && (
+                          <>
+                            <Input value={r.um ?? ""} disabled={!modificabile} aria-label="Unità di misura" onChange={(e) => setRiga(i, { um: testoOppureNull(e.target.value) })} />
+                            <Input type="number" step="any" value={r.quantita} disabled={!modificabile} aria-label="Quantità" className="text-right" onChange={(e) => setRiga(i, { quantita: numero(e.target.value) })} />
+                            <Input type="number" step="any" value={r.prezzo_unitario} disabled={!modificabile} aria-label="Prezzo unitario" className="text-right" onChange={(e) => setRiga(i, { prezzo_unitario: numero(e.target.value) })} />
+                            <Input type="number" step="any" min={0} max={100} value={r.sconto_pct} disabled={!modificabile} aria-label="Sconto percentuale" className="text-right" onChange={(e) => setRiga(i, { sconto_pct: Math.min(100, Math.max(0, numero(e.target.value))) })} />
+                            <Select value={r.aliquota_id ?? ""} disabled={!modificabile} onValueChange={(v) => setRiga(i, { aliquota_id: v })}>
+                              <SelectTrigger aria-label="Aliquota IVA"><SelectValue placeholder="—" /></SelectTrigger>
+                              <SelectContent>
+                                {aliquote.map((a) => <SelectItem key={a.id} value={a.id}>{a.descrizione}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-right tabular-nums font-semibold">{eur(importoRiga(r))}</span>
+                          </>
+                        )}
+                        <div className="flex justify-end" style={{ gridColumn: 11 }}>
+                          {modificabile && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Sposta su" disabled={i === 0} onClick={() => spostaRiga(i, -1)}><ArrowUp className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Sposta giù" disabled={i === righe.length - 1} onClick={() => spostaRiga(i, 1)}><ArrowDown className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Togli riga" onClick={() => togliRiga(i)}><Trash2 className="w-4 h-4" /></Button>
+                            </>
+                          )}
                         </div>
-                        <div className="w-28 text-right tabular-nums font-semibold pb-2.5">{eur(importoRiga(r))}</div>
-                      </>
-                    )}
-                    {modificabile && (
-                      <div className="flex">
-                        <Button size="icon" variant="ghost" title="Sposta su" disabled={i === 0} onClick={() => spostaRiga(i, -1)}><ArrowUp className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="ghost" title="Sposta giù" disabled={i === righe.length - 1} onClick={() => spostaRiga(i, 1)}><ArrowDown className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="ghost" title="Togli riga" onClick={() => togliRiga(i)}><Trash2 className="w-4 h-4" /></Button>
                       </div>
-                    )}
-                  </div>
-                  {(r.tipo_riga === "lavorazione" || r.dettagli) && (
-                    <Textarea
-                      rows={2} className="ml-8 w-auto" value={r.dettagli ?? ""} disabled={!modificabile}
-                      placeholder="Specifiche della lavorazione: misure finite, orli, occhielli, finiture…"
-                      onChange={(e) => setRiga(i, { dettagli: testoOppureNull(e.target.value) })}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                      {(r.tipo_riga === "lavorazione" || r.dettagli) && (
+                        <div className="grid gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
+                          <Textarea
+                            rows={2} value={r.dettagli ?? ""} disabled={!modificabile} aria-label="Specifiche della lavorazione"
+                            style={{ gridColumn: "3 / span 8" }}
+                            placeholder="Specifiche della lavorazione: misure finite, orli, occhielli, finiture…"
+                            onChange={(e) => setRiga(i, { dettagli: testoOppureNull(e.target.value) })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </section>

@@ -396,7 +396,7 @@ const Gestionale = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b-2 border-ink bg-paper">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center gap-3">
           <Link to="/hub" className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-ink">
             <ArrowLeft className="w-3 h-3" /> Hub
           </Link>
@@ -404,7 +404,7 @@ const Gestionale = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-3 sm:px-6 py-5">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-5">
         {loading ? (
           <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (

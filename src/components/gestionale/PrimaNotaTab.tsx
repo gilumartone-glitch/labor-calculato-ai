@@ -187,7 +187,7 @@ const PrimaNotaTab = ({ puoScrivere, onApriDocumento }: { puoScrivere: boolean; 
           <Button size="sm" variant="outline" onClick={() => periodo(0)}>Questo mese</Button>
           <Button size="sm" variant="outline" onClick={() => periodo(-1)}>Mese scorso</Button>
           <Button size="sm" variant="outline" onClick={anno}>Anno</Button>
-          <select className={`${selectClass} w-36`} value={conto} onChange={(e) => setConto(e.target.value)} aria-label="Conto">
+          <select className="h-10 w-40 rounded-md border border-input bg-background px-3 text-sm" value={conto} onChange={(e) => setConto(e.target.value)} aria-label="Conto">
             <option value="tutti">Tutti i conti</option>
             {contiPresenti.map((c) => <option key={c} value={c}>{etichettaConto(c)}</option>)}
           </select>

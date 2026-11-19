@@ -42,9 +42,7 @@ CREATE TABLE public.gest_impostazioni (
   descrizione TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO public.gest_impostazioni (chiave, valore, descrizione) VALUES
-  ('fatture_attive_dal', '2027-01-01',
-   'Data da cui fatture e note di credito si possono confermare nel Gestionale. Prima restano bozze: le fatture valide partono dal sistema precedente.');
+-- I valori iniziali (data di attivazione fatture) si inseriscono a parte: questa migrazione crea solo la struttura.
 
 CREATE TABLE public.gest_aliquote_iva (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,8 +56,7 @@ CREATE TABLE public.gest_aliquote_iva (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   archiviato_il TIMESTAMPTZ
 );
-INSERT INTO public.gest_aliquote_iva (codice, descrizione, percentuale) VALUES
-  ('22', 'IVA 22%', 22), ('10', 'IVA 10%', 10), ('4', 'IVA 4%', 4);
+-- Le aliquote iniziali (22, 10, 4) si inseriscono a parte.
 
 -- 3. Anagrafiche clienti e fornitori -----------------------------------
 CREATE SEQUENCE public.gest_anagrafiche_codice_seq START 1;
@@ -482,7 +479,28 @@ BEGIN
   RETURN _nuovo;
 END $$;
 
--- 9. Sicurezza (RLS) ---------------------------------------------------
+-- 9. Privilegi espliciti (prima delle policy) -------------------------
+GRANT SELECT, INSERT, UPDATE ON public.gest_aliquote_iva, public.gest_anagrafiche, public.gest_documenti TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.gest_documenti_righe TO authenticated;
+GRANT SELECT, UPDATE ON public.gest_impostazioni TO authenticated;
+GRANT SELECT ON public.gest_numeratori, public.gest_documenti_iva TO authenticated;
+GRANT USAGE ON SEQUENCE public.gest_anagrafiche_codice_seq TO authenticated, service_role;
+
+GRANT ALL ON public.gest_impostazioni, public.gest_aliquote_iva, public.gest_anagrafiche, public.gest_numeratori,
+             public.gest_documenti, public.gest_documenti_righe TO service_role;
+GRANT SELECT ON public.gest_documenti_iva TO service_role;
+
+REVOKE ALL ON FUNCTION public.gest_fn_impostazioni_storico() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.gest_ricalcola_totali(UUID) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gest_conferma_documento(UUID) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gest_annulla_documento(UUID, TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.gest_deriva_documento(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.gest_ricalcola_totali(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gest_conferma_documento(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gest_annulla_documento(UUID, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gest_deriva_documento(UUID, TEXT) TO authenticated, service_role;
+
+-- 10. Sicurezza (RLS) --------------------------------------------------
 DO $$
 DECLARE t TEXT;
 BEGIN
@@ -512,24 +530,3 @@ ALTER TABLE public.gest_numeratori ENABLE ROW LEVEL SECURITY;
 CREATE POLICY gest_numeratori_select ON public.gest_numeratori FOR SELECT TO authenticated
   USING (public.has_permission(auth.uid(), 'gestionale', 'read'));
 -- nessuna policy di scrittura: i numeratori li muove solo la conferma
-
--- 10. Privilegi espliciti ---------------------------------------------
-GRANT SELECT, INSERT, UPDATE ON public.gest_aliquote_iva, public.gest_anagrafiche, public.gest_documenti TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.gest_documenti_righe TO authenticated;
-GRANT SELECT, UPDATE ON public.gest_impostazioni TO authenticated;
-GRANT SELECT ON public.gest_numeratori, public.gest_documenti_iva TO authenticated;
-GRANT USAGE ON SEQUENCE public.gest_anagrafiche_codice_seq TO authenticated, service_role;
-
-GRANT ALL ON public.gest_impostazioni, public.gest_aliquote_iva, public.gest_anagrafiche, public.gest_numeratori,
-             public.gest_documenti, public.gest_documenti_righe TO service_role;
-GRANT SELECT ON public.gest_documenti_iva TO service_role;
-
-REVOKE ALL ON FUNCTION public.gest_fn_impostazioni_storico() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.gest_ricalcola_totali(UUID) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.gest_conferma_documento(UUID) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.gest_annulla_documento(UUID, TEXT) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.gest_deriva_documento(UUID, TEXT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.gest_ricalcola_totali(UUID) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.gest_conferma_documento(UUID) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.gest_annulla_documento(UUID, TEXT) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.gest_deriva_documento(UUID, TEXT) TO authenticated, service_role;

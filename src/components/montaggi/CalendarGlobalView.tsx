@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import { CalendarDays, ChevronLeft, ChevronRight, Users, Building2, AlertTriangle, Plus, Trash2, Save, Search, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { QuickCantiereDialog } from "./QuickCantiereDialog";
+import { ProjectPlanningDialog } from "./ProjectPlanningDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -150,7 +151,11 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
 
   const [view, setView] = useState<"operai" | "cantieri" | "calendario">("operai");
   const [quickOpen, setQuickOpenRaw] = useState(false);
-  const setQuickOpen = (v: boolean) => { if (v && !isResp) { toast.info("Solo un responsabile può modificare"); return; } setQuickOpenRaw(v); };
+  const [projectPlanning, setProjectPlanning] = useState<{ id: string | null } | null>(null);
+  const setQuickOpen = (v: boolean) => {
+    if (v && !isResp) { toast.info("Solo un responsabile può modificare"); return; }
+    setQuickOpenRaw(v);
+  };
   const [quickLabel, setQuickLabel] = useState<string | null>(null);
   const [start, setStart] = useState<Date>(startOfWeek(new Date()));
   // Inizializza dalla cache di modulo per evitare flash al re-mount
@@ -584,6 +589,12 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   };
 
   const allCantieriList = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [modeAssignments]);
+  const openCantiere = (label: string) => {
+    if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
+    const ids = Array.from(new Set(assignments.filter(row => row.cantiere_label === label && row.commessa_id).map(row => row.commessa_id)));
+    if (ids.length) { setProjectPlanning({ id: ids.length === 1 ? ids[0] : null }); return; }
+    setQuickLabel(label); setQuickOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -629,6 +640,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               <Button size="sm" variant="outline" onClick={() => { setStart(startOfWeek(new Date())); const n = new Date(); setCalMonth(new Date(n.getFullYear(), n.getMonth(), 1)); }}>Oggi</Button>
             </div>
             <Button size="sm" onClick={() => { setQuickLabel(null); setQuickOpen(true); }} className={`font-bold ${isResp ? "" : "hidden"}`}>+ Cantiere / montaggio</Button>
+            {isResp && <Button size="sm" variant="outline" onClick={() => setProjectPlanning({ id: null })}><CalendarDays className="h-4 w-4" />Progetti Flow</Button>}
             <Button size="sm" variant="outline" onClick={exportPdf} className="font-bold">Stampa PDF</Button>
             <Button size="sm" variant="outline" onClick={sharePdf} className="font-bold">Invia su WhatsApp</Button>
             <Dialog open={!!crew} onOpenChange={(v) => !v && setCrew(null)}>
@@ -651,7 +663,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                   })}
                 </div>
                 <DialogFooter className="gap-2">
-                  <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere ?? null; setCrew(null); setQuickLabel(c); setQuickOpen(true); }}>Modifica tutto il cantiere</Button>
+                  <Button variant="secondary" className="mr-auto" onClick={() => { const c = crew?.cantiere; setCrew(null); if (c) openCantiere(c); }}>Modifica tutte le date</Button>
                   {crewList.length > 0 && <Button variant={crewDone ? "outline" : "secondary"} onClick={toggleCrewDone}>{crewDone ? "Riapri giornata" : "✓ Giornata completata"}</Button>}
                   <Button variant="outline" onClick={() => setCrew(null)}>Annulla</Button>
                   <Button onClick={saveCrew} disabled={crewSaving}><Save className="h-4 w-4" />Salva</Button>
@@ -659,6 +671,9 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
               </DialogContent>
             </Dialog>
             <QuickCantiereDialog open={quickOpen} initialLabel={quickLabel} onOpenChange={setQuickOpen} onSaved={() => load()} defaultReparto={allowedReparti[0] ?? "montaggi"} />
+            <ProjectPlanningDialog open={!!projectPlanning} projectId={projectPlanning?.id} onClose={() => setProjectPlanning(null)} onSaved={date => {
+              dataCache.clear(); setStart(startOfWeek(parseDateKey(date))); setCalMonth(parseDateKey(date)); void load();
+            }} />
           </div>
         </CardHeader>
       </Card>
@@ -715,7 +730,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                           const done = mine.every((a) => a._done);
                           return (
                             <button key={id} type="button"
-                              onClick={() => { setQuickLabel(cs[0]); setQuickOpen(true); }}
+                              onClick={() => openCantiere(cs[0])}
                               title={`${name} · ${cs.join(", ")}`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90 border-l-[6px]"
                               style={{ backgroundColor: colorForCantiere("op:" + id), borderLeftColor: colorForCantiere(cs[0]), opacity: done ? 0.45 : 1 }}>
@@ -730,7 +745,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                           const done = list.length > 0 && list.every((a) => a._done);
                           return (
                             <button key={c} type="button"
-                              onClick={() => { setQuickLabel(c); setQuickOpen(true); }}
+                              onClick={() => openCantiere(c)}
                               title={`${done ? "COMPLETATO · " : ""}${c} · ${names.join(", ")} · clic per modificare`}
                               className="text-left rounded-sm px-2 py-1 text-sm leading-tight text-white shadow-sm hover:opacity-90"
                               style={{ backgroundColor: colorForCantiere(c), opacity: done ? 0.45 : 1 }}>
@@ -883,7 +898,7 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
                       <td className="px-3 py-1.5 border-b border-border align-top">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colorForCantiere(c) }} />
-                          <span className="font-medium text-sm truncate">{c}</span>
+                          <Button variant="ghost" className="h-auto min-w-0 justify-start px-0 font-medium text-sm truncate" onClick={() => openCantiere(c)}>{c}</Button>
                         </div>
                         <span className="text-[9px] px-1 rounded inline-block mt-0.5" style={{ backgroundColor: `${REPARTO_BG[reparto]}22`, color: REPARTO_BG[reparto] }}>{REPARTO_LABEL[reparto]}</span>
                       </td>
@@ -1014,6 +1029,11 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
           defaultReparto={defaultReparto}
           onClose={() => setEditing(null)}
           onSave={saveAssignment}
+          onEditProjectDates={editing.existing?.commessa_id && isResp ? () => {
+            const id = editing.existing?.commessa_id;
+            if (!id) return;
+            setEditing(null); setProjectPlanning({ id });
+          } : undefined}
           onDelete={editing.existing ? () => deleteAssignment(editing.existing!.id) : undefined}
         />
       )}
@@ -1099,6 +1119,7 @@ type EditDialogProps = {
   onClose: () => void;
   onSave: (p: { id?: string; operator_id: string; date: string; hours: number; cantiere_label: string; notes?: string | null; reparto?: Reparto }) => void;
   onDelete?: () => void;
+  onEditProjectDates?: () => void;
 };
 
 /** Contenuto completo degli ordini collegati (pezzi, materiali, lavorazioni di reparto). */
@@ -1255,7 +1276,7 @@ const LinkedProjectPreview = ({ id }: { id: string }) => {
   );
 };
 
-const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti, defaultReparto, onClose, onSave, onDelete }: EditDialogProps) => {
+const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti, defaultReparto, onClose, onSave, onDelete, onEditProjectDates }: EditDialogProps) => {
   const ex = editing.existing;
   const [operatorId, setOperatorId] = useState(ex?.operator_id ?? editing.operatorId);
   const [date, setDate] = useState(ex?.date ?? editing.date);
@@ -1318,6 +1339,7 @@ const EditAssignmentDialog = ({ editing, operators, allCantieri, allowedReparti,
           </div>
         )}
         {ex?.commessa_id && <LinkedProjectPreview id={ex.commessa_id} />}
+        {onEditProjectDates && <Button variant="secondary" onClick={onEditProjectDates}><CalendarDays className="h-4 w-4" />Modifica tutte le date del progetto</Button>}
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
             <Label>Tipo di attività / Reparto</Label>

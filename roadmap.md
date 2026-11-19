@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] Allow opening a project in Pianificazione to edit all its dates and restore Flow projects whose planning was deleted; verified the two distinct Umbria orders, temporary-project restore/date edit/save/read-back, preserved assignment IDs, and desktop/mobile display. Real Umbria projects left unchanged.
+
 - [x] Apply unchanged Gestionale document schema, regenerate types, insert the four requested initial records and verify new tables and row counts; six tables with RLS/service grants verified, original byte-identical duplicate removed.
 
 - [x] Restore a single daily 08:30 Europe/Rome reading for Credem, BNL and PayPal; recovery and afternoon slots removed, functions deployed, active DST-aware timer and database slot gate verified; 16 tests passed without an extra bank request. The next automatic bank response remains to be observed.

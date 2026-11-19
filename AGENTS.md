@@ -35,3 +35,5 @@
 - Bank bulk changes use the authorized manage_bank_transactions RPC with ordered row locks, optimistic updated_at checks and allocated-row protection; soft deletion and original import identity preserve tombstones and manual edits, while a storage trigger enforces the configured historical starting boundary for all import channels.
 
 - Monthly movement keyboard dates use QuickDateInput with separator normalization and edit protection so explicit years survive confirmation and realtime refreshes.
+
+- Flow planning date edits and restoration target the stable source_commessa_id, preserving daily assignment IDs and crews; project labels are not unique, so ambiguous calendar names require explicit order selection.

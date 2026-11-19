@@ -1090,6 +1090,7 @@ export type Database = {
           created_at: string
           dati_origine: Json | null
           email: string | null
+          esigibilita_iva: string
           fido: number | null
           id: string
           importato_il: string | null
@@ -1126,6 +1127,7 @@ export type Database = {
           created_at?: string
           dati_origine?: Json | null
           email?: string | null
+          esigibilita_iva?: string
           fido?: number | null
           id?: string
           importato_il?: string | null
@@ -1162,6 +1164,7 @@ export type Database = {
           created_at?: string
           dati_origine?: Json | null
           email?: string | null
+          esigibilita_iva?: string
           fido?: number | null
           id?: string
           importato_il?: string | null
@@ -1319,7 +1322,9 @@ export type Database = {
           anno: number | null
           annullato_il: string | null
           aspetto_beni: string | null
+          bollo_virtuale: boolean
           causale_trasporto: string | null
+          cig: string | null
           colli: number | null
           condizione_pagamento_id: string | null
           confermato_da: string | null
@@ -1327,10 +1332,12 @@ export type Database = {
           consegna_prevista: string | null
           created_at: string
           creato_da: string | null
+          cup: string | null
           data: string
           data_esterna: string | null
           design_draft_id: string | null
           destinazione: string | null
+          esigibilita_iva: string
           id: string
           imponibile: number
           imposta: number
@@ -1358,7 +1365,9 @@ export type Database = {
           anno?: number | null
           annullato_il?: string | null
           aspetto_beni?: string | null
+          bollo_virtuale?: boolean
           causale_trasporto?: string | null
+          cig?: string | null
           colli?: number | null
           condizione_pagamento_id?: string | null
           confermato_da?: string | null
@@ -1366,10 +1375,12 @@ export type Database = {
           consegna_prevista?: string | null
           created_at?: string
           creato_da?: string | null
+          cup?: string | null
           data?: string
           data_esterna?: string | null
           design_draft_id?: string | null
           destinazione?: string | null
+          esigibilita_iva?: string
           id?: string
           imponibile?: number
           imposta?: number
@@ -1397,7 +1408,9 @@ export type Database = {
           anno?: number | null
           annullato_il?: string | null
           aspetto_beni?: string | null
+          bollo_virtuale?: boolean
           causale_trasporto?: string | null
+          cig?: string | null
           colli?: number | null
           condizione_pagamento_id?: string | null
           confermato_da?: string | null
@@ -1405,10 +1418,12 @@ export type Database = {
           consegna_prevista?: string | null
           created_at?: string
           creato_da?: string | null
+          cup?: string | null
           data?: string
           data_esterna?: string | null
           design_draft_id?: string | null
           destinazione?: string | null
+          esigibilita_iva?: string
           id?: string
           imponibile?: number
           imposta?: number
@@ -3797,7 +3812,9 @@ export type Database = {
           anno: number | null
           annullato_il: string | null
           aspetto_beni: string | null
+          bollo_virtuale: boolean
           causale_trasporto: string | null
+          cig: string | null
           colli: number | null
           condizione_pagamento_id: string | null
           confermato_da: string | null
@@ -3805,10 +3822,12 @@ export type Database = {
           consegna_prevista: string | null
           created_at: string
           creato_da: string | null
+          cup: string | null
           data: string
           data_esterna: string | null
           design_draft_id: string | null
           destinazione: string | null
+          esigibilita_iva: string
           id: string
           imponibile: number
           imposta: number

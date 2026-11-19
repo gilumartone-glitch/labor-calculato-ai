@@ -344,6 +344,13 @@
       "when": 1795101982526,
       "tag": "0048_gestionale_prima_nota_contabilita",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795112091443,
+      "tag": "0049_gestionale_fattura_elettronica",
+      "breakpoints": true
     }
   ]
 }

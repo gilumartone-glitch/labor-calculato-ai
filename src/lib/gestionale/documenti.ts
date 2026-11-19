@@ -307,8 +307,11 @@ export async function leggiDocumento(id: string): Promise<{ documento: Documento
   };
 }
 
-export async function creaDocumento(tipo: TipoDocumento): Promise<string> {
-  const d = esito<{ id: string }>(await db.from("gest_documenti").insert({ tipo }).select("id").single());
+export async function creaDocumento(
+  tipo: TipoDocumento,
+  iniziale: { oggetto?: string | null; design_draft_id?: string | null } = {},
+): Promise<string> {
+  const d = esito<{ id: string }>(await db.from("gest_documenti").insert({ tipo, ...iniziale }).select("id").single());
   return d.id;
 }
 
@@ -316,8 +319,10 @@ export async function creaDocumento(tipo: TipoDocumento): Promise<string> {
  * Salva testata e righe di una bozza: aggiorna le righe esistenti, inserisce le nuove,
  * elimina quelle tolte. L'ordine delle righe diventa la loro posizione.
  */
-export async function salvaBozza(id: string, testata: Testata, righe: RigaBozza[], idRigheEsistenti: string[]): Promise<void> {
-  esito(await db.from("gest_documenti").update(testata).eq("id", id));
+export async function salvaBozza(id: string, testata: Partial<Testata>, righe: RigaBozza[], idRigheEsistenti: string[]): Promise<void> {
+  if (Object.keys(testata).length > 0) {
+    esito(await db.from("gest_documenti").update(testata).eq("id", id));
+  }
 
   const tenute = new Set(righe.map((r) => r.id).filter((x): x is string => !!x));
   const daEliminare = idRigheEsistenti.filter((x) => !tenute.has(x));

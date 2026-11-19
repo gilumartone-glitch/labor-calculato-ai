@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Boxes, Plus, Loader2, Scissors, Undo2, Archive, Flame } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
@@ -303,6 +303,8 @@ const Gestionale = () => {
   const { can } = usePermissions();
   const puoScrivere = can("gestionale", "write");
 
+  const [parametri] = useSearchParams();
+  const documentoIniziale = parametri.get("doc");
   const [tab, setTab] = useState("documenti");
   const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
   const [aliquote, setAliquote] = useState<AliquotaIva[]>([]);
@@ -419,6 +421,7 @@ const Gestionale = () => {
               <DocumentiTab
                 anagrafiche={anagrafiche} aliquote={aliquote} articoli={articoli} varianti={varianti}
                 puoScrivere={puoScrivere} onAnagraficheChanged={caricaClientiFornitori}
+                documentoIniziale={documentoIniziale}
               />
             </TabsContent>
 

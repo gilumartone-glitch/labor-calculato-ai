@@ -476,18 +476,20 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, articoli, variant
 /* ------------------------------------------------------------------ */
 /* Elenco documenti                                                    */
 /* ------------------------------------------------------------------ */
-const DocumentiTab = ({ anagrafiche, aliquote, articoli, varianti, puoScrivere, onAnagraficheChanged }: {
+const DocumentiTab = ({ anagrafiche, aliquote, articoli, varianti, puoScrivere, onAnagraficheChanged, documentoIniziale }: {
   anagrafiche: Anagrafica[];
   aliquote: AliquotaIva[];
   articoli: Articolo[];
   varianti: Variante[];
   puoScrivere: boolean;
   onAnagraficheChanged: () => void;
+  /** Documento da aprire subito (es. arrivando da Progettazione). */
+  documentoIniziale?: string | null;
 }) => {
   const [tipo, setTipo] = useState<TipoDocumento>("preventivo");
   const [documenti, setDocumenti] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [aperto, setAperto] = useState<string | null>(null);
+  const [aperto, setAperto] = useState<string | null>(documentoIniziale ?? null);
   const [creando, setCreando] = useState(false);
 
   const carica = useCallback(async (t: TipoDocumento) => {

@@ -7,6 +7,7 @@ import { DEPT_LABEL } from "@/lib/produzione/types";
 import { CustomerType } from "@/lib/pricing";
 import { CreateCommessaButton } from "./CreateCommessaButton";
 import { generateQuotePdf } from "@/lib/quote-pdf";
+import { CreaPreventivoGestionaleButton } from "@/components/gestionale/CreaPreventivoGestionaleButton";
 
 interface GeneralSummaryProps {
   jobName: string;
@@ -378,6 +379,16 @@ export const GeneralSummary = ({
           >
             <FileText className="w-3.5 h-3.5" /> Stampa interna (con costi)
           </button>
+          <CreaPreventivoGestionaleButton
+            disabled={total === 0}
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-paper/40 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-paper/10 disabled:opacity-40"
+            riepilogo={() => ({
+              jobName: jobName || schedinaTitle,
+              quantity, margin, vat, applyVat,
+              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state })),
+              subProjects, deptMargins,
+            })}
+          />
         </div>
 
         {/* Crea commessa nel Flow */}

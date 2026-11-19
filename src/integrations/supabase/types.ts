@@ -1032,6 +1032,120 @@ export type Database = {
         }
         Relationships: []
       }
+      gest_aliquote_iva: {
+        Row: {
+          archiviato_il: string | null
+          codice: string
+          created_at: string
+          descrizione: string
+          id: string
+          natura: string | null
+          percentuale: number
+          updated_at: string
+          valido_al: string | null
+          valido_dal: string | null
+        }
+        Insert: {
+          archiviato_il?: string | null
+          codice: string
+          created_at?: string
+          descrizione: string
+          id?: string
+          natura?: string | null
+          percentuale: number
+          updated_at?: string
+          valido_al?: string | null
+          valido_dal?: string | null
+        }
+        Update: {
+          archiviato_il?: string | null
+          codice?: string
+          created_at?: string
+          descrizione?: string
+          id?: string
+          natura?: string | null
+          percentuale?: number
+          updated_at?: string
+          valido_al?: string | null
+          valido_dal?: string | null
+        }
+        Relationships: []
+      }
+      gest_anagrafiche: {
+        Row: {
+          archiviato_il: string | null
+          cap: string | null
+          citta: string | null
+          codice: string
+          codice_fiscale: string | null
+          codice_mexal: string | null
+          codice_sdi: string | null
+          created_at: string
+          email: string | null
+          id: string
+          indirizzo: string | null
+          is_cliente: boolean
+          is_fornitore: boolean
+          nazione: string
+          note: string | null
+          pagamento: string | null
+          partita_iva: string | null
+          pec: string | null
+          provincia: string | null
+          ragione_sociale: string
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          archiviato_il?: string | null
+          cap?: string | null
+          citta?: string | null
+          codice: string
+          codice_fiscale?: string | null
+          codice_mexal?: string | null
+          codice_sdi?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          indirizzo?: string | null
+          is_cliente?: boolean
+          is_fornitore?: boolean
+          nazione?: string
+          note?: string | null
+          pagamento?: string | null
+          partita_iva?: string | null
+          pec?: string | null
+          provincia?: string | null
+          ragione_sociale: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archiviato_il?: string | null
+          cap?: string | null
+          citta?: string | null
+          codice?: string
+          codice_fiscale?: string | null
+          codice_mexal?: string | null
+          codice_sdi?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          indirizzo?: string | null
+          is_cliente?: boolean
+          is_fornitore?: boolean
+          nazione?: string
+          note?: string | null
+          pagamento?: string | null
+          partita_iva?: string | null
+          pec?: string | null
+          provincia?: string | null
+          ragione_sociale?: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gest_articoli: {
         Row: {
           archiviato_il: string | null
@@ -1119,6 +1233,255 @@ export type Database = {
           },
         ]
       }
+      gest_documenti: {
+        Row: {
+          anagrafica_id: string | null
+          anno: number | null
+          annullato_il: string | null
+          aspetto_beni: string | null
+          causale_trasporto: string | null
+          colli: number | null
+          confermato_da: string | null
+          confermato_il: string | null
+          consegna_prevista: string | null
+          created_at: string
+          creato_da: string | null
+          data: string
+          data_esterna: string | null
+          design_draft_id: string | null
+          destinazione: string | null
+          id: string
+          imponibile: number
+          imposta: number
+          intestatario: Json | null
+          motivo_annullamento: string | null
+          note: string | null
+          note_interne: string | null
+          numero: number | null
+          oggetto: string | null
+          origine_id: string | null
+          pagamento: string | null
+          peso_kg: number | null
+          porto: string | null
+          riferimento_esterno: string | null
+          serie: string
+          stato: string
+          tipo: string
+          totale: number
+          updated_at: string
+          validita_giorni: number | null
+          vettore: string | null
+        }
+        Insert: {
+          anagrafica_id?: string | null
+          anno?: number | null
+          annullato_il?: string | null
+          aspetto_beni?: string | null
+          causale_trasporto?: string | null
+          colli?: number | null
+          confermato_da?: string | null
+          confermato_il?: string | null
+          consegna_prevista?: string | null
+          created_at?: string
+          creato_da?: string | null
+          data?: string
+          data_esterna?: string | null
+          design_draft_id?: string | null
+          destinazione?: string | null
+          id?: string
+          imponibile?: number
+          imposta?: number
+          intestatario?: Json | null
+          motivo_annullamento?: string | null
+          note?: string | null
+          note_interne?: string | null
+          numero?: number | null
+          oggetto?: string | null
+          origine_id?: string | null
+          pagamento?: string | null
+          peso_kg?: number | null
+          porto?: string | null
+          riferimento_esterno?: string | null
+          serie?: string
+          stato?: string
+          tipo: string
+          totale?: number
+          updated_at?: string
+          validita_giorni?: number | null
+          vettore?: string | null
+        }
+        Update: {
+          anagrafica_id?: string | null
+          anno?: number | null
+          annullato_il?: string | null
+          aspetto_beni?: string | null
+          causale_trasporto?: string | null
+          colli?: number | null
+          confermato_da?: string | null
+          confermato_il?: string | null
+          consegna_prevista?: string | null
+          created_at?: string
+          creato_da?: string | null
+          data?: string
+          data_esterna?: string | null
+          design_draft_id?: string | null
+          destinazione?: string | null
+          id?: string
+          imponibile?: number
+          imposta?: number
+          intestatario?: Json | null
+          motivo_annullamento?: string | null
+          note?: string | null
+          note_interne?: string | null
+          numero?: number | null
+          oggetto?: string | null
+          origine_id?: string | null
+          pagamento?: string | null
+          peso_kg?: number | null
+          porto?: string | null
+          riferimento_esterno?: string | null
+          serie?: string
+          stato?: string
+          tipo?: string
+          totale?: number
+          updated_at?: string
+          validita_giorni?: number | null
+          vettore?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_documenti_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_origine_id_fkey"
+            columns: ["origine_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_documenti_righe: {
+        Row: {
+          aliquota_id: string | null
+          codice: string | null
+          created_at: string
+          descrizione: string
+          dettagli: string | null
+          documento_id: string
+          id: string
+          importo: number
+          posizione: number
+          prezzo_unitario: number
+          quantita: number
+          riga_origine_id: string | null
+          sconto_pct: number
+          tipo_riga: string
+          um: string | null
+          updated_at: string
+          variante_id: string | null
+        }
+        Insert: {
+          aliquota_id?: string | null
+          codice?: string | null
+          created_at?: string
+          descrizione: string
+          dettagli?: string | null
+          documento_id: string
+          id?: string
+          importo?: number
+          posizione?: number
+          prezzo_unitario?: number
+          quantita?: number
+          riga_origine_id?: string | null
+          sconto_pct?: number
+          tipo_riga?: string
+          um?: string | null
+          updated_at?: string
+          variante_id?: string | null
+        }
+        Update: {
+          aliquota_id?: string | null
+          codice?: string | null
+          created_at?: string
+          descrizione?: string
+          dettagli?: string | null
+          documento_id?: string
+          id?: string
+          importo?: number
+          posizione?: number
+          prezzo_unitario?: number
+          quantita?: number
+          riga_origine_id?: string | null
+          sconto_pct?: number
+          tipo_riga?: string
+          um?: string | null
+          updated_at?: string
+          variante_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_documenti_righe_aliquota_id_fkey"
+            columns: ["aliquota_id"]
+            isOneToOne: false
+            referencedRelation: "gest_aliquote_iva"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_aliquota_id_fkey"
+            columns: ["aliquota_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti_iva"
+            referencedColumns: ["aliquota_id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_impostazioni: {
+        Row: {
+          chiave: string
+          descrizione: string | null
+          updated_at: string
+          valore: string
+        }
+        Insert: {
+          chiave: string
+          descrizione?: string | null
+          updated_at?: string
+          valore: string
+        }
+        Update: {
+          chiave?: string
+          descrizione?: string | null
+          updated_at?: string
+          valore?: string
+        }
+        Relationships: []
+      }
       gest_movimenti: {
         Row: {
           creato_il: string
@@ -1199,6 +1562,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gest_numeratori: {
+        Row: {
+          anno: number
+          serie: string
+          tipo: string
+          ultimo: number
+        }
+        Insert: {
+          anno: number
+          serie?: string
+          tipo: string
+          ultimo?: number
+        }
+        Update: {
+          anno?: number
+          serie?: string
+          tipo?: string
+          ultimo?: number
+        }
+        Relationships: []
       }
       gest_pezze: {
         Row: {
@@ -2761,6 +3145,27 @@ export type Database = {
       }
     }
     Views: {
+      gest_documenti_iva: {
+        Row: {
+          aliquota_id: string | null
+          codice: string | null
+          descrizione: string | null
+          documento_id: string | null
+          imponibile: number | null
+          imposta: number | null
+          natura: string | null
+          percentuale: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_documenti_righe_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_giacenze_bagno: {
         Row: {
           bagno_id: string | null
@@ -2934,6 +3339,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      gest_annulla_documento: {
+        Args: { _documento_id: string; _motivo?: string }
+        Returns: undefined
+      }
       gest_carica_pezza: {
         Args: {
           _codice_bagno?: string
@@ -2962,6 +3371,61 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      gest_conferma_documento: {
+        Args: { _documento_id: string }
+        Returns: {
+          anagrafica_id: string | null
+          anno: number | null
+          annullato_il: string | null
+          aspetto_beni: string | null
+          causale_trasporto: string | null
+          colli: number | null
+          confermato_da: string | null
+          confermato_il: string | null
+          consegna_prevista: string | null
+          created_at: string
+          creato_da: string | null
+          data: string
+          data_esterna: string | null
+          design_draft_id: string | null
+          destinazione: string | null
+          id: string
+          imponibile: number
+          imposta: number
+          intestatario: Json | null
+          motivo_annullamento: string | null
+          note: string | null
+          note_interne: string | null
+          numero: number | null
+          oggetto: string | null
+          origine_id: string | null
+          pagamento: string | null
+          peso_kg: number | null
+          porto: string | null
+          riferimento_esterno: string | null
+          serie: string
+          stato: string
+          tipo: string
+          totale: number
+          updated_at: string
+          validita_giorni: number | null
+          vettore: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "gest_documenti"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gest_deriva_documento: {
+        Args: { _origine_id: string; _tipo: string }
+        Returns: string
+      }
+      gest_ricalcola_totali: {
+        Args: { _documento_id: string }
+        Returns: undefined
       }
       gest_storna_movimento: {
         Args: { _movimento_id: number; _nota?: string }

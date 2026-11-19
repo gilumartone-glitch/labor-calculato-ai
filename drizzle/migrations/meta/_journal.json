@@ -309,6 +309,13 @@
       "when": 1795087470993,
       "tag": "0043_gestion_ale_magazzino",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795089518028,
+      "tag": "0044_gestionale_documenti",
+      "breakpoints": true
     }
   ]
 }

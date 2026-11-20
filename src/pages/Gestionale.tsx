@@ -323,7 +323,7 @@ const Gestionale = () => {
   const [loading, setLoading] = useState(true);
   const [articoli, setArticoli] = useState<Articolo[]>([]);
   const [varianti, setVarianti] = useState<Variante[]>([]);
-  const [giacenze, setGiacenze] = useState<Record<string, number>>({});
+  const [giacenze, setGiacenze] = useState<Record<string, { giacenza: number; impegnato: number; disponibile: number }>>({});
 
   const [articoloDialog, setArticoloDialog] = useState(false);
   const [varianteDi, setVarianteDi] = useState<Articolo | null>(null);
@@ -343,7 +343,7 @@ const Gestionale = () => {
       const [a, v, g] = await Promise.all([elencoArticoli(), elencoVarianti(), giacenzeVarianti()]);
       setArticoli(a);
       setVarianti(v);
-      setGiacenze(Object.fromEntries(g.map((r) => [r.variante_id, r.giacenza])));
+      setGiacenze(Object.fromEntries(g.map((r) => [r.variante_id, r])));
     } catch (e) { errore(e); } finally { setLoading(false); }
   }, []);
 
@@ -490,6 +490,8 @@ const Gestionale = () => {
                             <TableHead>Codice</TableHead>
                             <TableHead>Caratteristiche</TableHead>
                             <TableHead className="text-right">Giacenza</TableHead>
+                            <TableHead className="text-right">Impegnato</TableHead>
+                            <TableHead className="text-right">Disponibile</TableHead>
                             <TableHead className="w-10" />
                           </TableRow>
                         </TableHeader>
@@ -503,7 +505,9 @@ const Gestionale = () => {
                                   {descriviVariante(v) || "—"}
                                 </span>
                               </TableCell>
-                              <TableCell className="text-right tabular-nums">{fmtQta(giacenze[v.id] ?? 0)} {a.um}</TableCell>
+                              <TableCell className="text-right tabular-nums">{fmtQta(giacenze[v.id]?.giacenza ?? 0)} {a.um}</TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">{(giacenze[v.id]?.impegnato ?? 0) > 0 ? `${fmtQta(giacenze[v.id].impegnato)} ${a.um}` : "—"}</TableCell>
+                              <TableCell className={`text-right tabular-nums font-medium ${(giacenze[v.id]?.disponibile ?? 0) < 0 ? "text-destructive" : ""}`}>{fmtQta(giacenze[v.id]?.disponibile ?? 0)} {a.um}</TableCell>
                               <TableCell>
                                 {puoScrivere && (
                                   <Button size="sm" variant="ghost" title="Archivia variante" onClick={() => archivia("variante", v.id, v.codice)}><Archive className="w-4 h-4" /></Button>

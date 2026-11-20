@@ -23,10 +23,3 @@ export async function salvaAzienda(dati: DatiAzienda): Promise<void> {
   );
   if (error) throw new Error(error.message);
 }
-
-/** Tipo, numero e data del documento da cui ne nasce un altro (fattura rettificata, DDT fatturato). */
-export async function leggiOrigine(id: string): Promise<{ tipo: string; numero: number | null; anno: number | null; serie: string; data: string } | null> {
-  const { data, error } = await db.from("gest_documenti").select("tipo, numero, anno, serie, data").eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ?? null;
-}

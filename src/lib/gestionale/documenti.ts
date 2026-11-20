@@ -24,7 +24,7 @@ export const TIPI_DOCUMENTO: TipoDocumento[] = [
 
 export const TIPO_LABEL: Record<TipoDocumento, string> = {
   preventivo: "Preventivo",
-  ordine: "Ordine / Proforma",
+  ordine: "Conferma d'ordine / Proforma",
   ddt: "DDT",
   fattura: "Fattura",
   nota_credito: "Nota di credito",
@@ -34,7 +34,7 @@ export const TIPO_LABEL: Record<TipoDocumento, string> = {
 
 export const TIPO_LABEL_PLURALE: Record<TipoDocumento, string> = {
   preventivo: "Preventivi",
-  ordine: "Ordini / Proforma",
+  ordine: "Conferme d'ordine / Proforma",
   ddt: "DDT",
   fattura: "Fatture",
   nota_credito: "Note di credito",
@@ -140,6 +140,12 @@ export type Documento = {
   cup: string | null;
   esigibilita_iva: "I" | "D" | "S";
   bollo_virtuale: boolean;
+  /** Nome dello spettacolo o della produzione */
+  produzione: string | null;
+  /** Fattura che accompagna la merce: scarica il magazzino come un DDT */
+  accompagnatoria: boolean;
+  /** Conferma d'ordine: materiale impegnato liberato a mano */
+  impegno_chiuso_il: string | null;
   imponibile: number;
   imposta: number;
   totale: number;
@@ -151,7 +157,7 @@ export type Documento = {
 export type Testata = Pick<Documento,
   "data" | "anagrafica_id" | "oggetto" | "riferimento_esterno" | "data_esterna" | "pagamento" | "condizione_pagamento_id" | "validita_giorni"
   | "consegna_prevista" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "colli" | "peso_kg" | "vettore"
-  | "porto" | "note" | "note_interne" | "cig" | "cup" | "esigibilita_iva" | "bollo_virtuale">;
+  | "porto" | "note" | "note_interne" | "cig" | "cup" | "esigibilita_iva" | "bollo_virtuale" | "produzione" | "accompagnatoria">;
 
 export type Riga = {
   id: string;
@@ -190,7 +196,26 @@ export type RigaBozza = Omit<Riga, "id" | "documento_id" | "posizione" | "import
 export const generaScadenze = (t: TipoDocumento) => t === "fattura" || t === "nota_credito" || t === "fattura_fornitore";
 
 /** Documenti che muovono il magazzino alla conferma. */
-export const muoveMagazzino = (t: TipoDocumento) => t === "bolla_carico" || t === "ddt";
+export const muoveMagazzino = (t: TipoDocumento, accompagnatoria = false) =>
+  t === "bolla_carico" || t === "ddt" || (t === "fattura" && accompagnatoria);
+
+/** Un documento da cui discende quello che si sta guardando. */
+export type PassoPercorso = { id: string; tipo: TipoDocumento; numero: number | null; anno: number | null; serie: string; data: string; stato: StatoDocumento };
+
+const NOME_NEL_PERCORSO: Record<TipoDocumento, string> = {
+  preventivo: "Preventivo", ordine: "Conferma d'ordine", ddt: "DDT", fattura: "Fattura", nota_credito: "Nota di credito",
+  bolla_carico: "Bolla di carico", fattura_fornitore: "Fattura fornitore",
+};
+const dataItaliana = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+/** "12/2026", oppure "12/A/2026" con la serie. */
+export const numeroDocumento = (d: Pick<PassoPercorso, "numero" | "anno" | "serie">): string =>
+  d.numero == null ? "bozza" : `${d.numero}${d.serie ? `/${d.serie}` : ""}/${d.anno}`;
+
+/** "Preventivo n. 45/2026 del 12/11/2026 - Conferma d'ordine n. 12/2026 del 15/11/2026" */
+export const testoPercorso = (passi: PassoPercorso[]): string =>
+  passi.filter((p) => p.numero != null)
+    .map((p) => `${NOME_NEL_PERCORSO[p.tipo]} n. ${numeroDocumento(p)} del ${dataItaliana(p.data)}`).join(" - ");
 
 export const sommaPezze = (pezze: PezzaRiga[] | undefined): number =>
   Math.round(((pezze ?? []).reduce((s, p) => s + (Number(p.metri) || 0), 0) + Number.EPSILON) * 100) / 100;
@@ -408,6 +433,16 @@ export async function annullaDocumento(id: string, motivo: string | null): Promi
 /** Crea una nuova bozza dal documento confermato e ne restituisce l'id. */
 export async function trasformaDocumento(origineId: string, tipo: TipoDocumento): Promise<string> {
   return esito<string>(await db.rpc("gest_deriva_documento", { _origine_id: origineId, _tipo: tipo }));
+}
+
+/** I documenti da cui discende un documento, dal più vecchio al più recente. */
+export async function percorsoDocumento(id: string): Promise<PassoPercorso[]> {
+  return esito<PassoPercorso[]>(await db.rpc("gest_percorso_documento", { _documento_id: id })) ?? [];
+}
+
+/** Libera a mano (o rimette) il materiale impegnato da una conferma d'ordine. */
+export async function chiudiImpegno(id: string, chiudi: boolean): Promise<void> {
+  esito(await db.rpc("gest_chiudi_impegno", { _documento_id: id, _chiudi: chiudi }));
 }
 
 export async function documentiCollegati(id: string): Promise<Documento[]> {

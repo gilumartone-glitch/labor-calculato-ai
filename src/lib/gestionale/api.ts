@@ -57,8 +57,8 @@ export async function archiviaVariante(id: string): Promise<void> {
 }
 
 export async function giacenzeVarianti(): Promise<GiacenzaVariante[]> {
-  const righe = esito<GiacenzaVariante[]>(await db.from("gest_giacenze_varianti").select("variante_id, giacenza"));
-  return righe.map((r) => ({ variante_id: r.variante_id, giacenza: num(r.giacenza) }));
+  const righe = esito<GiacenzaVariante[]>(await db.from("gest_giacenze_varianti").select("variante_id, giacenza, impegnato, disponibile"));
+  return righe.map((r) => ({ variante_id: r.variante_id, giacenza: num(r.giacenza), impegnato: num(r.impegnato), disponibile: num(r.disponibile) }));
 }
 
 export async function giacenzeBagni(varianteId: string): Promise<GiacenzaBagno[]> {

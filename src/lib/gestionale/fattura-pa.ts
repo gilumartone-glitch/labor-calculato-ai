@@ -4,6 +4,7 @@
  * Qui dentro non c'è accesso al database: solo funzioni pure, così si provano una per una.
  */
 import type { AliquotaIva, Intestatario, TipoDocumento } from "./documenti";
+import { numeroDocumento, testoPercorso, type PassoPercorso } from "./documenti";
 import type { CondizionePagamento } from "./scadenzario";
 import { anteprimaScadenze } from "./scadenzario";
 
@@ -80,8 +81,10 @@ export type DatiFattura = {
   righe: RigaFattura[];
   aliquote: AliquotaIva[];
   condizione: Pick<CondizionePagamento, "rate" | "fine_mese" | "modalita"> | null;
-  /** Nota di credito: la fattura che rettifica. Fattura: i DDT da cui nasce. */
-  origine: { tipo: TipoDocumento; numero: string; data: string } | null;
+  /** Nome dello spettacolo: il tracciato non ha un campo apposito, va in causale. */
+  produzione: string | null;
+  /** I documenti da cui discende, dal più vecchio: preventivo, conferma d'ordine, DDT (e la fattura, per una nota di credito). */
+  percorso: PassoPercorso[];
 };
 
 export type Controllo = { errori: string[]; avvisi: string[] };
@@ -246,7 +249,8 @@ export function controllaFattura(azienda: DatiAzienda, d: DatiFattura): Controll
   if (d.cig && !/^[A-Za-z0-9]{10}$/.test(d.cig.trim())) avvisi.push("Il CIG ha di norma 10 caratteri: controlla.");
   if (d.cup && !/^[A-Za-z0-9]{15}$/.test(d.cup.trim())) avvisi.push("Il CUP ha di norma 15 caratteri: controlla.");
   if (versoPA(c) && !d.cig) avvisi.push("Fattura alla Pubblica Amministrazione senza CIG: di norma viene rifiutata.");
-  if (d.tipo === "nota_credito" && !d.origine) avvisi.push("Nota di credito senza fattura di origine: nel file manca il riferimento alla fattura rettificata.");
+  if ((d.riferimento_esterno ?? "").trim().length > 20) avvisi.push("L'ordine del cliente supera i 20 caratteri del campo dedicato: lì viene troncato, per intero è riportato in causale.");
+  if (d.tipo === "nota_credito" && !ultimo(d, "fattura")) avvisi.push("Nota di credito senza fattura di origine: nel file manca il riferimento alla fattura rettificata.");
 
   const t = totaliFattura(d);
   if (t.senzaIva > 77.47 && !d.bollo_virtuale) avvisi.push(`Ci sono ${imp2(t.senzaIva)} € senza IVA: sopra 77,47 € di norma serve il bollo da 2 € (non per reverse charge ed esportazioni). Chiedi al commercialista.`);
@@ -259,10 +263,15 @@ export function controllaFattura(azienda: DatiAzienda, d: DatiFattura): Controll
 /* ------------------------------------------------------------------ */
 /* Il file XML                                                         */
 /* ------------------------------------------------------------------ */
+/** L'ultimo documento confermato di un certo tipo nel percorso. */
+const ultimo = (d: Pick<DatiFattura, "percorso">, tipo: TipoDocumento): PassoPercorso | null =>
+  [...d.percorso].reverse().find((p) => p.tipo === tipo && p.numero != null) ?? null;
+
 function tipoDocumentoSdi(d: DatiFattura): string {
   if (d.tipo === "nota_credito") return "TD04";
   // fattura che nasce da un DDT di un giorno precedente: fattura differita
-  if (d.origine?.tipo === "ddt" && d.origine.data < d.data) return "TD24";
+  const ddt = ultimo(d, "ddt");
+  if (ddt && ddt.data < d.data) return "TD24";
   return "TD01";
 }
 
@@ -332,22 +341,28 @@ export function creaFatturaXml(azienda: DatiAzienda, d: DatiFattura): string {
       + tag("Nazione", nazioneDi(c))));
 
   const rifOrdine = (d.riferimento_esterno ?? "").trim();
+  const fatturaOrigine = ultimo(d, "fattura");
+  const ddtOrigine = ultimo(d, "ddt");
   const generali = blocco("DatiGenerali",
     blocco("DatiGeneraliDocumento",
       tag("TipoDocumento", tipoDocumentoSdi(d)) + tag("Divisa", "EUR") + tag("Data", d.data) + tag("Numero", numeroFattura(d))
       + (d.bollo_virtuale ? blocco("DatiBollo", tag("BolloVirtuale", "SI") + tag("ImportoBollo", "2.00")) : "")
       + tag("ImportoTotaleDocumento", imp2(t.totale))
-      + causali(d.oggetto ?? ""))
+      // Oggetto, produzione e percorso dei documenti: il tracciato non ha campi dedicati, vanno in causale
+      + causali(d.oggetto ?? "")
+      + causali(d.produzione?.trim() ? `Produzione: ${d.produzione}` : "")
+      + causali(rifOrdine.length > 20 ? `Ordine cliente: ${rifOrdine}` : "")
+      + causali(testoPercorso(d.percorso) ? `Rif. ${testoPercorso(d.percorso)}` : ""))
     + (rifOrdine
       ? blocco("DatiOrdineAcquisto",
         tag("IdDocumento", testoLatino(rifOrdine, 20)) + tag("Data", d.data_esterna)
         + tag("CodiceCUP", (d.cup ?? "").trim().toUpperCase()) + tag("CodiceCIG", (d.cig ?? "").trim().toUpperCase()))
       : "")
-    + (d.tipo === "nota_credito" && d.origine
-      ? blocco("DatiFattureCollegate", tag("IdDocumento", testoLatino(d.origine.numero, 20)) + tag("Data", d.origine.data))
+    + (d.tipo === "nota_credito" && fatturaOrigine
+      ? blocco("DatiFattureCollegate", tag("IdDocumento", numeroDocumento(fatturaOrigine)) + tag("Data", fatturaOrigine.data))
       : "")
-    + (d.tipo === "fattura" && d.origine?.tipo === "ddt"
-      ? blocco("DatiDDT", tag("NumeroDDT", testoLatino(d.origine.numero, 20)) + tag("DataDDT", d.origine.data))
+    + (d.tipo === "fattura" && ddtOrigine
+      ? blocco("DatiDDT", tag("NumeroDDT", numeroDocumento(ddtOrigine)) + tag("DataDDT", ddtOrigine.data))
       : ""));
 
   let ultimaAliquota = gruppi[0]?.aliquota ?? null;

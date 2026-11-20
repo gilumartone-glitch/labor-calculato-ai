@@ -6,6 +6,7 @@ import {
   AZIENDA_VUOTA, controllaFattura, creaFatturaXml, modalitaPagamento, nomeFileFattura, progressivoInvio, testoLatino, totaliFattura,
   type DatiAzienda, type DatiFattura, type RigaFattura,
 } from "./fattura-pa";
+import type { PassoPercorso } from "./documenti";
 
 const azienda: DatiAzienda = {
   ...AZIENDA_VUOTA, denominazione: "Prova Scene S.r.l.s.", partita_iva: "01234567890", codice_fiscale: "01234567890",
@@ -26,8 +27,9 @@ const fattura = (p: Partial<DatiFattura> = {}): DatiFattura => ({
   cig: null, cup: null, esigibilita_iva: "I", bollo_virtuale: false,
   cliente: { ragione_sociale: "Teatro Prova srl", partita_iva: "09876543210", codice_fiscale: null, codice_sdi: "ABC1234", pec: null, indirizzo: "Corso Italia 5", cap: "00100", citta: "Roma", provincia: "RM", nazione: "IT" },
   righe: [riga({ codice: "TES-001", descrizione: "Velluto ignifugo “Scala” – rosso", quantita: 12.5, prezzo_unitario: 18.4, sconto_pct: 10 }), riga({ tipo_riga: "nota", descrizione: "Consegna a Vs. cura", quantita: 0, prezzo_unitario: 0, aliquota_id: null })],
-  aliquote, condizione: { rate: [{ giorni: 30, percentuale: 50 }, { giorni: 60, percentuale: 50 }], fine_mese: true, modalita: "Bonifico" }, origine: null, ...p,
+  aliquote, condizione: { rate: [{ giorni: 30, percentuale: 50 }, { giorni: 60, percentuale: 50 }], fine_mese: true, modalita: "Bonifico" }, produzione: null, percorso: [], ...p,
 });
+const passo = (tipo: PassoPercorso["tipo"], numero: number, data: string): PassoPercorso => ({ id: `${tipo}${numero}`, tipo, numero, anno: Number(data.slice(0, 4)), serie: "", data, stato: "confermato" });
 const valore = (xml: string, nome: string) => [...xml.matchAll(new RegExp(`<${nome}>([^<]*)</${nome}>`, "g"))].map((m) => m[1]);
 
 describe("testoLatino", () => {
@@ -130,14 +132,14 @@ describe("creaFatturaXml", () => {
   });
 
   it("nota di credito: TD04 con la fattura rettificata, senza pagamento", () => {
-    const xml = creaFatturaXml(azienda, fattura({ tipo: "nota_credito", numero: 3, origine: { tipo: "fattura", numero: "12/2027", data: "2027-01-15" } }));
+    const xml = creaFatturaXml(azienda, fattura({ tipo: "nota_credito", numero: 3, percorso: [passo("fattura", 12, "2027-01-15")] }));
     expect(valore(xml, "TipoDocumento")).toEqual(["TD04"]);
     expect(xml).toContain("<DatiFattureCollegate><IdDocumento>12/2027</IdDocumento><Data>2027-01-15</Data></DatiFattureCollegate>");
     expect(xml).not.toContain("DatiPagamento");
   });
 
   it("fattura da DDT di un giorno precedente: differita con riferimento al DDT", () => {
-    const xml = creaFatturaXml(azienda, fattura({ origine: { tipo: "ddt", numero: "40/2027", data: "2027-01-10" } }));
+    const xml = creaFatturaXml(azienda, fattura({ percorso: [passo("ddt", 40, "2027-01-10")] }));
     expect(valore(xml, "TipoDocumento")).toEqual(["TD24"]);
     expect(valore(xml, "NumeroDDT")).toEqual(["40/2027"]);
   });
@@ -159,6 +161,32 @@ describe("creaFatturaXml", () => {
     expect(valore(estero, "CodiceDestinatario")).toEqual(["XXXXXXX"]);
     expect(valore(estero, "CAP")).toEqual(["80013", "00000"]);
     expect(estero).toContain("<IdPaese>DE</IdPaese><IdCodice>123456789</IdCodice>");
+  });
+
+  it("produzione, ordine del cliente e percorso dei documenti", () => {
+    const xml = creaFatturaXml(azienda, fattura({
+      produzione: "Il Barbiere di Siviglia", riferimento_esterno: "OP 4500123", data_esterna: "2026-11-02", cig: "A1B2C3D4E5", cup: "B12C34000560007",
+      percorso: [passo("preventivo", 45, "2026-11-01"), passo("ordine", 12, "2026-11-05"), passo("ddt", 40, "2027-01-15")],
+    }));
+    // l'ordine del cliente, il CIG e il CUP hanno il loro campo
+    expect(xml).toContain("<DatiOrdineAcquisto><IdDocumento>OP 4500123</IdDocumento><Data>2026-11-02</Data><CodiceCUP>B12C34000560007</CodiceCUP><CodiceCIG>A1B2C3D4E5</CodiceCIG></DatiOrdineAcquisto>");
+    expect(xml).toContain("<DatiDDT><NumeroDDT>40/2027</NumeroDDT><DataDDT>2027-01-15</DataDDT></DatiDDT>");
+    // produzione e percorso non hanno un campo: vanno in causale
+    expect(valore(xml, "Causale")).toEqual([
+      "Fornitura sipario",
+      "Produzione: Il Barbiere di Siviglia",
+      "Rif. Preventivo n. 45/2026 del 01/11/2026 - Conferma d'ordine n. 12/2026 del 05/11/2026 - DDT n. 40/2027 del 15/01/2027",
+    ]);
+    // DDT dello stesso giorno: fattura immediata
+    expect(valore(xml, "TipoDocumento")).toEqual(["TD01"]);
+  });
+
+  it("ordine del cliente più lungo di 20 caratteri: per intero in causale", () => {
+    const d = fattura({ riferimento_esterno: "Richiesta di acquisto n. 2026/000123" });
+    expect(controllaFattura(azienda, d).avvisi).toHaveLength(1);
+    const xml = creaFatturaXml(azienda, d);
+    expect(valore(xml, "IdDocumento")).toEqual(["Richiesta di acquist"]);
+    expect(valore(xml, "Causale")).toContain("Ordine cliente: Richiesta di acquisto n. 2026/000123");
   });
 
   it("con errori non crea il file", () => {

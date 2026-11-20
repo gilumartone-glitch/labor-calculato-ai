@@ -15,8 +15,8 @@ import { descriviVariante, type Articolo, type Variante } from "@/lib/gestionale
 import {
   TIPI_DOCUMENTO, TIPO_LABEL, TIPO_LABEL_PLURALE, TIPO_RIGA_LABEL, TRASFORMAZIONI, isPassivo,
   annullaDocumento, calcolaTotali, confermaDocumento, creaDocumento, documentiCollegati, elencoDocumenti,
-  generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, rigaVuota, salvaBozza, sommaPezze, titoloDocumento, trasformaDocumento,
-  type AliquotaIva, type Anagrafica, type Documento, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
+  chiudiImpegno, generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, percorsoDocumento, rigaVuota, salvaBozza, sommaPezze, testoPercorso, titoloDocumento, trasformaDocumento,
+  type AliquotaIva, type Anagrafica, type Documento, type PassoPercorso, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
   type TipoDocumento, type TipoRiga,
 } from "@/lib/gestionale/documenti";
 import { elencoPezze } from "@/lib/gestionale/api";
@@ -47,6 +47,7 @@ const testataDa = (d: Documento): Testata => ({
   aspetto_beni: d.aspetto_beni, colli: d.colli, peso_kg: d.peso_kg, vettore: d.vettore, porto: d.porto,
   note: d.note, note_interne: d.note_interne,
   cig: d.cig ?? null, cup: d.cup ?? null, esigibilita_iva: d.esigibilita_iva ?? "I", bollo_virtuale: d.bollo_virtuale ?? false,
+  produzione: d.produzione ?? null, accompagnatoria: d.accompagnatoria ?? false,
 });
 
 /* ------------------------------------------------------------------ */
@@ -187,6 +188,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [idEsistenti, setIdEsistenti] = useState<string[]>([]);
   const [iva, setIva] = useState<RiepilogoIva[]>([]);
   const [collegati, setCollegati] = useState<Documento[]>([]);
+  const [percorso, setPercorso] = useState<PassoPercorso[]>([]);
   const [modificato, setModificato] = useState(false);
   const [occupato, setOccupato] = useState(false);
   const [nuovaAnagrafica, setNuovaAnagrafica] = useState(false);
@@ -195,11 +197,12 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const carica = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ documento: d, righe: r, iva: i }, c] = await Promise.all([leggiDocumento(documentoId), documentiCollegati(documentoId)]);
+      const [{ documento: d, righe: r, iva: i }, c, p] = await Promise.all([leggiDocumento(documentoId), documentiCollegati(documentoId), percorsoDocumento(documentoId)]);
+      setPercorso(p);
       setDocumento(d);
       setTestata(testataDa(d));
       setRighe(r.map(({ documento_id: _d, posizione: _p, importo: _i, ...resto }) => (
-        muoveMagazzino(d.tipo) && resto.tipo_riga === "articolo" && resto.variante_id ? { ...resto, pezze: resto.pezze ?? [] } : resto
+        muoveMagazzino(d.tipo, d.accompagnatoria) && resto.tipo_riga === "articolo" && resto.variante_id ? { ...resto, pezze: resto.pezze ?? [] } : resto
       )));
       setIdEsistenti(r.map((x) => x.id));
       setIva(i);
@@ -214,14 +217,15 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const varianteById = useMemo(() => new Map(varianti.map((v) => [v.id, v])), [varianti]);
   /** Pezze a magazzino per variante, caricate quando servono (DDT). */
   const [pezzeMagazzino, setPezzeMagazzino] = useState<Record<string, PezzaGiacenza[]>>({});
-  const tipoDoc = documento?.tipo;
+  /** Documenti che scaricano il magazzino: DDT e fattura accompagnatoria. */
+  const scarico = documento?.tipo === "ddt" || (documento?.tipo === "fattura" && Boolean(testata?.accompagnatoria));
   const variantiTessutoInRiga = useMemo(() => Array.from(new Set(
     righe.filter((r) => r.tipo_riga === "articolo" && r.variante_id).map((r) => r.variante_id as string)
       .filter((id) => { const v = varianteById.get(id); return v ? articoloById.get(v.articolo_id)?.categoria === "tessuto" : false; }),
   )), [righe, varianteById, articoloById]);
   const pezzeRichieste = useRef(new Set<string>());
   useEffect(() => {
-    if (tipoDoc !== "ddt") return;
+    if (!scarico) return;
     for (const id of variantiTessutoInRiga) {
       if (pezzeRichieste.current.has(id)) continue;
       pezzeRichieste.current.add(id);
@@ -229,7 +233,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
         .then((p) => setPezzeMagazzino((prev) => ({ ...prev, [id]: p })))
         .catch((e) => { pezzeRichieste.current.delete(id); errore(e); });
     }
-  }, [tipoDoc, variantiTessutoInRiga]);
+  }, [scarico, variantiTessutoInRiga]);
   const aliquotaPredefinita = useMemo(() => aliquote.find((a) => a.codice === "22")?.id ?? aliquote[0]?.id ?? null, [aliquote]);
   const totali = useMemo(() => calcolaTotali(righe, aliquote), [righe, aliquote]);
 
@@ -238,7 +242,18 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   }
 
   const passivo = isPassivo(documento.tipo);
-  const conMagazzino = muoveMagazzino(documento.tipo);
+  const conMagazzino = muoveMagazzino(documento.tipo, testata.accompagnatoria);
+  const nasceDaDdt = percorso[percorso.length - 1]?.tipo === "ddt";
+  const setAccompagnatoria = (v: boolean) => {
+    setTestata((p) => (p ? { ...p, accompagnatoria: v } : p));
+    // le righe di tessuto prendono (o perdono) il dettaglio delle pezze da cui si taglia
+    setRighe((p) => p.map((r) => (r.tipo_riga === "articolo" && r.variante_id ? { ...r, pezze: v ? r.pezze ?? [] : [] } : r)));
+    setModificato(true);
+  };
+  const liberaImpegno = async (chiudi: boolean) => {
+    setOccupato(true);
+    try { await chiudiImpegno(documento.id, chiudi); await carica(); } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
   /** Riga di tessuto su bolla di carico o DDT: la quantità è la somma delle sue pezze. */
   const rigaConPezze = (r: RigaBozza): boolean => {
     if (!conMagazzino || r.tipo_riga !== "articolo" || !r.variante_id) return false;
@@ -351,7 +366,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     onBack();
   };
 
-  const campoTesto = (k: "oggetto" | "riferimento_esterno" | "pagamento" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "vettore" | "porto", etichetta: string, placeholder?: string) => (
+  const campoTesto = (k: "oggetto" | "riferimento_esterno" | "produzione" | "pagamento" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "vettore" | "porto", etichetta: string, placeholder?: string) => (
     <div>
       <Label>{etichetta}</Label>
       <Input value={testata[k] ?? ""} disabled={!modificabile} placeholder={placeholder} onChange={(e) => setT(k, testoOppureNull(e.target.value))} />
@@ -402,6 +417,25 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
       {bozza && (documento.tipo === "fattura" || documento.tipo === "nota_credito") && (
         <p className="text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2 text-muted-foreground">
           Fatture e note di credito qui restano bozze fino all'attivazione dell'invio allo SDI: quelle valide partono ancora dal sistema precedente.
+        </p>
+      )}
+      {documento.tipo === "ordine" && documento.stato === "confermato" && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2 text-muted-foreground">
+          <span>
+            {documento.impegno_chiuso_il
+              ? "Il materiale di questa conferma d'ordine è stato liberato a mano: non risulta più impegnato."
+              : "Le righe «Articolo» impegnano il materiale senza scaricarlo. L'impegno si chiude da solo quando il DDT o la fattura accompagnatoria vengono confermati."}
+          </span>
+          {puoScrivere && (
+            <Button size="sm" variant="outline" disabled={occupato} onClick={() => liberaImpegno(!documento.impegno_chiuso_il)}>
+              {documento.impegno_chiuso_il ? "Rimetti l'impegno" : "Libera il materiale"}
+            </Button>
+          )}
+        </div>
+      )}
+      {bozza && documento.tipo === "ordine" && (
+        <p className="text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2 text-muted-foreground">
+          Alla conferma le righe «Articolo» impegnano il materiale: resta a magazzino ma non è più disponibile per altri. Lo scarico avviene con il DDT o con la fattura accompagnatoria.
         </p>
       )}
       {bozza && conMagazzino && (
@@ -483,7 +517,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
             </>
           ) : (
             <>
-              {campoTesto("riferimento_esterno", "Rif. ordine cliente")}
+              {campoTesto("produzione", "Produzione", "nome dello spettacolo")}
               {documento.tipo === "preventivo" && (
                 <div>
                   <Label>Validità (giorni)</Label>
@@ -494,6 +528,31 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
             </>
           )}
         </div>
+        {!passivo && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {campoTesto("riferimento_esterno", "Ordine del cliente", "es. OP 4500123, RdA 77, OC 12")}
+            {campoData("data_esterna", "Data ordine del cliente")}
+            <div>
+              <Label>CIG</Label>
+              <Input value={testata.cig ?? ""} disabled={!modificabile} placeholder="gare e appalti" onChange={(e) => setT("cig", testoOppureNull(e.target.value.toUpperCase()))} />
+            </div>
+            <div>
+              <Label>CUP</Label>
+              <Input value={testata.cup ?? ""} disabled={!modificabile} onChange={(e) => setT("cup", testoOppureNull(e.target.value.toUpperCase()))} />
+            </div>
+          </div>
+        )}
+        {passivo && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-2">{campoTesto("produzione", "Produzione", "nome dello spettacolo")}</div>
+          </div>
+        )}
+        {percorso.length > 0 && (
+          <div>
+            <Label>Riferimenti</Label>
+            <p className="text-sm border border-input rounded-md bg-muted/40 px-3 py-2">{testoPercorso(percorso) || "nasce da un documento ancora in bozza"}</p>
+          </div>
+        )}
         {eFattura && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
@@ -507,17 +566,14 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>CIG</Label>
-              <Input value={testata.cig ?? ""} disabled={!modificabile} placeholder="gare e appalti" onChange={(e) => setT("cig", testoOppureNull(e.target.value.toUpperCase()))} />
-            </div>
-            <div>
-              <Label>CUP</Label>
-              <Input value={testata.cup ?? ""} disabled={!modificabile} onChange={(e) => setT("cup", testoOppureNull(e.target.value.toUpperCase()))} />
-            </div>
             <label className="flex items-center gap-2 text-sm self-end pb-2">
               <Switch checked={testata.bollo_virtuale} disabled={!modificabile} onCheckedChange={(v) => setT("bollo_virtuale", v)} /> Bollo virtuale 2 €
             </label>
+            {documento.tipo === "fattura" && (
+              <label className="flex items-center gap-2 text-sm self-end pb-2 md:col-span-2" title={nasceDaDdt ? "Nasce da un DDT, che ha già scaricato il magazzino" : undefined}>
+                <Switch checked={testata.accompagnatoria} disabled={!modificabile || nasceDaDdt} onCheckedChange={setAccompagnatoria} /> Fattura accompagnatoria (scarica il magazzino)
+              </label>
+            )}
           </div>
         )}
         {eFattura && testata.esigibilita_iva === "S" && (
@@ -713,7 +769,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           cig: testata.cig, cup: testata.cup, esigibilita_iva: testata.esigibilita_iva, bollo_virtuale: testata.bollo_virtuale,
           cliente: intestatario ?? {}, righe, aliquote,
           condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
-          origine_id: documento.origine_id,
+          produzione: testata.produzione, documento_id: documento.id,
         } : null}
       />
     </div>

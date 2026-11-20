@@ -7,12 +7,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { toast } from "@/hooks/use-toast";
 import { eur } from "@/lib/format";
 import { usePermissions } from "@/hooks/usePermissions";
-import { leggiAzienda, leggiOrigine, salvaAzienda } from "@/lib/gestionale/azienda";
+import { leggiAzienda, salvaAzienda } from "@/lib/gestionale/azienda";
 import {
   AZIENDA_VUOTA, REGIMI_FISCALI, VERSIONE_SPECIFICHE, controllaFattura, creaFatturaXml, nomeFileFattura, totaliFattura,
   type DatiAzienda, type DatiFattura,
 } from "@/lib/gestionale/fattura-pa";
-import type { TipoDocumento } from "@/lib/gestionale/documenti";
+import { percorsoDocumento, type PassoPercorso } from "@/lib/gestionale/documenti";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const errore = (e: unknown) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" });
@@ -114,35 +114,30 @@ export const DatiAziendaDialog = ({ open, onOpenChange, onSaved }: { open: boole
 /* ------------------------------------------------------------------ */
 /* Controllo e file XML di una fattura o nota di credito               */
 /* ------------------------------------------------------------------ */
-export type FatturaDaControllare = Omit<DatiFattura, "origine"> & { origine_id: string | null };
+export type FatturaDaControllare = Omit<DatiFattura, "percorso"> & { documento_id: string };
 
 export const FatturaElettronicaDialog = ({ fattura, onClose }: { fattura: FatturaDaControllare | null; onClose: () => void }) => {
   const [azienda, setAzienda] = useState<DatiAzienda | null>(null);
-  const [origine, setOrigine] = useState<DatiFattura["origine"]>(null);
+  const [percorso, setPercorso] = useState<PassoPercorso[]>([]);
   const [loading, setLoading] = useState(true);
   const [datiAzienda, setDatiAzienda] = useState(false);
-  const origineId = fattura?.origine_id ?? null;
+  const documentoId = fattura?.documento_id ?? null;
   const aperta = fattura != null;
 
   useEffect(() => {
     if (!aperta) return;
     setLoading(true);
-    Promise.all([leggiAzienda(), origineId ? leggiOrigine(origineId) : Promise.resolve(null)])
-      .then(([a, o]) => {
-        setAzienda(a);
-        setOrigine(o && o.numero != null
-          ? { tipo: o.tipo as TipoDocumento, numero: `${o.numero}${o.serie ? `/${o.serie}` : ""}/${o.anno}`, data: o.data }
-          : null);
-      })
+    Promise.all([leggiAzienda(), documentoId ? percorsoDocumento(documentoId) : Promise.resolve([])])
+      .then(([a, p]) => { setAzienda(a); setPercorso(p); })
       .catch(errore)
       .finally(() => setLoading(false));
-  }, [aperta, origineId]);
+  }, [aperta, documentoId]);
 
   const dati = useMemo<DatiFattura | null>(() => {
     if (!fattura) return null;
-    const { origine_id: _o, ...resto } = fattura;
-    return { ...resto, origine };
-  }, [fattura, origine]);
+    const { documento_id: _d, ...resto } = fattura;
+    return { ...resto, percorso };
+  }, [fattura, percorso]);
   const controllo = useMemo(() => (azienda && dati ? controllaFattura(azienda, dati) : null), [azienda, dati]);
   const totali = useMemo(() => (dati ? totaliFattura(dati) : null), [dati]);
 

@@ -43,7 +43,8 @@ export type NuovoArticolo = Pick<Articolo, "codice" | "nome" | "categoria" | "um
 export type NuovaVariante = Pick<Variante, "articolo_id" | "codice"> &
   Partial<Omit<Variante, "id" | "articolo_id" | "codice" | "archiviato_il">>;
 
-export type GiacenzaVariante = { variante_id: string; giacenza: number };
+/** giacenza: quanto c'è · impegnato: promesso da conferme d'ordine non ancora consegnate · disponibile: la differenza */
+export type GiacenzaVariante = { variante_id: string; giacenza: number; impegnato: number; disponibile: number };
 
 export type GiacenzaBagno = {
   variante_id: string;

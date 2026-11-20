@@ -39,3 +39,22 @@ describe("documenti del Gestionale", () => {
     expect(titoloDocumento({ tipo: "ddt", numero: null, anno: null, serie: "", stato: "bozza" })).toBe("DDT (bozza)");
   });
 });
+
+describe("percorso dei documenti e magazzino", () => {
+  it("testoPercorso elenca i documenti confermati con numero e data", async () => {
+    const { testoPercorso } = await import("./documenti");
+    expect(testoPercorso([
+      { id: "1", tipo: "preventivo", numero: 45, anno: 2026, serie: "", data: "2026-11-01", stato: "confermato" },
+      { id: "2", tipo: "ordine", numero: 12, anno: 2026, serie: "A", data: "2026-11-05", stato: "confermato" },
+      { id: "3", tipo: "ddt", numero: null, anno: null, serie: "", data: "2026-11-09", stato: "bozza" },
+    ])).toBe("Preventivo n. 45/2026 del 01/11/2026 - Conferma d'ordine n. 12/A/2026 del 05/11/2026");
+  });
+  it("scaricano o caricano: bolla di carico, DDT e fattura accompagnatoria; la conferma d'ordine no", async () => {
+    const { muoveMagazzino } = await import("./documenti");
+    expect(muoveMagazzino("ddt")).toBe(true);
+    expect(muoveMagazzino("bolla_carico")).toBe(true);
+    expect(muoveMagazzino("fattura")).toBe(false);
+    expect(muoveMagazzino("fattura", true)).toBe(true);
+    expect(muoveMagazzino("ordine", true)).toBe(false);
+  });
+});

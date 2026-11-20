@@ -198,7 +198,7 @@ const PrimaNotaTab = ({ puoScrivere, onApriDocumento }: { puoScrivere: boolean; 
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={filtrate.length === 0} onClick={esporta}><Download className="w-4 h-4 mr-1" /> Esporta per il commercialista</Button>
-          {puoScrivere && <Button size="sm" onClick={() => setNuovo(true)}><Plus className="w-4 h-4 mr-1" /> Nuovo movimento</Button>}
+          {puoScrivere && <Button size="sm" data-nuovo onClick={() => setNuovo(true)}><Plus className="w-4 h-4 mr-1" /> Nuovo movimento</Button>}
         </div>
       </div>
 

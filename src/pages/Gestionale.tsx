@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -20,6 +20,7 @@ import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } 
 import DocumentiTab from "@/components/gestionale/DocumentiTab";
 import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
+import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
@@ -311,6 +312,13 @@ const Gestionale = () => {
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
   const [datiAzienda, setDatiAzienda] = useState(false);
+  // tutto il Gestionale si usa anche da tastiera: vedi lib/gestionale/tastiera.ts
+  const radice = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const tasto = (e: KeyboardEvent) => { if (radice.current) gestisciTasto(e, radice.current); };
+    document.addEventListener("keydown", tasto, true);
+    return () => document.removeEventListener("keydown", tasto, true);
+  }, []);
   // dalla prima nota si salta al documento: la scheda Documenti si riapre su quello
   const apriDocumento = useCallback((id: string) => { setDocumentoIniziale(id); setTab("documenti"); }, []);
   const [anagrafiche, setAnagrafiche] = useState<Anagrafica[]>([]);
@@ -406,7 +414,7 @@ const Gestionale = () => {
   const stornati = useMemo(() => new Set(movimenti.map((m) => m.storno_di).filter((x): x is number => x != null)), [movimenti]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-9" data-gestionale ref={radice}>
       <header className="border-b-2 border-ink bg-paper">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center gap-3">
           <Link to="/hub" className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-ink">
@@ -456,7 +464,7 @@ const Gestionale = () => {
             <TabsContent value="articoli" className="space-y-4">
               {puoScrivere && (
                 <div className="flex justify-end">
-                  <Button size="sm" onClick={() => setArticoloDialog(true)}><Plus className="w-4 h-4 mr-1" /> Nuovo articolo</Button>
+                  <Button size="sm" data-nuovo onClick={() => setArticoloDialog(true)}><Plus className="w-4 h-4 mr-1" /> Nuovo articolo</Button>
                 </div>
               )}
               {articoli.length === 0 && (
@@ -676,6 +684,11 @@ const Gestionale = () => {
         )}
       </main>
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
+      <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra i campi"], ["F2", "nuovo"], ["F4", "nuova riga"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…7", "sezioni"]].map(([t, d]) => (
+          <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
+        ))}
+      </footer>
 
       <ArticoloDialog open={articoloDialog} onOpenChange={setArticoloDialog} onSaved={caricaAnagrafiche} />
       <VarianteDialog articolo={varianteDi} onClose={() => setVarianteDi(null)} onSaved={caricaAnagrafiche} />

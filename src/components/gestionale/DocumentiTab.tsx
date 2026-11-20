@@ -26,6 +26,7 @@ import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
+import { EVENTO_TASTIERA, campoDopo, type AzioneTastiera } from "@/lib/gestionale/tastiera";
 import { Switch } from "@/components/ui/switch";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -59,11 +60,12 @@ const AnagraficaPicker = ({ anagrafiche, valore, disabled, onSelect }: {
   anagrafiche: Anagrafica[]; valore: string | null; disabled?: boolean; onSelect: (id: string) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const pulsante = useRef<HTMLButtonElement>(null);
   const scelta = anagrafiche.find((a) => a.id === valore);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" disabled={disabled} className="w-full justify-between font-normal">
+        <Button ref={pulsante} data-invio data-cliente variant="outline" role="combobox" disabled={disabled} className="w-full justify-between font-normal">
           <span className="truncate">{scelta ? scelta.ragione_sociale : "Scegli…"}</span>
           <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
         </Button>
@@ -78,7 +80,12 @@ const AnagraficaPicker = ({ anagrafiche, valore, disabled, onSelect }: {
                 <CommandItem
                   key={a.id}
                   value={`${a.ragione_sociale} ${a.partita_iva ?? ""} ${a.codice}`}
-                  onSelect={() => { onSelect(a.id); setOpen(false); }}
+                  onSelect={() => {
+                    onSelect(a.id);
+                    setOpen(false);
+                    // scelto il cliente si prosegue da tastiera sul campo successivo
+                    setTimeout(() => { if (pulsante.current) campoDopo(pulsante.current); }, 80);
+                  }}
                 >
                   <span className="truncate">{a.ragione_sociale}</span>
                   <span className="ml-auto pl-2 font-mono text-xs text-muted-foreground">{a.partita_iva ?? a.codice}</span>
@@ -196,6 +203,33 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [occupato, setOccupato] = useState(false);
   const [nuovaAnagrafica, setNuovaAnagrafica] = useState(false);
   const [fatturaElettronica, setFatturaElettronica] = useState(false);
+  /** Riga su cui portare il cursore dopo un'aggiunta o una cancellazione da tastiera. */
+  const rigaDaFocalizzare = useRef<number | null>(null);
+  const azioneTastiera = useRef<(a: AzioneTastiera) => void>(() => {});
+  useEffect(() => {
+    const ascolta = (e: Event) => azioneTastiera.current((e as CustomEvent<AzioneTastiera>).detail);
+    window.addEventListener(EVENTO_TASTIERA, ascolta);
+    return () => window.removeEventListener(EVENTO_TASTIERA, ascolta);
+  }, []);
+  useEffect(() => {
+    const i = rigaDaFocalizzare.current;
+    if (i == null) return;
+    rigaDaFocalizzare.current = null;
+    document.querySelector<HTMLElement>(`[data-riga="${i}"] button[role="combobox"]:not(:disabled), [data-riga="${i}"] input:not(:disabled)`)?.focus();
+  }, [righe.length]);
+  // all'apertura il cursore è già al posto giusto: sul cliente se manca, altrimenti sulla prima riga
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => {
+      const cliente = document.querySelector<HTMLElement>("[data-gestionale] [data-cliente]:not(:disabled)");
+      const primo = documento?.anagrafica_id
+        ? document.querySelector<HTMLElement>('[data-riga="0"] input:not(:disabled)') ?? cliente
+        : cliente;
+      (primo ?? document.querySelector<HTMLElement>("[data-gestionale] [data-esc]"))?.focus();
+    }, 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, documentoId]);
 
   const carica = useCallback(async () => {
     setLoading(true);
@@ -288,6 +322,19 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
       return copia;
     });
     setModificato(true);
+  };
+
+  azioneTastiera.current = ({ azione, riga }) => {
+    if (!modificabile) return;
+    if (azione === "nuova-riga") {
+      // la nuova riga è dello stesso tipo di quella da cui si arriva
+      const tipo = (riga != null ? righe[riga]?.tipo_riga : righe[righe.length - 1]?.tipo_riga) ?? "articolo";
+      rigaDaFocalizzare.current = righe.length;
+      aggiungiRiga(tipo);
+    } else if (azione === "togli-riga" && riga != null && righe[riga]) {
+      rigaDaFocalizzare.current = Math.max(0, Math.min(riga, righe.length - 2));
+      togliRiga(riga);
+    }
   };
 
   const scegliAnagrafica = (id: string) => {
@@ -390,17 +437,17 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
       {/* Barra del documento */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <Button size="sm" variant="ghost" onClick={indietro}><ArrowLeft className="w-4 h-4 mr-1" /> Elenco</Button>
+          <Button size="sm" variant="ghost" data-esc onClick={indietro}><ArrowLeft className="w-4 h-4 mr-1" /> Elenco</Button>
           <h2 className="font-display text-xl font-semibold truncate">{titoloDocumento(documento)}</h2>
           <Badge variant={STATO_VARIANT[documento.stato]}>{documento.stato}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {modificabile && (
             <>
-              <Button size="sm" variant="outline" disabled={occupato || !modificato} onClick={() => salva()}>
+              <Button size="sm" variant="outline" data-f10 disabled={occupato || !modificato} onClick={() => salva()}>
                 {occupato ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}Salva bozza
               </Button>
-              <Button size="sm" disabled={occupato} onClick={conferma}><Check className="w-4 h-4 mr-1" /> Conferma</Button>
+              <Button size="sm" data-f10 disabled={occupato} onClick={conferma}><Check className="w-4 h-4 mr-1" /> Conferma</Button>
             </>
           )}
           {eFattura && documento.stato !== "annullato" && (
@@ -647,12 +694,12 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
                 <span className="text-right">Importo</span>
                 <span />
               </div>
-              <div className="divide-y divide-ink/10">
+              <div className="divide-y divide-ink/10" data-righe-modificabili={modificabile ? "" : undefined}>
                 {righe.map((r, i) => {
                   const nota = r.tipo_riga === "nota";
                   const daMagazzino = r.tipo_riga === "articolo";
                   return (
-                    <div key={r.id ?? `nuova-${i}`} className="px-4 py-2 grid gap-2">
+                    <div key={r.id ?? `nuova-${i}`} data-riga={i} className="px-4 py-2 grid gap-2 focus-within:bg-muted/40">
                       <div className="grid items-center gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
                         <span className="font-mono text-xs text-muted-foreground">{i + 1}</span>
                         <Badge variant="outline" className="justify-self-start">{TIPO_RIGA_LABEL[r.tipo_riga]}</Badge>
@@ -821,6 +868,15 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
   }, []);
 
   useEffect(() => { if (!aperto) carica(tipo); }, [tipo, aperto, carica]);
+  // elenco pronto: il cursore va sulla prima riga, così si scorre subito con le frecce
+  useEffect(() => {
+    if (aperto || loading) return;
+    const t = setTimeout(() => {
+      if (document.activeElement && document.activeElement !== document.body && !document.activeElement.matches("[data-esc], [data-f10], [data-elenco]")) return;
+      document.querySelector<HTMLElement>("[data-gestionale] [data-elenco]")?.focus();
+    }, 50);
+    return () => clearTimeout(t);
+  }, [aperto, loading, documenti]);
 
   const anagraficaById = useMemo(() => new Map(anagrafiche.map((a) => [a.id, a])), [anagrafiche]);
 
@@ -852,7 +908,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
           ))}
         </div>
         {puoScrivere && (
-          <Button size="sm" disabled={creando} onClick={nuovo}>
+          <Button size="sm" data-nuovo disabled={creando} onClick={nuovo}>
             {creando ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}Nuovo: {TIPO_LABEL[tipo]}
           </Button>
         )}
@@ -880,7 +936,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
             </TableHeader>
             <TableBody>
               {documenti.map((d) => (
-                <TableRow key={d.id} className={`cursor-pointer ${d.stato === "annullato" ? "opacity-60" : ""}`} onClick={() => setAperto(d.id)}>
+                <TableRow key={d.id} data-elenco tabIndex={0} className={`cursor-pointer focus:outline-none focus:bg-muted focus:shadow-[inset_3px_0_0_0_hsl(var(--foreground))] ${d.stato === "annullato" ? "opacity-60" : ""}`} onClick={() => setAperto(d.id)}>
                   <TableCell className="font-mono text-xs">{d.numero != null ? `${d.numero}${d.serie ? `/${d.serie}` : ""}/${d.anno}` : "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{fmtData(d.data)}</TableCell>
                   <TableCell className="font-medium">{d.intestatario?.ragione_sociale ?? (d.anagrafica_id ? anagraficaById.get(d.anagrafica_id)?.ragione_sociale : null) ?? "—"}</TableCell>

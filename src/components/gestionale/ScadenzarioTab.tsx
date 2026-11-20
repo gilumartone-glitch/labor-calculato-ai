@@ -178,7 +178,7 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
               </div>
               <div><Label>Nota</Label><Input value={nota} onChange={(e) => setNota(e.target.value)} /></div>
               <div className="flex justify-end">
-                <Button onClick={registra} disabled={occupato}>
+                <Button data-f10 onClick={registra} disabled={occupato}>
                   {occupato && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Registra {incasso ? "incasso" : "pagamento"}{collegata ? " in contanti" : ""}
                 </Button>
               </div>

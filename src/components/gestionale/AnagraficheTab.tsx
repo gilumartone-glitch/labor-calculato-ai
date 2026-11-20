@@ -343,7 +343,7 @@ const AnagraficheTab = ({ anagrafiche, puoScrivere, onChanged }: {
         {puoScrivere && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setImportDialog(true)}><Upload className="w-4 h-4 mr-1" /> Importa da Mexal</Button>
-            <Button size="sm" onClick={() => { setInModifica(null); setDialog(true); }}><Plus className="w-4 h-4 mr-1" /> Nuova anagrafica</Button>
+            <Button size="sm" data-nuovo onClick={() => { setInModifica(null); setDialog(true); }}><Plus className="w-4 h-4 mr-1" /> Nuova anagrafica</Button>
           </div>
         )}
       </div>

@@ -47,7 +47,7 @@ const testataDa = (d: Documento): Testata => ({
   aspetto_beni: d.aspetto_beni, colli: d.colli, peso_kg: d.peso_kg, vettore: d.vettore, porto: d.porto,
   note: d.note, note_interne: d.note_interne,
   cig: d.cig ?? null, cup: d.cup ?? null, esigibilita_iva: d.esigibilita_iva ?? "I", bollo_virtuale: d.bollo_virtuale ?? false,
-  produzione: d.produzione ?? null, accompagnatoria: d.accompagnatoria ?? false,
+  produzione: d.produzione ?? null, accompagnatoria: d.accompagnatoria ?? false, ordine_cliente_tipo: d.ordine_cliente_tipo ?? null,
 });
 
 /* ------------------------------------------------------------------ */
@@ -292,6 +292,8 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
       ...p, anagrafica_id: id, pagamento: p.pagamento ?? a?.pagamento ?? null,
       // la scissione dei pagamenti segue il cliente
       esigibilita_iva: passivo ? p.esigibilita_iva : a?.esigibilita_iva ?? "I",
+      // ogni cliente chiama il suo ordine a modo suo: si propone il nome abituale
+      ordine_cliente_tipo: passivo ? p.ordine_cliente_tipo : p.ordine_cliente_tipo ?? a?.ordine_cliente_tipo ?? null,
     } : p));
     setModificato(true);
   };
@@ -366,7 +368,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     onBack();
   };
 
-  const campoTesto = (k: "oggetto" | "riferimento_esterno" | "produzione" | "pagamento" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "vettore" | "porto", etichetta: string, placeholder?: string) => (
+  const campoTesto = (k: "oggetto" | "riferimento_esterno" | "produzione" | "ordine_cliente_tipo" | "pagamento" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "vettore" | "porto", etichetta: string, placeholder?: string) => (
     <div>
       <Label>{etichetta}</Label>
       <Input value={testata[k] ?? ""} disabled={!modificabile} placeholder={placeholder} onChange={(e) => setT(k, testoOppureNull(e.target.value))} />
@@ -529,9 +531,10 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           )}
         </div>
         {!passivo && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {campoTesto("riferimento_esterno", "Ordine del cliente", "es. OP 4500123, RdA 77, OC 12")}
-            {campoData("data_esterna", "Data ordine del cliente")}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {campoTesto("ordine_cliente_tipo", "Ordine del cliente: nome", "OP, RdA, OC, Ord.…")}
+            {campoTesto("riferimento_esterno", "Numero", "es. 4500123")}
+            {campoData("data_esterna", "Data")}
             <div>
               <Label>CIG</Label>
               <Input value={testata.cig ?? ""} disabled={!modificabile} placeholder="gare e appalti" onChange={(e) => setT("cig", testoOppureNull(e.target.value.toUpperCase()))} />
@@ -769,7 +772,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           cig: testata.cig, cup: testata.cup, esigibilita_iva: testata.esigibilita_iva, bollo_virtuale: testata.bollo_virtuale,
           cliente: intestatario ?? {}, righe, aliquote,
           condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
-          produzione: testata.produzione, documento_id: documento.id,
+          produzione: testata.produzione, ordine_cliente_tipo: testata.ordine_cliente_tipo, documento_id: documento.id,
         } : null}
       />
     </div>

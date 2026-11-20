@@ -70,7 +70,9 @@ export type DatiFattura = {
   serie: string;
   data: string;
   oggetto: string | null;
-  /** riferimento all'ordine del cliente */
+  /** come il cliente chiama il suo ordine: OP, RdA, OC… */
+  ordine_cliente_tipo: string | null;
+  /** numero dell'ordine del cliente */
   riferimento_esterno: string | null;
   data_esterna: string | null;
   cig: string | null;
@@ -249,7 +251,7 @@ export function controllaFattura(azienda: DatiAzienda, d: DatiFattura): Controll
   if (d.cig && !/^[A-Za-z0-9]{10}$/.test(d.cig.trim())) avvisi.push("Il CIG ha di norma 10 caratteri: controlla.");
   if (d.cup && !/^[A-Za-z0-9]{15}$/.test(d.cup.trim())) avvisi.push("Il CUP ha di norma 15 caratteri: controlla.");
   if (versoPA(c) && !d.cig) avvisi.push("Fattura alla Pubblica Amministrazione senza CIG: di norma viene rifiutata.");
-  if ((d.riferimento_esterno ?? "").trim().length > 20) avvisi.push("L'ordine del cliente supera i 20 caratteri del campo dedicato: lì viene troncato, per intero è riportato in causale.");
+  if (ordineCliente(d).troppoLungo) avvisi.push("Nome e numero dell'ordine del cliente superano i 20 caratteri del campo dedicato: lì va solo il numero, per intero sono riportati in causale.");
   if (d.tipo === "nota_credito" && !ultimo(d, "fattura")) avvisi.push("Nota di credito senza fattura di origine: nel file manca il riferimento alla fattura rettificata.");
 
   const t = totaliFattura(d);
@@ -263,6 +265,16 @@ export function controllaFattura(azienda: DatiAzienda, d: DatiFattura): Controll
 /* ------------------------------------------------------------------ */
 /* Il file XML                                                         */
 /* ------------------------------------------------------------------ */
+/**
+ * Ordine del cliente: "OP 4500123". Il campo dedicato tiene 20 caratteri:
+ * se nome e numero insieme non ci stanno, lì va il solo numero.
+ */
+function ordineCliente(d: Pick<DatiFattura, "ordine_cliente_tipo" | "riferimento_esterno">) {
+  const numero = testoLatino(d.riferimento_esterno, 100);
+  const completo = [testoLatino(d.ordine_cliente_tipo, 40), numero].filter(Boolean).join(" ");
+  return { numero, completo, troppoLungo: numero !== "" && completo.length > 20 };
+}
+
 /** L'ultimo documento confermato di un certo tipo nel percorso. */
 const ultimo = (d: Pick<DatiFattura, "percorso">, tipo: TipoDocumento): PassoPercorso | null =>
   [...d.percorso].reverse().find((p) => p.tipo === tipo && p.numero != null) ?? null;
@@ -340,7 +352,7 @@ export function creaFatturaXml(azienda: DatiAzienda, d: DatiFattura): string {
       + (estero ? "" : tag("Provincia", /^[A-Za-z]{2}$/.test((c.provincia ?? "").trim()) ? (c.provincia ?? "").trim().toUpperCase() : ""))
       + tag("Nazione", nazioneDi(c))));
 
-  const rifOrdine = (d.riferimento_esterno ?? "").trim();
+  const ordine = ordineCliente(d);
   const fatturaOrigine = ultimo(d, "fattura");
   const ddtOrigine = ultimo(d, "ddt");
   const generali = blocco("DatiGenerali",
@@ -351,11 +363,11 @@ export function creaFatturaXml(azienda: DatiAzienda, d: DatiFattura): string {
       // Oggetto, produzione e percorso dei documenti: il tracciato non ha campi dedicati, vanno in causale
       + causali(d.oggetto ?? "")
       + causali(d.produzione?.trim() ? `Produzione: ${d.produzione}` : "")
-      + causali(rifOrdine.length > 20 ? `Ordine cliente: ${rifOrdine}` : "")
+      + causali(ordine.troppoLungo ? `Ordine cliente: ${ordine.completo}` : "")
       + causali(testoPercorso(d.percorso) ? `Rif. ${testoPercorso(d.percorso)}` : ""))
-    + (rifOrdine
+    + (ordine.numero
       ? blocco("DatiOrdineAcquisto",
-        tag("IdDocumento", testoLatino(rifOrdine, 20)) + tag("Data", d.data_esterna)
+        tag("IdDocumento", testoLatino(ordine.troppoLungo ? ordine.numero : ordine.completo, 20)) + tag("Data", d.data_esterna)
         + tag("CodiceCUP", (d.cup ?? "").trim().toUpperCase()) + tag("CodiceCIG", (d.cig ?? "").trim().toUpperCase()))
       : "")
     + (d.tipo === "nota_credito" && fatturaOrigine

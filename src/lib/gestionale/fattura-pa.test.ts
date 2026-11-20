@@ -23,7 +23,7 @@ const riga = (p: Partial<RigaFattura>): RigaFattura => ({
   tipo_riga: "libera", codice: null, descrizione: "Tessuto", dettagli: null, um: "m", quantita: 1, prezzo_unitario: 100, sconto_pct: 0, aliquota_id: "a22", ...p,
 });
 const fattura = (p: Partial<DatiFattura> = {}): DatiFattura => ({
-  tipo: "fattura", numero: 12, anno: 2027, serie: "", data: "2027-01-15", oggetto: "Fornitura sipario", riferimento_esterno: null, data_esterna: null,
+  tipo: "fattura", numero: 12, anno: 2027, serie: "", data: "2027-01-15", oggetto: "Fornitura sipario", ordine_cliente_tipo: null, riferimento_esterno: null, data_esterna: null,
   cig: null, cup: null, esigibilita_iva: "I", bollo_virtuale: false,
   cliente: { ragione_sociale: "Teatro Prova srl", partita_iva: "09876543210", codice_fiscale: null, codice_sdi: "ABC1234", pec: null, indirizzo: "Corso Italia 5", cap: "00100", citta: "Roma", provincia: "RM", nazione: "IT" },
   righe: [riga({ codice: "TES-001", descrizione: "Velluto ignifugo “Scala” – rosso", quantita: 12.5, prezzo_unitario: 18.4, sconto_pct: 10 }), riga({ tipo_riga: "nota", descrizione: "Consegna a Vs. cura", quantita: 0, prezzo_unitario: 0, aliquota_id: null })],
@@ -165,7 +165,7 @@ describe("creaFatturaXml", () => {
 
   it("produzione, ordine del cliente e percorso dei documenti", () => {
     const xml = creaFatturaXml(azienda, fattura({
-      produzione: "Il Barbiere di Siviglia", riferimento_esterno: "OP 4500123", data_esterna: "2026-11-02", cig: "A1B2C3D4E5", cup: "B12C34000560007",
+      produzione: "Il Barbiere di Siviglia", ordine_cliente_tipo: "OP", riferimento_esterno: "4500123", data_esterna: "2026-11-02", cig: "A1B2C3D4E5", cup: "B12C34000560007",
       percorso: [passo("preventivo", 45, "2026-11-01"), passo("ordine", 12, "2026-11-05"), passo("ddt", 40, "2027-01-15")],
     }));
     // l'ordine del cliente, il CIG e il CUP hanno il loro campo
@@ -182,11 +182,11 @@ describe("creaFatturaXml", () => {
   });
 
   it("ordine del cliente più lungo di 20 caratteri: per intero in causale", () => {
-    const d = fattura({ riferimento_esterno: "Richiesta di acquisto n. 2026/000123" });
+    const d = fattura({ ordine_cliente_tipo: "Richiesta di acquisto", riferimento_esterno: "2026/000123" });
     expect(controllaFattura(azienda, d).avvisi).toHaveLength(1);
     const xml = creaFatturaXml(azienda, d);
-    expect(valore(xml, "IdDocumento")).toEqual(["Richiesta di acquist"]);
-    expect(valore(xml, "Causale")).toContain("Ordine cliente: Richiesta di acquisto n. 2026/000123");
+    expect(valore(xml, "IdDocumento")).toEqual(["2026/000123"]);
+    expect(valore(xml, "Causale")).toContain("Ordine cliente: Richiesta di acquisto 2026/000123");
   });
 
   it("con errori non crea il file", () => {

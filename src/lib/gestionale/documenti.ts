@@ -89,6 +89,8 @@ export type Anagrafica = {
   banca_presentazione: string | null;
   codice_iva_esenzione: string | null;
   fido: number | null;
+  /** Come questo cliente chiama il suo ordine di acquisto: OP, RdA, OC… */
+  ordine_cliente_tipo: string | null;
   /** Esigibilità IVA abituale: I immediata, D differita, S scissione dei pagamenti */
   esigibilita_iva: "I" | "D" | "S";
   codice_mexal: string | null;
@@ -142,6 +144,8 @@ export type Documento = {
   bollo_virtuale: boolean;
   /** Nome dello spettacolo o della produzione */
   produzione: string | null;
+  /** Come il cliente chiama il suo ordine (OP, RdA, OC…); il numero è in riferimento_esterno */
+  ordine_cliente_tipo: string | null;
   /** Fattura che accompagna la merce: scarica il magazzino come un DDT */
   accompagnatoria: boolean;
   /** Conferma d'ordine: materiale impegnato liberato a mano */
@@ -157,7 +161,7 @@ export type Documento = {
 export type Testata = Pick<Documento,
   "data" | "anagrafica_id" | "oggetto" | "riferimento_esterno" | "data_esterna" | "pagamento" | "condizione_pagamento_id" | "validita_giorni"
   | "consegna_prevista" | "destinazione" | "causale_trasporto" | "aspetto_beni" | "colli" | "peso_kg" | "vettore"
-  | "porto" | "note" | "note_interne" | "cig" | "cup" | "esigibilita_iva" | "bollo_virtuale" | "produzione" | "accompagnatoria">;
+  | "porto" | "note" | "note_interne" | "cig" | "cup" | "esigibilita_iva" | "bollo_virtuale" | "produzione" | "accompagnatoria" | "ordine_cliente_tipo">;
 
 export type Riga = {
   id: string;

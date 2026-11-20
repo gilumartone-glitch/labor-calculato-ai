@@ -6,6 +6,7 @@
  *   ← →              campo precedente / successivo quando il cursore è all'inizio / alla fine
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
+ *   F6               apre il menu «Trasforma in» del documento confermato
  *   Alt+1…9          cambia sezione
  * Tab e Maiusc+Tab restano quelli del browser.
  */
@@ -118,6 +119,14 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     const nuovo = elenco(radice, "[data-nuovo]")[0];
     if (!nuovo) return false;
     nuovo.click();
+    return fatto();
+  }
+  if (!inFinestra && e.key === "F6") {
+    const menu = elenco(radice, "[data-trasforma]")[0];
+    if (!menu) return false;
+    menu.focus();
+    // il menu si apre con la freccia giù, come da tastiera
+    menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     return fatto();
   }
   if (!inFinestra && e.key === "F4") { emetti({ azione: "nuova-riga", riga: rigaDi(target) }); return fatto(); }

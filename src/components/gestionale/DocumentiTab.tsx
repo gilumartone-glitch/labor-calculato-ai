@@ -456,7 +456,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           {puoScrivere && documento.stato === "confermato" && TRASFORMAZIONI[documento.tipo].length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" disabled={occupato}>
+                <Button size="sm" data-trasforma disabled={occupato}>
                   <ArrowRight className="w-4 h-4 mr-1" /> Trasforma in
                   <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>

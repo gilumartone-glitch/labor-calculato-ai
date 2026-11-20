@@ -61,14 +61,53 @@ describe("F10", () => {
 });
 
 describe("frecce", () => {
-  it("su e giù tra i campi; sui numeri non cambiano il valore", () => {
-    monta(`<input id="a"><input id="b" type="number" value="5"><input id="c" type="date"><select id="s"></select>`);
+  it("su e giù tra i campi, date comprese; sui numeri non cambiano il valore; le tendine restano loro", () => {
+    monta(`<input id="a"><input id="b" type="number" value="5"><input id="c" type="date"><select id="s"></select><input id="z">`);
     premi($("a"), "ArrowDown");
     expect(attivo()).toBe("b");
     expect(premi($("b"), "ArrowUp")).toEqual({ usato: true, fermato: true });
     expect(attivo()).toBe("a");
-    expect(premi($("c"), "ArrowDown").usato).toBe(false);
+    premi($("b"), "ArrowRight");
+    expect(attivo()).toBe("c");
+    expect(premi($("c"), "ArrowRight").usato).toBe(false);   // giorno → mese → anno
+    premi($("c"), "ArrowDown");
+    expect(attivo()).toBe("s");
     expect(premi($("s"), "ArrowDown").usato).toBe(false);
+    premi($("s"), "ArrowRight");
+    expect(attivo()).toBe("z");
+  });
+  it("con le frecce si arriva anche ai pulsanti e si torna indietro", () => {
+    monta(`<button id="elenco">Elenco</button><button id="trasforma">Trasforma</button><input id="a" value="x" disabled><input id="b" value=""><button id="salva">Salva</button>`);
+    $("elenco").focus();
+    premi($("elenco"), "ArrowRight");
+    expect(attivo()).toBe("trasforma");
+    premi($("trasforma"), "ArrowDown");
+    expect(attivo()).toBe("b");               // il campo chiuso si salta
+    premi($("b"), "ArrowDown");
+    expect(attivo()).toBe("salva");           // finiti i campi si passa ai pulsanti
+    premi($("salva"), "ArrowUp");
+    expect(attivo()).toBe("b");
+    premi($("b"), "ArrowUp");
+    expect(attivo()).toBe("trasforma");
+  });
+  it("senza niente di selezionato la freccia porta sulla prima riga o sul primo campo", () => {
+    monta(`<button id="p">x</button><table><tbody><tr id="r1" data-elenco tabindex="0"></tr></tbody></table>`);
+    premi(document.body, "ArrowDown");
+    expect(attivo()).toBe("r1");
+    premi($("r1"), "ArrowUp");
+    expect(attivo()).toBe("p");               // in cima all'elenco si risale ai pulsanti
+  });
+  it("nelle note a più righe si esce solo dall'inizio o dalla fine", () => {
+    monta(`<input id="a"><textarea id="x">riga uno\nriga due</textarea><input id="b">`);
+    const x = document.getElementById("x") as HTMLTextAreaElement;
+    x.focus(); x.setSelectionRange(3, 3);
+    expect(premi(x, "ArrowDown").usato).toBe(false);
+    x.setSelectionRange(x.value.length, x.value.length);
+    premi(x, "ArrowDown");
+    expect(attivo()).toBe("b");
+    x.focus(); x.setSelectionRange(0, 0);
+    premi(x, "ArrowUp");
+    expect(attivo()).toBe("a");
   });
   it("nelle righe del documento restano nella stessa colonna", () => {
     monta(`<div data-righe-modificabili><div>

@@ -2,8 +2,10 @@
  * Uso da tastiera del Gestionale, come un gestionale classico:
  *   Invio            campo successivo (Maiusc+Invio: precedente); sull'ultimo campo va al pulsante di conferma
  *   F10              salva / conferma la schermata o la finestra aperta
- *   ↑ ↓              campo precedente / successivo; nelle righe del documento, stessa colonna della riga sopra / sotto
- *   ← →              campo precedente / successivo quando il cursore è all'inizio / alla fine
+ *   ↑ ↓ ← →          ci si sposta ovunque: tra i campi, sui pulsanti, nelle righe degli elenchi.
+ *                    Nelle righe del documento ↑ ↓ restano nella stessa colonna. Dentro un testo ← → muovono
+ *                    prima il cursore e passano al campo vicino quando è all'inizio o alla fine.
+ *                    Le tendine si aprono con ↑ ↓ (o Invio) e si lasciano con ← →.
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
  *   F6               apre il menu «Trasforma in» del documento confermato
@@ -15,6 +17,8 @@
 const CAMPI = 'input:not([type="hidden"]):not([type="file"]), select, textarea, button[role="combobox"], button[role="switch"]';
 /** Campi su cui si ferma Invio: quelli in cui si scrive, più le caselle di scelta che poi avanzano da sole. */
 const CAMPI_INVIO = 'input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), select, button[data-invio]';
+/** Tutto ciò su cui ci si può fermare: campi, pulsanti, righe degli elenchi. */
+const TUTTI = `${CAMPI}, button, a[href], [tabindex="0"]`;
 const TIPI_TESTO = new Set(["text", "search", "tel", "email", "url", "password", ""]);
 
 export type AzioneTastiera = { azione: "nuova-riga" | "togli-riga"; riga: number | null };
@@ -148,7 +152,9 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
   if (target.matches("[data-elenco]")) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       const righe = elenco(ambito, "[data-elenco]");
-      vai(righe[righe.indexOf(target) + (e.key === "ArrowDown" ? 1 : -1)] ?? null);
+      const p = e.key === "ArrowDown" ? 1 : -1;
+      // in cima all'elenco ↑ risale ai pulsanti sopra
+      if (!vai(righe[righe.indexOf(target) + p] ?? null)) vai(vicino(ambito, target, p, TUTTI));
       return fatto();
     }
     if (e.key === "Enter") { target.click(); return fatto(); }
@@ -175,23 +181,51 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
   }
 
   if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "ArrowRight" && e.key !== "ArrowLeft") return false;
 
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    // le tendine si aprono con le frecce, le date e le aree di testo le usano per conto loro
-    if (!(eTesto || eNumero || target.matches("button[data-invio]"))) return false;
-    const passo = e.key === "ArrowDown" ? 1 : -1;
-    vai(stessaColonna(target, passo) ?? vicino(ambito, target, passo, CAMPI));
-    return fatto();   // sui numeri evita anche che la freccia cambi il valore
-  }
+  const verticale = e.key === "ArrowDown" || e.key === "ArrowUp";
+  const passo = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
+  /** Da un campo si va al campo vicino; finiti i campi (o partendo da un pulsante) si passa da tutto. */
+  const sposta = (campi: boolean) => vai((campi ? vicino(ambito, target, passo, CAMPI) : null) ?? vicino(ambito, target, passo, TUTTI));
 
-  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-    const passo = e.key === "ArrowRight" ? 1 : -1;
-    if (eTesto) {
-      const { selectionStart: da, selectionEnd: a, value } = target;
+  if (eTesto || target instanceof HTMLTextAreaElement) {
+    const { selectionStart: da, selectionEnd: a, value } = target as HTMLInputElement | HTMLTextAreaElement;
+    const areaDiTesto = target instanceof HTMLTextAreaElement;
+    // dentro il testo le frecce muovono il cursore; si esce solo dal bordo
+    if (!verticale || areaDiTesto) {
       if (da !== a) return false;
       if (passo === 1 ? a !== value.length : da !== 0) return false;
-    } else if (!eScelta) return false;
-    return vai(vicino(ambito, target, passo, CAMPI)) ? fatto() : false;
+    }
+    if (!vai(verticale ? stessaColonna(target, passo) : null)) sposta(true);
+    return fatto();
+  }
+  if (eNumero) {
+    // sui numeri la freccia non cambia più il valore: sposta, come negli altri campi
+    if (!vai(verticale ? stessaColonna(target, passo) : null)) sposta(true);
+    return fatto();
+  }
+  if (eInput && ["date", "time", "datetime-local", "month"].includes(target.type)) {
+    if (!verticale) return false;          // ← → passano da giorno a mese ad anno
+    sposta(true);
+    return fatto();
+  }
+  if (target instanceof HTMLSelectElement || (target.matches('button[role="combobox"]') && !target.matches("[data-invio]"))) {
+    if (verticale) return false;           // ↑ ↓ aprono la tendina o cambiano la scelta
+    sposta(true);
+    return fatto();
+  }
+  if (target.matches('[role="tab"]')) {
+    if (!verticale) return false;          // ← → scorrono le sezioni
+    return sposta(false) ? fatto() : false;
+  }
+  if (target === document.body) {
+    // niente di selezionato: la prima freccia porta sulla prima riga dell'elenco o sul primo campo
+    const primo = elenco(ambito, "[data-elenco]")[0] ?? elenco(ambito, CAMPI)[0] ?? elenco(ambito, "[data-nuovo], [data-esc]")[0];
+    return vai(primo ?? null) ? fatto() : false;
+  }
+  if (target.matches(`${CAMPI}, button, a[href], [tabindex="0"]`)) {
+    if (target.matches("[data-elenco]") && !verticale) return false;
+    return sposta(target.matches(CAMPI)) ? fatto() : false;
   }
   return false;
 }

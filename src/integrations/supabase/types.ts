@@ -1099,6 +1099,7 @@ export type Database = {
           is_fornitore: boolean
           nazione: string
           note: string | null
+          ordine_cliente_tipo: string | null
           origine: string | null
           pagamento: string | null
           partita_iva: string | null
@@ -1136,6 +1137,7 @@ export type Database = {
           is_fornitore?: boolean
           nazione?: string
           note?: string | null
+          ordine_cliente_tipo?: string | null
           origine?: string | null
           pagamento?: string | null
           partita_iva?: string | null
@@ -1173,6 +1175,7 @@ export type Database = {
           is_fornitore?: boolean
           nazione?: string
           note?: string | null
+          ordine_cliente_tipo?: string | null
           origine?: string | null
           pagamento?: string | null
           partita_iva?: string | null
@@ -1349,6 +1352,7 @@ export type Database = {
           note_interne: string | null
           numero: number | null
           oggetto: string | null
+          ordine_cliente_tipo: string | null
           origine_id: string | null
           pagamento: string | null
           peso_kg: number | null
@@ -1395,6 +1399,7 @@ export type Database = {
           note_interne?: string | null
           numero?: number | null
           oggetto?: string | null
+          ordine_cliente_tipo?: string | null
           origine_id?: string | null
           pagamento?: string | null
           peso_kg?: number | null
@@ -1441,6 +1446,7 @@ export type Database = {
           note_interne?: string | null
           numero?: number | null
           oggetto?: string | null
+          ordine_cliente_tipo?: string | null
           origine_id?: string | null
           pagamento?: string | null
           peso_kg?: number | null
@@ -3915,6 +3921,7 @@ export type Database = {
           note_interne: string | null
           numero: number | null
           oggetto: string | null
+          ordine_cliente_tipo: string | null
           origine_id: string | null
           pagamento: string | null
           peso_kg: number | null

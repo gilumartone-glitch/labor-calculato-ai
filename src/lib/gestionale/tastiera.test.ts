@@ -132,7 +132,8 @@ describe("righe, elenchi, sezioni", () => {
     const nuovo = vi.fn(); const ind = vi.fn(); const t2 = vi.fn();
     $("nuovo").addEventListener("click", nuovo); $("ind").addEventListener("click", ind); $("t2").addEventListener("click", t2);
     premi($("a"), "F2"); premi($("a"), "Escape"); premi($("a"), "2", { altKey: true });
-    expect([nuovo.mock.calls.length, ind.mock.calls.length, t2.mock.calls.length]).toEqual([1, 1, 1]);
+    premi($("a"), "™", { altKey: true, code: "Digit2" });   // Alt+2 sul Mac
+    expect([nuovo.mock.calls.length, ind.mock.calls.length, t2.mock.calls.length]).toEqual([1, 1, 2]);
     document.getElementById("radice")?.insertAdjacentHTML("beforeend", `<div role="dialog" data-state="open"><input id="dentro"></div>`);
     expect(premi($("dentro"), "Escape").usato).toBe(false);
     expect(ind).toHaveBeenCalledTimes(1);

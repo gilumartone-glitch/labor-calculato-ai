@@ -104,9 +104,11 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     return fatto();
   }
 
-  if (e.altKey && !e.ctrlKey && /^[1-9]$/.test(e.key) && !inFinestra) {
+  // con Alt premuto alcune tastiere cambiano il carattere (sul Mac Alt+2 è «™»): si guarda il tasto fisico
+  const cifra = /^[1-9]$/.test(e.key) ? e.key : /^(Digit|Numpad)[1-9]$/.test(e.code) ? e.code.slice(-1) : null;
+  if (e.altKey && !e.ctrlKey && cifra && !inFinestra) {
     const schede = elenco(radice, '[role="tablist"] [role="tab"]');
-    const scheda = schede[Number(e.key) - 1];
+    const scheda = schede[Number(cifra) - 1];
     if (!scheda) return false;
     scheda.focus();
     scheda.click();

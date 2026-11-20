@@ -58,3 +58,24 @@ describe("percorso dei documenti e magazzino", () => {
     expect(muoveMagazzino("ordine", true)).toBe(false);
   });
 });
+
+describe("catenaDocumento", () => {
+  it("risale all'origine e scende a tutto ciò che ne è nato, saltando le bozze scartate", async () => {
+    const { catenaDocumento } = await import("./documenti");
+    const n = (id: string, tipo: "preventivo" | "ordine" | "ddt" | "fattura", origine_id: string | null, numero: number | null, data: string, stato: "bozza" | "confermato" | "annullato" = "confermato") =>
+      [id, { id, tipo, numero, anno: 2026, serie: "", data, stato, origine_id }] as const;
+    const nodi = new Map([
+      n("p", "preventivo", null, 45, "2026-11-01"), n("o", "ordine", "p", 12, "2026-11-05"),
+      n("d2", "ddt", "o", 41, "2026-11-12"), n("d1", "ddt", "o", 40, "2026-11-10"),
+      n("f1", "fattura", "d1", 7, "2026-11-11"), n("x", "ddt", "o", null, "2026-11-09", "annullato"),
+      n("altro", "preventivo", null, 46, "2026-11-02"),
+    ]);
+    const o = catenaDocumento("o", nodi);
+    expect(o.prima.map((x) => x.id)).toEqual(["p"]);
+    expect(o.dopo.map((x) => x.id)).toEqual(["d1", "f1", "d2"]);
+    const f = catenaDocumento("f1", nodi);
+    expect(f.prima.map((x) => x.id)).toEqual(["p", "o", "d1"]);
+    expect(f.dopo).toEqual([]);
+    expect(catenaDocumento("altro", nodi)).toEqual({ prima: [], dopo: [] });
+  });
+});

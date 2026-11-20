@@ -47,7 +47,7 @@ export const isPassivo = (t: TipoDocumento) => t === "bolla_carico" || t === "fa
 
 /** In quali documenti si può trasformare un documento confermato. */
 export const TRASFORMAZIONI: Record<TipoDocumento, TipoDocumento[]> = {
-  preventivo: ["ordine"],
+  preventivo: ["ordine", "ddt", "fattura"],
   ordine: ["ddt", "fattura"],
   ddt: ["fattura"],
   fattura: ["nota_credito"],
@@ -211,6 +211,43 @@ const NOME_NEL_PERCORSO: Record<TipoDocumento, string> = {
   bolla_carico: "Bolla di carico", fattura_fornitore: "Fattura fornitore",
 };
 const dataItaliana = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+/** Nome breve, per mostrare il percorso in poco spazio. */
+export const TIPO_BREVE: Record<TipoDocumento, string> = {
+  preventivo: "Prev.", ordine: "OC", ddt: "DDT", fattura: "Fatt.", nota_credito: "NC", bolla_carico: "Bolla", fattura_fornitore: "Fatt. forn.",
+};
+
+export type NodoPercorso = PassoPercorso & { origine_id: string | null };
+
+/**
+ * Il percorso completo attorno a un documento: da dove nasce (dal più vecchio) e cosa ne è nato
+ * (anche più documenti: due DDT dalla stessa conferma d'ordine). Le bozze scartate non contano.
+ */
+export function catenaDocumento(id: string, nodi: Map<string, NodoPercorso>): { prima: NodoPercorso[]; dopo: NodoPercorso[] } {
+  const prima: NodoPercorso[] = [];
+  let corrente = nodi.get(id);
+  for (let i = 0; i < 20 && corrente?.origine_id; i++) {
+    const su = nodi.get(corrente.origine_id);
+    if (!su) break;
+    prima.unshift(su);
+    corrente = su;
+  }
+  const figli = new Map<string, NodoPercorso[]>();
+  for (const n of nodi.values()) {
+    if (!n.origine_id || (n.stato === "annullato" && n.numero == null)) continue;
+    figli.set(n.origine_id, [...(figli.get(n.origine_id) ?? []), n]);
+  }
+  const dopo: NodoPercorso[] = [];
+  const scendi = (da: string, livello: number) => {
+    if (livello > 20) return;
+    for (const f of (figli.get(da) ?? []).sort((a, b) => a.data.localeCompare(b.data) || (a.numero ?? 0) - (b.numero ?? 0))) {
+      dopo.push(f);
+      scendi(f.id, livello + 1);
+    }
+  };
+  scendi(id, 0);
+  return { prima, dopo };
+}
 
 /** "12/2026", oppure "12/A/2026" con la serie. */
 export const numeroDocumento = (d: Pick<PassoPercorso, "numero" | "anno" | "serie">): string =>
@@ -442,6 +479,35 @@ export async function trasformaDocumento(origineId: string, tipo: TipoDocumento)
 /** I documenti da cui discende un documento, dal più vecchio al più recente. */
 export async function percorsoDocumento(id: string): Promise<PassoPercorso[]> {
   return esito<PassoPercorso[]>(await db.rpc("gest_percorso_documento", { _documento_id: id })) ?? [];
+}
+
+const CAMPI_NODO = "id, tipo, numero, anno, serie, data, stato, origine_id";
+const aBlocchi = <T,>(a: T[], n: number): T[][] => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+
+/**
+ * Tutti i documenti collegati a quelli indicati, risalendo e scendendo lungo il percorso.
+ * Legge a giri: ogni giro prende i documenti di origine e quelli derivati non ancora visti.
+ */
+export async function famigliaDocumenti(ids: string[]): Promise<Map<string, NodoPercorso>> {
+  const nodi = new Map<string, NodoPercorso>();
+  const leggi = async (colonna: "id" | "origine_id", valori: string[]) => {
+    const nuovi: NodoPercorso[] = [];
+    for (const blocco of aBlocchi(valori, 150)) {
+      const righe = esito<NodoPercorso[]>(await db.from("gest_documenti").select(CAMPI_NODO).in(colonna, blocco));
+      for (const r of righe) if (!nodi.has(r.id)) { nodi.set(r.id, r); nuovi.push(r); }
+    }
+    return nuovi;
+  };
+  let daGuardare = await leggi("id", [...new Set(ids)]);
+  const scesi = new Set<string>();
+  for (let giro = 0; giro < 8 && daGuardare.length > 0; giro++) {
+    const su = [...new Set(daGuardare.map((n) => n.origine_id).filter((x): x is string => !!x && !nodi.has(x)))];
+    const giu = daGuardare.map((n) => n.id).filter((x) => !scesi.has(x));
+    giu.forEach((x) => scesi.add(x));
+    const [a, b] = await Promise.all([su.length ? leggi("id", su) : [], giu.length ? leggi("origine_id", giu) : []]);
+    daGuardare = [...a, ...b];
+  }
+  return nodi;
 }
 
 /** Libera a mano (o rimette) il materiale impegnato da una conferma d'ordine. */

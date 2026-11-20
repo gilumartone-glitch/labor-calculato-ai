@@ -15,8 +15,8 @@ import { descriviVariante, type Articolo, type Variante } from "@/lib/gestionale
 import {
   TIPI_DOCUMENTO, TIPO_LABEL, TIPO_LABEL_PLURALE, TIPO_RIGA_LABEL, TRASFORMAZIONI, isPassivo,
   annullaDocumento, calcolaTotali, confermaDocumento, creaDocumento, documentiCollegati, elencoDocumenti,
-  chiudiImpegno, generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, percorsoDocumento, rigaVuota, salvaBozza, sommaPezze, testoPercorso, titoloDocumento, trasformaDocumento,
-  type AliquotaIva, type Anagrafica, type Documento, type PassoPercorso, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
+  chiudiImpegno, famigliaDocumenti, generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, percorsoDocumento, rigaVuota, salvaBozza, sommaPezze, testoPercorso, titoloDocumento, trasformaDocumento,
+  type AliquotaIva, type Anagrafica, type Documento, type NodoPercorso, type PassoPercorso, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
   type TipoDocumento, type TipoRiga,
 } from "@/lib/gestionale/documenti";
 import { elencoPezze } from "@/lib/gestionale/api";
@@ -24,6 +24,7 @@ import { anteprimaScadenze, type CondizionePagamento } from "@/lib/gestionale/sc
 import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
+import { PercorsoDocumenti } from "./PercorsoDocumenti";
 import { Switch } from "@/components/ui/switch";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -189,6 +190,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [iva, setIva] = useState<RiepilogoIva[]>([]);
   const [collegati, setCollegati] = useState<Documento[]>([]);
   const [percorso, setPercorso] = useState<PassoPercorso[]>([]);
+  const [famiglia, setFamiglia] = useState<Map<string, NodoPercorso>>(new Map());
   const [modificato, setModificato] = useState(false);
   const [occupato, setOccupato] = useState(false);
   const [nuovaAnagrafica, setNuovaAnagrafica] = useState(false);
@@ -199,6 +201,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     try {
       const [{ documento: d, righe: r, iva: i }, c, p] = await Promise.all([leggiDocumento(documentoId), documentiCollegati(documentoId), percorsoDocumento(documentoId)]);
       setPercorso(p);
+      famigliaDocumenti([documentoId]).then(setFamiglia).catch(errore);
       setDocumento(d);
       setTestata(testataDa(d));
       setRighe(r.map(({ documento_id: _d, posizione: _p, importo: _i, ...resto }) => (
@@ -448,15 +451,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           {" "}Le altre righe non muovono giacenze.
         </p>
       )}
-      {(documento.origine_id || collegati.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Documenti collegati:</span>
-          {collegati.map((c) => (
-            <Button key={c.id} size="sm" variant="outline" onClick={() => onApri(c.id, c.tipo)}>{titoloDocumento(c)}</Button>
-          ))}
-          {documento.origine_id && collegati.length === 0 && <span className="text-muted-foreground">nasce da un documento precedente</span>}
-        </div>
-      )}
+      <PercorsoDocumenti id={documento.id} nodi={famiglia} onApri={onApri} />
 
       {/* Testata */}
       <section className="border-2 border-ink/20 bg-paper rounded-sm p-4 grid gap-3">
@@ -798,10 +793,16 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
   const [loading, setLoading] = useState(true);
   const [aperto, setAperto] = useState<string | null>(documentoIniziale ?? null);
   const [creando, setCreando] = useState(false);
+  const [famiglia, setFamiglia] = useState<Map<string, NodoPercorso>>(new Map());
 
   const carica = useCallback(async (t: TipoDocumento) => {
     setLoading(true);
-    try { setDocumenti(await elencoDocumenti(t)); } catch (e) { errore(e); } finally { setLoading(false); }
+    try {
+      const elenco = await elencoDocumenti(t);
+      setDocumenti(elenco);
+      // il percorso arriva subito dopo l'elenco, senza rallentarlo
+      famigliaDocumenti(elenco.map((d) => d.id)).then(setFamiglia).catch(errore);
+    } catch (e) { errore(e); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { if (!aperto) carica(tipo); }, [tipo, aperto, carica]);
@@ -857,6 +858,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
                 <TableHead>Data</TableHead>
                 <TableHead>{isPassivo(tipo) ? "Fornitore" : "Cliente"}</TableHead>
                 <TableHead>Oggetto</TableHead>
+                <TableHead>Percorso</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead className="text-right">Totale</TableHead>
               </TableRow>
@@ -867,7 +869,8 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
                   <TableCell className="font-mono text-xs">{d.numero != null ? `${d.numero}${d.serie ? `/${d.serie}` : ""}/${d.anno}` : "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{fmtData(d.data)}</TableCell>
                   <TableCell className="font-medium">{d.intestatario?.ragione_sociale ?? (d.anagrafica_id ? anagraficaById.get(d.anagrafica_id)?.ragione_sociale : null) ?? "—"}</TableCell>
-                  <TableCell className="max-w-[280px] truncate">{d.oggetto ?? (isPassivo(tipo) ? d.riferimento_esterno : null) ?? "—"}</TableCell>
+                  <TableCell className="max-w-[220px] truncate">{d.oggetto ?? (isPassivo(tipo) ? d.riferimento_esterno : null) ?? "—"}</TableCell>
+                  <TableCell><PercorsoDocumenti compatto id={d.id} nodi={famiglia} /></TableCell>
                   <TableCell><Badge variant={STATO_VARIANT[d.stato]}>{d.stato}</Badge></TableCell>
                   <TableCell className="text-right tabular-nums">{eur(d.totale)}</TableCell>
                 </TableRow>

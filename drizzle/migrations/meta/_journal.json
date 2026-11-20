@@ -351,6 +351,13 @@
       "when": 1795112091443,
       "tag": "0049_gestionale_fattura_elettronica",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795164495008,
+      "tag": "0050_gestionale_percorso_impegni",
+      "breakpoints": true
     }
   ]
 }

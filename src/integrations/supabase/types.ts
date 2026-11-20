@@ -1318,6 +1318,7 @@ export type Database = {
       }
       gest_documenti: {
         Row: {
+          accompagnatoria: boolean
           anagrafica_id: string | null
           anno: number | null
           annullato_il: string | null
@@ -1339,6 +1340,7 @@ export type Database = {
           destinazione: string | null
           esigibilita_iva: string
           id: string
+          impegno_chiuso_il: string | null
           imponibile: number
           imposta: number
           intestatario: Json | null
@@ -1351,6 +1353,7 @@ export type Database = {
           pagamento: string | null
           peso_kg: number | null
           porto: string | null
+          produzione: string | null
           riferimento_esterno: string | null
           serie: string
           stato: string
@@ -1361,6 +1364,7 @@ export type Database = {
           vettore: string | null
         }
         Insert: {
+          accompagnatoria?: boolean
           anagrafica_id?: string | null
           anno?: number | null
           annullato_il?: string | null
@@ -1382,6 +1386,7 @@ export type Database = {
           destinazione?: string | null
           esigibilita_iva?: string
           id?: string
+          impegno_chiuso_il?: string | null
           imponibile?: number
           imposta?: number
           intestatario?: Json | null
@@ -1394,6 +1399,7 @@ export type Database = {
           pagamento?: string | null
           peso_kg?: number | null
           porto?: string | null
+          produzione?: string | null
           riferimento_esterno?: string | null
           serie?: string
           stato?: string
@@ -1404,6 +1410,7 @@ export type Database = {
           vettore?: string | null
         }
         Update: {
+          accompagnatoria?: boolean
           anagrafica_id?: string | null
           anno?: number | null
           annullato_il?: string | null
@@ -1425,6 +1432,7 @@ export type Database = {
           destinazione?: string | null
           esigibilita_iva?: string
           id?: string
+          impegno_chiuso_il?: string | null
           imponibile?: number
           imposta?: number
           intestatario?: Json | null
@@ -1437,6 +1445,7 @@ export type Database = {
           pagamento?: string | null
           peso_kg?: number | null
           porto?: string | null
+          produzione?: string | null
           riferimento_esterno?: string | null
           serie?: string
           stato?: string
@@ -1618,6 +1627,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "gest_documenti_righe"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_pezze_riga_id_fkey"
+            columns: ["riga_id"]
+            isOneToOne: false
+            referencedRelation: "gest_impegni"
+            referencedColumns: ["riga_id"]
           },
         ]
       }
@@ -3606,19 +3622,25 @@ export type Database = {
         Row: {
           articolo_id: string | null
           codice: string | null
+          disponibile: number | null
           giacenza: number | null
+          impegnato: number | null
           variante_id: string | null
         }
         Insert: {
           articolo_id?: string | null
           codice?: string | null
+          disponibile?: never
           giacenza?: never
+          impegnato?: never
           variante_id?: string | null
         }
         Update: {
           articolo_id?: string | null
           codice?: string | null
+          disponibile?: never
           giacenza?: never
+          impegnato?: never
           variante_id?: string | null
         }
         Relationships: [
@@ -3627,6 +3649,56 @@ export type Database = {
             columns: ["articolo_id"]
             isOneToOne: false
             referencedRelation: "gest_articoli"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gest_impegni: {
+        Row: {
+          anagrafica_id: string | null
+          anno: number | null
+          consegna_prevista: string | null
+          consegnata: number | null
+          data: string | null
+          descrizione: string | null
+          documento_id: string | null
+          impegnata: number | null
+          numero: number | null
+          ordinata: number | null
+          produzione: string | null
+          ragione_sociale: string | null
+          riga_id: string | null
+          serie: string | null
+          um: string | null
+          variante_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_documenti_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_giacenze_varianti"
+            referencedColumns: ["variante_id"]
+          },
+          {
+            foreignKeyName: "gest_documenti_righe_variante_id_fkey"
+            columns: ["variante_id"]
+            isOneToOne: false
+            referencedRelation: "gest_varianti"
             referencedColumns: ["id"]
           },
         ]
@@ -3801,6 +3873,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gest_chiudi_impegno: {
+        Args: { _chiudi?: boolean; _documento_id: string }
+        Returns: undefined
+      }
       gest_collega_scadenza: {
         Args: { _scadenza_id: string }
         Returns: boolean
@@ -3808,6 +3884,7 @@ export type Database = {
       gest_conferma_documento: {
         Args: { _documento_id: string }
         Returns: {
+          accompagnatoria: boolean
           anagrafica_id: string | null
           anno: number | null
           annullato_il: string | null
@@ -3829,6 +3906,7 @@ export type Database = {
           destinazione: string | null
           esigibilita_iva: string
           id: string
+          impegno_chiuso_il: string | null
           imponibile: number
           imposta: number
           intestatario: Json | null
@@ -3841,6 +3919,7 @@ export type Database = {
           pagamento: string | null
           peso_kg: number | null
           porto: string | null
+          produzione: string | null
           riferimento_esterno: string | null
           serie: string
           stato: string
@@ -3889,6 +3968,19 @@ export type Database = {
       gest_movimenta_documento: {
         Args: { _documento_id: string }
         Returns: undefined
+      }
+      gest_percorso_documento: {
+        Args: { _documento_id: string }
+        Returns: {
+          anno: number
+          data: string
+          id: string
+          livello: number
+          numero: number
+          serie: string
+          stato: string
+          tipo: string
+        }[]
       }
       gest_prima_nota_registra: {
         Args: {

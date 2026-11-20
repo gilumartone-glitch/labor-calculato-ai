@@ -1,4 +1,5 @@
 import { BankBalances } from "@/components/contabilita/BankBalances";
+import { DEFAULT_PAYMENT_METHODS, PAYMENT_CODES, paymentCode } from "@/lib/payment-methods";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -196,28 +197,7 @@ const MONTH_COLORS: Array<{ dept: string; soft: string }> = [
   { dept: "300 55% 38%", soft: "300 45% 94%" }, // Dic - prugna
 ];
 
-const paymentCode = (method?: string) => {
-  const value = (method ?? "").trim().toUpperCase();
-  if (value === "CC") return "C";
-  if (["B", "C", "F", "N", "R", "A"].includes(value)) return value;
-  if (value === "BONIFICO") return "B";
-  if (value === "CONTANTI") return "C";
-  if (value === "SPESA FISSA") return "F";
-  if (value === "NELLA") return "N";
-  if (value === "RIBA") return "R";
-  if (value === "ASSEGNO") return "A";
-  return value;
-};
-
-// ====== Metodi di pagamento personalizzati ======
-const DEFAULT_PAYMENT_METHODS: { code: string; label: string }[] = [
-  { code: "B", label: "B - Bonifico" },
-  { code: "C", label: "C - Contanti" },
-  { code: "F", label: "F - Fisso" },
-  { code: "N", label: "N - Note" },
-  { code: "R", label: "R - Ricevuta" },
-  { code: "A", label: "A - Assegno" },
-];
+// ====== Metodi di pagamento: l'elenco e la lettera di ciascuno stanno in lib/payment-methods ======
 const CUSTOM_METHODS_KEY = "officina:contabilita:custom-payment-methods";
 const customMethodsListeners = new Set<() => void>();
 const loadCustomMethods = (): { code: string; label: string }[] => {
@@ -2096,7 +2076,7 @@ const parseImportDate = (raw: string, monthIndex: number): string => {
 const parseImportMethod = (raw: string) => {
   const method = paymentCode(raw).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
   if (method === "CC") return "C";
-  return ["B", "C", "F", "N", "R", "A"].includes(method) ? method : "B";
+  return PAYMENT_CODES.includes(method) ? method : "B";
 };
 
 const excelCellToText = (cell?: XLSX.CellObject) => {
@@ -2147,7 +2127,7 @@ const methodColumnScore = (rows: string[][], methodCol: number, amountCol: numbe
     if (isImportHeader(row) || parseImportAmount(row[amountCol]) === 0) continue;
     checked++;
     const raw = normalizeImportText(row[methodCol] || "").toUpperCase();
-    if (!raw || ["B", "C", "CC", "F", "N", "R", "A", "BONIFICO", "CONTANTI", "RIBA"].includes(raw)) ok++;
+    if (!raw || [...PAYMENT_CODES, "CC", "BONIFICO", "CONTANTI", "RIBA", "PAYPAL"].includes(raw)) ok++;
   }
   return checked === 0 ? 0 : ok / checked;
 };

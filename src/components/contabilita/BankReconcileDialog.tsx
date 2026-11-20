@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { eur } from "@/lib/format";
 import { bankCausale } from "@/lib/bank-causale";
+import { DEFAULT_PAYMENT_METHODS, paymentCode } from "@/lib/payment-methods";
 import { allocationBalance, buildAllocationPlan, type ReconciliationEntry } from "@/lib/bank-allocation-plan";
 import { bankRemaining, competenceRemaining, parseBankAmount, type BankAllocation, type BankTransaction, type CompetenceMovement } from "@/lib/bank-reconciliation";
 
@@ -18,6 +19,7 @@ export function BankReconcileDialog({ rows, allocations, accountingKey, saving, 
   const [candidates, setCandidates] = useState<CompetenceMovement[]>([]);
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [method, setMethod] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,13 @@ export function BankReconcileDialog({ rows, allocations, accountingKey, saving, 
   const selections = candidates.filter(m => selected[m.id] !== undefined).map(movement => ({ movement, amount: parseBankAmount(selected[movement.id]) }));
   const balance = allocationBalance(rows, allocations, selections);
   const mixed = rows.some(t => Math.sign(t.amount) !== Math.sign(rows[0].amount));
-  const visible = candidates.filter(m => `${m.description} ${m.category} ${m.invoiceNumber ?? ""}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT")));
+  // Modalità di pagamento presenti tra le competenze, nell'ordine dell'elenco standard; "—" = senza modalità
+  const methodOf = (m: CompetenceMovement) => paymentCode(m.paymentMethod) || "—";
+  const methodCounts = candidates.reduce<Record<string, number>>((acc, m) => { acc[methodOf(m)] = (acc[methodOf(m)] ?? 0) + 1; return acc; }, {});
+  const order = [...DEFAULT_PAYMENT_METHODS.map(m => m.code), "—"];
+  const methods = Object.keys(methodCounts).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b));
+  const methodLabel = (code: string) => code === "—" ? "Senza modalità" : DEFAULT_PAYMENT_METHODS.find(m => m.code === code)?.label ?? code;
+  const visible = candidates.filter(m => (!method || methodOf(m) === method) && `${m.description} ${m.category} ${m.invoiceNumber ?? ""}`.toLocaleLowerCase("it-IT").includes(search.toLocaleLowerCase("it-IT")));
   const change = () => { retryPlan.current = null; };
   const confirm = async () => {
     if (busy || saving) return;
@@ -62,7 +70,11 @@ export function BankReconcileDialog({ rows, allocations, accountingKey, saving, 
     {mode === "match" ? <>
       {mixed && <p role="alert" className="text-base text-destructive">Seleziona solo entrate oppure solo uscite per associare a competenza.</p>}
       <Input aria-label="Cerca competenza" placeholder="Cerca causale, categoria o fattura" value={search} onChange={e => setSearch(e.target.value)} className="h-11 text-base" />
-      {loading ? <p>Caricamento competenze…</p> : loadError ? <p role="alert" className="text-destructive">Non riesco a caricare le competenze. Chiudi e riprova.</p> : <div className="max-h-60 overflow-y-auto">{visible.map(m => <label key={m.id} className="flex cursor-pointer items-start gap-3 border-b border-border py-3 text-base"><Checkbox aria-label={`Associa ${m.description} ${m.invoiceNumber ?? m.id}`} checked={selected[m.id] !== undefined} onCheckedChange={value => { change(); setSelected(previous => { const next = { ...previous }; if (value) next[m.id] = String(competenceRemaining(m)); else delete next[m.id]; return next; }); }} /><span className="min-w-0 flex-1 break-words">{m.description}<span className="block text-muted-foreground">{m.date.split("-").reverse().join("/")} · Fatt. {m.invoiceNumber || "—"}</span></span><strong className="shrink-0">{eur(competenceRemaining(m))}</strong></label>)}{!visible.length && <p className="py-3 text-base">Nessuna competenza trovata.</p>}</div>}
+      {methods.length > 1 && <div role="group" aria-label="Filtra per modalità di pagamento" className="flex flex-wrap gap-2">
+        <Button size="sm" variant={method === "" ? "default" : "outline"} aria-pressed={method === ""} onClick={() => setMethod("")}>Tutte ({candidates.length})</Button>
+        {methods.map(code => <Button key={code} size="sm" variant={method === code ? "default" : "outline"} aria-pressed={method === code} title={methodLabel(code)} onClick={() => setMethod(method === code ? "" : code)}>{methodLabel(code)} ({methodCounts[code]})</Button>)}
+      </div>}
+      {loading ? <p>Caricamento competenze…</p> : loadError ? <p role="alert" className="text-destructive">Non riesco a caricare le competenze. Chiudi e riprova.</p> : <div className="max-h-60 overflow-y-auto">{visible.map(m => <label key={m.id} className="flex cursor-pointer items-start gap-3 border-b border-border py-3 text-base"><Checkbox aria-label={`Associa ${m.description} ${m.invoiceNumber ?? m.id}`} checked={selected[m.id] !== undefined} onCheckedChange={value => { change(); setSelected(previous => { const next = { ...previous }; if (value) next[m.id] = String(competenceRemaining(m)); else delete next[m.id]; return next; }); }} /><span className="min-w-0 flex-1 break-words">{m.description}<span className="block text-muted-foreground">{m.date.split("-").reverse().join("/")} · Fatt. {m.invoiceNumber || "—"} · {methodLabel(methodOf(m))}</span></span><strong className="shrink-0">{eur(competenceRemaining(m))}</strong></label>)}{!visible.length && <p className="py-3 text-base">Nessuna competenza trovata.</p>}</div>}
       {selections.map(s => <div key={s.movement.id} className="grid items-center gap-2 sm:grid-cols-[1fr_160px]"><Label htmlFor={`allocation-${s.movement.id}`} className="break-words text-base">{s.movement.description} · importo da associare</Label><Input id={`allocation-${s.movement.id}`} inputMode="decimal" value={selected[s.movement.id]} onChange={e => { change(); setSelected(prev => ({ ...prev, [s.movement.id]: e.target.value })); }} className="h-11 text-base" /></div>)}
       <div aria-label="Riepilogo associazione" className="space-y-2 border-y border-border py-3 text-lg"><p>Residuo movimenti: <strong>{eur(balance.bank)}</strong></p><p>Competenze selezionate: <strong>{eur(balance.competence)}</strong></p><p>Differenza (movimenti − competenze): <strong>{balance.difference === 0 ? "Pareggio · " : balance.difference > 0 ? "+" : ""}{eur(balance.difference)}</strong></p><p>Da associare: <strong>{eur(balance.allocated)}</strong></p><p>Residuo bancario dopo associazione: <strong>{eur(balance.bank - balance.allocated)}</strong></p></div>
     </> : <div className="space-y-3"><Label htmlFor="bank-cash-description" className="text-base">{rows.length === 1 ? "Causale" : "Causale comune (facoltativa)"}</Label><Input id="bank-cash-description" value={description} placeholder="Causale del singolo movimento" maxLength={2000} onChange={e => { change(); setDescription(e.target.value.toLocaleUpperCase("it-IT")); }} className="h-11 text-base" /><Label htmlFor="bank-cash-category" className="text-base">Categoria</Label><Input id="bank-cash-category" value={category} maxLength={200} onChange={e => { change(); setCategory(e.target.value.toLocaleUpperCase("it-IT")); }} className="h-11 text-base" />{rows.length === 1 ? <><Label htmlFor="bank-allocation-amount" className="text-base">Importo da portare in cassa</Label><Input id="bank-allocation-amount" value={amount} inputMode="decimal" onChange={e => { change(); setAmount(e.target.value); }} className="h-11 text-lg" /></> : <p className="text-lg">Totale da portare in cassa: <strong>{eur(balance.bank)}</strong></p>}</div>}

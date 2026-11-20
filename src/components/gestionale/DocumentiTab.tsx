@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2 } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -405,9 +406,23 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
           {eFattura && documento.stato !== "annullato" && (
             <Button size="sm" variant="outline" onClick={() => setFatturaElettronica(true)}><FileCode2 className="w-4 h-4 mr-1" /> Fattura elettronica</Button>
           )}
-          {puoScrivere && documento.stato === "confermato" && TRASFORMAZIONI[documento.tipo].map((t) => (
-            <Button key={t} size="sm" disabled={occupato} onClick={() => trasforma(t)}><ArrowRight className="w-4 h-4 mr-1" /> {TIPO_LABEL[t]}</Button>
-          ))}
+          {puoScrivere && documento.stato === "confermato" && TRASFORMAZIONI[documento.tipo].length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" disabled={occupato}>
+                  <ArrowRight className="w-4 h-4 mr-1" /> Trasforma in
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-w-[calc(100vw-2rem)]">
+                {TRASFORMAZIONI[documento.tipo].map((t) => (
+                  <DropdownMenuItem key={t} disabled={occupato} onSelect={() => trasforma(t)}>
+                    <ArrowRight className="w-4 h-4 mr-2 shrink-0" /> {TIPO_LABEL[t]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {puoScrivere && documento.stato !== "annullato" && (
             <Button size="sm" variant="ghost" disabled={occupato} onClick={annulla}><Ban className="w-4 h-4 mr-1" /> {bozza ? "Scarta bozza" : "Annulla"}</Button>
           )}

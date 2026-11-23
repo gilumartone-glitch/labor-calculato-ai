@@ -21,6 +21,7 @@ import DocumentiTab from "@/components/gestionale/DocumentiTab";
 import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
 import RegistriIvaTab from "@/components/gestionale/RegistriIvaTab";
+import EstrattoContoTab from "@/components/gestionale/EstrattoContoTab";
 import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/lib/gestionale/etichette-pdf";
 import { trovaPezza } from "@/lib/gestionale/api";
@@ -37,7 +38,7 @@ import {
 
 /** Le tre aree del Gestionale e le schede di ciascuna. */
 const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valore: string; nome: string }[] }[] = [
-  { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "scadenzario", nome: "Scadenzario" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
+  { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
   { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
 ];
@@ -526,6 +527,10 @@ const Gestionale = () => {
 
             <TabsContent value="prima-nota">
               <PrimaNotaTab puoScrivere={puoScrivere} onApriDocumento={apriDocumento} />
+            </TabsContent>
+
+            <TabsContent value="estratto-conto">
+              <EstrattoContoTab anagrafiche={anagrafiche} onApriDocumento={apriDocumento} />
             </TabsContent>
 
             <TabsContent value="registri-iva">

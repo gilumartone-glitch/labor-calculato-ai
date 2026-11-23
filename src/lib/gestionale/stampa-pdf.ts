@@ -109,16 +109,12 @@ export function riferimentiStampa(d: DatiStampa): [string, string][] {
 const senzaPrezzi = (tipo: TipoDocumento) => tipo === "ddt" || tipo === "bolla_carico";
 const conTrasporto = (d: Pick<DatiStampa, "tipo" | "accompagnatoria">) => d.tipo === "ddt" || (d.tipo === "fattura" && d.accompagnatoria);
 
-export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: string | null): jsPDF {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const fondoPagina = 297 - 16;
+/** Logo e dati dell'azienda in testa alla pagina. Restituisce la quota da cui proseguire. */
+export function intestazioneAzienda(doc: jsPDF, azienda: DatiAzienda, logo?: string | null): number {
   let y = MARGINE;
-  const spazio = (serve: number) => { if (y + serve > fondoPagina) { doc.addPage(); y = MARGINE; } };
   const stile = (peso: "normal" | "bold", corpo: number, colore: [number, number, number] = INCHIOSTRO) => {
     doc.setFont("helvetica", peso); doc.setFontSize(corpo); doc.setTextColor(...colore);
   };
-
-  /* ---- Intestazione: logo e dati dell'azienda ---- */
   let xAzienda = MARGINE;
   if (logo) {
     try { doc.addImage(logo, "PNG", MARGINE, y, 24, 24); xAzienda = MARGINE + 29; } catch { /* senza logo */ }
@@ -136,6 +132,35 @@ export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: str
   const contatti = [azienda.telefono.trim() ? `Tel. ${azienda.telefono.trim()}` : "", azienda.email.trim()].filter(Boolean).join(" · ");
   [sede, fiscale, contatti].filter(Boolean).forEach((riga, i) => doc.text(riga, xAzienda, y + 11.5 + i * 4.2));
   y += 28;
+
+  return y;
+}
+
+/** Riga e numero di pagina in fondo a ogni pagina. */
+export function piePagina(doc: jsPDF, sinistra: string, destra: string): void {
+  const pagine = doc.getNumberOfPages();
+  for (let p = 1; p <= pagine; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(...INCHIOSTRO); doc.setLineWidth(0.3);
+    doc.line(MARGINE, 297 - 12, MARGINE + LARGHEZZA, 297 - 12);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRIGIO);
+    doc.text(sinistra, MARGINE, 297 - 8);
+    doc.text(`${destra} · pag. ${p} di ${pagine}`, MARGINE + LARGHEZZA, 297 - 8, { align: "right" });
+  }
+}
+
+export const STILE_PDF = { INCHIOSTRO, GRIGIO, FONDO, MARGINE, LARGHEZZA };
+
+export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: string | null): jsPDF {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const fondoPagina = 297 - 16;
+  let y = MARGINE;
+  const spazio = (serve: number) => { if (y + serve > fondoPagina) { doc.addPage(); y = MARGINE; } };
+  const stile = (peso: "normal" | "bold", corpo: number, colore: [number, number, number] = INCHIOSTRO) => {
+    doc.setFont("helvetica", peso); doc.setFontSize(corpo); doc.setTextColor(...colore);
+  };
+
+  y = intestazioneAzienda(doc, azienda, logo);
 
   /* ---- Titolo ---- */
   doc.setFillColor(...INCHIOSTRO);

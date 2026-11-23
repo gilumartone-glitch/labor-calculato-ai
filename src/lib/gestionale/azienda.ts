@@ -23,3 +23,13 @@ export async function salvaAzienda(dati: DatiAzienda): Promise<void> {
   );
   if (error) throw new Error(error.message);
 }
+
+/** Il logo per l'intestazione dei PDF, letto una volta sola. Se non si carica si stampa senza. */
+let logoInCache: Promise<string | null> | null = null;
+export const logoAzienda = (): Promise<string | null> => {
+  logoInCache ??= fetch("/tecnofra-logo.png")
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("logo"))))
+    .then((b) => new Promise<string | null>((ok) => { const l = new FileReader(); l.onload = () => ok(String(l.result)); l.onerror = () => ok(null); l.readAsDataURL(b); }))
+    .catch(() => null);
+  return logoInCache;
+};

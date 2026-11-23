@@ -27,19 +27,9 @@ import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
 import { creaPdfDocumento, nomeFilePdf } from "@/lib/gestionale/stampa-pdf";
-import { leggiAzienda } from "@/lib/gestionale/azienda";
+import { leggiAzienda, logoAzienda } from "@/lib/gestionale/azienda";
 import { EVENTO_TASTIERA, campoDopo, type AzioneTastiera } from "@/lib/gestionale/tastiera";
 import { Switch } from "@/components/ui/switch";
-
-/** Il logo per l'intestazione dei PDF, letto una volta sola. Se non si carica si stampa senza. */
-let logoInCache: Promise<string | null> | null = null;
-const logoAzienda = (): Promise<string | null> => {
-  logoInCache ??= fetch("/tecnofra-logo.png")
-    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("logo"))))
-    .then((b) => new Promise<string | null>((ok) => { const l = new FileReader(); l.onload = () => ok(String(l.result)); l.onerror = () => ok(null); l.readAsDataURL(b); }))
-    .catch(() => null);
-  return logoInCache;
-};
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const errore = (e: unknown) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" });

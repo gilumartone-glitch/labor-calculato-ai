@@ -685,7 +685,7 @@ const Gestionale = () => {
       </main>
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…7", "sezioni"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…7", "sezioni"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

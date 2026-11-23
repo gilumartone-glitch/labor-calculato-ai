@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2 } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -26,8 +26,20 @@ import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
+import { creaPdfDocumento, nomeFilePdf } from "@/lib/gestionale/stampa-pdf";
+import { leggiAzienda } from "@/lib/gestionale/azienda";
 import { EVENTO_TASTIERA, campoDopo, type AzioneTastiera } from "@/lib/gestionale/tastiera";
 import { Switch } from "@/components/ui/switch";
+
+/** Il logo per l'intestazione dei PDF, letto una volta sola. Se non si carica si stampa senza. */
+let logoInCache: Promise<string | null> | null = null;
+const logoAzienda = (): Promise<string | null> => {
+  logoInCache ??= fetch("/tecnofra-logo.png")
+    .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("logo"))))
+    .then((b) => new Promise<string | null>((ok) => { const l = new FileReader(); l.onload = () => ok(String(l.result)); l.onerror = () => ok(null); l.readAsDataURL(b); }))
+    .catch(() => null);
+  return logoInCache;
+};
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const errore = (e: unknown) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" });
@@ -288,6 +300,20 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     setRighe((p) => p.map((r) => (r.tipo_riga === "articolo" && r.variante_id ? { ...r, pezze: v ? r.pezze ?? [] : [] } : r)));
     setModificato(true);
   };
+  const stampa = async () => {
+    setOccupato(true);
+    try {
+      const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
+      // si stampa quello che si vede a schermo, anche se la bozza non è ancora salvata
+      const dati = {
+        ...testata, tipo: documento.tipo, numero: documento.numero, anno: documento.anno, serie: documento.serie,
+        cliente: intestatario ?? {}, righe, aliquote, percorso,
+        condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
+      };
+      creaPdfDocumento(azienda, dati, logo).save(nomeFilePdf(dati));
+      if (!azienda.denominazione.trim()) toast({ title: "Dati azienda mancanti", description: "Il PDF è senza intestazione: compila «Dati azienda» in alto a destra." });
+    } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
   const liberaImpegno = async (chiudi: boolean) => {
     setOccupato(true);
     try { await chiudiImpegno(documento.id, chiudi); await carica(); } catch (e) { errore(e); } finally { setOccupato(false); }
@@ -450,6 +476,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
               <Button size="sm" data-f10 disabled={occupato} onClick={conferma}><Check className="w-4 h-4 mr-1" /> Conferma</Button>
             </>
           )}
+          <Button size="sm" variant="outline" data-stampa disabled={occupato} onClick={stampa}><Printer className="w-4 h-4 mr-1" /> Stampa PDF</Button>
           {eFattura && documento.stato !== "annullato" && (
             <Button size="sm" variant="outline" onClick={() => setFatturaElettronica(true)}><FileCode2 className="w-4 h-4 mr-1" /> Fattura elettronica</Button>
           )}

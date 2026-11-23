@@ -8,7 +8,7 @@
  *                    Le tendine si aprono con ↑ ↓ (o Invio) e si lasciano con ← →.
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
- *   F6               apre il menu «Trasforma in» del documento confermato
+ *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF
  *   Alt+1…9          cambia sezione
  * Tab e Maiusc+Tab restano quelli del browser.
  */
@@ -125,6 +125,12 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     const nuovo = elenco(radice, "[data-nuovo]")[0];
     if (!nuovo) return false;
     nuovo.click();
+    return fatto();
+  }
+  if (!inFinestra && e.key === "F9") {
+    const stampa = elenco(radice, "[data-stampa]")[0];
+    if (!stampa) return false;
+    stampa.click();
     return fatto();
   }
   if (!inFinestra && e.key === "F6") {

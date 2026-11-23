@@ -9,7 +9,7 @@
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
  *   F3               porta il cursore nella casella di ricerca della schermata
- *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF
+ *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF      F8  invia per email
  *   Alt+1 2 3        le tre aree (Contabilità, Magazzino, Documenti)      Alt+4…9  le schede dell'area aperta
  * Tab e Maiusc+Tab restano quelli del browser.
  */
@@ -136,6 +136,12 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     const cerca = elenco(radice, "[data-cerca]")[0];
     if (!cerca) return false;
     vai(cerca);
+    return fatto();
+  }
+  if (!inFinestra && e.key === "F8") {
+    const posta = elenco(radice, "[data-email]")[0];
+    if (!posta) return false;
+    posta.click();
     return fatto();
   }
   if (!inFinestra && e.key === "F9") {

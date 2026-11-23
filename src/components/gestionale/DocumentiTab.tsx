@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,8 @@ import type { PezzaGiacenza } from "@/lib/gestionale/types";
 import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
+import { InviaEmailDialog, type EmailDaInviare } from "./InviaEmailDialog";
+import { oggettoEmail, testoEmail } from "@/lib/gestionale/email-documento";
 import { creaPdfDocumento, nomeFilePdf } from "@/lib/gestionale/stampa-pdf";
 import { leggiAzienda, logoAzienda } from "@/lib/gestionale/azienda";
 import { EVENTO_TASTIERA, campoDopo, type AzioneTastiera } from "@/lib/gestionale/tastiera";
@@ -205,6 +207,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [occupato, setOccupato] = useState(false);
   const [nuovaAnagrafica, setNuovaAnagrafica] = useState(false);
   const [fatturaElettronica, setFatturaElettronica] = useState(false);
+  const [email, setEmail] = useState<EmailDaInviare | null>(null);
   /** Riga su cui portare il cursore dopo un'aggiunta o una cancellazione da tastiera. */
   const rigaDaFocalizzare = useRef<number | null>(null);
   const azioneTastiera = useRef<(a: AzioneTastiera) => void>(() => {});
@@ -290,16 +293,25 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     setRighe((p) => p.map((r) => (r.tipo_riga === "articolo" && r.variante_id ? { ...r, pezze: v ? r.pezze ?? [] : [] } : r)));
     setModificato(true);
   };
+  // si stampa (e si spedisce) quello che si vede a schermo, anche se la bozza non è ancora salvata
+  const datiStampa = () => ({
+    ...testata, tipo: documento.tipo, numero: documento.numero, anno: documento.anno, serie: documento.serie,
+    cliente: intestatario ?? {}, righe, aliquote, percorso,
+    condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
+  });
+  const preparaEmail = async () => {
+    setOccupato(true);
+    try {
+      const azienda = await leggiAzienda();
+      const dati = datiStampa();
+      setEmail({ a: anagrafica?.email ?? anagrafica?.pec ?? "", oggetto: oggettoEmail(dati, azienda), testo: testoEmail(dati, azienda), nomeFile: nomeFilePdf(dati) });
+    } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
   const stampa = async () => {
     setOccupato(true);
     try {
       const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
-      // si stampa quello che si vede a schermo, anche se la bozza non è ancora salvata
-      const dati = {
-        ...testata, tipo: documento.tipo, numero: documento.numero, anno: documento.anno, serie: documento.serie,
-        cliente: intestatario ?? {}, righe, aliquote, percorso,
-        condizione: condizioni.find((c) => c.id === testata.condizione_pagamento_id) ?? null,
-      };
+      const dati = datiStampa();
       creaPdfDocumento(azienda, dati, logo).save(nomeFilePdf(dati));
       if (!azienda.denominazione.trim()) toast({ title: "Dati azienda mancanti", description: "Il PDF è senza intestazione: compila «Dati azienda» in alto a destra." });
     } catch (e) { errore(e); } finally { setOccupato(false); }
@@ -467,6 +479,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
             </>
           )}
           <Button size="sm" variant="outline" data-stampa disabled={occupato} onClick={stampa}><Printer className="w-4 h-4 mr-1" /> Stampa PDF</Button>
+          {!passivo && <Button size="sm" variant="outline" data-email disabled={occupato} onClick={preparaEmail}><Mail className="w-4 h-4 mr-1" /> Invia per email</Button>}
           {eFattura && documento.stato !== "annullato" && (
             <Button size="sm" variant="outline" onClick={() => setFatturaElettronica(true)}><FileCode2 className="w-4 h-4 mr-1" /> Fattura elettronica</Button>
           )}
@@ -838,6 +851,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
         onOpenChange={setNuovaAnagrafica}
         onSaved={(a) => { onAnagraficheChanged(); setTestata((p) => (p ? { ...p, anagrafica_id: a.id, pagamento: p.pagamento ?? a.pagamento } : p)); setModificato(true); }}
       />
+      <InviaEmailDialog email={email} onClose={() => setEmail(null)} onScaricaPdf={stampa} />
       <FatturaElettronicaDialog
         onClose={() => setFatturaElettronica(false)}
         fattura={fatturaElettronica && eFattura ? {

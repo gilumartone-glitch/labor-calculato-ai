@@ -78,7 +78,7 @@ const EstrattoContoTab = ({ anagrafiche, onApriDocumento }: { anagrafiche: Anagr
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Cerca per nome…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input data-cerca className="pl-8" placeholder="Cerca per nome…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
         {visibili.length === 0 ? (

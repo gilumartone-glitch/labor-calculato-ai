@@ -193,7 +193,7 @@ const PrimaNotaTab = ({ puoScrivere, onApriDocumento }: { puoScrivere: boolean; 
           </select>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-8 w-52" placeholder="Cerca…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input data-cerca className="pl-8 w-52" placeholder="Cerca…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-2">

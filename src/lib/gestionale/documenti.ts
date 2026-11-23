@@ -476,6 +476,25 @@ export async function trasformaDocumento(origineId: string, tipo: TipoDocumento)
   return esito<string>(await db.rpc("gest_deriva_documento", { _origine_id: origineId, _tipo: tipo }));
 }
 
+/**
+ * Ricerca negli elenchi: ogni parola deve comparire in numero, cliente, oggetto, produzione,
+ * ordine del cliente, CIG o CUP. Senza differenza tra maiuscole e minuscole.
+ */
+export function filtraDocumenti<T extends Pick<Documento, "numero" | "anno" | "serie" | "stato" | "intestatario" | "oggetto" | "produzione" | "ordine_cliente_tipo" | "riferimento_esterno" | "cig" | "cup">>(
+  documenti: T[], ricerca: string, stato: StatoDocumento | "tutti", nomeDi?: (d: T) => string | null | undefined,
+): T[] {
+  const parole = ricerca.toLowerCase().split(/\s+/).filter(Boolean);
+  return documenti.filter((d) => {
+    if (stato !== "tutti" && d.stato !== stato) return false;
+    if (parole.length === 0) return true;
+    const testo = [
+      d.numero != null ? numeroDocumento(d) : "", d.intestatario?.ragione_sociale ?? nomeDi?.(d) ?? "", d.oggetto, d.produzione,
+      d.ordine_cliente_tipo, d.riferimento_esterno, d.cig, d.cup,
+    ].filter(Boolean).join(" ").toLowerCase();
+    return parole.every((p) => testo.includes(p));
+  });
+}
+
 /** I documenti da cui discende un documento, dal più vecchio al più recente. */
 export async function percorsoDocumento(id: string): Promise<PassoPercorso[]> {
   return esito<PassoPercorso[]>(await db.rpc("gest_percorso_documento", { _documento_id: id })) ?? [];

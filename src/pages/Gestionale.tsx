@@ -22,6 +22,7 @@ import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
 import RegistriIvaTab from "@/components/gestionale/RegistriIvaTab";
 import EstrattoContoTab from "@/components/gestionale/EstrattoContoTab";
+import InventarioTab from "@/components/gestionale/InventarioTab";
 import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/lib/gestionale/etichette-pdf";
 import { trovaPezza } from "@/lib/gestionale/api";
@@ -39,7 +40,7 @@ import {
 /** Le tre aree del Gestionale e le schede di ciascuna. */
 const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valore: string; nome: string }[] }[] = [
   { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
-  { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }] },
+  { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }, { valore: "inventario", nome: "Inventario" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
 ];
 
@@ -529,6 +530,10 @@ const Gestionale = () => {
               <PrimaNotaTab puoScrivere={puoScrivere} onApriDocumento={apriDocumento} />
             </TabsContent>
 
+            <TabsContent value="inventario">
+              <InventarioTab articoli={articoli} varianti={varianti} />
+            </TabsContent>
+
             <TabsContent value="estratto-conto">
               <EstrattoContoTab anagrafiche={anagrafiche} onApriDocumento={apriDocumento} />
             </TabsContent>
@@ -787,7 +792,7 @@ const Gestionale = () => {
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <CopiaSicurezzaDialog open={copiaSicurezza} onOpenChange={setCopiaSicurezza} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3", "aree"], ["Alt+4…", "schede dell'area"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F3", "cerca"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3", "aree"], ["Alt+4…", "schede dell'area"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

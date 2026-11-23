@@ -8,6 +8,7 @@
  *                    Le tendine si aprono con ↑ ↓ (o Invio) e si lasciano con ← →.
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
+ *   F3               porta il cursore nella casella di ricerca della schermata
  *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF
  *   Alt+1 2 3        le tre aree (Contabilità, Magazzino, Documenti)      Alt+4…9  le schede dell'area aperta
  * Tab e Maiusc+Tab restano quelli del browser.
@@ -129,6 +130,12 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     const nuovo = elenco(radice, "[data-nuovo]")[0];
     if (!nuovo) return false;
     nuovo.click();
+    return fatto();
+  }
+  if (!inFinestra && e.key === "F3") {
+    const cerca = elenco(radice, "[data-cerca]")[0];
+    if (!cerca) return false;
+    vai(cerca);
     return fatto();
   }
   if (!inFinestra && e.key === "F9") {

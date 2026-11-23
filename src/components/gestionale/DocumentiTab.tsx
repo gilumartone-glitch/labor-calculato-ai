@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { descriviVariante, type Articolo, type Variante } from "@/lib/gestionale
 import {
   TIPI_DOCUMENTO, TIPO_LABEL, TIPO_LABEL_PLURALE, TIPO_RIGA_LABEL, TRASFORMAZIONI, isPassivo,
   annullaDocumento, calcolaTotali, confermaDocumento, creaDocumento, documentiCollegati, elencoDocumenti,
-  chiudiImpegno, famigliaDocumenti, generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, percorsoDocumento, rigaVuota, salvaBozza, sommaPezze, testoPercorso, titoloDocumento, trasformaDocumento,
+  chiudiImpegno, famigliaDocumenti, filtraDocumenti, generaScadenze, importoRiga, leggiDocumento, muoveMagazzino, percorsoDocumento, rigaVuota, salvaBozza, sommaPezze, testoPercorso, titoloDocumento, trasformaDocumento,
   type AliquotaIva, type Anagrafica, type Documento, type NodoPercorso, type PassoPercorso, type PezzaRiga, type RiepilogoIva, type RigaBozza, type Testata,
   type TipoDocumento, type TipoRiga,
 } from "@/lib/gestionale/documenti";
@@ -873,6 +873,8 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
   const [aperto, setAperto] = useState<string | null>(documentoIniziale ?? null);
   const [creando, setCreando] = useState(false);
   const [famiglia, setFamiglia] = useState<Map<string, NodoPercorso>>(new Map());
+  const [ricerca, setRicerca] = useState("");
+  const [stato, setStato] = useState<Documento["stato"] | "tutti">("tutti");
 
   const carica = useCallback(async (t: TipoDocumento) => {
     setLoading(true);
@@ -896,6 +898,10 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
   }, [aperto, loading, documenti]);
 
   const anagraficaById = useMemo(() => new Map(anagrafiche.map((a) => [a.id, a])), [anagrafiche]);
+  const visibili = useMemo(
+    () => filtraDocumenti(documenti, ricerca, stato, (d) => (d.anagrafica_id ? anagraficaById.get(d.anagrafica_id)?.ragione_sociale : null)),
+    [documenti, ricerca, stato, anagraficaById],
+  );
 
   const nuovo = async () => {
     setCreando(true);
@@ -931,6 +937,17 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input data-cerca className="pl-8 w-80" placeholder="Cerca numero, cliente, produzione, ordine, CIG…" value={ricerca} onChange={(e) => setRicerca(e.target.value)} />
+        </div>
+        {(["tutti", "bozza", "confermato", "annullato"] as const).map((s) => (
+          <Button key={s} size="sm" variant={stato === s ? "default" : "outline"} onClick={() => setStato(s)}>{s === "tutti" ? "Tutti" : s === "bozza" ? "Bozze" : s === "confermato" ? "Confermati" : "Annullati"}</Button>
+        ))}
+        {(ricerca || stato !== "tutti") && <span className="text-xs text-muted-foreground">{visibili.length} di {documenti.length}</span>}
+      </div>
+
       {loading ? (
         <div className="grid place-items-center py-16"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : documenti.length === 0 ? (
@@ -952,12 +969,18 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documenti.map((d) => (
+              {visibili.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">Nessun documento corrisponde alla ricerca.</TableCell></TableRow>
+              )}
+              {visibili.map((d) => (
                 <TableRow key={d.id} data-elenco tabIndex={0} className={`cursor-pointer focus:outline-none focus:bg-muted focus:shadow-[inset_3px_0_0_0_hsl(var(--foreground))] ${d.stato === "annullato" ? "opacity-60" : ""}`} onClick={() => setAperto(d.id)}>
                   <TableCell className="font-mono text-xs">{d.numero != null ? `${d.numero}${d.serie ? `/${d.serie}` : ""}/${d.anno}` : "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{fmtData(d.data)}</TableCell>
                   <TableCell className="font-medium">{d.intestatario?.ragione_sociale ?? (d.anagrafica_id ? anagraficaById.get(d.anagrafica_id)?.ragione_sociale : null) ?? "—"}</TableCell>
-                  <TableCell className="max-w-[220px] truncate">{d.oggetto ?? (isPassivo(tipo) ? d.riferimento_esterno : null) ?? "—"}</TableCell>
+                  <TableCell className="max-w-[220px]">
+                    <div className="truncate">{d.oggetto ?? (isPassivo(tipo) ? d.riferimento_esterno : null) ?? "—"}</div>
+                    {d.produzione && <div className="truncate text-xs text-muted-foreground">{d.produzione}</div>}
+                  </TableCell>
                   <TableCell><PercorsoDocumenti compatto id={d.id} nodi={famiglia} /></TableCell>
                   <TableCell><Badge variant={STATO_VARIANT[d.stato]}>{d.stato}</Badge></TableCell>
                   <TableCell className="text-right tabular-nums">{eur(d.totale)}</TableCell>

@@ -404,7 +404,7 @@ const ScadenzarioTab = ({ condizioni, puoScrivere, onCondizioniChanged }: {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-8 w-56" placeholder="Cerca nome o documento…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input data-cerca className="pl-8 w-56" placeholder="Cerca nome o documento…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {([["tutti", "Tutti"], ["incasso", "Incassi"], ["pagamento", "Pagamenti"]] as const).map(([k, l]) => (
             <Button key={k} size="sm" variant={verso === k ? "default" : "outline"} onClick={() => setVerso(k)}>{l}</Button>

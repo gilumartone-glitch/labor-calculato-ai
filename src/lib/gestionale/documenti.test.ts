@@ -79,3 +79,23 @@ describe("catenaDocumento", () => {
     expect(catenaDocumento("altro", nodi)).toEqual({ prima: [], dopo: [] });
   });
 });
+
+describe("filtraDocumenti", () => {
+  it("cerca per parole in numero, cliente, produzione, ordine e CIG; filtra per stato", async () => {
+    const { filtraDocumenti } = await import("./documenti");
+    const d = (p: object) => ({ numero: 1, anno: 2027, serie: "", stato: "confermato", intestatario: { ragione_sociale: "Teatro Prova srl" }, oggetto: null, produzione: null, ordine_cliente_tipo: null, riferimento_esterno: null, cig: null, cup: null, ...p }) as never;
+    const docs = [
+      d({ numero: 45, produzione: "Il Barbiere di Siviglia", ordine_cliente_tipo: "OP", riferimento_esterno: "4500123" }),
+      d({ numero: 46, intestatario: { ragione_sociale: "Fondazione Lirica" }, cig: "A1B2C3D4E5", stato: "bozza" }),
+      d({ numero: null, anno: null, intestatario: null, stato: "bozza", id: "x" }),
+    ];
+    const numeri = (r: { numero: number | null }[]) => r.map((x) => x.numero);
+    expect(numeri(filtraDocumenti(docs, "barbiere teatro", "tutti"))).toEqual([45]);
+    expect(numeri(filtraDocumenti(docs, "op 4500", "tutti"))).toEqual([45]);
+    expect(numeri(filtraDocumenti(docs, "a1b2", "tutti"))).toEqual([46]);
+    expect(numeri(filtraDocumenti(docs, "46/2027", "tutti"))).toEqual([46]);
+    expect(numeri(filtraDocumenti(docs, "", "bozza"))).toEqual([46, null]);
+    expect(numeri(filtraDocumenti(docs, "rossi", "tutti", () => "Mario Rossi"))).toEqual([null]);
+    expect(filtraDocumenti(docs, "inesistente", "tutti")).toEqual([]);
+  });
+});

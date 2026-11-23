@@ -334,7 +334,7 @@ const AnagraficheTab = ({ anagrafiche, puoScrivere, onChanged }: {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-8 w-64" placeholder="Cerca nome, P.IVA, città…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input data-cerca className="pl-8 w-64" placeholder="Cerca nome, P.IVA, città…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {(["tutti", "clienti", "fornitori"] as const).map((k) => (
             <Button key={k} size="sm" variant={filtro === k ? "default" : "outline"} onClick={() => setFiltro(k)} className="capitalize">{k}</Button>

@@ -23,6 +23,10 @@ import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
 import RegistriIvaTab from "@/components/gestionale/RegistriIvaTab";
 import EstrattoContoTab from "@/components/gestionale/EstrattoContoTab";
 import InventarioTab from "@/components/gestionale/InventarioTab";
+import { BankAccountsView } from "@/components/contabilita/BankAccountsView";
+import { BankBalances } from "@/components/contabilita/BankBalances";
+import { canViewBankAccounts } from "@/lib/bank-management";
+import { useAuth } from "@/hooks/useAuth";
 import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/lib/gestionale/etichette-pdf";
 import { trovaPezza } from "@/lib/gestionale/api";
@@ -37,9 +41,12 @@ import {
   type PezzaGiacenza, type Movimento,
 } from "@/lib/gestionale/types";
 
+/** La Contabilità tiene il 2026 nella chiave «main» e gli altri anni in «main-ANNO»: stessa regola qui. */
+const ANNO_BASE_CONTABILITA = 2026;
+
 /** Le tre aree del Gestionale e le schede di ciascuna. */
 const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valore: string; nome: string }[] }[] = [
-  { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
+  { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "banche", nome: "Banche" }, { valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
   { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }, { valore: "inventario", nome: "Inventario" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
 ];
@@ -325,7 +332,13 @@ const Gestionale = () => {
   const [parametri] = useSearchParams();
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
-  const macroAttiva = MACRO.find((m) => m.schede.some((s) => s.valore === tab)) ?? MACRO[2];
+  // Banche: gli stessi conti della Contabilità (saldi, movimenti, associazione alle competenze).
+  // Li vede solo chi li vede già lì.
+  const { user } = useAuth();
+  const vedeBanche = canViewBankAccounts(user?.email);
+  const [annoBanche, setAnnoBanche] = useState(new Date().getFullYear());
+  const macro = useMemo(() => MACRO.map((m) => ({ ...m, schede: m.schede.filter((sc) => sc.valore !== "banche" || vedeBanche) })), [vedeBanche]);
+  const macroAttiva = macro.find((m) => m.schede.some((s) => s.valore === tab)) ?? macro[2];
   // tornando su un'area si ritrova la scheda che si stava guardando
   const ultimaScheda = useRef<Record<string, string>>({});
   ultimaScheda.current[macroAttiva.codice] = tab;
@@ -487,7 +500,7 @@ const Gestionale = () => {
           <Tabs value={tab} onValueChange={setTab}>
             {/* Tre aree; sotto, le schede dell'area aperta */}
             <div className="grid grid-cols-3 gap-2 mb-3" aria-label="Aree del Gestionale">
-              {MACRO.map((m, i) => {
+              {macro.map((m, i) => {
                 const attiva = m.codice === macroAttiva.codice;
                 return (
                   <button
@@ -529,6 +542,30 @@ const Gestionale = () => {
             <TabsContent value="prima-nota">
               <PrimaNotaTab puoScrivere={puoScrivere} onApriDocumento={apriDocumento} />
             </TabsContent>
+
+            {vedeBanche && (
+              <TabsContent value="banche" className="space-y-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <p className="text-sm text-muted-foreground max-w-3xl">
+                    Saldi e movimenti dei conti. Associando un movimento alla voce di una fattura, la sua scadenza risulta
+                    {" "}incassata o pagata e la riga entra in prima nota con il conto giusto.
+                  </p>
+                  <div>
+                    <Label>Anno contabile</Label>
+                    <select className="h-9 block rounded-md border border-input bg-background px-2 text-sm" value={annoBanche} onChange={(e) => setAnnoBanche(Number(e.target.value))}>
+                      {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() + 1 - i).map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <BankBalances />
+                <BankAccountsView
+                  year={annoBanche}
+                  accountingKey={annoBanche === ANNO_BASE_CONTABILITA ? "main" : `main-${annoBanche}`}
+                  saving={false}
+                  onReconciled={async () => { /* le scadenze si aggiornano da sole: si rileggono aprendo lo Scadenzario */ }}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="inventario">
               <InventarioTab articoli={articoli} varianti={varianti} />

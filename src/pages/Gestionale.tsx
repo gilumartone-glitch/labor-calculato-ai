@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode } from "lucide-react";
+import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode, DatabaseBackup } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,8 @@ import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/lib/gestionale/etichette-pdf";
 import { trovaPezza } from "@/lib/gestionale/api";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
+import { CopiaSicurezzaDialog } from "@/components/gestionale/CopiaSicurezza";
+import { giorniDallUltimaCopia } from "@/lib/gestionale/copia-sicurezza";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
 import {
@@ -315,6 +317,9 @@ const Gestionale = () => {
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
   const [datiAzienda, setDatiAzienda] = useState(false);
+  const [copiaSicurezza, setCopiaSicurezza] = useState(false);
+  // promemoria: se da questo computer non si scarica una copia da più di una settimana il pulsante lo dice
+  const giorniCopia = useMemo(() => giorniDallUltimaCopia(), [copiaSicurezza]); // eslint-disable-line react-hooks/exhaustive-deps
   const [formatoEtichette, setFormatoEtichette] = useState<FormatoEtichette>(() => {
     try { const f = localStorage.getItem("gestionale:formato-etichette"); if (FORMATI_ETICHETTE.some((x) => x.codice === f)) return f as FormatoEtichette; } catch { /* preferenza non disponibile */ }
     return "a4-24";
@@ -454,7 +459,11 @@ const Gestionale = () => {
             <ArrowLeft className="w-3 h-3" /> Hub
           </Link>
           <h1 className="font-display text-2xl font-semibold flex items-center gap-2"><Boxes className="w-6 h-6" /> Gestionale</h1>
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setDatiAzienda(true)}><Building2 className="w-4 h-4 mr-1" /> Dati azienda</Button>
+          <Button size="sm" variant={giorniCopia == null || giorniCopia > 7 ? "default" : "outline"} className="ml-auto" onClick={() => setCopiaSicurezza(true)}
+            title={giorniCopia == null ? "Nessuna copia scaricata da questo computer" : `Ultima copia ${giorniCopia === 0 ? "oggi" : `${giorniCopia} giorni fa`}`}>
+            <DatabaseBackup className="w-4 h-4 mr-1" /> Copia di sicurezza{giorniCopia != null && giorniCopia > 7 ? ` · ${giorniCopia} giorni fa` : ""}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDatiAzienda(true)}><Building2 className="w-4 h-4 mr-1" /> Dati azienda</Button>
         </div>
       </header>
 
@@ -742,6 +751,7 @@ const Gestionale = () => {
         )}
       </main>
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
+      <CopiaSicurezzaDialog open={copiaSicurezza} onOpenChange={setCopiaSicurezza} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
         {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…8", "sezioni"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>

@@ -20,6 +20,7 @@ import { elencoAnagrafiche, elencoAliquote, type Anagrafica, type AliquotaIva } 
 import DocumentiTab from "@/components/gestionale/DocumentiTab";
 import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
+import RegistriIvaTab from "@/components/gestionale/RegistriIvaTab";
 import { gestisciTasto } from "@/lib/gestionale/tastiera";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
@@ -434,6 +435,7 @@ const Gestionale = () => {
               <TabsTrigger value="documenti">Documenti</TabsTrigger>
               <TabsTrigger value="scadenzario">Scadenzario</TabsTrigger>
               <TabsTrigger value="prima-nota">Prima nota</TabsTrigger>
+              <TabsTrigger value="registri-iva">Registri IVA</TabsTrigger>
               <TabsTrigger value="anagrafiche">Clienti e fornitori</TabsTrigger>
               <TabsTrigger value="articoli">Articoli e varianti</TabsTrigger>
               <TabsTrigger value="pezze">Bagni e pezze</TabsTrigger>
@@ -454,6 +456,10 @@ const Gestionale = () => {
 
             <TabsContent value="prima-nota">
               <PrimaNotaTab puoScrivere={puoScrivere} onApriDocumento={apriDocumento} />
+            </TabsContent>
+
+            <TabsContent value="registri-iva">
+              <RegistriIvaTab onApriDocumento={apriDocumento} />
             </TabsContent>
 
             <TabsContent value="anagrafiche">
@@ -685,7 +691,7 @@ const Gestionale = () => {
       </main>
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…7", "sezioni"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…8", "sezioni"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

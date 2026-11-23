@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Printer, Search } from "lucide-react";
+import { Loader2, Mail, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,8 @@ import { toast } from "@/hooks/use-toast";
 import { eur } from "@/lib/format";
 import { leggiAzienda, logoAzienda } from "@/lib/gestionale/azienda";
 import type { Anagrafica } from "@/lib/gestionale/documenti";
+import { emailEstrattoConto } from "@/lib/gestionale/email-documento";
+import { InviaEmailDialog, type EmailDaInviare } from "./InviaEmailDialog";
 import { elencoScadenze, type Scadenza, type Verso } from "@/lib/gestionale/scadenzario";
 import {
   anagraficheConPartite, creaPdfEstrattoConto, estrattoConto, nomeDocumentoEstratto, nomeFileEstratto, statoRata,
@@ -45,15 +47,33 @@ const EstrattoContoTab = ({ anagrafiche, onApriDocumento }: { anagrafiche: Anagr
   const estratto = useMemo(() => (scelta ? estrattoConto(scadenze, scelta, filtro) : null), [scadenze, scelta, filtro]);
   const cliente = verso === "incasso";
 
+  const [email, setEmail] = useState<EmailDaInviare | null>(null);
+  const creaPdf = async () => {
+    if (!corrente || !estratto) throw new Error("Scegli prima un cliente.");
+    const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
+    const scheda = anagrafiche.find((a) => a.id === corrente.anagrafica_id);
+    return { azienda, pdf: creaPdfEstrattoConto(azienda, scheda ?? { ragione_sociale: corrente.ragione_sociale }, estratto, { ...filtro, alGiorno: oggi() }, logo) };
+  };
+  const preparaEmail = async () => {
+    if (!corrente || !estratto) return;
+    setStampando(true);
+    try {
+      const azienda = await leggiAzienda();
+      const scheda = anagrafiche.find((a) => a.id === corrente.anagrafica_id);
+      const giorno = oggi();
+      setEmail({
+        ...emailEstrattoConto({ alGiorno: giorno, residuo: estratto.totali.residuo, scaduto: estratto.totali.scaduto }, azienda),
+        a: scheda?.email ?? scheda?.pec ?? "", nomeFile: nomeFileEstratto(corrente.ragione_sociale, giorno),
+        contesto: "estratto_conto", anagraficaId: corrente.anagrafica_id,
+      });
+    } catch (e) { errore(e); } finally { setStampando(false); }
+  };
   const stampa = async () => {
     if (!corrente || !estratto) return;
     setStampando(true);
     try {
-      const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
-      const scheda = anagrafiche.find((a) => a.id === corrente.anagrafica_id);
-      const giorno = oggi();
-      creaPdfEstrattoConto(azienda, scheda ?? { ragione_sociale: corrente.ragione_sociale }, estratto, { ...filtro, alGiorno: giorno }, logo)
-        .save(nomeFileEstratto(corrente.ragione_sociale, giorno));
+      const { azienda, pdf } = await creaPdf();
+      pdf.save(nomeFileEstratto(corrente.ragione_sociale, oggi()));
       if (!azienda.denominazione.trim()) toast({ title: "Dati azienda mancanti", description: "Il PDF è senza intestazione: compila «Dati azienda» in alto a destra." });
     } catch (e) { errore(e); } finally { setStampando(false); }
   };
@@ -115,9 +135,12 @@ const EstrattoContoTab = ({ anagrafiche, onApriDocumento }: { anagrafiche: Anagr
         <div className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="font-display text-xl font-semibold">{corrente.ragione_sociale}</h2>
+            <div className="flex flex-wrap gap-2">
             <Button data-stampa disabled={stampando} onClick={stampa}>
               {stampando ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Printer className="w-4 h-4 mr-1" />} Estratto conto in PDF
             </Button>
+            {cliente && <Button variant="outline" data-email disabled={stampando} onClick={preparaEmail}><Mail className="w-4 h-4 mr-1" /> Invia per email</Button>}
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {riquadro("Totale documenti", estratto.totali.totale)}
@@ -173,6 +196,7 @@ const EstrattoContoTab = ({ anagrafiche, onApriDocumento }: { anagrafiche: Anagr
           </p>
         </div>
       )}
+      <InviaEmailDialog email={email} onClose={() => setEmail(null)} creaPdf={async () => new Uint8Array((await creaPdf()).pdf.output("arraybuffer"))} />
     </div>
   );
 };

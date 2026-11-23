@@ -1,7 +1,7 @@
 /**
- * Invio dei documenti per email. Per ora il Gestionale prepara il messaggio (destinatario, oggetto, testo),
- * scarica il PDF e apre il programma di posta dell'operatore, che sceglie lì la casella da cui spedire
- * e allega il file. L'invio diretto dall'app richiede le caselle configurate sul server.
+ * Testi delle email dei documenti: oggetto, messaggio, indirizzi.
+ * L'invio vero e proprio (dalle caselle @tecnofra.it, con il PDF allegato) sta in invio-email.ts;
+ * finché le caselle non sono configurate sul server si scarica il PDF e si apre il programma di posta.
  */
 import { numeroDocumento, type TipoDocumento } from "./documenti";
 import type { DatiAzienda } from "./fattura-pa";
@@ -73,4 +73,18 @@ export function collegamentoPosta(m: { a: string[]; cc?: string[]; oggetto: stri
     `body=${encodeURIComponent(m.testo.replace(/\r?\n/g, "\r\n"))}`,
   ].filter(Boolean).join("&");
   return `mailto:${m.a.map(encodeURIComponent).join(",")}?${parametri}`;
+}
+
+/** Oggetto e testo dell'email che accompagna l'estratto conto di un cliente. */
+export function emailEstrattoConto(e: { alGiorno: string; residuo: number; scaduto: number }, azienda: Pick<DatiAzienda, "denominazione" | "telefono" | "email">): { oggetto: string; testo: string } {
+  const euro = (n: number) => `${n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: "always" } as unknown as Intl.NumberFormatOptions)} €`;
+  const firma = [azienda.denominazione.trim(), [azienda.telefono.trim() ? `Tel. ${azienda.telefono.trim()}` : "", azienda.email.trim()].filter(Boolean).join(" - ")].filter(Boolean);
+  const saldo = e.residuo > 0.004
+    ? [`Alla data del ${dataIt(e.alGiorno)} risulta un saldo a nostro favore di ${euro(e.residuo)}${e.scaduto > 0.004 ? `, di cui ${euro(e.scaduto)} già scaduti` : ""}.`,
+       e.scaduto > 0.004 ? "Vi preghiamo di provvedere al pagamento delle partite scadute o di segnalarci eventuali differenze." : "Vi preghiamo di segnalarci eventuali differenze."]
+    : [`Alla data del ${dataIt(e.alGiorno)} non risultano importi da saldare.`];
+  return {
+    oggetto: [`Estratto conto al ${dataIt(e.alGiorno)}`, azienda.denominazione.trim()].filter(Boolean).join(" - "),
+    testo: ["Buongiorno,", "in allegato il vostro estratto conto con i documenti, i pagamenti ricevuti e le partite ancora aperte.", "", ...saldo, "", "Cordiali saluti", ...firma].join("\n"),
+  };
 }

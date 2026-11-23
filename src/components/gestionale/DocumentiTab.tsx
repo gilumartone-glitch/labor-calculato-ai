@@ -27,6 +27,7 @@ import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
 import { InviaEmailDialog, type EmailDaInviare } from "./InviaEmailDialog";
+import type { ContestoEmail } from "@/lib/gestionale/invio-email";
 import { oggettoEmail, testoEmail } from "@/lib/gestionale/email-documento";
 import { creaPdfDocumento, nomeFilePdf } from "@/lib/gestionale/stampa-pdf";
 import { leggiAzienda, logoAzienda } from "@/lib/gestionale/azienda";
@@ -304,8 +305,13 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     try {
       const azienda = await leggiAzienda();
       const dati = datiStampa();
-      setEmail({ a: anagrafica?.email ?? anagrafica?.pec ?? "", oggetto: oggettoEmail(dati, azienda), testo: testoEmail(dati, azienda), nomeFile: nomeFilePdf(dati) });
+      setEmail({ a: anagrafica?.email ?? anagrafica?.pec ?? "", oggetto: oggettoEmail(dati, azienda), testo: testoEmail(dati, azienda), nomeFile: nomeFilePdf(dati),
+        contesto: documento.tipo as ContestoEmail, documentoId: documento.id, anagraficaId: testata.anagrafica_id });
     } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
+  const pdfPerEmail = async (): Promise<Uint8Array> => {
+    const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
+    return new Uint8Array(creaPdfDocumento(azienda, datiStampa(), logo).output("arraybuffer"));
   };
   const stampa = async () => {
     setOccupato(true);
@@ -851,7 +857,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
         onOpenChange={setNuovaAnagrafica}
         onSaved={(a) => { onAnagraficheChanged(); setTestata((p) => (p ? { ...p, anagrafica_id: a.id, pagamento: p.pagamento ?? a.pagamento } : p)); setModificato(true); }}
       />
-      <InviaEmailDialog email={email} onClose={() => setEmail(null)} onScaricaPdf={stampa} />
+      <InviaEmailDialog email={email} onClose={() => setEmail(null)} creaPdf={pdfPerEmail} />
       <FatturaElettronicaDialog
         onClose={() => setFatturaElettronica(false)}
         fattura={fatturaElettronica && eFattura ? {

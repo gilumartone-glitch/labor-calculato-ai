@@ -14,7 +14,8 @@ const db = supabase as any;
 export const FORMATO_COPIA = "tecnofra-gestionale-copia";
 
 /** Le tabelle, nell'ordine in cui vanno ricaricate (prima quelle da cui le altre dipendono). */
-export const TABELLE_COPIA: { nome: string; ordine: string[] }[] = [
+/** `facoltativa`: tabella aggiunta dopo; se nel database non c'è ancora (o in una copia vecchia manca) non è un errore. */
+export const TABELLE_COPIA: { nome: string; ordine: string[]; facoltativa?: boolean }[] = [
   { nome: "gest_impostazioni", ordine: ["chiave"] },
   { nome: "gest_aliquote_iva", ordine: ["id"] },
   { nome: "gest_condizioni_pagamento", ordine: ["id"] },
@@ -32,6 +33,7 @@ export const TABELLE_COPIA: { nome: string; ordine: string[] }[] = [
   { nome: "gest_pagamenti", ordine: ["id"] },
   { nome: "gest_prima_nota", ordine: ["id"] },
   { nome: "gest_storico", ordine: ["id"] },
+  { nome: "gest_email_inviate", ordine: ["id"], facoltativa: true },
 ];
 
 export type Riga = Record<string, unknown>;
@@ -68,13 +70,17 @@ export async function componiCopia(tabelle: Record<string, Riga[]>, creataIl = n
   };
 }
 
-async function leggiTabella(nome: string, ordine: string[]): Promise<Riga[]> {
+/** La tabella non esiste (ancora) nel database. */
+const tabellaAssente = (e: { code?: string; message?: string }) => e.code === "42P01" || e.code === "PGRST205" || /does not exist|could not find the table/i.test(e.message ?? "");
+
+async function leggiTabella(nome: string, ordine: string[], facoltativa = false): Promise<Riga[] | null> {
   const righe: Riga[] = [];
   const PAGINA = 1000;
   for (let da = 0; ; da += PAGINA) {
     let q = db.from(nome).select("*");
     for (const colonna of ordine) q = q.order(colonna);
     const { data, error } = await q.range(da, da + PAGINA - 1);
+    if (error && facoltativa && tabellaAssente(error)) return null;
     if (error) throw new Error(`${nome}: ${error.message}`);
     righe.push(...(data as Riga[]));
     if ((data as Riga[]).length < PAGINA) break;
@@ -88,7 +94,8 @@ export async function creaCopia(avanzamento?: (tabella: string, fatte: number, t
   for (let i = 0; i < TABELLE_COPIA.length; i++) {
     const t = TABELLE_COPIA[i];
     avanzamento?.(t.nome, i, TABELLE_COPIA.length);
-    tabelle[t.nome] = await leggiTabella(t.nome, t.ordine);
+    const righe = await leggiTabella(t.nome, t.ordine, t.facoltativa);
+    if (righe) tabelle[t.nome] = righe;
   }
   avanzamento?.("", TABELLE_COPIA.length, TABELLE_COPIA.length);
   return componiCopia(tabelle);
@@ -150,6 +157,7 @@ export async function leggiCopia(file: Blob | ArrayBuffer | Uint8Array): Promise
   if ((await improntaTabelle(copia.tabelle)) !== copia.impronta) problemi.push("L'impronta non corrisponde: il contenuto è stato alterato o il file è danneggiato.");
   for (const t of TABELLE_COPIA) {
     const righe = copia.tabelle[t.nome];
+    if (righe === undefined && t.facoltativa) continue;
     if (!Array.isArray(righe)) problemi.push(`Manca la tabella ${t.nome}.`);
     else if (righe.length !== copia.conteggi?.[t.nome]) problemi.push(`${t.nome}: ${righe.length} righe, ne erano dichiarate ${copia.conteggi?.[t.nome] ?? "?"}.`);
   }
@@ -160,10 +168,11 @@ export async function leggiCopia(file: Blob | ArrayBuffer | Uint8Array): Promise
 export async function conteggiAttuali(): Promise<Record<string, number>> {
   const voci = await Promise.all(TABELLE_COPIA.map(async (t) => {
     const { count, error } = await db.from(t.nome).select("*", { count: "exact", head: true });
+    if (error && t.facoltativa && tabellaAssente(error)) return null;
     if (error) throw new Error(`${t.nome}: ${error.message}`);
     return [t.nome, count ?? 0] as const;
   }));
-  return Object.fromEntries(voci);
+  return Object.fromEntries(voci.filter((v): v is readonly [string, number] => v !== null));
 }
 
 export const ETICHETTA_TABELLA: Record<string, string> = {
@@ -172,4 +181,5 @@ export const ETICHETTA_TABELLA: Record<string, string> = {
   gest_numeratori: "Numeratori", gest_documenti: "Documenti", gest_documenti_righe: "Righe dei documenti",
   gest_documenti_righe_pezze: "Pezze nelle righe", gest_movimenti: "Movimenti di magazzino", gest_scadenze: "Scadenze",
   gest_pagamenti: "Incassi e pagamenti", gest_prima_nota: "Prima nota", gest_storico: "Storico delle modifiche",
+  gest_email_inviate: "Email inviate",
 };

@@ -12,11 +12,13 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
 
-const TABELLE = [
+const TABELLE_BASE = [
   "gest_impostazioni", "gest_aliquote_iva", "gest_condizioni_pagamento", "gest_anagrafiche", "gest_articoli", "gest_varianti",
   "gest_bagni", "gest_pezze", "gest_numeratori", "gest_documenti", "gest_documenti_righe", "gest_documenti_righe_pezze",
   "gest_movimenti", "gest_scadenze", "gest_pagamenti", "gest_prima_nota", "gest_storico",
 ];
+/** Tabelle aggiunte dopo: si ripristinano solo se la copia le contiene. */
+const TABELLE_FACOLTATIVE = ["gest_email_inviate"];
 
 const canonico = (v) => {
   if (v === null || typeof v !== "object") return JSON.stringify(v) ?? "null";
@@ -50,6 +52,7 @@ const dollaro = (testo) => {
 export function sqlRipristino(copia) {
   const righe = [];
   const scrivi = (s) => righe.push(s);
+  const TABELLE = [...TABELLE_BASE, ...TABELLE_FACOLTATIVE.filter((t) => Array.isArray(copia.tabelle[t]))];
   scrivi(`-- Ripristino della copia del Gestionale creata il ${copia.creata_il}`);
   scrivi(`-- Impronta ${copia.impronta}`);
   scrivi("BEGIN;");

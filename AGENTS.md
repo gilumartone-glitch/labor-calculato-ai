@@ -46,3 +46,8 @@
 - Gestionale is fully keyboard-driven through the single document-level handler in `src/lib/gestionale/tastiera.ts` (Enter/arrows move, F10 confirms, F2/F4/F6/F9, Esc); new screens mark their controls with `data-f10`, `data-nuovo`, `data-esc`, `data-elenco`, `data-riga` instead of adding their own key listeners.
 - Roll labels carry a QR code generated in-repo (`qr.ts`, no dependency) pointing to `/gestionale?pezza=CODE`; RouteGuard remembers Gestionale deep links across login via `src/lib/dopo-accesso.ts`.
 - Gestionale backups are a browser-side export of every `gest_` table into one zip with a SHA-256 fingerprint (`copia-sicurezza.ts`); `scripts/gestionale-ripristina.mjs` turns a verified copy into a single-transaction restore for a fresh database. A new `gest_` table must be added to both table lists, in dependency order.
+
+### Gestionale — invio email
+- I documenti partono dalle caselle @tecnofra.it tramite la funzione `supabase/functions/gestionale-invia-email` (SMTP SiteGround). Le password stanno solo nei segreti `GESTIONALE_SMTP_HOST`, `GESTIONALE_SMTP_PORT`, `GESTIONALE_SMTP_CASELLE`: mai nel codice, mai nel database, mai restituite al browser.
+- Regola fissa, applicata sul server: fatture, note di credito ed estratti conto solo da amministrazione@tecnofra.it; preventivi, conferme d'ordine e DDT da una casella scelta dall'operatore.
+- Ogni invio (riuscito o no) finisce in `gest_email_inviate`, registro di sola aggiunta scritto solo dalla funzione. Non usare l'email transazionale di Lovable per i documenti.

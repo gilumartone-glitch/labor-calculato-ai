@@ -39,3 +39,9 @@
 - Flow planning date edits and restoration target the stable source_commessa_id, preserving daily assignment IDs and crews; project labels are not unique, so ambiguous calendar names require explicit order selection.
 
 - Planning popups read linked project contents from existing snapshots; manual descriptions use a JSON-encoded notes marker to preserve multiline text and legacy notes without schema changes.
+
+- Gestionale (`src/pages/Gestionale.tsx`, `src/components/gestionale`, `src/lib/gestionale`, tables prefixed `gest_`) replaces the external ERP: documents never hard-delete (drafts are discarded, confirmed documents are annulled), stock, payments and prima nota are append-only ledgers corrected by storno, and every state change goes through the `gest_*` RPCs, never direct table writes.
+- Gestionale document chain is preventivo → conferma d'ordine/proforma → DDT → fattura (direct jumps allowed); customer order name/number/date, produzione, CIG and CUP are inherited by derived documents and must stay identical in the screen, the PDF (`stampa-pdf.ts`) and the electronic invoice (`fattura-pa.ts`).
+- Conferma d'ordine commits stock without unloading it; only DDT and fattura accompagnatoria unload. Invoice due dates become `previsto` entries in the accounting state and bank reconciliation marks them paid; cash is registered from the Scadenzario.
+- Gestionale is fully keyboard-driven through the single document-level handler in `src/lib/gestionale/tastiera.ts` (Enter/arrows move, F10 confirms, F2/F4/F6/F9, Esc); new screens mark their controls with `data-f10`, `data-nuovo`, `data-esc`, `data-elenco`, `data-riga` instead of adding their own key listeners.
+- Roll labels carry a QR code generated in-repo (`qr.ts`, no dependency) pointing to `/gestionale?pezza=CODE`; RouteGuard remembers Gestionale deep links across login via `src/lib/dopo-accesso.ts`.

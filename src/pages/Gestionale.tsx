@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame } from "lucide-react";
+import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import ScadenzarioTab from "@/components/gestionale/ScadenzarioTab";
 import PrimaNotaTab from "@/components/gestionale/PrimaNotaTab";
 import RegistriIvaTab from "@/components/gestionale/RegistriIvaTab";
 import { gestisciTasto } from "@/lib/gestionale/tastiera";
+import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/lib/gestionale/etichette-pdf";
+import { trovaPezza } from "@/lib/gestionale/api";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
@@ -313,6 +315,11 @@ const Gestionale = () => {
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
   const [datiAzienda, setDatiAzienda] = useState(false);
+  const [formatoEtichette, setFormatoEtichette] = useState<FormatoEtichette>(() => {
+    try { const f = localStorage.getItem("gestionale:formato-etichette"); if (FORMATI_ETICHETTE.some((x) => x.codice === f)) return f as FormatoEtichette; } catch { /* preferenza non disponibile */ }
+    return "a4-24";
+  });
+  const [pezzaEvidenziata, setPezzaEvidenziata] = useState<string | null>(null);
   // tutto il Gestionale si usa anche da tastiera: vedi lib/gestionale/tastiera.ts
   const radice = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -391,6 +398,31 @@ const Gestionale = () => {
     [varianti, articoloById],
   );
   const varianteCorrente = varianteById.get(varianteSel) ?? null;
+
+  const stampaEtichette = (elenco: PezzaGiacenza[]) => {
+    if (!varianteCorrente || elenco.length === 0) return;
+    const articolo = articoloById.get(varianteCorrente.articolo_id);
+    try {
+      // il codice QR porta sempre al sito, anche se l'etichetta è stampata dall'app per PC
+      const base = /^https?:/.test(window.location.origin) && !/localhost|127\.0\.0\.1/.test(window.location.origin) ? window.location.origin : "https://flow.tecnofra.it";
+      creaPdfEtichette(elenco.map((pz) => ({
+        codice: pz.codice, articolo: articolo?.nome ?? "", variante: descriviVariante(varianteCorrente), codice_variante: varianteCorrente.codice,
+        bagno: pz.codice_bagno, metri: pz.lunghezza_iniziale_m, posizione: pz.posizione, ignifugo: varianteCorrente.ignifugo,
+      })), formatoEtichette, base).save(elenco.length === 1 ? `Etichetta_${elenco[0].codice}.pdf` : `Etichette_${varianteCorrente.codice}.pdf`);
+    } catch (e) { toast({ title: "Errore", description: messaggio(e), variant: "destructive" }); }
+  };
+
+  // arrivo da un'etichetta: ?pezza=PZ000123 apre Bagni e pezze sulla variante giusta
+  const pezzaDaAprire = parametri.get("pezza");
+  useEffect(() => {
+    if (!pezzaDaAprire) return;
+    trovaPezza(pezzaDaAprire).then((pz) => {
+      if (!pz) { toast({ title: "Pezza non trovata", description: `Nessuna pezza con codice ${pezzaDaAprire}.`, variant: "destructive" }); return; }
+      setVarianteSel(pz.variante_id);
+      setPezzaEvidenziata(pz.codice);
+      setTab("pezze");
+    }).catch((e) => toast({ title: "Errore", description: messaggio(e), variant: "destructive" }));
+  }, [pezzaDaAprire]);
 
   const dopoMovimento = () => { caricaPezzeVariante(varianteSel); caricaAnagrafiche(); };
 
@@ -539,6 +571,11 @@ const Gestionale = () => {
 
             {/* ---------------- Bagni e pezze ---------------- */}
             <TabsContent value="pezze" className="space-y-4">
+              {pezzaEvidenziata && (
+                <p className="text-sm border-2 border-ink/20 bg-paper rounded-sm px-3 py-2">
+                  Pezza <span className="font-mono font-semibold">{pezzaEvidenziata}</span> letta dall'etichetta: è la riga evidenziata qui sotto.
+                </p>
+              )}
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="min-w-[260px] flex-1 max-w-md">
                   <Label>Variante tessuto</Label>
@@ -551,9 +588,23 @@ const Gestionale = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {puoScrivere && (
-                  <Button size="sm" disabled={!varianteCorrente} onClick={() => setCaricoDialog(true)}><Plus className="w-4 h-4 mr-1" /> Carica pezza</Button>
-                )}
+                <div className="flex flex-wrap items-end gap-2">
+                  <div>
+                    <Label>Formato etichette</Label>
+                    <select
+                      className="h-9 block rounded-md border border-input bg-background px-2 text-sm" value={formatoEtichette}
+                      onChange={(e) => { const f = e.target.value as FormatoEtichette; setFormatoEtichette(f); try { localStorage.setItem("gestionale:formato-etichette", f); } catch { /* resta per questa sessione */ } }}
+                    >
+                      {FORMATI_ETICHETTE.map((f) => <option key={f.codice} value={f.codice}>{f.etichetta}</option>)}
+                    </select>
+                  </div>
+                  <Button size="sm" variant="outline" disabled={!pezze.some((p) => p.stato === "disponibile")} onClick={() => stampaEtichette(pezze.filter((p) => p.stato === "disponibile"))}>
+                    <QrCode className="w-4 h-4 mr-1" /> Etichette QR delle pezze disponibili
+                  </Button>
+                  {puoScrivere && (
+                    <Button size="sm" data-nuovo disabled={!varianteCorrente} onClick={() => setCaricoDialog(true)}><Plus className="w-4 h-4 mr-1" /> Carica pezza</Button>
+                  )}
+                </div>
               </div>
 
               {variantiTessuto.length === 0 && (
@@ -606,19 +657,20 @@ const Gestionale = () => {
                             <TableHead className="text-right">Iniziale</TableHead>
                             <TableHead className="text-right">Residuo</TableHead>
                             <TableHead>Stato</TableHead>
-                            <TableHead className="w-10" />
+                            <TableHead className="w-36" />
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {pezze.map((p) => (
-                            <TableRow key={p.id} className={p.stato !== "disponibile" ? "opacity-60" : undefined}>
+                            <TableRow key={p.id} className={`${p.stato !== "disponibile" ? "opacity-60" : ""} ${p.codice === pezzaEvidenziata ? "bg-amber-100 dark:bg-amber-900/40" : ""}`}>
                               <TableCell className="font-mono text-xs">{p.codice}</TableCell>
                               <TableCell>{p.codice_bagno ?? "—"}</TableCell>
                               <TableCell>{p.posizione ?? "—"}</TableCell>
                               <TableCell className="text-right tabular-nums">{fmtQta(p.lunghezza_iniziale_m)} m</TableCell>
                               <TableCell className="text-right tabular-nums font-semibold">{fmtQta(p.residuo_m)} m</TableCell>
                               <TableCell><Badge variant={p.stato === "disponibile" ? "default" : "outline"}>{p.stato}</Badge></TableCell>
-                              <TableCell>
+                              <TableCell className="whitespace-nowrap text-right">
+                                <Button size="icon" variant="ghost" className="h-8 w-8" title="Etichetta QR di questa pezza" onClick={() => stampaEtichette([p])}><QrCode className="w-4 h-4" /></Button>
                                 {puoScrivere && p.stato === "disponibile" && p.residuo_m > 0 && (
                                   <Button size="sm" variant="outline" onClick={() => setTaglioDi(p)}><Scissors className="w-4 h-4 mr-1" /> Taglia</Button>
                                 )}

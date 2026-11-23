@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions, PageKey, Level } from "@/hooks/usePermissions";
 import { Loader2, Lock } from "lucide-react";
+import { ricordaDestinazione } from "@/lib/dopo-accesso";
 
 type Props = {
   page: PageKey;
@@ -22,7 +23,10 @@ export const RouteGuard = ({ page, required = "read", children }: Props) => {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    ricordaDestinazione(window.location.pathname + window.location.search);
+    return <Navigate to="/auth" replace />;
+  }
 
   if (!isAdmin && !approved) {
     return (

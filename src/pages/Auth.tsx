@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { destinazioneDopoAccesso } from "@/lib/dopo-accesso";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, LogIn, ArrowLeft } from "lucide-react";
@@ -30,7 +31,7 @@ const Auth = () => {
 
   // Se già loggato, vai all'hub postazioni
   useEffect(() => {
-    if (user) navigate("/hub", { replace: true });
+    if (user) navigate(destinazioneDopoAccesso(), { replace: true });
   }, [user, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -51,7 +52,7 @@ const Auth = () => {
         }
       } catch { /* noop */ }
       toast.success("Accesso effettuato");
-      navigate("/hub", { replace: true });
+      navigate(destinazioneDopoAccesso(), { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Errore";
       if (msg.includes("Invalid login")) toast.error("Email o password errati");

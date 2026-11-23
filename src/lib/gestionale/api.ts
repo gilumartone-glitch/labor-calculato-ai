@@ -84,6 +84,13 @@ export async function elencoPezze(varianteId: string): Promise<PezzaGiacenza[]> 
   }));
 }
 
+/** Cerca una pezza dal codice letto sull'etichetta. */
+export async function trovaPezza(codice: string): Promise<PezzaGiacenza | null> {
+  const { data, error } = await db.from("gest_giacenze_pezze").select("*").eq("codice", codice.trim().toUpperCase()).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { ...data, lunghezza_iniziale_m: num(data.lunghezza_iniziale_m), residuo_m: num(data.residuo_m) } : null;
+}
+
 export async function caricaPezza(p: {
   varianteId: string;
   metri: number;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode, DatabaseBackup } from "lucide-react";
+import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode, DatabaseBackup, Landmark, Warehouse, FileText } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,13 @@ import {
   type Articolo, type Variante, type Categoria, type UnitaMisura, type GiacenzaBagno,
   type PezzaGiacenza, type Movimento,
 } from "@/lib/gestionale/types";
+
+/** Le tre aree del Gestionale e le schede di ciascuna. */
+const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valore: string; nome: string }[] }[] = [
+  { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "scadenzario", nome: "Scadenzario" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
+  { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }] },
+  { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
+];
 
 const fmtQta = (n: number) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
 const fmtData = (iso: string) =>
@@ -316,6 +323,10 @@ const Gestionale = () => {
   const [parametri] = useSearchParams();
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
   const [tab, setTab] = useState("documenti");
+  const macroAttiva = MACRO.find((m) => m.schede.some((s) => s.valore === tab)) ?? MACRO[2];
+  // tornando su un'area si ritrova la scheda che si stava guardando
+  const ultimaScheda = useRef<Record<string, string>>({});
+  ultimaScheda.current[macroAttiva.codice] = tab;
   const [datiAzienda, setDatiAzienda] = useState(false);
   const [copiaSicurezza, setCopiaSicurezza] = useState(false);
   // promemoria: se da questo computer non si scarica una copia da più di una settimana il pulsante lo dice
@@ -472,16 +483,34 @@ const Gestionale = () => {
           <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="documenti">Documenti</TabsTrigger>
-              <TabsTrigger value="scadenzario">Scadenzario</TabsTrigger>
-              <TabsTrigger value="prima-nota">Prima nota</TabsTrigger>
-              <TabsTrigger value="registri-iva">Registri IVA</TabsTrigger>
-              <TabsTrigger value="anagrafiche">Clienti e fornitori</TabsTrigger>
-              <TabsTrigger value="articoli">Articoli e varianti</TabsTrigger>
-              <TabsTrigger value="pezze">Bagni e pezze</TabsTrigger>
-              <TabsTrigger value="movimenti">Movimenti</TabsTrigger>
-            </TabsList>
+            {/* Tre aree; sotto, le schede dell'area aperta */}
+            <div className="grid grid-cols-3 gap-2 mb-3" aria-label="Aree del Gestionale">
+              {MACRO.map((m, i) => {
+                const attiva = m.codice === macroAttiva.codice;
+                return (
+                  <button
+                    key={m.codice} type="button" data-macro aria-pressed={attiva}
+                    onClick={() => setTab(ultimaScheda.current[m.codice] ?? m.schede[0].valore)}
+                    className={`flex items-center gap-3 rounded-sm border-2 px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${attiva ? "border-ink bg-ink text-paper" : "border-ink/20 bg-paper hover:border-ink/60"}`}
+                  >
+                    <m.icona className="w-6 h-6 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block font-display text-lg font-semibold leading-tight">{m.nome}</span>
+                      <span className={`block text-xs truncate ${attiva ? "text-paper/75" : "text-muted-foreground"}`}>{m.schede.map((s) => s.nome).join(" · ")}</span>
+                    </span>
+                    <kbd className={`ml-auto hidden md:block font-mono text-[10px] border rounded-sm px-1 ${attiva ? "border-paper/40" : "border-ink/30 text-muted-foreground"}`}>Alt+{i + 1}</kbd>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <TabsList className="flex-wrap h-auto">
+                {macroAttiva.schede.map((s) => <TabsTrigger key={s.valore} value={s.valore}>{s.nome}</TabsTrigger>)}
+              </TabsList>
+              {macroAttiva.codice === "contabilita" && (
+                <Link to="/contabilita" className="text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground">Cassa, conti e competenze: apri la Contabilità generale</Link>
+              )}
+            </div>
 
             <TabsContent value="documenti">
               <DocumentiTab
@@ -753,7 +782,7 @@ const Gestionale = () => {
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <CopiaSicurezzaDialog open={copiaSicurezza} onOpenChange={setCopiaSicurezza} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1…8", "sezioni"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3", "aree"], ["Alt+4…", "schede dell'area"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

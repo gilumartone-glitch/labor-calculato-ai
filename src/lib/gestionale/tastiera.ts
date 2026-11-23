@@ -9,7 +9,7 @@
  *   Esc              chiude la finestra, oppure torna all'elenco
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
  *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF
- *   Alt+1…9          cambia sezione
+ *   Alt+1 2 3        le tre aree (Contabilità, Magazzino, Documenti)      Alt+4…9  le schede dell'area aperta
  * Tab e Maiusc+Tab restano quelli del browser.
  */
 
@@ -111,7 +111,11 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
   // con Alt premuto alcune tastiere cambiano il carattere (sul Mac Alt+2 è «™»): si guarda il tasto fisico
   const cifra = /^[1-9]$/.test(e.key) ? e.key : /^(Digit|Numpad)[1-9]$/.test(e.code) ? e.code.slice(-1) : null;
   if (e.altKey && !e.ctrlKey && cifra && !inFinestra) {
-    const schede = elenco(radice, '[role="tablist"] [role="tab"]');
+    // prima le aree, poi le schede dell'area aperta (le schede non attive hanno tabindex -1: contano lo stesso)
+    const visibili = (selettore: string) => Array.from(radice.querySelectorAll<HTMLElement>(selettore))
+      .filter((el) => !(el as HTMLButtonElement).disabled && !el.closest('[hidden], [aria-hidden="true"], [inert]'));
+    const aree = visibili("[data-macro]");
+    const schede = [...aree, ...visibili('[role="tablist"] [role="tab"]')];
     const scheda = schede[Number(cifra) - 1];
     if (!scheda) return false;
     scheda.focus();

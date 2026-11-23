@@ -166,6 +166,15 @@ describe("righe, elenchi, sezioni", () => {
     premi($("r2"), "Enter");
     expect(apri).toHaveBeenCalledTimes(1);
   });
+  it("Alt+1 2 3 aprono le aree, da Alt+4 le schede dell'area, anche quelle non attive", () => {
+    monta(`<button data-macro id="m1"></button><button data-macro id="m2"></button><button data-macro id="m3"></button>
+      <div role="tablist"><button role="tab" id="s1" tabindex="0"></button><button role="tab" id="s2" tabindex="-1"></button></div><input id="a">`);
+    const premuti: string[] = [];
+    for (const id of ["m1", "m2", "m3", "s1", "s2"]) $(id).addEventListener("click", () => premuti.push(id));
+    premi($("a"), "2", { altKey: true }); premi($("a"), "4", { altKey: true }); premi($("a"), "5", { altKey: true });
+    expect(premuti).toEqual(["m2", "s1", "s2"]);
+    expect(premi($("a"), "9", { altKey: true }).usato).toBe(false);
+  });
   it("F2 nuovo, Esc indietro, Alt+numero cambia sezione; Esc non scavalca una finestra aperta", () => {
     monta(`<div role="tablist"><button role="tab" id="t1"></button><button role="tab" id="t2"></button></div><button id="nuovo" data-nuovo></button><button id="ind" data-esc></button><input id="a">`);
     const nuovo = vi.fn(); const ind = vi.fn(); const t2 = vi.fn();

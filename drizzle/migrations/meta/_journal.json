@@ -372,6 +372,13 @@
       "when": 1795165188694,
       "tag": "0052_gestionale_percorsi_diretti",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1795438967355,
+      "tag": "0053_gestionale_email_inviate",
+      "breakpoints": true
     }
   ]
 }

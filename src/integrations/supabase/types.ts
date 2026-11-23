@@ -1643,6 +1643,75 @@ export type Database = {
           },
         ]
       }
+      gest_email_inviate: {
+        Row: {
+          allegato_nome: string | null
+          anagrafica_id: string | null
+          contesto: string
+          copia: string[]
+          creato_il: string
+          destinatari: string[]
+          documento_id: string | null
+          errore: string | null
+          esito: string
+          id: number
+          inviata_da: string | null
+          message_id: string | null
+          mittente: string
+          oggetto: string
+          testo: string
+        }
+        Insert: {
+          allegato_nome?: string | null
+          anagrafica_id?: string | null
+          contesto: string
+          copia?: string[]
+          creato_il?: string
+          destinatari: string[]
+          documento_id?: string | null
+          errore?: string | null
+          esito: string
+          id?: never
+          inviata_da?: string | null
+          message_id?: string | null
+          mittente: string
+          oggetto: string
+          testo: string
+        }
+        Update: {
+          allegato_nome?: string | null
+          anagrafica_id?: string | null
+          contesto?: string
+          copia?: string[]
+          creato_il?: string
+          destinatari?: string[]
+          documento_id?: string | null
+          errore?: string | null
+          esito?: string
+          id?: never
+          inviata_da?: string | null
+          message_id?: string | null
+          mittente?: string
+          oggetto?: string
+          testo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_email_inviate_anagrafica_id_fkey"
+            columns: ["anagrafica_id"]
+            isOneToOne: false
+            referencedRelation: "gest_anagrafiche"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gest_email_inviate_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "gest_documenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_impostazioni: {
         Row: {
           chiave: string

@@ -81,9 +81,10 @@ export function disegnaPezzo(doc: jsPDF, s: SchedaTecnica, x: number, y: number,
       // se la scritta non sta lungo il lato si lascia solo il tratto colorato: il nome è nell'elenco accanto
       if (lunga > (lato === "top" || lato === "bottom" ? w : h) - 1.5) return;
       if (lato === "top") doc.text(scritta, px + w / 2, py - (quante - 1) * PASSO - 1.4, { align: "center" });
-      else if (lato === "bottom") doc.text(scritta, px + 1, py + h - 1.2);
+      else if (lato === "bottom") { if (s.forma !== "trapezoid") doc.text(scritta, px + 1, py + h - 1.2); }
       else if (lato === "left") doc.text(scritta, px - (quante - 1) * PASSO - 1.3, py + h / 2 + lunga / 2, { angle: 90 });
-      else if (w >= 14) doc.text(scritta, px + w - 1.2, py + h / 2 + lunga / 2, { angle: 90 });
+      // a destra la scritta sta dentro la sagoma: solo sui rettangoli abbastanza larghi
+      else if (w >= 14 && s.forma === "rect") doc.text(scritta, px + w - 1.2, py + h / 2 + lunga / 2, { angle: 90 });
     });
   });
 

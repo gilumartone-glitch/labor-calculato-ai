@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Loader2, Pencil, Archive, Search, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Loader2, Pencil, Archive, Search, Upload, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   archiviaAnagrafica, contaAnagraficheImportate, importaAnagrafiche, salvaAnagrafica,
   type Anagrafica, type DatiAnagrafica,
 } from "@/lib/gestionale/documenti";
+import { cercaAzienda, compilaScheda, leggiPartitaIva, partitaIvaItalianaValida, schedaConPartitaIva } from "@/lib/gestionale/cerca-azienda";
 import { daMexal, leggiExportMexal, riepilogoImport, type LetturaMexal, type RiepilogoImport } from "@/lib/gestionale/import-mexal";
 
 const messaggio = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -47,9 +48,45 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
 }) => {
   const [f, setF] = useState<DatiAnagrafica>(VUOTA);
   const [saving, setSaving] = useState(false);
+  const [cercando, setCercando] = useState(false);
+  const [esitoRicerca, setEsitoRicerca] = useState<{ tono: "ok" | "avviso"; testo: string } | null>(null);
+  const ultimaCercata = useRef("");
+
+  /** Dalla partita IVA compila ragione sociale e sede (dati dell'Agenzia delle Entrate, via VIES). */
+  const compilaDaPartitaIva = async (testoPiva: string) => {
+    const { paese, numero } = leggiPartitaIva(testoPiva, f.nazione);
+    ultimaCercata.current = `${paese}${numero}`;
+    setCercando(true); setEsitoRicerca(null);
+    try {
+      const [esito, doppia] = await Promise.all([cercaAzienda(testoPiva, f.nazione), schedaConPartitaIva(numero, anagrafica?.id)]);
+      const nota = doppia ? ` Attenzione: questa partita IVA è già sulla scheda ${doppia.codice} «${doppia.ragione_sociale}».` : "";
+      if (esito.trovata === false) { setEsitoRicerca({ tono: "avviso", testo: esito.messaggio + nota }); return; }
+      let riepilogo = "";
+      setF((p) => {
+        const { scheda, compilati, diversi } = compilaScheda(p, esito, !!anagrafica);
+        riepilogo = [
+          compilati.length ? `Compilati: ${compilati.join(", ")}.` : "Nessun campo da compilare: la scheda li aveva già.",
+          diversi.length ? `All'Agenzia delle Entrate risultano diversi (non li ho cambiati): ${diversi.join("; ")}.` : "",
+        ].filter(Boolean).join(" ");
+        return scheda;
+      });
+      setEsitoRicerca({ tono: doppia ? "avviso" : "ok", testo: `${esito.denominazione || "Partita IVA attiva"} — ${riepilogo} PEC, codice destinatario e codice fiscale non sono in questo archivio: vanno chiesti al cliente.${nota}` });
+    } catch (e) {
+      setEsitoRicerca({ tono: "avviso", testo: `${messaggio(e)} Puoi compilare la scheda a mano.` });
+    } finally { setCercando(false); }
+  };
+
+  // scheda nuova: appena la partita IVA è completa e corretta si compila da sola, una volta per numero
+  useEffect(() => {
+    if (!open || anagrafica || cercando || f.ragione_sociale.trim()) return;
+    const { paese, numero } = leggiPartitaIva(f.partita_iva ?? "", f.nazione);
+    if (paese !== "IT" || !partitaIvaItalianaValida(numero) || ultimaCercata.current === `${paese}${numero}`) return;
+    void compilaDaPartitaIva(f.partita_iva ?? "");
+  }, [open, anagrafica, f.partita_iva]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
+    setEsitoRicerca(null); ultimaCercata.current = "";
     if (anagrafica) setF(daAnagrafica(anagrafica));
     else setF({ ...VUOTA, is_cliente: predefinito !== "fornitore", is_fornitore: predefinito === "fornitore" });
   }, [open, anagrafica, predefinito]);
@@ -96,6 +133,21 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{anagrafica ? `Modifica ${anagrafica.codice}` : "Nuova anagrafica"}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Partita IVA</Label>
+              <div className="flex gap-2">
+                <Input value={testo("partita_iva")} onChange={(e) => setTesto("partita_iva", e.target.value)} placeholder={anagrafica ? undefined : "scrivila e il resto si compila"} autoFocus={!anagrafica} />
+                <Button type="button" variant="outline" disabled={cercando || !(f.partita_iva ?? "").trim()} onClick={() => compilaDaPartitaIva(f.partita_iva ?? "")} title="Compila ragione sociale e sede dalla partita IVA">
+                  {cercando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}<span className="ml-1 hidden sm:inline">Compila</span>
+                </Button>
+              </div>
+            </div>
+            {campo("codice_fiscale", "Codice fiscale")}
+          </div>
+          {esitoRicerca && (
+            <p className={`text-xs rounded-sm border px-2 py-1.5 ${esitoRicerca.tono === "ok" ? "border-emerald-700/40 bg-emerald-50 text-emerald-900" : "border-amber-600/50 bg-amber-50 text-amber-900"}`}>{esitoRicerca.testo}</p>
+          )}
           {campo("ragione_sociale", "Ragione sociale")}
           <div className="flex flex-wrap items-center gap-5">
             <label className="flex items-center gap-2 text-sm">
@@ -107,10 +159,6 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={f.senza_partita_iva} onCheckedChange={(v) => setF((p) => ({ ...p, senza_partita_iva: v }))} /> Senza partita IVA
             </label>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {campo("partita_iva", "Partita IVA")}
-            {campo("codice_fiscale", "Codice fiscale")}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {campo("codice_sdi", "Codice destinatario SDI", { placeholder: "7 caratteri" })}

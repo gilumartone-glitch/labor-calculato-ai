@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.gestionale-invia-email]
 verify_jwt = true
+
+[functions.gestionale-cerca-azienda]
+verify_jwt = true

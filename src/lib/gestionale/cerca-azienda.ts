@@ -1,8 +1,9 @@
 /**
  * Compilazione della scheda di un cliente o fornitore dalla sola partita IVA.
- * La ricerca la fa la funzione sul server «gestionale-cerca-azienda» sul servizio pubblico VIES
- * (dati dell'Agenzia delle Entrate): restituisce denominazione e sede. PEC, codice destinatario,
- * codice fiscale e REA non sono in VIES.
+ * La ricerca la fa la funzione sul server «gestionale-cerca-azienda»:
+ *  - con la chiave del servizio a pagamento (Impostazioni > Servizi) legge il Registro imprese:
+ *    denominazione, sede, codice fiscale, PEC, codice destinatario;
+ *  - altrimenti il servizio pubblico VIES (Agenzia delle Entrate): solo denominazione e sede.
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Anagrafica, DatiAnagrafica } from "./documenti";
@@ -46,7 +47,13 @@ export function interpretaIndirizzo(grezzo: string, paese = "IT"): SedeAzienda {
   return { indirizzo: righe.join(", "), cap: null, citta: null, provincia: null };
 }
 
-export type AziendaTrovata = { trovata: true; fonte: string; paese: string; partita_iva: string; denominazione: string } & SedeAzienda;
+export type AziendaTrovata = {
+  trovata: true; fonte: string; paese: string; partita_iva: string; denominazione: string;
+  /** solo dal Registro imprese (servizio a pagamento) */
+  codice_fiscale?: string | null; pec?: string | null; codice_sdi?: string | null; forma_giuridica?: string | null; rea?: string | null; cessata?: boolean;
+  /** perché i dati completi non sono arrivati, se doveva arrivare di più */
+  avviso?: string | null;
+} & SedeAzienda;
 export type EsitoRicerca = AziendaTrovata | { trovata: false; messaggio: string };
 
 /** Interroga il server. Lancia un errore leggibile se il servizio non risponde. */
@@ -59,11 +66,28 @@ export async function cercaAzienda(testo: string, nazione = "IT"): Promise<Esito
     try { const corpo = await (error as { context?: Response }).context?.json(); if (corpo?.error) motivo = corpo.error; } catch { /* resta il messaggio generico */ }
     throw new Error(motivo);
   }
-  if (!data?.trovata) return { trovata: false, messaggio: data?.messaggio ?? "Partita IVA non trovata." };
-  return { trovata: true, fonte: data.fonte ?? "VIES", paese, partita_iva: numero, denominazione: String(data.denominazione ?? "").trim(), ...interpretaIndirizzo(String(data.indirizzo_grezzo ?? ""), paese) };
+  if (!data?.trovata) return { trovata: false, messaggio: [data?.messaggio ?? "Partita IVA non trovata.", data?.avviso].filter(Boolean).join(" ") };
+  return interpretaRisposta(data, paese, numero);
 }
 
-const CAMPI = [["ragione_sociale", "denominazione"], ["indirizzo", "indirizzo"], ["cap", "cap"], ["citta", "citta"], ["provincia", "provincia"]] as const;
+const testoO = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+/** La risposta del server: dal Registro imprese la sede arriva già divisa, da VIES va interpretata. */
+export function interpretaRisposta(data: Record<string, unknown>, paese: string, numero: string): AziendaTrovata {
+  const sede: SedeAzienda = typeof data.indirizzo_grezzo === "string"
+    ? interpretaIndirizzo(data.indirizzo_grezzo, paese)
+    : { indirizzo: testoO(data.indirizzo), cap: testoO(data.cap), citta: testoO(data.citta), provincia: testoO(data.provincia) };
+  return {
+    trovata: true, fonte: testoO(data.fonte) ?? "VIES", paese, partita_iva: numero, denominazione: testoO(data.denominazione) ?? "", ...sede,
+    codice_fiscale: testoO(data.codice_fiscale), pec: testoO(data.pec), codice_sdi: testoO(data.codice_sdi),
+    forma_giuridica: testoO(data.forma_giuridica), rea: testoO(data.rea), cessata: data.cessata === true, avviso: testoO(data.avviso),
+  };
+}
+
+const CAMPI = [
+  ["ragione_sociale", "denominazione"], ["codice_fiscale", "codice_fiscale"], ["indirizzo", "indirizzo"], ["cap", "cap"], ["citta", "citta"], ["provincia", "provincia"],
+  ["pec", "pec"], ["codice_sdi", "codice_sdi"],
+] as const;
 
 /**
  * Riporta i dati trovati sulla scheda. Su una scheda nuova compila tutto; su una esistente
@@ -72,7 +96,7 @@ const CAMPI = [["ragione_sociale", "denominazione"], ["indirizzo", "indirizzo"],
 export function compilaScheda(f: DatiAnagrafica, a: AziendaTrovata, soloVuoti: boolean): { scheda: DatiAnagrafica; compilati: string[]; diversi: string[] } {
   const scheda = { ...f, partita_iva: a.partita_iva, nazione: a.paese === "EL" ? "GR" : a.paese === "XI" ? "GB" : a.paese, senza_partita_iva: false };
   const compilati: string[] = []; const diversi: string[] = [];
-  const NOME: Record<string, string> = { ragione_sociale: "ragione sociale", indirizzo: "indirizzo", cap: "CAP", citta: "città", provincia: "provincia" };
+  const NOME: Record<string, string> = { ragione_sociale: "ragione sociale", codice_fiscale: "codice fiscale", indirizzo: "indirizzo", cap: "CAP", citta: "città", provincia: "provincia", pec: "PEC", codice_sdi: "codice destinatario" };
   for (const [campo, da] of CAMPI) {
     const nuovo = (a[da] ?? "").trim();
     if (!nuovo) continue;
@@ -89,4 +113,29 @@ export async function schedaConPartitaIva(numero: string, escludiId?: string): P
     .in("partita_iva", [numero, `IT${numero}`]).limit(2);
   if (error) return null;
   return (data as Pick<Anagrafica, "id" | "codice" | "ragione_sociale">[]).find((x) => x.id !== escludiId) ?? null;
+}
+
+/* ---------- Impostazioni > Servizi ---------- */
+export type StatoServizio = { disponibile: boolean; attivo: boolean; aggiornato_il: string | null; motivo?: string };
+
+async function chiamaServizio<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke("gestionale-cerca-azienda", { body });
+  if (error) {
+    let motivo = error.message;
+    try { const corpo = await (error as { context?: Response }).context?.json(); if (corpo?.error) motivo = corpo.error; } catch { /* resta il messaggio generico */ }
+    throw new Error(motivo);
+  }
+  return data as T;
+}
+/** Il servizio dei dati aziendali è configurato? (solo amministratore) */
+export async function statoServizioAziende(): Promise<StatoServizio> {
+  try {
+    const s = await chiamaServizio<Partial<StatoServizio>>({ azione: "servizio_stato" });
+    if (typeof s?.attivo !== "boolean") return { disponibile: false, attivo: false, aggiornato_il: null, motivo: "La funzione sul server non è aggiornata." };
+    return { disponibile: s.disponibile !== false, attivo: s.attivo, aggiornato_il: s.aggiornato_il ?? null, motivo: s.disponibile === false ? "La tabella dei servizi non c'è ancora sul server." : undefined };
+  } catch (e) { return { disponibile: false, attivo: false, aggiornato_il: null, motivo: e instanceof Error ? e.message : String(e) }; }
+}
+/** Salva la chiave (cifrata, sul server). Chiave vuota = servizio spento. */
+export async function salvaChiaveServizioAziende(chiave: string): Promise<void> {
+  await chiamaServizio({ azione: "servizio_chiave", chiave: chiave.trim() });
 }

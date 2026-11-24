@@ -53,3 +53,8 @@
 - Le password delle caselle stanno solo in `gest_caselle_email_segreti`, cifrate dalla funzione; nessun utente ha permessi su quella tabella, non vanno mai restituite al browser, scritte nei log, nel codice o nella copia di sicurezza. I segreti `GESTIONALE_SMTP_*` sono solo una riserva per quando nell'app non c'è nessuna casella.
 - Quale casella può spedire quale documento lo decide `documenti` e lo fa rispettare il server. Una casella non si cancella: si disattiva.
 - Ogni invio (riuscito o no) finisce in `gest_email_inviate`, registro di sola aggiunta scritto solo dalla funzione. Non usare l'email transazionale di Lovable per i documenti.
+
+### Gestionale — dati aziendali dalla partita IVA
+- La scheda di clienti e fornitori si compila dalla partita IVA con la funzione `supabase/functions/gestionale-cerca-azienda`: Openapi (Registro imprese, a pagamento, solo Italia) se in Impostazioni > Servizi c'è la chiave, altrimenti VIES (gratuito: solo denominazione e sede).
+- La chiave sta cifrata in `gest_segreti` (nessun permesso per gli utenti, RLS senza policy): mai nel codice, nei log, nella copia di sicurezza o restituita al browser. Stessa regola per ogni altra chiave di servizi esterni: va in `gest_segreti`, si inserisce da un modulo in Impostazioni.
+- Ogni ricerca completa costa: non aggiungere ricerche automatiche ripetute o di massa.

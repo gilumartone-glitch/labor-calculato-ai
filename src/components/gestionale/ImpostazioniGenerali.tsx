@@ -13,6 +13,8 @@ import {
   aggiornaAliquota, archiviaAliquota, controllaAliquota, creaAliquota, fattureAttive, leggiAvvio, NATURE_IVA, salvaFattureAttiveDal, type Avvio,
 } from "@/lib/gestionale/impostazioni";
 
+import { salvaChiaveServizioAziende, statoServizioAziende, type StatoServizio } from "@/lib/gestionale/cerca-azienda";
+
 const errore = (e: unknown) => toast({ title: "Errore", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
 const SENZA_NATURA = "-";
 
@@ -175,6 +177,62 @@ export const ImpostazioniAvvio = () => {
           </div>
         )}
       </section>
+    </div>
+  );
+};
+
+/** Impostazioni > Servizi: la chiave del servizio che compila le schede dalla partita IVA. */
+export const ImpostazioniServizi = () => {
+  const { isAdmin } = usePermissions();
+  const [stato, setStato] = useState<StatoServizio | null>(null);
+  const [chiave, setChiave] = useState("");
+  const [occupato, setOccupato] = useState(false);
+  const [spegni, setSpegni] = useState(false);
+  const carica = useCallback(async () => { setStato(isAdmin ? await statoServizioAziende() : { disponibile: true, attivo: false, aggiornato_il: null }); }, [isAdmin]);
+  useEffect(() => { void carica(); }, [carica]);
+  if (!stato) return <div className="grid place-items-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+
+  const salva = async (valore: string) => {
+    setOccupato(true);
+    try {
+      await salvaChiaveServizioAziende(valore);
+      setChiave(""); setSpegni(false); await carica();
+      toast({ title: valore ? "Chiave salvata" : "Servizio spento", description: valore ? "Prova subito: crea una scheda nuova e scrivi una partita IVA." : "Le schede si compilano di nuovo dal solo archivio gratuito." });
+    } catch (e) { errore(e); } finally { setOccupato(false); }
+  };
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <h2 className="font-display text-lg font-semibold">Dati aziendali dalla partita IVA</h2>
+      <p className="text-sm text-muted-foreground">
+        Quando si crea un cliente o un fornitore, la scheda si compila dalla partita IVA. Senza chiave si usa l'archivio gratuito dell'Agenzia delle Entrate: ragione sociale e sede.
+        Con la chiave di Openapi (servizio a pagamento che legge il Registro imprese) arrivano anche codice fiscale, PEC e codice destinatario. Ogni ricerca completa è una chiamata a pagamento sul tuo conto Openapi;
+        per l'estero e in caso di problemi si usa comunque l'archivio gratuito.
+      </p>
+      {!isAdmin ? <p className="text-sm text-muted-foreground">Questa impostazione la vede e la cambia solo l'amministratore.</p> : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={stato.attivo ? "border-emerald-700 text-emerald-800" : "border-amber-600 text-amber-800"}>
+              {stato.attivo ? `Servizio attivo, chiave salvata il ${new Date(stato.aggiornato_il ?? "").toLocaleDateString("it-IT")}` : "Nessuna chiave: si usa solo l'archivio gratuito"}
+            </Badge>
+          </div>
+          {!stato.disponibile && <p className="text-sm border-2 border-amber-600 bg-amber-50 text-amber-900 rounded-sm px-3 py-2">{stato.motivo ?? "Il servizio non è ancora attivo sul server."}</p>}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="grow max-w-xl">
+              <Label>{stato.attivo ? "Nuova chiave (sostituisce quella salvata)" : "Chiave (token) di Openapi per «Company»"}</Label>
+              <Input type="password" autoComplete="new-password" value={chiave} disabled={!stato.disponibile} onChange={(e) => setChiave(e.target.value)} />
+            </div>
+            <Button data-f10 disabled={occupato || !chiave.trim() || !stato.disponibile} onClick={() => salva(chiave)}>{occupato && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Salva chiave</Button>
+            {stato.attivo && (spegni
+              ? <span className="inline-flex items-center gap-2 text-sm">Spegnere il servizio?<Button size="sm" variant="destructive" disabled={occupato} onClick={() => salva("")}>Sì, spegni</Button><Button size="sm" variant="outline" onClick={() => setSpegni(false)}>No</Button></span>
+              : <Button variant="outline" disabled={occupato} onClick={() => setSpegni(true)}>Spegni</Button>)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            La chiave si crea nella console di Openapi (sezione dei token), abilitata per l'API «Company», chiamata IT-advanced; lì scegli anche la scadenza: quando scade va rigenerata e reinserita qui.
+            Viene conservata cifrata sul server e non si può più rileggere, solo sostituire o spegnere.
+          </p>
+        </>
+      )}
     </div>
   );
 };

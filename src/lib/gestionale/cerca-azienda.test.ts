@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 
-import { compilaScheda, interpretaIndirizzo, leggiPartitaIva, partitaIvaItalianaValida, type AziendaTrovata } from "./cerca-azienda";
+import { compilaScheda, interpretaIndirizzo, interpretaRisposta, leggiPartitaIva, partitaIvaItalianaValida, type AziendaTrovata } from "./cerca-azienda";
 import type { DatiAnagrafica } from "./documenti";
 
 describe("partita IVA", () => {
@@ -38,6 +38,19 @@ describe("compilazione della scheda", () => {
     const { scheda, compilati, diversi } = compilaScheda(vuota, trovata, false);
     expect(scheda).toMatchObject({ ragione_sociale: "FERRARI S.P.A.", partita_iva: "00159560366", indirizzo: "VIA ABETONE INFERIORE 4", cap: "41053", citta: "MARANELLO", provincia: "MO", senza_partita_iva: false, pec: "x@pec.it" });
     expect(compilati).toHaveLength(5); expect(diversi).toEqual([]);
+  });
+  it("dal Registro imprese arrivano anche codice fiscale, PEC e codice destinatario", () => {
+    const completa = interpretaRisposta({ fonte: "Registro imprese", denominazione: "FERRARI S.P.A.", indirizzo: "VIA ABETONE INFERIORE 4", cap: "41053", citta: "MARANELLO", provincia: "MO", codice_fiscale: "00159560366", pec: "ferrari@legalmail.it", codice_sdi: "ABC1234", cessata: false }, "IT", "00159560366");
+    const { scheda, compilati } = compilaScheda({ ...vuota, pec: null, codice_fiscale: null, codice_sdi: null } as DatiAnagrafica, completa, false);
+    expect(scheda).toMatchObject({ codice_fiscale: "00159560366", pec: "ferrari@legalmail.it", codice_sdi: "ABC1234", citta: "MARANELLO" });
+    expect(compilati).toEqual(["ragione sociale", "codice fiscale", "indirizzo", "CAP", "città", "provincia", "PEC", "codice destinatario"]);
+    // la PEC già scritta a mano su una scheda esistente non si sovrascrive
+    const r = compilaScheda({ ...vuota, ragione_sociale: "Ferrari", pec: "altra@pec.it" } as DatiAnagrafica, completa, true);
+    expect(r.scheda.pec).toBe("altra@pec.it"); expect(r.diversi.join()).toContain("PEC: ferrari@legalmail.it");
+  });
+  it("risposta VIES: indirizzo grezzo interpretato, niente PEC", () => {
+    const v = interpretaRisposta({ fonte: "VIES", denominazione: "X SRL", indirizzo_grezzo: "VIA ROMA 1\n00100 ROMA RM", avviso: "credito esaurito" }, "IT", "12485671007");
+    expect(v).toMatchObject({ fonte: "VIES", cap: "00100", citta: "ROMA", provincia: "RM", pec: null, codice_sdi: null, avviso: "credito esaurito" });
   });
   it("scheda esistente: riempie i vuoti, segnala i diversi, non sovrascrive", () => {
     const esistente = { ...vuota, ragione_sociale: "Ferrari spa", citta: "Maranello", cap: "41100" } as DatiAnagrafica;

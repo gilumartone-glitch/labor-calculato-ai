@@ -70,7 +70,19 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
         ].filter(Boolean).join(" ");
         return scheda;
       });
-      setEsitoRicerca({ tono: doppia ? "avviso" : "ok", testo: `${esito.denominazione || "Partita IVA attiva"} — ${riepilogo} PEC, codice destinatario e codice fiscale non sono in questo archivio: vanno chiesti al cliente.${nota}` });
+      const completa = esito.fonte !== "VIES";
+      const mancano = completa
+        ? [!esito.pec ? "PEC" : "", !esito.codice_sdi ? "codice destinatario" : ""].filter(Boolean)
+        : ["PEC", "codice destinatario", "codice fiscale"];
+      const coda = [
+        mancano.length ? `${completa ? "Non risultano" : "Non sono nell'archivio gratuito"}: ${mancano.join(", ")}${completa ? "" : " (vanno chiesti al cliente)"}.` : "",
+        esito.cessata ? "ATTENZIONE: al Registro imprese l'azienda risulta cessata o inattiva." : "",
+        esito.avviso ?? "",
+      ].filter(Boolean).join(" ");
+      setEsitoRicerca({
+        tono: doppia || esito.cessata || esito.avviso ? "avviso" : "ok",
+        testo: `${esito.denominazione || "Partita IVA attiva"}${esito.forma_giuridica ? ` (${esito.forma_giuridica.toLowerCase()})` : ""} — fonte: ${completa ? "Registro imprese" : "Agenzia delle Entrate (VIES)"}. ${riepilogo} ${coda}${nota}`,
+      });
     } catch (e) {
       setEsitoRicerca({ tono: "avviso", testo: `${messaggio(e)} Puoi compilare la scheda a mano.` });
     } finally { setCercando(false); }
@@ -138,7 +150,7 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
               <Label>Partita IVA</Label>
               <div className="flex gap-2">
                 <Input value={testo("partita_iva")} onChange={(e) => setTesto("partita_iva", e.target.value)} placeholder={anagrafica ? undefined : "scrivila e il resto si compila"} autoFocus={!anagrafica} />
-                <Button type="button" variant="outline" disabled={cercando || !(f.partita_iva ?? "").trim()} onClick={() => compilaDaPartitaIva(f.partita_iva ?? "")} title="Compila ragione sociale e sede dalla partita IVA">
+                <Button type="button" variant="outline" disabled={cercando || !(f.partita_iva ?? "").trim()} onClick={() => compilaDaPartitaIva(f.partita_iva ?? "")} title="Compila la scheda dalla partita IVA">
                   {cercando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}<span className="ml-1 hidden sm:inline">Compila</span>
                 </Button>
               </div>

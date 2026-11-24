@@ -33,7 +33,7 @@ import { trovaPezza } from "@/lib/gestionale/api";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { CopiaSicurezzaDialog } from "@/components/gestionale/CopiaSicurezza";
 import { ImpostazioniEmail } from "@/components/gestionale/ImpostazioniEmail";
-import { ImpostazioniAvvio, ImpostazioniIva } from "@/components/gestionale/ImpostazioniGenerali";
+import { ImpostazioniAvvio, ImpostazioniIva, ImpostazioniServizi } from "@/components/gestionale/ImpostazioniGenerali";
 import { CondizioniDialog } from "@/components/gestionale/ScadenzarioTab";
 import { giorniDallUltimaCopia } from "@/lib/gestionale/copia-sicurezza";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
@@ -52,7 +52,7 @@ const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valo
   { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "banche", nome: "Banche" }, { valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
   { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }, { valore: "inventario", nome: "Inventario" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
-  { codice: "impostazioni", nome: "Impostazioni", icona: Settings, schede: [{ valore: "imp-mail", nome: "Mail" }, { valore: "imp-azienda", nome: "Dati azienda" }, { valore: "imp-iva", nome: "Aliquote IVA" }, { valore: "imp-pagamenti", nome: "Condizioni di pagamento" }, { valore: "imp-avvio", nome: "Avvio e numerazione" }, { valore: "imp-copia", nome: "Copia di sicurezza" }] },
+  { codice: "impostazioni", nome: "Impostazioni", icona: Settings, schede: [{ valore: "imp-mail", nome: "Mail" }, { valore: "imp-azienda", nome: "Dati azienda" }, { valore: "imp-iva", nome: "Aliquote IVA" }, { valore: "imp-pagamenti", nome: "Condizioni di pagamento" }, { valore: "imp-avvio", nome: "Avvio e numerazione" }, { valore: "imp-servizi", nome: "Servizi" }, { valore: "imp-copia", nome: "Copia di sicurezza" }] },
 ];
 
 const fmtQta = (n: number) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
@@ -541,6 +541,7 @@ const Gestionale = () => {
             </TabsContent>
             <TabsContent value="imp-iva"><ImpostazioniIva aliquote={aliquote} puoScrivere={puoScrivere} onChanged={caricaClientiFornitori} /></TabsContent>
             <TabsContent value="imp-avvio"><ImpostazioniAvvio /></TabsContent>
+            <TabsContent value="imp-servizi"><ImpostazioniServizi /></TabsContent>
             <TabsContent value="imp-pagamenti" className="space-y-3 max-w-4xl">
               <p className="text-sm text-muted-foreground">Le condizioni che si scelgono sui documenti e sulle schede dei clienti: da qui nascono le rate dello scadenzario.</p>
               <div className="border-2 border-ink/20 rounded-sm bg-paper overflow-x-auto">

@@ -192,9 +192,11 @@ type EditorProps = {
   onBack: () => void;
   onApri: (id: string, tipo: TipoDocumento) => void;
   onAnagraficheChanged: () => void;
+  /** apre subito l'invio per email (preventivo appena numerato da Progettazione) */
+  inviaSubito?: boolean;
 };
 
-const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onBack, onApri, onAnagraficheChanged }: EditorProps) => {
+const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onBack, onApri, onAnagraficheChanged, inviaSubito }: EditorProps) => {
   const [loading, setLoading] = useState(true);
   const [documento, setDocumento] = useState<Documento | null>(null);
   const [testata, setTestata] = useState<Testata | null>(null);
@@ -280,6 +282,15 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   }, [scarico, variantiTessutoInRiga]);
   const aliquotaPredefinita = useMemo(() => aliquote.find((a) => a.codice === "22")?.id ?? aliquote[0]?.id ?? null, [aliquote]);
   const totali = useMemo(() => calcolaTotali(righe, aliquote), [righe, aliquote]);
+
+  // preventivo appena numerato da Progettazione: si apre da solo l'invio per email, una volta
+  const invioAperto = useRef(false);
+  useEffect(() => {
+    if (!inviaSubito || invioAperto.current || loading || !documento || documento.stato !== "confermato") return;
+    invioAperto.current = true;
+    const t = setTimeout(() => document.querySelector<HTMLButtonElement>("[data-gestionale] [data-email], [data-email]")?.click(), 150);
+    return () => clearTimeout(t);
+  }, [inviaSubito, loading, documento]);
 
   if (loading || !documento || !testata) {
     return <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -876,7 +887,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
 /* ------------------------------------------------------------------ */
 /* Elenco documenti                                                    */
 /* ------------------------------------------------------------------ */
-const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onAnagraficheChanged, documentoIniziale }: {
+const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, puoScrivere, onAnagraficheChanged, documentoIniziale, inviaSubito }: {
   anagrafiche: Anagrafica[];
   aliquote: AliquotaIva[];
   condizioni: CondizionePagamento[];
@@ -886,6 +897,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
   onAnagraficheChanged: () => void;
   /** Documento da aprire subito (es. arrivando da Progettazione). */
   documentoIniziale?: string | null;
+  inviaSubito?: boolean;
 }) => {
   const [tipo, setTipo] = useState<TipoDocumento>("preventivo");
   const [documenti, setDocumenti] = useState<Documento[]>([]);
@@ -937,6 +949,7 @@ const DocumentiTab = ({ anagrafiche, aliquote, condizioni, articoli, varianti, p
         puoScrivere={puoScrivere}
         onBack={() => setAperto(null)}
         onApri={(id, t) => { setTipo(t); setAperto(id); }}
+        inviaSubito={inviaSubito && aperto === documentoIniziale}
         onAnagraficheChanged={onAnagraficheChanged}
       />
     );

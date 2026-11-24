@@ -335,6 +335,8 @@ const Gestionale = () => {
 
   const [parametri] = useSearchParams();
   const [documentoIniziale, setDocumentoIniziale] = useState<string | null>(parametri.get("doc"));
+  // arrivando da Progettazione con un preventivo appena numerato si apre subito l'invio per email
+  const inviaSubito = parametri.get("invia") === "1";
   const [tab, setTab] = useState("documenti");
   // Banche: gli stessi conti della Contabilità (saldi, movimenti, associazione alle competenze).
   // Li vede solo chi li vede già lì.
@@ -571,7 +573,7 @@ const Gestionale = () => {
               <DocumentiTab
                 anagrafiche={anagrafiche} aliquote={aliquote} condizioni={condizioni} articoli={articoli} varianti={varianti}
                 puoScrivere={puoScrivere} onAnagraficheChanged={caricaClientiFornitori}
-                documentoIniziale={documentoIniziale}
+                documentoIniziale={documentoIniziale} inviaSubito={inviaSubito}
               />
             </TabsContent>
 

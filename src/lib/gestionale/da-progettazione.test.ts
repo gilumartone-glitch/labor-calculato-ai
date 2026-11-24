@@ -111,3 +111,16 @@ describe("preventivo del Gestionale da una scheda di Progettazione", () => {
     expect(p.netto).toBe(0);
   });
 });
+
+import { testataDaCliente } from "./da-progettazione";
+
+describe("cliente sul preventivo nato dalla scheda", () => {
+  it("porta pagamento, condizione, scissione dei pagamenti e nome dell'ordine del cliente", () => {
+    expect(testataDaCliente({ id: "c1", pagamento: "Bonifico 30 gg", esigibilita_iva: "S", ordine_cliente_tipo: "RdA", condizione_pagamento_id: "bb30" }))
+      .toEqual({ anagrafica_id: "c1", pagamento: "Bonifico 30 gg", condizione_pagamento_id: "bb30", esigibilita_iva: "S", ordine_cliente_tipo: "RdA" });
+  });
+  it("cliente senza preferenze: valori neutri", () => {
+    expect(testataDaCliente({ id: "c2", pagamento: null, esigibilita_iva: "I", ordine_cliente_tipo: null }))
+      .toEqual({ anagrafica_id: "c2", pagamento: null, condizione_pagamento_id: null, esigibilita_iva: "I", ordine_cliente_tipo: null });
+  });
+});

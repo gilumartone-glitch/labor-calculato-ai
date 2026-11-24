@@ -34,6 +34,8 @@ export const TABELLE_COPIA: { nome: string; ordine: string[]; facoltativa?: bool
   { nome: "gest_prima_nota", ordine: ["id"] },
   { nome: "gest_storico", ordine: ["id"] },
   { nome: "gest_email_inviate", ordine: ["id"], facoltativa: true },
+  // le caselle email sì, le loro password no: gest_caselle_email_segreti resta fuori dalla copia e si reinserisce a mano
+  { nome: "gest_caselle_email", ordine: ["id"], facoltativa: true },
 ];
 
 export type Riga = Record<string, unknown>;
@@ -181,5 +183,5 @@ export const ETICHETTA_TABELLA: Record<string, string> = {
   gest_numeratori: "Numeratori", gest_documenti: "Documenti", gest_documenti_righe: "Righe dei documenti",
   gest_documenti_righe_pezze: "Pezze nelle righe", gest_movimenti: "Movimenti di magazzino", gest_scadenze: "Scadenze",
   gest_pagamenti: "Incassi e pagamenti", gest_prima_nota: "Prima nota", gest_storico: "Storico delle modifiche",
-  gest_email_inviate: "Email inviate",
+  gest_email_inviate: "Email inviate", gest_caselle_email: "Caselle email",
 };

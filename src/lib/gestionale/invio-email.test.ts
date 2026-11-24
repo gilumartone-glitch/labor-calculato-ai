@@ -1,29 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { casellaProposta, casellePerContesto, inBase64, soloAmministrazione, type Caselle } from "./invio-email";
+import { casellaProposta, casellePerContesto, inBase64, interpretaCaselle, type Caselle } from "./invio-email";
 import { emailEstrattoConto } from "./email-documento";
 
-const caselle: Caselle = { configurato: true, amministrazione: "amministrazione@tecnofra.it", caselle: ["amministrazione@tecnofra.it", "commerciale@tecnofra.it", "info@tecnofra.it"] };
+const tutti = ["preventivo", "ordine", "ddt", "fattura", "nota_credito", "estratto_conto"] as const;
+const caselle: Caselle = { configurato: true, caselle: [
+  { indirizzo: "amministrazione@tecnofra.it", nome: "Amministrazione", documenti: ["fattura", "nota_credito", "estratto_conto"] },
+  { indirizzo: "commerciale@tecnofra.it", nome: "Commerciale", documenti: ["preventivo", "ordine"] },
+  { indirizzo: "magazzino@tecnofra.it", nome: "", documenti: ["ddt", "ordine"] },
+] };
+const indirizzi = (c: ReturnType<typeof casellePerContesto>) => c.map((x) => x.indirizzo);
 
 describe("caselle da cui spedire", () => {
-  it("fatture, note di credito ed estratti conto: solo amministrazione", () => {
-    for (const c of ["fattura", "nota_credito", "estratto_conto"] as const) {
-      expect(soloAmministrazione(c)).toBe(true);
-      expect(casellePerContesto(c, caselle)).toEqual(["amministrazione@tecnofra.it"]);
-    }
-  });
-  it("preventivi, conferme d'ordine e DDT: tutte le caselle, sceglie l'operatore", () => {
-    for (const c of ["preventivo", "ordine", "ddt"] as const) expect(casellePerContesto(c, caselle)).toEqual(caselle.caselle);
-  });
-  it("se l'amministrazione non è configurata la fattura non ha caselle", () => {
-    expect(casellePerContesto("fattura", { ...caselle, caselle: ["info@tecnofra.it"] })).toEqual([]);
+  it("ogni documento parte solo dalle caselle abilitate per quel documento", () => {
+    expect(indirizzi(casellePerContesto("fattura", caselle))).toEqual(["amministrazione@tecnofra.it"]);
+    expect(indirizzi(casellePerContesto("estratto_conto", caselle))).toEqual(["amministrazione@tecnofra.it"]);
+    expect(indirizzi(casellePerContesto("preventivo", caselle))).toEqual(["commerciale@tecnofra.it"]);
+    expect(indirizzi(casellePerContesto("ordine", caselle))).toEqual(["commerciale@tecnofra.it", "magazzino@tecnofra.it"]);
+    expect(indirizzi(casellePerContesto("ddt", caselle))).toEqual(["magazzino@tecnofra.it"]);
   });
   it("senza configurazione nessuna casella", () => {
     expect(casellePerContesto("preventivo", { ...caselle, configurato: false })).toEqual([]);
   });
+  it("legge la risposta del server, anche quella della prima versione (solo indirizzi)", () => {
+    expect(interpretaCaselle(null)).toEqual({ configurato: false, caselle: [] });
+    expect(interpretaCaselle({ configurato: true, caselle: [{ indirizzo: "a@tecnofra.it", nome: "A", documenti: ["ddt", "inventato"] }] }))
+      .toEqual({ configurato: true, caselle: [{ indirizzo: "a@tecnofra.it", nome: "A", documenti: ["ddt"] }] });
+    const vecchia = interpretaCaselle({ configurato: true, caselle: ["amministrazione@tecnofra.it", "info@tecnofra.it"] });
+    expect(vecchia.caselle[0].documenti).toEqual([...tutti]);
+    expect(vecchia.caselle[1].documenti).toEqual(["preventivo", "ordine", "ddt"]);
+  });
   it("propone l'ultima usata, l'unica disponibile, altrimenti lascia scegliere", () => {
-    expect(casellaProposta("preventivo", caselle.caselle, "info@tecnofra.it")).toBe("info@tecnofra.it");
-    expect(casellaProposta("preventivo", caselle.caselle, "vecchia@tecnofra.it")).toBe("");
-    expect(casellaProposta("preventivo", caselle.caselle, null)).toBe("");
+    expect(casellaProposta("preventivo", ["info@tecnofra.it", "x@tecnofra.it"], "info@tecnofra.it")).toBe("info@tecnofra.it");
+    expect(casellaProposta("preventivo", ["info@tecnofra.it", "x@tecnofra.it"], "vecchia@tecnofra.it")).toBe("");
+    expect(casellaProposta("preventivo", ["info@tecnofra.it", "x@tecnofra.it"], null)).toBe("");
     expect(casellaProposta("fattura", ["amministrazione@tecnofra.it"], null)).toBe("amministrazione@tecnofra.it");
     expect(casellaProposta("fattura", [], "amministrazione@tecnofra.it")).toBe("");
   });

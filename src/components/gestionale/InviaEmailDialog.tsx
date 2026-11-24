@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { toast } from "@/hooks/use-toast";
 import { collegamentoPosta, indirizzi } from "@/lib/gestionale/email-documento";
 import {
-  casellaProposta, casellePerContesto, inviaEmail, leggiCaselle, ricordaCasella, soloAmministrazione, storicoEmail,
+  casellaProposta, casellePerContesto, CONTESTI_EMAIL, inviaEmail, leggiCaselle, ricordaCasella, storicoEmail,
   type Caselle, type ContestoEmail, type EmailInviata,
 } from "@/lib/gestionale/invio-email";
 
@@ -47,7 +47,7 @@ export const InviaEmailDialog = ({ email, onClose, creaPdf }: {
     void leggiCaselle().then((c) => {
       if (!vivo) return;
       setCaselle(c);
-      setDa(casellaProposta(email.contesto, casellePerContesto(email.contesto, c)));
+      setDa(casellaProposta(email.contesto, casellePerContesto(email.contesto, c).map((x) => x.indirizzo)));
     });
     void storicoEmail({ documento_id: email.documentoId, anagrafica_id: email.anagraficaId, contesto: email.contesto }).then((s) => { if (vivo) setStorico(s); });
     return () => { vivo = false; };
@@ -57,6 +57,7 @@ export const InviaEmailDialog = ({ email, onClose, creaPdf }: {
 
   const disponibili = caselle ? casellePerContesto(email.contesto, caselle) : [];
   const diretto = disponibili.length > 0;
+  const tipo = (CONTESTI_EMAIL.find((c) => c.codice === email.contesto)?.nome ?? "questo documento").toLowerCase();
 
   const controlla = () => {
     const destinatari = indirizzi(a); const copia = indirizzi(cc);
@@ -112,15 +113,15 @@ export const InviaEmailDialog = ({ email, onClose, creaPdf }: {
               <Label>Da</Label>
               <Select value={da} onValueChange={setDa} disabled={disponibili.length === 1}>
                 <SelectTrigger><SelectValue placeholder="Scegli la casella Tecnofra da cui spedire" /></SelectTrigger>
-                <SelectContent>{disponibili.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>{disponibili.map((c) => <SelectItem key={c.indirizzo} value={c.indirizzo}>{c.nome ? `${c.nome} — ${c.indirizzo}` : c.indirizzo}</SelectItem>)}</SelectContent>
               </Select>
-              {soloAmministrazione(email.contesto) && <p className="text-xs text-muted-foreground mt-1">Fatture, note di credito ed estratti conto partono sempre dall'amministrazione.</p>}
+              {disponibili.length === 1 && <p className="text-xs text-muted-foreground mt-1">È l'unica casella abilitata per {tipo}. Le altre si abilitano in Impostazioni › Mail.</p>}
             </div>
           ) : (
             <p className="text-xs border-2 border-ink/20 bg-paper rounded-sm px-3 py-2">
-              {caselle.configurato && soloAmministrazione(email.contesto)
-                ? `La casella ${caselle.amministrazione} non è ancora configurata sul server: per ora si scarica il PDF e si apre il programma di posta.`
-                : "L'invio diretto dalle caselle Tecnofra non è ancora configurato sul server: per ora si scarica il PDF e si apre il programma di posta, dove scegli la casella e alleghi il file."}
+              {caselle.configurato
+                ? `Nessuna casella è abilitata a spedire ${tipo}: si abilita in Impostazioni › Mail. Per ora si scarica il PDF e si apre il programma di posta.`
+                : "L'invio diretto non è ancora configurato (Impostazioni › Mail): per ora si scarica il PDF e si apre il programma di posta, dove scegli la casella e alleghi il file."}
             </p>
           )}
           <div>

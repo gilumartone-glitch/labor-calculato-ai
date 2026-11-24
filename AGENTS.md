@@ -47,7 +47,9 @@
 - Roll labels carry a QR code generated in-repo (`qr.ts`, no dependency) pointing to `/gestionale?pezza=CODE`; RouteGuard remembers Gestionale deep links across login via `src/lib/dopo-accesso.ts`.
 - Gestionale backups are a browser-side export of every `gest_` table into one zip with a SHA-256 fingerprint (`copia-sicurezza.ts`); `scripts/gestionale-ripristina.mjs` turns a verified copy into a single-transaction restore for a fresh database. A new `gest_` table must be added to both table lists, in dependency order.
 
-### Gestionale — invio email
-- I documenti partono dalle caselle @tecnofra.it tramite la funzione `supabase/functions/gestionale-invia-email` (SMTP SiteGround). Le password stanno solo nei segreti `GESTIONALE_SMTP_HOST`, `GESTIONALE_SMTP_PORT`, `GESTIONALE_SMTP_CASELLE`: mai nel codice, mai nel database, mai restituite al browser.
-- Regola fissa, applicata sul server: fatture, note di credito ed estratti conto solo da amministrazione@tecnofra.it; preventivi, conferme d'ordine e DDT da una casella scelta dall'operatore.
+### Gestionale — invio email e Impostazioni
+- L'area «Impostazioni» del Gestionale raccoglie tutto ciò che serve per configurarlo (Mail, Dati azienda, Copia di sicurezza): le nuove impostazioni vanno lì come sotto-pagina, non in pulsanti sparsi.
+- I documenti partono dalle caselle aziendali tramite la funzione `supabase/functions/gestionale-invia-email` (SMTP SiteGround). Caselle e server si configurano in Impostazioni > Mail: `gest_caselle_email` (indirizzo, nome, `documenti` che può spedire, attiva), server in `gest_impostazioni` chiave `email_smtp`.
+- Le password delle caselle stanno solo in `gest_caselle_email_segreti`, cifrate dalla funzione; nessun utente ha permessi su quella tabella, non vanno mai restituite al browser, scritte nei log, nel codice o nella copia di sicurezza. I segreti `GESTIONALE_SMTP_*` sono solo una riserva per quando nell'app non c'è nessuna casella.
+- Quale casella può spedire quale documento lo decide `documenti` e lo fa rispettare il server. Una casella non si cancella: si disattiva.
 - Ogni invio (riuscito o no) finisce in `gest_email_inviate`, registro di sola aggiunta scritto solo dalla funzione. Non usare l'email transazionale di Lovable per i documenti.

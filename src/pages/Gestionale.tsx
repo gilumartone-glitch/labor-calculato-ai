@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode, DatabaseBackup, Landmark, Warehouse, FileText } from "lucide-react";
+import { ArrowLeft, Boxes, Building2, Plus, Loader2, Scissors, Undo2, Archive, Flame, QrCode, DatabaseBackup, Landmark, Warehouse, FileText, Settings } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import { FORMATI_ETICHETTE, creaPdfEtichette, type FormatoEtichette } from "@/li
 import { trovaPezza } from "@/lib/gestionale/api";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { CopiaSicurezzaDialog } from "@/components/gestionale/CopiaSicurezza";
+import { ImpostazioniEmail } from "@/components/gestionale/ImpostazioniEmail";
 import { giorniDallUltimaCopia } from "@/lib/gestionale/copia-sicurezza";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
@@ -44,11 +45,12 @@ import {
 /** La Contabilità tiene il 2026 nella chiave «main» e gli altri anni in «main-ANNO»: stessa regola qui. */
 const ANNO_BASE_CONTABILITA = 2026;
 
-/** Le tre aree del Gestionale e le schede di ciascuna. */
+/** Le aree del Gestionale e le schede di ciascuna. In Impostazioni sta tutto quello che serve per configurarlo. */
 const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valore: string; nome: string }[] }[] = [
   { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "banche", nome: "Banche" }, { valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
   { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }, { valore: "inventario", nome: "Inventario" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
+  { codice: "impostazioni", nome: "Impostazioni", icona: Settings, schede: [{ valore: "imp-mail", nome: "Mail" }, { valore: "imp-azienda", nome: "Dati azienda" }, { valore: "imp-copia", nome: "Copia di sicurezza" }] },
 ];
 
 const fmtQta = (n: number) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
@@ -498,8 +500,8 @@ const Gestionale = () => {
           <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
-            {/* Tre aree; sotto, le schede dell'area aperta */}
-            <div className="grid grid-cols-3 gap-2 mb-3" aria-label="Aree del Gestionale">
+            {/* Le aree; sotto, le schede dell'area aperta */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3" aria-label="Aree del Gestionale">
               {macro.map((m, i) => {
                 const attiva = m.codice === macroAttiva.codice;
                 return (
@@ -526,6 +528,20 @@ const Gestionale = () => {
                 <Link to="/contabilita" className="text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground">Cassa, conti e competenze: apri la Contabilità generale</Link>
               )}
             </div>
+
+            <TabsContent value="imp-mail"><ImpostazioniEmail /></TabsContent>
+            <TabsContent value="imp-azienda" className="space-y-3 max-w-3xl">
+              <p className="text-sm text-muted-foreground">Ragione sociale, partita IVA, sede, banca e regime fiscale: compaiono nell'intestazione dei PDF, nella fattura elettronica e nella firma delle email.</p>
+              <Button data-nuovo onClick={() => setDatiAzienda(true)}><Building2 className="w-4 h-4 mr-1" /> Apri i dati azienda</Button>
+            </TabsContent>
+            <TabsContent value="imp-copia" className="space-y-3 max-w-3xl">
+              <p className="text-sm text-muted-foreground">
+                Scarica una copia completa del Gestionale (documenti, anagrafiche, magazzino, scadenze, prima nota, storico, email inviate) e controlla che una copia già scaricata sia integra.
+                {giorniCopia == null ? " Da questo computer non è ancora stata scaricata nessuna copia." : ` Ultima copia da questo computer: ${giorniCopia === 0 ? "oggi" : `${giorniCopia} giorni fa`}.`}
+                {" "}Le password delle caselle email non entrano nella copia.
+              </p>
+              <Button data-nuovo onClick={() => setCopiaSicurezza(true)}><DatabaseBackup className="w-4 h-4 mr-1" /> Apri la copia di sicurezza</Button>
+            </TabsContent>
 
             <TabsContent value="documenti">
               <DocumentiTab
@@ -829,7 +845,7 @@ const Gestionale = () => {
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <CopiaSicurezzaDialog open={copiaSicurezza} onOpenChange={setCopiaSicurezza} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F3", "cerca"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F8", "email"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3", "aree"], ["Alt+4…", "schede dell'area"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F3", "cerca"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F8", "email"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3 4", "aree"], ["Alt+5…", "schede dell'area"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

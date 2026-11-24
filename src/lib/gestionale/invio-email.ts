@@ -1,8 +1,7 @@
 /**
  * Invio diretto dei documenti dalle caselle @tecnofra.it, con il PDF allegato.
  * Spedisce la funzione sul server «gestionale-invia-email»: le password delle caselle stanno lì, il browser non le vede mai.
- * Regola: fatture, note di credito ed estratti conto partono solo dall'amministrazione;
- * preventivi, conferme d'ordine e DDT da una qualsiasi delle caselle configurate, scelta dall'operatore.
+ * Quali documenti può spedire ogni casella si decide in Impostazioni > Mail; il server lo fa rispettare.
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,26 +10,41 @@ const db = supabase as any;
 const FUNZIONE = "gestionale-invia-email";
 
 export type ContestoEmail = "preventivo" | "ordine" | "ddt" | "fattura" | "nota_credito" | "estratto_conto";
+export const CONTESTI_EMAIL: { codice: ContestoEmail; nome: string }[] = [
+  { codice: "preventivo", nome: "Preventivi" }, { codice: "ordine", nome: "Conferme d'ordine" }, { codice: "ddt", nome: "DDT" },
+  { codice: "fattura", nome: "Fatture" }, { codice: "nota_credito", nome: "Note di credito" }, { codice: "estratto_conto", nome: "Estratti conto" },
+];
 export const CASELLA_AMMINISTRAZIONE = "amministrazione@tecnofra.it";
-const SOLO_AMMINISTRAZIONE: ContestoEmail[] = ["fattura", "nota_credito", "estratto_conto"];
-export const soloAmministrazione = (contesto: ContestoEmail): boolean => SOLO_AMMINISTRAZIONE.includes(contesto);
 
-export type Caselle = { configurato: boolean; caselle: string[]; amministrazione: string };
-const NON_CONFIGURATO: Caselle = { configurato: false, caselle: [], amministrazione: CASELLA_AMMINISTRAZIONE };
+/** Una casella da cui si può spedire, con i documenti per cui è abilitata (Impostazioni > Mail). */
+export type CasellaInvio = { indirizzo: string; nome: string; documenti: ContestoEmail[] };
+export type Caselle = { configurato: boolean; caselle: CasellaInvio[] };
+const NON_CONFIGURATO: Caselle = { configurato: false, caselle: [] };
+
+/** Risposta del server: l'elenco con i documenti abilitati; la prima versione mandava solo gli indirizzi. */
+export function interpretaCaselle(data: unknown): Caselle {
+  const d = data as { configurato?: unknown; caselle?: unknown } | null;
+  if (!d || !Array.isArray(d.caselle)) return NON_CONFIGURATO;
+  const tutti = CONTESTI_EMAIL.map((c) => c.codice);
+  const caselle = d.caselle.map((c): CasellaInvio | null => {
+    if (typeof c === "string") return { indirizzo: c, nome: "", documenti: c === CASELLA_AMMINISTRAZIONE ? tutti : ["preventivo", "ordine", "ddt"] };
+    const o = c as Partial<CasellaInvio>;
+    return typeof o?.indirizzo === "string" ? { indirizzo: o.indirizzo, nome: o.nome ?? "", documenti: (o.documenti ?? []).filter((x) => tutti.includes(x)) } : null;
+  }).filter((c): c is CasellaInvio => c !== null);
+  return { configurato: Boolean(d.configurato), caselle };
+}
 
 /** Da quali caselle si può spedire. Se la funzione non c'è o non è configurata, l'invio diretto non è disponibile. */
 export async function leggiCaselle(): Promise<Caselle> {
   try {
     const { data, error } = await supabase.functions.invoke(FUNZIONE, { body: { azione: "caselle" } });
-    if (error || !data || !Array.isArray(data.caselle)) return NON_CONFIGURATO;
-    return { configurato: Boolean(data.configurato), caselle: data.caselle as string[], amministrazione: (data.amministrazione as string) || CASELLA_AMMINISTRAZIONE };
+    return error ? NON_CONFIGURATO : interpretaCaselle(data);
   } catch { return NON_CONFIGURATO; }
 }
 
 /** Le caselle tra cui l'operatore può scegliere per questo tipo di documento. */
-export function casellePerContesto(contesto: ContestoEmail, c: Caselle): string[] {
-  if (!c.configurato) return [];
-  return soloAmministrazione(contesto) ? c.caselle.filter((x) => x === c.amministrazione) : c.caselle;
+export function casellePerContesto(contesto: ContestoEmail, c: Caselle): CasellaInvio[] {
+  return c.configurato ? c.caselle.filter((x) => x.documenti.includes(contesto)) : [];
 }
 
 const CHIAVE_ULTIMA = "gestionale:casella-email";

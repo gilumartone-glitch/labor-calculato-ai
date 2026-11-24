@@ -18,7 +18,7 @@ const TABELLE_BASE = [
   "gest_movimenti", "gest_scadenze", "gest_pagamenti", "gest_prima_nota", "gest_storico",
 ];
 /** Tabelle aggiunte dopo: si ripristinano solo se la copia le contiene. */
-const TABELLE_FACOLTATIVE = ["gest_email_inviate"];
+const TABELLE_FACOLTATIVE = ["gest_email_inviate", "gest_caselle_email"];
 
 const canonico = (v) => {
   if (v === null || typeof v !== "object") return JSON.stringify(v) ?? "null";
@@ -57,7 +57,10 @@ export function sqlRipristino(copia) {
   scrivi(`-- Impronta ${copia.impronta}`);
   scrivi("BEGIN;");
   scrivi("SET LOCAL session_replication_role = replica;   -- sospende trigger e controlli tra tabelle durante il caricamento");
-  scrivi(`TRUNCATE ${[...TABELLE].reverse().map((t) => `public.${t}`).join(", ")} RESTART IDENTITY;`);
+  // le password delle caselle email non stanno nella copia: dopo il ripristino si reinseriscono in Impostazioni > Mail
+  const svuota = [...TABELLE].reverse();
+  if (TABELLE.includes("gest_caselle_email")) svuota.unshift("gest_caselle_email_segreti");
+  scrivi(`TRUNCATE ${svuota.map((t) => `public.${t}`).join(", ")} RESTART IDENTITY;`);
   // carica le righe usando solo le colonne che esistono oggi nella tabella
   scrivi(`CREATE OR REPLACE FUNCTION pg_temp.carica(_tabella TEXT, _righe JSONB) RETURNS VOID LANGUAGE plpgsql AS $f$
 DECLARE _colonne TEXT;

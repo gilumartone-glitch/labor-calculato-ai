@@ -10,7 +10,7 @@
  *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
  *   F3               porta il cursore nella casella di ricerca della schermata
  *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF      F8  invia per email
- *   Alt+1 2 3        le tre aree (Contabilità, Magazzino, Documenti)      Alt+4…9  le schede dell'area aperta
+ *   Alt+1 2 3 4      le aree (Contabilità, Magazzino, Documenti, Impostazioni)   Alt+5…9  le schede dell'area aperta
  * Tab e Maiusc+Tab restano quelli del browser.
  */
 

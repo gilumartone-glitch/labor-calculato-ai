@@ -1,7 +1,8 @@
 import { num } from "@/lib/format";
-import type { DepartmentState, DepartmentTotals, SubProject } from "@/components/calculator/types";
+import type { Catalog, DepartmentState, DepartmentTotals, SubProject } from "@/components/calculator/types";
 import { getProductWorks } from "@/components/calculator/types";
 import type { AliquotaIva, RigaBozza } from "./documenti";
+import { schedaDaPezzo, testoScheda, type SchedaTecnica } from "./scheda-tecnica";
 import { supabase } from "@/integrations/supabase/client";
 import { confermaDocumento, creaDocumento, salvaBozza, type Anagrafica, type Documento, type Testata } from "./documenti";
 
@@ -15,7 +16,8 @@ export type RiepilogoProgetto = {
   margin: number;
   vat: number;
   applyVat: boolean;
-  departments: { key: string; label: string; totals: DepartmentTotals; state?: DepartmentState }[];
+  /** `catalog`: il listino del reparto, per i nomi e i colori delle lavorazioni nel disegno */
+  departments: { key: string; label: string; totals: DepartmentTotals; state?: DepartmentState; catalog?: Catalog }[];
   subProjects?: SubProject[];
   deptMargins?: Record<string, number>;
 };
@@ -31,15 +33,14 @@ export type PreventivoDaProgetto = {
 
 const arrotonda2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-/** Elenco leggibile di cosa comprende un reparto: pezzi, materiali, lavorazioni. Senza prezzi. */
-const dettagliReparto = (st: DepartmentState | undefined): string | null => {
+/** I pezzi del reparto come schede tecniche: è ciò che nei documenti diventa disegno e lavorazioni. */
+const schedeReparto = (st: DepartmentState | undefined, reparto: string, listino?: Catalog): SchedaTecnica[] =>
+  (st?.pieces ?? []).map((p) => schedaDaPezzo(p, reparto, listino));
+
+/** Elenco leggibile di cosa comprende un reparto: pezzi con tutte le loro lavorazioni, materiali, lavorazioni di reparto. Senza prezzi. */
+const dettagliReparto = (st: DepartmentState | undefined, schede: SchedaTecnica[]): string | null => {
   if (!st) return null;
-  const righe: string[] = [];
-  for (const p of st.pieces ?? []) {
-    const qty = Number(p.quantity) || 1;
-    const dim = `${num(p.width, 1)}×${num(p.height, 1)} ${p.dimUnit}`;
-    righe.push(`${p.productName || "Pezzo"} — ${dim}${p.color ? ` · ${p.color}` : ""}${qty > 1 ? ` · ${qty} pz` : ""}`);
-  }
+  const righe: string[] = schede.flatMap(testoScheda);
   for (const m of st.materials ?? []) {
     if (m.quantity * m.unitCost <= 0) continue;
     righe.push(`${m.name || "Materiale"} — ${num(m.quantity, 2)} ${m.unit || ""}`.trim());
@@ -68,18 +69,20 @@ export function preventivoDaProgettazione(input: RiepilogoProgetto, aliquote: Al
   const righe: RigaBozza[] = [];
   let nettoEsatto = 0;
 
-  const aggiungi = (descrizione: string, dettagli: string | null, prezzo: number) => {
+  const aggiungi = (descrizione: string, dettagli: string | null, prezzo: number, schede: SchedaTecnica[] = []) => {
     nettoEsatto += prezzo;
     righe.push({
       tipo_riga: "lavorazione", variante_id: null, codice: null, descrizione, dettagli, um: null,
       quantita: 1, prezzo_unitario: arrotonda2(prezzo), sconto_pct: 0, aliquota_id: aliquotaId,
+      ...(schede.length > 0 ? { schede_tecniche: schede } : {}),
     });
   };
 
   for (const d of input.departments) {
     if (d.totals.total <= 0) continue;
     const baseMargine = Math.max(0, d.totals.total - (d.totals.transports ?? 0));
-    aggiungi(d.label, dettagliReparto(d.state), d.totals.total + baseMargine * (margineDi(d.key) / 100));
+    const schede = schedeReparto(d.state, d.label, d.catalog);
+    aggiungi(d.label, dettagliReparto(d.state, schede), d.totals.total + baseMargine * (margineDi(d.key) / 100), schede);
   }
 
   for (const sp of input.subProjects ?? []) {

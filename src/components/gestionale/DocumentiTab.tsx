@@ -28,6 +28,8 @@ import { AnagraficaDialog } from "./AnagraficheTab";
 import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
 import { InviaEmailDialog, type EmailDaInviare } from "./InviaEmailDialog";
+import { SchedeTecnicheRiga } from "./SchedeTecnicheRiga";
+import { conDisegno, leggiSchede } from "@/lib/gestionale/scheda-tecnica";
 import type { ContestoEmail } from "@/lib/gestionale/invio-email";
 import { oggettoEmail, testoEmail } from "@/lib/gestionale/email-documento";
 import { creaPdfDocumento, nomeFilePdf } from "@/lib/gestionale/stampa-pdf";
@@ -812,6 +814,11 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
                             placeholder="Specifiche della lavorazione: misure finite, orli, occhielli, finiture…"
                             onChange={(e) => setRiga(i, { dettagli: testoOppureNull(e.target.value) })}
                           />
+                        </div>
+                      )}
+                      {conDisegno(documento.tipo) && leggiSchede(r.schede_tecniche).length > 0 && (
+                        <div className="grid gap-1.5" style={{ gridTemplateColumns: COLONNE_RIGHE }}>
+                          <div style={{ gridColumn: "3 / span 8" }}><SchedeTecnicheRiga schede={leggiSchede(r.schede_tecniche)} /></div>
                         </div>
                       )}
                     </div>

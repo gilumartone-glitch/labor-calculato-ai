@@ -89,8 +89,29 @@ describe("preventivo del Gestionale da una scheda di Progettazione", () => {
       }],
     };
     const [riga] = preventivoDaProgettazione(input, aliquote).righe;
-    expect(riga.dettagli).toBe("Velluto — 450,0×320,0 cm · nero · 2 pz\nFettuccia — 9,00 m\nConfezione");
+    expect(riga.dettagli).toBe("Velluto — 450 × 320 cm · colore nero · 2 pz\nFettuccia — 9,00 m\nConfezione");
     expect(riga.dettagli).not.toMatch(/€|1,2|30/);
+  });
+
+  it("ogni pezzo porta sulla riga la sua scheda tecnica, con tutte le lavorazioni anche nel testo", () => {
+    const catalog = { perimeterOps: [{ id: "orlo", name: "Orlo", color: "#c00", pricePerMeter: 2 }] } as unknown as NonNullable<RiepilogoProgetto["departments"][number]["catalog"]>;
+    const input: RiepilogoProgetto = {
+      ...base,
+      departments: [
+        { key: "tappezzeria", label: "Tappezzeria", totals: totali(500), catalog,
+          state: stato({ pieces: [
+            { id: "p", productName: "Velluto", color: "nero", width: 450, height: 320, dimUnit: "cm", quantity: 2, perimeters: [{ id: "a", opId: "orlo", sides: ["top", "bottom"] }], customWorks: [{ id: "c", name: "Sacca per catena", price: 40 }] },
+            { id: "q", productName: "Fodera", color: "", width: 450, height: 320, dimUnit: "cm", perimeters: [] },
+          ] as unknown as DepartmentState["pieces"] }) },
+        { key: "falegnameria", label: "Falegnameria", totals: totali(200), state: stato({}) },
+      ],
+    };
+    const [tapp, fal] = preventivoDaProgettazione(input, aliquote).righe;
+    expect(tapp.schede_tecniche).toHaveLength(2);
+    expect(tapp.schede_tecniche?.[0]).toMatchObject({ titolo: "Velluto", reparto: "Tappezzeria", larghezza: 450, altezza: 320, quantita: 2, lavorazioni: [{ nome: "Orlo", lati: ["top", "bottom"], colore: "#c00" }], lavorazioniLibere: ["Sacca per catena"] });
+    expect(tapp.dettagli).toBe("Velluto — 450 × 320 cm · colore nero · 2 pz\n  - Orlo: alto, basso\n  - Sacca per catena\nFodera — 450 × 320 cm");
+    expect(JSON.stringify(tapp.schede_tecniche)).not.toMatch(/price|40/);
+    expect("schede_tecniche" in fal).toBe(false);   // reparto senza pezzi: la riga non tocca quella colonna
   });
 
   it("gestisce IVA non applicata, aliquota non presente e quantità multiple", () => {

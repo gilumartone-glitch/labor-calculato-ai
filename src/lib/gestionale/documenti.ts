@@ -1,3 +1,4 @@
+import type { SchedaTecnica } from "./scheda-tecnica";
 import { supabase } from "@/integrations/supabase/client";
 
 // Accesso tipizzato a mano: vedi nota in ./api.ts
@@ -178,6 +179,8 @@ export type Riga = {
   sconto_pct: number;
   aliquota_id: string | null;
   importo: number;
+  /** Pezzi di Progettazione che la riga comprende: disegno e lavorazioni (vedi scheda-tecnica.ts). */
+  schede_tecniche?: SchedaTecnica[] | null;
 };
 
 /**
@@ -440,8 +443,9 @@ export async function salvaBozza(id: string, testata: Partial<Testata>, righe: R
   }
 
   for (let i = 0; i < righe.length; i++) {
-    const { id: rigaEsistente, pezze, ...campi } = righe[i];
-    const valori = { ...campi, posizione: i + 1 };
+    const { id: rigaEsistente, pezze, schede_tecniche, ...campi } = righe[i];
+    // la scheda tecnica si scrive solo se c'è: le righe normali non toccano quella colonna
+    const valori = { ...campi, posizione: i + 1, ...(schede_tecniche && schede_tecniche.length > 0 ? { schede_tecniche } : {}) };
     let rigaId = rigaEsistente;
     if (rigaId) {
       esito(await db.from("gest_documenti_righe").update(valori).eq("id", rigaId));

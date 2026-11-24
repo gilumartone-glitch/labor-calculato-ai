@@ -11,6 +11,8 @@ import {
 } from "./documenti";
 import { anteprimaScadenze, type CondizionePagamento } from "./scadenzario";
 import { testoLatino, type DatiAzienda, type EsigibilitaIva } from "./fattura-pa";
+import { conDisegno, leggiSchede } from "./scheda-tecnica";
+import { sezioneSchede } from "./scheda-pdf";
 
 export type DatiStampa = {
   tipo: TipoDocumento;
@@ -358,6 +360,11 @@ export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: str
     stile("normal", 7.5, GRIGIO); doc.text("NOTE", MARGINE, y); y += 4.6;
     stile("normal", 9);
     for (const voce of note) for (const riga of doc.splitTextToSize(voce || " ", LARGHEZZA)) { spazio(5); doc.text(riga, MARGINE, y); y += 4.3; }
+  }
+
+  /* ---- Disegni e lavorazioni dei pezzi (non in fattura e nota di credito: lì le lavorazioni sono nel dettaglio delle righe) ---- */
+  if (conDisegno(d.tipo)) {
+    y = sezioneSchede(doc, d.righe.map((r) => ({ riga: t(r.descrizione, 60), schede: leggiSchede(r.schede_tecniche) })), y, { margine: MARGINE, larghezza: LARGHEZZA, fondoPagina });
   }
 
   /* ---- Piè di pagina su ogni pagina ---- */

@@ -58,3 +58,7 @@
 - La scheda di clienti e fornitori si compila dalla partita IVA con la funzione `supabase/functions/gestionale-cerca-azienda`: Openapi (Registro imprese, a pagamento, solo Italia) se in Impostazioni > Servizi c'è la chiave, altrimenti VIES (gratuito: solo denominazione e sede).
 - La chiave sta cifrata in `gest_segreti` (nessun permesso per gli utenti, RLS senza policy): mai nel codice, nei log, nella copia di sicurezza o restituita al browser. Stessa regola per ogni altra chiave di servizi esterni: va in `gest_segreti`, si inserisce da un modulo in Impostazioni.
 - Ogni ricerca completa costa: non aggiungere ricerche automatiche ripetute o di massa.
+
+### Gestionale — disegno e lavorazioni sui documenti
+- I pezzi di Progettazione arrivano sulle righe dei documenti come `gest_documenti_righe.schede_tecniche` (fotografia: misure, forma, lati lavorati, lavorazioni; mai prezzi). Si crea solo in `da-progettazione.ts`; un trigger la porta alle righe derivate (preventivo → conferma d'ordine → DDT → fattura).
+- Regola fissa: il disegno compare in tutti i documenti tranne fattura e nota di credito (`conDisegno`), dove restano solo le lavorazioni nel dettaglio della riga. Il disegno del PDF (`scheda-pdf.ts`) deve restare allineato a `TechnicalDrawing` di Progettazione.

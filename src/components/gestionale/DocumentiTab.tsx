@@ -1,3 +1,4 @@
+import { askText } from "@/lib/ask-text";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -439,7 +440,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
     if (bozza) {
       if (!confirm("Scartare questa bozza? Esce dall'elenco ma resta nello storico.")) return;
     } else {
-      motivo = prompt(`Annullare ${titoloDocumento(documento)}? Il documento resta in archivio come annullato.\n\nMotivo (facoltativo):`);
+      motivo = await askText(`Annullare ${titoloDocumento(documento)}? Il documento resta in archivio come annullato.\n\nMotivo (facoltativo):`);
       if (motivo === null) return;
     }
     setOccupato(true);

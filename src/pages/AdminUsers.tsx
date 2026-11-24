@@ -1,3 +1,4 @@
+import { askText } from "@/lib/ask-text";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, UserPlus, ShieldCheck, Save, Check, KeyRound, Trash2, Search, ChevronDown, ChevronUp, Mail, User as UserIcon, X } from "lucide-react";
@@ -119,7 +120,7 @@ const Inner = () => {
   };
 
   const resetPassword = async (user: AdminUser) => {
-    const pwd = window.prompt(`Nuova password per ${user.email} (min 8 caratteri):`);
+    const pwd = await askText(`Nuova password per ${user.email} (min 8 caratteri):`, { type: "password" });
     if (pwd === null) return;
     if (pwd.length < 8) { toast.error("Password troppo corta (min 8)"); return; }
     const { data, error } = await supabase.functions.invoke("admin-set-password", { body: { user_id: user.id, password: pwd } });

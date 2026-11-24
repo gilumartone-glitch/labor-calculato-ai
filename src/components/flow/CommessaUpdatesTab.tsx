@@ -1,3 +1,4 @@
+import { askText } from "@/lib/ask-text";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Send, Calendar, CheckCircle2, Clock, MessageSquare, Trash2, Star, StarOff } from "lucide-react";
 import { toast } from "sonner";
@@ -114,7 +115,8 @@ export const CommessaUpdatesTab = ({ commessaId, onCommessaChanged }: Props) => 
   };
 
   const onDecide = async (id: string, decision: "approvato" | "rifiutato", proposed_date: string | null) => {
-    const reason = window.prompt(`${decision === "approvato" ? "Approva" : "Rifiuta"} richiesta — motivo / nota:`, "") ?? "";
+    const reason = await askText(`${decision === "approvato" ? "Approva" : "Rifiuta"} richiesta — motivo / nota:`);
+    if (reason === null) return;
     try {
       await decide(id, decision, reason);
       if (decision === "approvato" && proposed_date) {

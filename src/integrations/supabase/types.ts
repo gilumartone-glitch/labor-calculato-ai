@@ -2164,6 +2164,27 @@ export type Database = {
           },
         ]
       }
+      gest_segreti: {
+        Row: {
+          aggiornato_da: string | null
+          aggiornato_il: string
+          chiave: string
+          valore_cifrato: string
+        }
+        Insert: {
+          aggiornato_da?: string | null
+          aggiornato_il?: string
+          chiave: string
+          valore_cifrato: string
+        }
+        Update: {
+          aggiornato_da?: string | null
+          aggiornato_il?: string
+          chiave?: string
+          valore_cifrato?: string
+        }
+        Relationships: []
+      }
       gest_storico: {
         Row: {
           dopo: Json | null

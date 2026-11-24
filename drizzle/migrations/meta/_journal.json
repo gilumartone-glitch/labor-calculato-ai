@@ -393,6 +393,13 @@
       "when": 1795542608280,
       "tag": "0055_gestionale_segreti",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1795550056416,
+      "tag": "0056_gestionale_schede_tecniche",
+      "breakpoints": true
     }
   ]
 }

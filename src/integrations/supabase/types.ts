@@ -1558,6 +1558,7 @@ export type Database = {
           prezzo_unitario: number
           quantita: number
           riga_origine_id: string | null
+          schede_tecniche: Json | null
           sconto_pct: number
           tipo_riga: string
           um: string | null
@@ -1577,6 +1578,7 @@ export type Database = {
           prezzo_unitario?: number
           quantita?: number
           riga_origine_id?: string | null
+          schede_tecniche?: Json | null
           sconto_pct?: number
           tipo_riga?: string
           um?: string | null
@@ -1596,6 +1598,7 @@ export type Database = {
           prezzo_unitario?: number
           quantita?: number
           riga_origine_id?: string | null
+          schede_tecniche?: Json | null
           sconto_pct?: number
           tipo_riga?: string
           um?: string | null

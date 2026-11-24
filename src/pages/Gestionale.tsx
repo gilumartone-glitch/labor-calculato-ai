@@ -33,6 +33,8 @@ import { trovaPezza } from "@/lib/gestionale/api";
 import { DatiAziendaDialog } from "@/components/gestionale/FatturaElettronica";
 import { CopiaSicurezzaDialog } from "@/components/gestionale/CopiaSicurezza";
 import { ImpostazioniEmail } from "@/components/gestionale/ImpostazioniEmail";
+import { ImpostazioniAvvio, ImpostazioniIva } from "@/components/gestionale/ImpostazioniGenerali";
+import { CondizioniDialog } from "@/components/gestionale/ScadenzarioTab";
 import { giorniDallUltimaCopia } from "@/lib/gestionale/copia-sicurezza";
 import { elencoCondizioni, type CondizionePagamento } from "@/lib/gestionale/scadenzario";
 import AnagraficheTab from "@/components/gestionale/AnagraficheTab";
@@ -50,7 +52,7 @@ const MACRO: { codice: string; nome: string; icona: typeof Boxes; schede: { valo
   { codice: "contabilita", nome: "Contabilità", icona: Landmark, schede: [{ valore: "banche", nome: "Banche" }, { valore: "scadenzario", nome: "Scadenzario" }, { valore: "estratto-conto", nome: "Estratto conto" }, { valore: "prima-nota", nome: "Prima nota" }, { valore: "registri-iva", nome: "Registri IVA" }] },
   { codice: "magazzino", nome: "Magazzino", icona: Warehouse, schede: [{ valore: "articoli", nome: "Articoli e varianti" }, { valore: "pezze", nome: "Bagni e pezze" }, { valore: "movimenti", nome: "Movimenti" }, { valore: "inventario", nome: "Inventario" }] },
   { codice: "documenti", nome: "Documenti", icona: FileText, schede: [{ valore: "documenti", nome: "Documenti" }, { valore: "anagrafiche", nome: "Clienti e fornitori" }] },
-  { codice: "impostazioni", nome: "Impostazioni", icona: Settings, schede: [{ valore: "imp-mail", nome: "Mail" }, { valore: "imp-azienda", nome: "Dati azienda" }, { valore: "imp-copia", nome: "Copia di sicurezza" }] },
+  { codice: "impostazioni", nome: "Impostazioni", icona: Settings, schede: [{ valore: "imp-mail", nome: "Mail" }, { valore: "imp-azienda", nome: "Dati azienda" }, { valore: "imp-iva", nome: "Aliquote IVA" }, { valore: "imp-pagamenti", nome: "Condizioni di pagamento" }, { valore: "imp-avvio", nome: "Avvio e numerazione" }, { valore: "imp-copia", nome: "Copia di sicurezza" }] },
 ];
 
 const fmtQta = (n: number) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(n);
@@ -346,6 +348,7 @@ const Gestionale = () => {
   ultimaScheda.current[macroAttiva.codice] = tab;
   const [datiAzienda, setDatiAzienda] = useState(false);
   const [copiaSicurezza, setCopiaSicurezza] = useState(false);
+  const [condizioniImp, setCondizioniImp] = useState(false);
   // promemoria: se da questo computer non si scarica una copia da più di una settimana il pulsante lo dice
   const giorniCopia = useMemo(() => giorniDallUltimaCopia(), [copiaSicurezza]); // eslint-disable-line react-hooks/exhaustive-deps
   const [formatoEtichette, setFormatoEtichette] = useState<FormatoEtichette>(() => {
@@ -533,6 +536,27 @@ const Gestionale = () => {
             <TabsContent value="imp-azienda" className="space-y-3 max-w-3xl">
               <p className="text-sm text-muted-foreground">Ragione sociale, partita IVA, sede, banca e regime fiscale: compaiono nell'intestazione dei PDF, nella fattura elettronica e nella firma delle email.</p>
               <Button data-nuovo onClick={() => setDatiAzienda(true)}><Building2 className="w-4 h-4 mr-1" /> Apri i dati azienda</Button>
+            </TabsContent>
+            <TabsContent value="imp-iva"><ImpostazioniIva aliquote={aliquote} puoScrivere={puoScrivere} onChanged={caricaClientiFornitori} /></TabsContent>
+            <TabsContent value="imp-avvio"><ImpostazioniAvvio /></TabsContent>
+            <TabsContent value="imp-pagamenti" className="space-y-3 max-w-4xl">
+              <p className="text-sm text-muted-foreground">Le condizioni che si scelgono sui documenti e sulle schede dei clienti: da qui nascono le rate dello scadenzario.</p>
+              <div className="border-2 border-ink/20 rounded-sm bg-paper overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left border-b border-ink/20"><th className="px-3 py-2">Codice</th><th className="px-3 py-2">Descrizione</th><th className="px-3 py-2">Modalità</th><th className="px-3 py-2">Rate</th></tr></thead>
+                  <tbody>
+                    {condizioni.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">Nessuna condizione di pagamento.</td></tr>}
+                    {condizioni.map((c) => (
+                      <tr key={c.id} className="border-b border-ink/10 last:border-0">
+                        <td className="px-3 py-2 font-mono">{c.codice}</td><td className="px-3 py-2">{c.descrizione}</td><td className="px-3 py-2">{c.modalita ?? ""}</td>
+                        <td className="px-3 py-2">{c.rate.map((r) => (r.giorni === 0 ? "a vista" : `${r.giorni} gg`)).join(" / ")}{c.fine_mese ? ", fine mese" : ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Button data-nuovo onClick={() => setCondizioniImp(true)}><Settings className="w-4 h-4 mr-1" /> {puoScrivere ? "Aggiungi o modifica" : "Apri"}</Button>
+              <CondizioniDialog open={condizioniImp} condizioni={condizioni} puoScrivere={puoScrivere} onOpenChange={setCondizioniImp} onChanged={caricaCondizioni} />
             </TabsContent>
             <TabsContent value="imp-copia" className="space-y-3 max-w-3xl">
               <p className="text-sm text-muted-foreground">

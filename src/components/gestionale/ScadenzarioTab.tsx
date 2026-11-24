@@ -234,7 +234,7 @@ const PagamentoDialog = ({ scadenza, puoScrivere, onClose, onChanged }: {
 /* ------------------------------------------------------------------ */
 /* Condizioni di pagamento                                             */
 /* ------------------------------------------------------------------ */
-const CondizioniDialog = ({ open, condizioni, puoScrivere, onOpenChange, onChanged }: {
+export const CondizioniDialog = ({ open, condizioni, puoScrivere, onOpenChange, onChanged }: {
   open: boolean; condizioni: CondizionePagamento[]; puoScrivere: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void;
 }) => {
   const [inModifica, setInModifica] = useState<CondizionePagamento | "nuova" | null>(null);

@@ -1283,6 +1283,65 @@ export type Database = {
           },
         ]
       }
+      gest_caselle_email: {
+        Row: {
+          attiva: boolean
+          created_at: string
+          documenti: string[]
+          id: string
+          indirizzo: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          attiva?: boolean
+          created_at?: string
+          documenti?: string[]
+          id?: string
+          indirizzo: string
+          nome?: string
+          updated_at?: string
+        }
+        Update: {
+          attiva?: boolean
+          created_at?: string
+          documenti?: string[]
+          id?: string
+          indirizzo?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gest_caselle_email_segreti: {
+        Row: {
+          aggiornata_da: string | null
+          aggiornata_il: string
+          casella_id: string
+          password_cifrata: string
+        }
+        Insert: {
+          aggiornata_da?: string | null
+          aggiornata_il?: string
+          casella_id: string
+          password_cifrata: string
+        }
+        Update: {
+          aggiornata_da?: string | null
+          aggiornata_il?: string
+          casella_id?: string
+          password_cifrata?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gest_caselle_email_segreti_casella_id_fkey"
+            columns: ["casella_id"]
+            isOneToOne: true
+            referencedRelation: "gest_caselle_email"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gest_condizioni_pagamento: {
         Row: {
           archiviato_il: string | null

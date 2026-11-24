@@ -379,6 +379,13 @@
       "when": 1795438967355,
       "tag": "0053_gestionale_email_inviate",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1795539067690,
+      "tag": "0054_gestionale_caselle_email",
+      "breakpoints": true
     }
   ]
 }

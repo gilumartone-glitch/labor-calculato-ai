@@ -1,6 +1,6 @@
 import { askText } from "@/lib/ask-text";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search, Mail } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Trash2, Check, Ban, ArrowRight, ChevronDown, ChevronsUpDown, Save, ArrowUp, ArrowDown, UserPlus, FileCode2, Printer, Search, Mail, PencilRuler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ import { FatturaElettronicaDialog } from "./FatturaElettronica";
 import { PercorsoDocumenti } from "./PercorsoDocumenti";
 import { InviaEmailDialog, type EmailDaInviare } from "./InviaEmailDialog";
 import { SchedeTecnicheRiga } from "./SchedeTecnicheRiga";
+import { schedaProgettazione } from "@/lib/gestionale/da-progettazione";
+import { useNavigate } from "react-router-dom";
 import { conDisegno, leggiSchede } from "@/lib/gestionale/scheda-tecnica";
 import type { ContestoEmail } from "@/lib/gestionale/invio-email";
 import { oggettoEmail, testoEmail } from "@/lib/gestionale/email-documento";
@@ -207,6 +209,7 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const [idEsistenti, setIdEsistenti] = useState<string[]>([]);
   const [iva, setIva] = useState<RiepilogoIva[]>([]);
   const [collegati, setCollegati] = useState<Documento[]>([]);
+  const navigate = useNavigate();
   const [percorso, setPercorso] = useState<PassoPercorso[]>([]);
   const [famiglia, setFamiglia] = useState<Map<string, NodoPercorso>>(new Map());
   const [modificato, setModificato] = useState(false);
@@ -326,6 +329,26 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
   const pdfPerEmail = async (): Promise<Uint8Array> => {
     const [azienda, logo] = await Promise.all([leggiAzienda(), logoAzienda()]);
     return new Uint8Array(creaPdfDocumento(azienda, datiStampa(), logo).output("arraybuffer"));
+  };
+  /** Torna alla scheda di Progettazione da cui è nato il preventivo, per modificarla. */
+  const apriProgettazione = async () => {
+    if (!documento?.design_draft_id) return;
+    if (modificato) { toast({ title: "Salva prima la bozza", description: "Ci sono modifiche non salvate su questo preventivo.", variant: "destructive" }); return; }
+    setOccupato(true);
+    try {
+      const scheda = await schedaProgettazione(documento.design_draft_id);
+      if (!scheda) {
+        toast({ title: "Scheda non più disponibile", description: "In Progettazione questa scheda non c'è più: è stata archiviata, inviata al Flow oppure è di un altro utente.", variant: "destructive" });
+        return;
+      }
+      toast({
+        title: `Apro «${scheda.nome}» in Progettazione`,
+        description: documento.stato === "bozza"
+          ? "Dopo le modifiche: Riepilogo generale › Preventivo al cliente › Aggiorna, e questa bozza prende i valori nuovi."
+          : "Questo preventivo ha già il numero e non si riscrive: dopo le modifiche, da Preventivo al cliente ne crei uno nuovo.",
+      });
+      navigate(`/preventivi?draft=${documento.design_draft_id}`);
+    } catch (e) { errore(e); } finally { setOccupato(false); }
   };
   const stampa = async () => {
     setOccupato(true);
@@ -497,6 +520,11 @@ const DocumentoEditor = ({ documentoId, anagrafiche, aliquote, condizioni, artic
               </Button>
               <Button size="sm" data-f10 disabled={occupato} onClick={conferma}><Check className="w-4 h-4 mr-1" /> Conferma</Button>
             </>
+          )}
+          {documento.design_draft_id && documento.tipo === "preventivo" && (
+            <Button size="sm" variant="outline" disabled={occupato} onClick={apriProgettazione} title="Apre la scheda di Progettazione da cui è nato questo preventivo">
+              <PencilRuler className="w-4 h-4 mr-1" /> Modifica in Progettazione
+            </Button>
           )}
           <Button size="sm" variant="outline" data-stampa disabled={occupato} onClick={stampa}><Printer className="w-4 h-4 mr-1" /> Stampa PDF</Button>
           {!passivo && <Button size="sm" variant="outline" data-email disabled={occupato} onClick={preparaEmail}><Mail className="w-4 h-4 mr-1" /> Invia per email</Button>}

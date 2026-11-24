@@ -86,6 +86,34 @@ export function testoLavorazione(l: LavorazioneScheda): string {
   const dove = l.lati.length === 0 ? "" : l.lati.length === 4 ? "tutti i lati" : l.lati.map((x) => LATO[x]).join(", ");
   return [l.nome, dove ? `: ${dove}` : "", l.quantita ? ` × ${numero(l.quantita)}` : ""].join("");
 }
+const nomeConQuantita = (l: LavorazioneScheda) => `${l.nome}${l.quantita ? ` × ${numero(l.quantita)}` : ""}`;
+
+/** I quattro lati nell'ordine in cui si scrivono sui documenti. */
+export const LATI_SCHEMA: { lato: PerimeterSide; nome: string }[] = [
+  { lato: "top", nome: "Sopra" }, { lato: "bottom", nome: "Sotto" }, { lato: "left", nome: "Sinistra" }, { lato: "right", nome: "Destra" },
+];
+
+export type VoceLato = { nome: string; colore: string | null };
+/**
+ * Le lavorazioni in forma schematica: cosa c'è sopra, sotto, a sinistra e a destra,
+ * più quelle che non stanno su un lato (stampa, lavorazioni sull'intero pezzo, lavorazioni libere).
+ */
+export function lavorazioniPerLato(s: SchedaTecnica): { lati: { lato: PerimeterSide; nome: string; voci: VoceLato[] }[]; altre: string[]; haLati: boolean } {
+  const lati = LATI_SCHEMA.map(({ lato, nome }) => ({
+    lato, nome, voci: s.lavorazioni.filter((l) => l.lati.includes(lato)).map((l) => ({ nome: nomeConQuantita(l), colore: l.colore })),
+  }));
+  const altre = [...(s.stampa ? [s.stampa] : []), ...s.lavorazioni.filter((l) => l.lati.length === 0).map(nomeConQuantita), ...s.lavorazioniLibere];
+  return { lati, altre, haLati: lati.some((l) => l.voci.length > 0) };
+}
+
+/** «Sopra: …», «Sotto: …», «Sinistra: …», «Destra: …», «Altre lavorazioni: …». Un lato senza lavorazioni si scrive con il trattino. */
+export function righeSchematiche(s: SchedaTecnica): string[] {
+  const { lati, altre, haLati } = lavorazioniPerLato(s);
+  return [
+    ...(haLati ? lati.map((l) => `${l.nome}: ${l.voci.length > 0 ? l.voci.map((v) => v.nome).join(", ") : "—"}`) : []),
+    ...(altre.length > 0 ? [`${haLati ? "Altre lavorazioni" : "Lavorazioni"}: ${altre.join(", ")}`] : []),
+  ];
+}
 
 /** Tutte le lavorazioni del pezzo, una per voce: stampa, perimetrali con i lati, libere. */
 export function lavorazioniScheda(s: SchedaTecnica): string[] {
@@ -100,11 +128,13 @@ export function caratteristicheScheda(s: SchedaTecnica): string[] {
   ].filter(Boolean);
 }
 
-/** Il pezzo in testo, per il dettaglio della riga (è ciò che compare anche in fattura). */
-export function testoScheda(s: SchedaTecnica): string[] {
-  const testa = [`${s.titolo} — ${misureScheda(s)}`, ...caratteristicheScheda(s).map((c) => c.charAt(0).toLowerCase() + c.slice(1)), s.quantita > 1 ? `${numero(s.quantita)} pz` : ""].filter(Boolean).join(" · ");
-  return [testa, ...lavorazioniScheda(s).map((l) => `  - ${l}`)];
+/** Il dettaglio della riga del pezzo: caratteristiche, poi le lavorazioni lato per lato, poi la nota. È ciò che compare anche in fattura. */
+export function dettagliScheda(s: SchedaTecnica): string[] {
+  return [...(caratteristicheScheda(s).length > 0 ? [caratteristicheScheda(s).join(" · ")] : []), ...righeSchematiche(s), ...(s.nota ? [s.nota] : [])];
 }
+
+/** Due pezzi sono «lo stesso pezzo» se coincidono in tutto tranne che nel numero di copie. */
+export const chiavePezzo = (s: SchedaTecnica): string => JSON.stringify({ ...s, quantita: 0 });
 
 /** Area (m²) e perimetro (m), come nel disegno di Progettazione. */
 export function areaPerimetro(s: Pick<SchedaTecnica, "forma" | "larghezza" | "altezza" | "unita" | "baseMinore">): { area: number; perimetro: number } {

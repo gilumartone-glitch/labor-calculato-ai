@@ -6,7 +6,7 @@
 import type jsPDF from "jspdf";
 import type { PerimeterSide } from "@/components/calculator/types";
 import { testoLatino } from "./fattura-pa";
-import { areaPerimetro, caratteristicheScheda, coloreRgb, misureScheda, testoLavorazione, type SchedaTecnica } from "./scheda-tecnica";
+import { areaPerimetro, caratteristicheScheda, coloreRgb, lavorazioniPerLato, misureScheda, type SchedaTecnica } from "./scheda-tecnica";
 
 type Rgb = [number, number, number];
 const INCHIOSTRO: Rgb = [18, 46, 54];
@@ -114,25 +114,54 @@ export function disegnaPezzo(doc: jsPDF, s: SchedaTecnica, x: number, y: number,
 
 const LARG_DISEGNO = 76; const ALT_DISEGNO = 56; const STACCO = 5;
 
-/** Le righe di testo accanto al disegno (o da sole, in fattura): servono anche per misurare l'altezza. */
-function vociScheda(doc: jsPDF, s: SchedaTecnica, larghezza: number): { testo: string; stile: "titolo" | "grigio" | "normale" | "voce" | "nota"; colore?: Rgb }[] {
-  const voci: ReturnType<typeof vociScheda> = [];
+/**
+ * Il testo accanto al disegno: nome e misure del pezzo, poi le lavorazioni in forma schematica
+ * (Sopra, Sotto, Sinistra, Destra, Altre), ognuna con il colore che ha nel disegno.
+ * Con `scrivi` falso misura soltanto. Restituisce l'altezza occupata.
+ */
+function testoScheda(doc: jsPDF, s: SchedaTecnica, x: number, y: number, larghezza: number, scrivi: boolean): number {
+  let yt = y;
   const spezza = (testo: string, larg: number) => doc.splitTextToSize(t(testo, 400) || " ", larg) as string[];
-  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  for (const r of spezza(`${s.titolo}${s.quantita > 1 ? `  x ${numero(s.quantita)}` : ""}`, larghezza)) voci.push({ testo: r, stile: "titolo" });
+  const riga = (testo: string, passo: number) => { if (scrivi) doc.text(testo, x, yt); yt += passo; };
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...INCHIOSTRO);
+  for (const r of spezza(`${s.titolo}${s.quantita > 1 ? `  x ${numero(s.quantita)}` : ""}`, larghezza)) riga(r, 4.8);
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  for (const r of spezza([misureScheda(s), ...caratteristicheScheda(s)].join("  ·  "), larghezza)) voci.push({ testo: r, stile: "normale" });
-  const lavorazioni: { testo: string; colore?: Rgb }[] = [
-    ...(s.stampa ? [{ testo: s.stampa }] : []),
-    ...s.lavorazioni.map((l) => ({ testo: testoLavorazione(l), colore: l.lati.length > 0 ? coloreRgb(l.colore) : undefined })),
-    ...s.lavorazioniLibere.map((l) => ({ testo: l })),
+  for (const r of spezza([misureScheda(s), ...caratteristicheScheda(s)].join("  ·  "), larghezza)) riga(r, 4.3);
+
+  const { lati, altre, haLati } = lavorazioniPerLato(s);
+  const gruppi: { nome: string; voci: { nome: string; colore: Rgb | null }[] }[] = [
+    ...(haLati ? lati.map((l) => ({ nome: l.nome, voci: l.voci.map((v) => ({ nome: v.nome, colore: coloreRgb(v.colore) })) })) : []),
+    ...(altre.length > 0 ? [{ nome: haLati ? "Altre" : "Lavorazioni", voci: altre.map((nome) => ({ nome, colore: null })) }] : []),
   ];
-  voci.push({ testo: lavorazioni.length > 0 ? "LAVORAZIONI" : "NESSUNA LAVORAZIONE", stile: "grigio" });
-  for (const l of lavorazioni) spezza(l.testo, larghezza - 5).forEach((r, i) => voci.push({ testo: r, stile: "voce", colore: i === 0 ? l.colore ?? GRIGIO : undefined }));
-  if (s.nota) { doc.setFont("helvetica", "italic"); for (const r of spezza(s.nota, larghezza)) voci.push({ testo: r, stile: "nota" }); }
-  return voci;
+  yt += 1.2;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRIGIO);
+  riga(gruppi.length > 0 ? "LAVORAZIONI" : "NESSUNA LAVORAZIONE", 4.4);
+  const xVoci = x + 19; const largVoci = larghezza - 19;
+  for (const g of gruppi) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...INCHIOSTRO);
+    if (scrivi) doc.text(`${g.nome}:`, x, yt);
+    doc.setFont("helvetica", "normal");
+    if (g.voci.length === 0) { doc.setTextColor(...GRIGIO); if (scrivi) doc.text("-", xVoci, yt); yt += 4.3; continue; }
+    // le voci scorrono una dopo l'altra, ognuna con il suo quadratino, e vanno a capo quando non ci stanno
+    let xv = xVoci;
+    g.voci.forEach((v, i) => {
+      const testo = t(v.nome, 80) + (i < g.voci.length - 1 ? "," : "");
+      const ingombro = (v.colore ? 3.6 : 0) + doc.getTextWidth(testo) + 2;
+      if (xv > xVoci && xv + ingombro > xVoci + largVoci) { xv = xVoci; yt += 4.3; }
+      if (v.colore) { if (scrivi) { doc.setFillColor(...v.colore); doc.rect(xv, yt - 2.5, 2.6, 2.6, "F"); } xv += 3.6; }
+      if (scrivi) { doc.setTextColor(...INCHIOSTRO); doc.text(doc.splitTextToSize(testo, largVoci - 4)[0], xv, yt); }
+      xv += doc.getTextWidth(testo) + 2;
+    });
+    yt += 4.3;
+  }
+  if (s.nota) {
+    yt += 0.8;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(...GRIGIO);
+    for (const r of spezza(s.nota, larghezza)) riga(r, 4.2);
+  }
+  return yt - y;
 }
-const PASSO_VOCE = { titolo: 4.8, grigio: 5.2, normale: 4.3, voce: 4.2, nota: 4.2 } as const;
 
 /**
  * Scrive nel PDF i pezzi delle righe. Con `disegno` ogni pezzo ha il suo disegno a sinistra e le lavorazioni a destra;
@@ -155,25 +184,12 @@ export function sezioneSchede(doc: jsPDF, gruppi: { riga: string; schede: Scheda
   for (const g of pieni) {
     for (const s of g.schede) {
       pezzo++;
-      const voci = vociScheda(doc, s, largTesto);
-      const altoTesto = 6 + voci.reduce((a, v) => a + PASSO_VOCE[v.stile], 0);
-      const alto = Math.max(ALT_DISEGNO, altoTesto);
+      const alto = Math.max(ALT_DISEGNO, 6 + testoScheda(doc, s, xTesto, 0, largTesto, false));
       if (y + alto > fondoPagina) nuovaPagina();
       disegnaPezzo(doc, s, margine, y, LARG_DISEGNO, ALT_DISEGNO);
       doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRIGIO);
-      doc.text(t(`PEZZO ${pezzo} - ${g.riga}${s.reparto && s.reparto !== g.riga ? ` - ${s.reparto}` : ""}`, 90).toUpperCase(), xTesto, y + 3);
-      let yt = y + 8.2;
-      for (const v of voci) {
-        if (v.stile === "titolo") { doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...INCHIOSTRO); }
-        else if (v.stile === "grigio") { yt += 1; doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRIGIO); }
-        else if (v.stile === "nota") { doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(...GRIGIO); }
-        else { doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...INCHIOSTRO); }
-        if (v.stile === "voce") {
-          if (v.colore) { doc.setFillColor(...v.colore); doc.rect(xTesto, yt - 2.5, 2.6, 2.6, "F"); }
-          doc.text(v.testo, xTesto + 5, yt);
-        } else doc.text(v.testo, xTesto, yt);
-        yt += PASSO_VOCE[v.stile] - (v.stile === "grigio" ? 1 : 0);
-      }
+      doc.text(t(`PEZZO ${pezzo}${s.reparto ? ` - ${s.reparto}` : ""}`, 90).toUpperCase(), xTesto, y + 3);
+      testoScheda(doc, s, xTesto, y + 8.2, largTesto, true);
       y += alto + STACCO;
       doc.setDrawColor(...CHIARO); doc.setLineWidth(0.15); doc.line(margine, y - STACCO / 2, margine + larghezza, y - STACCO / 2);
     }

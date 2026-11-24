@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Catalog, PieceLine } from "@/components/calculator/types";
-import { areaPerimetro, caratteristicheScheda, coloreRgb, conDisegno, latiDisegno, lavorazioniScheda, leggiSchede, misureScheda, schedaDaPezzo, testoScheda } from "./scheda-tecnica";
+import { areaPerimetro, caratteristicheScheda, coloreRgb, conDisegno, latiDisegno, chiavePezzo, dettagliScheda, lavorazioniPerLato, lavorazioniScheda, leggiSchede, misureScheda, righeSchematiche, schedaDaPezzo } from "./scheda-tecnica";
 
 const listino = {
   perimeterOps: [{ id: "orlo", name: "Orlo", color: "#ff0000", pricePerMeter: 2 }, { id: "occ", name: "Occhielli", color: "hsl(120 100% 25%)", pricePerMeter: 1 }],
@@ -26,16 +26,33 @@ describe("scheda tecnica dal pezzo di Progettazione", () => {
       { side: "top", label: "Occhielli", color: "hsl(120 100% 25%)" },
     ]);
   });
-  it("il testo per il dettaglio della riga elenca ogni lavorazione", () => {
-    expect(testoScheda(s)).toEqual([
-      "Velluto — 600 × 400 cm · colore nero · ignifugo classe 1 · ricchezza 50% · 2 pz",
-      "  - Stampa UV fronte/retro", "  - Orlo: alto, basso", "  - Occhielli: alto × 20", "  - Lavorazione", "  - Sacca per catena",
+  it("le lavorazioni in forma schematica: sopra, sotto, sinistra, destra, poi le altre", () => {
+    expect(righeSchematiche(s)).toEqual([
+      "Sopra: Orlo, Occhielli × 20", "Sotto: Orlo", "Sinistra: —", "Destra: —",
+      "Altre lavorazioni: Stampa UV fronte/retro, Lavorazione, Sacca per catena",
     ]);
+    expect(dettagliScheda(s)).toEqual(["Colore nero · Ignifugo classe 1 · Ricchezza 50%", ...righeSchematiche(s), "Consegna piegato"]);
+    const p = lavorazioniPerLato(s);
+    expect(p.haLati).toBe(true);
+    expect(p.lati.map((l) => [l.nome, l.voci.length])).toEqual([["Sopra", 2], ["Sotto", 1], ["Sinistra", 0], ["Destra", 0]]);
+    expect(p.lati[0].voci[0]).toEqual({ nome: "Orlo", colore: "#ff0000" });
+  });
+  it("pezzo senza lavorazioni sui lati: niente schema a quattro righe", () => {
+    const senza = schedaDaPezzo({ ...pezzo, perimeters: [], note: undefined } as unknown as PieceLine, "Stampa", listino);
+    expect(righeSchematiche(senza)).toEqual(["Lavorazioni: Stampa UV fronte/retro, Sacca per catena"]);
+    expect(righeSchematiche(schedaDaPezzo({ id: "n", productName: "X", width: 1, height: 1, dimUnit: "m", perimeters: [] } as unknown as PieceLine, "A"))).toEqual([]);
+  });
+  it("lo stesso pezzo si riconosce anche con un numero di copie diverso; basta una differenza per distinguerlo", () => {
+    const altro = schedaDaPezzo({ ...pezzo, id: "p2", quantity: 5 } as unknown as PieceLine, "Tappezzeria", listino);
+    expect(chiavePezzo(altro)).toBe(chiavePezzo(s));
+    expect(chiavePezzo(schedaDaPezzo({ ...pezzo, color: "blu" } as unknown as PieceLine, "Tappezzeria", listino))).not.toBe(chiavePezzo(s));
+    expect(chiavePezzo(schedaDaPezzo({ ...pezzo, perimeters: [] } as unknown as PieceLine, "Tappezzeria", listino))).not.toBe(chiavePezzo(s));
   });
   it("trapezio, triangolo, quattro lati, pezzo essenziale senza listino", () => {
     const tr = schedaDaPezzo({ ...pezzo, shape: "trapezoid", widthBottom: 300, perimeters: [{ id: "a", opId: "orlo", sides: ["left", "right", "top", "bottom"] }] } as PieceLine, "Stampa", listino);
     expect(misureScheda(tr)).toBe("600 / 300 × 400 cm (trapezio)");
     expect(lavorazioniScheda(tr)[1]).toBe("Orlo: tutti i lati");
+    expect(righeSchematiche(tr).slice(0, 4)).toEqual(["Sopra: Orlo", "Sotto: Orlo", "Sinistra: Orlo", "Destra: Orlo"]);
     expect(areaPerimetro(tr).area).toBeCloseTo(18); expect(areaPerimetro(tr).perimetro).toBeCloseTo(6 + 3 + 2 * Math.sqrt(1.5 ** 2 + 16));
     expect(misureScheda({ forma: "triangle", larghezza: 2, altezza: 1.5, unita: "m", baseMinore: null })).toBe("2 × 1,5 m (triangolo)");
     expect(areaPerimetro({ forma: "rect", larghezza: 600, altezza: 400, unita: "cm", baseMinore: null })).toEqual({ area: 24, perimetro: 20 });

@@ -385,7 +385,7 @@ export const GeneralSummary = ({
             riepilogo={() => ({
               jobName: jobName || schedinaTitle,
               quantity, margin, vat, applyVat,
-              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog })),
+              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog, customer: d.customerType })),
               subProjects, deptMargins,
             })}
           />

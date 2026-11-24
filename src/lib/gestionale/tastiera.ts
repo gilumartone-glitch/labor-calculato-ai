@@ -7,10 +7,13 @@
  *                    prima il cursore e passano al campo vicino quando è all'inizio o alla fine.
  *                    Le tendine si aprono con ↑ ↓ (o Invio) e si lasciano con ← →.
  *   Esc              chiude la finestra, oppure torna all'elenco
- *   F2               nuovo (documento, anagrafica…)      F4  nuova riga      Ctrl+Canc  toglie la riga
- *   F3               porta il cursore nella casella di ricerca della schermata
+ *   F1 F2 F3 F4      le aree (Contabilità, Magazzino, Documenti, Impostazioni)
+ *   Maiusc+F1…F9     le schede dell'area aperta, nell'ordine in cui si vedono
+ *   F5               nuovo (documento, anagrafica…); anche Ins fuori dai campi
+ *   F7               porta il cursore nella casella di ricerca della schermata
+ *   Ctrl+Invio       nuova riga      Ctrl+Canc  toglie la riga
  *   F6               apre il menu «Trasforma in» del documento confermato      F9  stampa PDF      F8  invia per email
- *   Alt+1 2 3 4      le aree (Contabilità, Magazzino, Documenti, Impostazioni)   Alt+5…9  le schede dell'area aperta
+ *   (Alt+1…9 continua a funzionare: prima le aree, poi le schede.)
  * Tab e Maiusc+Tab restano quelli del browser.
  */
 
@@ -109,33 +112,49 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     return fatto();
   }
 
-  // con Alt premuto alcune tastiere cambiano il carattere (sul Mac Alt+2 è «™»): si guarda il tasto fisico
-  const cifra = /^[1-9]$/.test(e.key) ? e.key : /^(Digit|Numpad)[1-9]$/.test(e.code) ? e.code.slice(-1) : null;
-  if (e.altKey && !e.ctrlKey && cifra && !inFinestra) {
-    // prima le aree, poi le schede dell'area aperta (le schede non attive hanno tabindex -1: contano lo stesso)
-    const visibili = (selettore: string) => Array.from(radice.querySelectorAll<HTMLElement>(selettore))
-      .filter((el) => !(el as HTMLButtonElement).disabled && !el.closest('[hidden], [aria-hidden="true"], [inert]'));
-    const aree = visibili("[data-macro]");
-    const schede = [...aree, ...visibili('[role="tablist"] [role="tab"]')];
-    const scheda = schede[Number(cifra) - 1];
+  /** Aree e schede visibili (le schede non attive hanno tabindex -1: contano lo stesso). */
+  const visibili = (selettore: string) => Array.from(radice.querySelectorAll<HTMLElement>(selettore))
+    .filter((el) => !(el as HTMLButtonElement).disabled && !el.closest('[hidden], [aria-hidden="true"], [inert]'));
+  const apri = (scheda: HTMLElement | undefined) => {
     if (!scheda) return false;
     scheda.focus();
     scheda.click();
     // Radix cambia scheda su mousedown: lo si simula per chi usa solo la tastiera
     scheda.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
-    return fatto();
+    return true;
+  };
+
+  // F1…F4 le aree, Maiusc+F1…F9 le schede dell'area aperta
+  const funzione = /^F([1-9])$/.exec(e.key);
+  if (funzione && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    const n = Number(funzione[1]);
+    const aree = visibili("[data-macro]");
+    if (e.shiftKey) {
+      if (!inFinestra) apri(visibili('[role="tablist"] [role="tab"]')[n - 1]);
+      return fatto();
+    }
+    if (n <= aree.length) {
+      // con una finestra aperta non si cambia area, ma F1 non deve aprire la guida del browser
+      if (!inFinestra) apri(aree[n - 1]);
+      return fatto();
+    }
   }
 
-  if (!inFinestra && (e.key === "F2" || (e.key === "Insert" && !target?.matches("input, textarea")))) {
-    const nuovo = elenco(radice, "[data-nuovo]")[0];
-    if (!nuovo) return false;
+  // Alt+numero: prima le aree, poi le schede. Con Alt alcune tastiere cambiano il carattere (sul Mac Alt+2 è «™»): si guarda il tasto fisico
+  const cifra = /^[1-9]$/.test(e.key) ? e.key : /^(Digit|Numpad)[1-9]$/.test(e.code) ? e.code.slice(-1) : null;
+  if (e.altKey && !e.ctrlKey && cifra && !inFinestra) {
+    return apri([...visibili("[data-macro]"), ...visibili('[role="tablist"] [role="tab"]')][Number(cifra) - 1]) ? fatto() : false;
+  }
+
+  // F5 e F7 si fermano sempre: nel browser ricaricherebbero la pagina o aprirebbero altro
+  if (e.key === "F5" || (!inFinestra && e.key === "Insert" && !target?.matches("input, textarea"))) {
+    const nuovo = inFinestra ? undefined : elenco(radice, "[data-nuovo]")[0];
+    if (!nuovo) return e.key === "F5" ? fatto() : false;
     nuovo.click();
     return fatto();
   }
-  if (!inFinestra && e.key === "F3") {
-    const cerca = elenco(radice, "[data-cerca]")[0];
-    if (!cerca) return false;
-    vai(cerca);
+  if (e.key === "F7") {
+    if (!inFinestra) vai(elenco(radice, "[data-cerca]")[0] ?? null);
     return fatto();
   }
   if (!inFinestra && e.key === "F8") {
@@ -158,7 +177,7 @@ export function gestisciTasto(e: KeyboardEvent, radice: HTMLElement): boolean {
     menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     return fatto();
   }
-  if (!inFinestra && e.key === "F4") { emetti({ azione: "nuova-riga", riga: rigaDi(target) }); return fatto(); }
+  if (!inFinestra && e.key === "Enter" && e.ctrlKey && radice.querySelector("[data-righe-modificabili]")) { emetti({ azione: "nuova-riga", riga: rigaDi(target) }); return fatto(); }
   if (!inFinestra && e.key === "Delete" && e.ctrlKey && rigaDi(target) != null) { emetti({ azione: "togli-riga", riga: rigaDi(target) }); return fatto(); }
 
   if (e.key === "Escape" && !inFinestra) {

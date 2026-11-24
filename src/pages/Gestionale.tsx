@@ -520,7 +520,7 @@ const Gestionale = () => {
                       <span className="block font-display text-lg font-semibold leading-tight">{m.nome}</span>
                       <span className={`block text-xs truncate ${attiva ? "text-paper/75" : "text-muted-foreground"}`}>{m.schede.map((s) => s.nome).join(" · ")}</span>
                     </span>
-                    <kbd className={`ml-auto hidden md:block font-mono text-[10px] border rounded-sm px-1 ${attiva ? "border-paper/40" : "border-ink/30 text-muted-foreground"}`}>Alt+{i + 1}</kbd>
+                    <kbd className={`ml-auto hidden md:block font-mono text-[10px] border rounded-sm px-1 ${attiva ? "border-paper/40" : "border-ink/30 text-muted-foreground"}`}>F{i + 1}</kbd>
                   </button>
                 );
               })}
@@ -872,7 +872,7 @@ const Gestionale = () => {
       <DatiAziendaDialog open={datiAzienda} onOpenChange={setDatiAzienda} />
       <CopiaSicurezzaDialog open={copiaSicurezza} onOpenChange={setCopiaSicurezza} />
       <footer className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-ink bg-paper/95 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5 justify-center">
-        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F2", "nuovo"], ["F3", "cerca"], ["F4", "nuova riga"], ["F6", "trasforma in"], ["F8", "email"], ["F9", "stampa PDF"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"], ["Alt+1 2 3 4", "aree"], ["Alt+5…", "schede dell'area"]].map(([t, d]) => (
+        {[["F10", "salva / conferma"], ["Invio", "campo successivo"], ["↑ ↓ ← →", "spostati tra campi e pulsanti"], ["F1 F2 F3 F4", "aree"], ["Maiusc+F1…", "schede dell'area"], ["F5", "nuovo"], ["F7", "cerca"], ["F6", "trasforma in"], ["F8", "email"], ["F9", "stampa PDF"], ["Ctrl+Invio", "nuova riga"], ["Ctrl+Canc", "togli riga"], ["Esc", "indietro"]].map(([t, d]) => (
           <span key={t}><kbd className="font-mono font-semibold text-foreground border border-ink/30 rounded-sm px-1">{t}</kbd> {d}</span>
         ))}
       </footer>

@@ -141,7 +141,7 @@ describe("frecce", () => {
 });
 
 describe("righe, elenchi, sezioni", () => {
-  it("Invio sull'ultimo campo dell'ultima riga, F4 e Ctrl+Canc avvisano l'editor", () => {
+  it("Invio sull'ultimo campo dell'ultima riga, Ctrl+Invio e Ctrl+Canc avvisano l'editor", () => {
     monta(`<div data-righe-modificabili><div>
       <div data-riga="0"><input id="d0" aria-label="Descrizione"><input id="s0" aria-label="Sconto percentuale"></div>
       <div data-riga="1"><input id="d1" aria-label="Descrizione"><input id="s1" aria-label="Sconto percentuale"></div>
@@ -152,7 +152,7 @@ describe("righe, elenchi, sezioni", () => {
     premi($("s0"), "Enter");
     expect(attivo()).toBe("d1");
     premi($("s1"), "Enter");
-    premi($("d0"), "F4");
+    premi($("d0"), "Enter", { ctrlKey: true });
     premi($("d1"), "Delete", { ctrlKey: true });
     window.removeEventListener(EVENTO_TASTIERA, ascolta);
     expect(azioni).toEqual([{ azione: "nuova-riga", riga: 1 }, { azione: "nuova-riga", riga: 0 }, { azione: "togli-riga", riga: 1 }]);
@@ -175,11 +175,11 @@ describe("righe, elenchi, sezioni", () => {
     expect(premuti).toEqual(["m2", "s1", "s2"]);
     expect(premi($("a"), "9", { altKey: true }).usato).toBe(false);
   });
-  it("F2 nuovo, Esc indietro, Alt+numero cambia sezione; Esc non scavalca una finestra aperta", () => {
+  it("F5 nuovo, Esc indietro, Alt+numero cambia sezione; Esc non scavalca una finestra aperta", () => {
     monta(`<div role="tablist"><button role="tab" id="t1"></button><button role="tab" id="t2"></button></div><button id="nuovo" data-nuovo></button><button id="ind" data-esc></button><input id="a">`);
     const nuovo = vi.fn(); const ind = vi.fn(); const t2 = vi.fn();
     $("nuovo").addEventListener("click", nuovo); $("ind").addEventListener("click", ind); $("t2").addEventListener("click", t2);
-    premi($("a"), "F2"); premi($("a"), "Escape"); premi($("a"), "2", { altKey: true });
+    premi($("a"), "F5"); premi($("a"), "Escape"); premi($("a"), "2", { altKey: true });
     premi($("a"), "™", { altKey: true, code: "Digit2" });   // Alt+2 sul Mac
     expect([nuovo.mock.calls.length, ind.mock.calls.length, t2.mock.calls.length]).toEqual([1, 1, 2]);
     document.getElementById("radice")?.insertAdjacentHTML("beforeend", `<div role="dialog" data-state="open"><input id="dentro"></div>`);

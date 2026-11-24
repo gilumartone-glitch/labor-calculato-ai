@@ -230,7 +230,22 @@ const PaymentMethodSelect = ({ value, onChange, className, ariaLabel = "Metodo",
   const all = [...DEFAULT_PAYMENT_METHODS, ...custom.filter((c) => !DEFAULT_PAYMENT_METHODS.some((d) => d.code === c.code))];
   const code = paymentCode(value);
   const known = all.some((m) => m.code === code);
+  const [adding, setAdding] = useState<{ code: string; label: string } | null>(null);
+  const confirmAdd = () => {
+    if (!adding) return;
+    const c = adding.code.trim().toUpperCase().slice(0, 6);
+    if (!c) return;
+    const label = (adding.label.trim() || c).slice(0, 40);
+    const next = loadCustomMethods();
+    if (!DEFAULT_PAYMENT_METHODS.some((d) => d.code === c) && !next.some((m) => m.code === c)) {
+      next.push({ code: c, label });
+      saveCustomMethods(next);
+    }
+    setAdding(null);
+    onChange(c);
+  };
   return (
+    <>
     <select
       aria-label={ariaLabel}
       className={className}
@@ -238,20 +253,7 @@ const PaymentMethodSelect = ({ value, onChange, className, ariaLabel = "Metodo",
       onKeyDown={onKeyDown}
       onChange={(e) => {
         const v = e.target.value;
-        if (v === "__add__") {
-          const codeIn = prompt("Codice metodo di pagamento (es. PP per PayPal):");
-          if (!codeIn) return;
-          const c = codeIn.trim().toUpperCase().slice(0, 6);
-          if (!c) return;
-          const labelIn = prompt(`Etichetta per "${c}" (es. "${c} - PayPal"):`, `${c} - `) || c;
-          const next = loadCustomMethods();
-          if (!DEFAULT_PAYMENT_METHODS.some((d) => d.code === c) && !next.some((m) => m.code === c)) {
-            next.push({ code: c, label: labelIn.trim().slice(0, 40) });
-            saveCustomMethods(next);
-          }
-          onChange(c);
-          return;
-        }
+        if (v === "__add__") { setAdding({ code: "", label: "" }); return; }
         onChange(v);
       }}
     >
@@ -259,6 +261,17 @@ const PaymentMethodSelect = ({ value, onChange, className, ariaLabel = "Metodo",
       {all.map((m) => <option key={m.code} value={m.code}>{showLongLabels ? m.label : m.code}</option>)}
       <option value="__add__">+ Aggiungi metodo…</option>
     </select>
+    <Dialog open={!!adding} onOpenChange={(o) => { if (!o) setAdding(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Nuovo metodo di pagamento</DialogTitle><DialogDescription>Codice breve ed etichetta.</DialogDescription></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Codice (es. PP)</Label><Input autoFocus maxLength={6} value={adding?.code ?? ""} onChange={(e) => setAdding((a) => a && { ...a, code: e.target.value.toUpperCase() })} onKeyDown={(e) => { if (e.key === "Enter") confirmAdd(); }} /></div>
+          <div><Label>Etichetta (es. PP - PayPal)</Label><Input maxLength={40} value={adding?.label ?? ""} onChange={(e) => setAdding((a) => a && { ...a, label: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") confirmAdd(); }} /></div>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={() => setAdding(null)}>Annulla</Button><Button onClick={confirmAdd} disabled={!adding?.code.trim()}>Aggiungi</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 

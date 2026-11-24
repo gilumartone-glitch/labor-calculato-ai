@@ -591,10 +591,16 @@ export const CalendarGlobalView = ({ mode, selectedReparti }: CalendarGlobalView
   };
 
   const allCantieriList = useMemo(() => Array.from(new Set(modeAssignments.map((a) => a.cantiere_label).filter(Boolean))).sort(), [modeAssignments]);
-  const openCantiere = (label: string) => {
+  const openCantiere = async (label: string) => {
     if (!isResp) { toast.info("Solo un responsabile può modificare"); return; }
-    const ids = Array.from(new Set(assignments.filter(row => row.cantiere_label === label && row.commessa_id).map(row => row.commessa_id)));
-    if (ids.length) { setProjectPlanning({ id: ids.length === 1 ? ids[0] : null }); return; }
+    const ids = Array.from(new Set(assignments.filter(row => row.cantiere_label === label && row.commessa_id).map(row => row.commessa_id as string)));
+    if (ids.length) {
+      // Only open Progetti Flow when an active production order exists; otherwise keep the quick editor.
+      const { data } = await supabase.from("production_orders").select("source_commessa_id")
+        .in("source_commessa_id", ids).not("status", "in", "(annullato,chiuso,spedito)");
+      const active = Array.from(new Set((data ?? []).map(row => row.source_commessa_id as string)));
+      if (active.length === ids.length) { setProjectPlanning({ id: ids.length === 1 ? ids[0] : null }); return; }
+    }
     setQuickLabel(label); setQuickOpen(true);
   };
 

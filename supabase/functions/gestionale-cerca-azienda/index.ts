@@ -75,7 +75,7 @@ function daOpenapi(d: Oggetto): Trovata {
 async function cercaOpenapi(token: string, numero: string): Promise<{ dati: Trovata } | { nonTrovata: true } | { errore: string }> {
   let r: Response;
   try {
-    r = await fetch(`${OPENAPI}/IT-advanced/${numero}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+    r = await fetch(`${OPENAPI}/IT-advanced/${numero}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
   } catch (e) { console.error("Openapi non raggiungibile", e instanceof Error ? e.message : String(e)); return { errore: "il servizio dei dati aziendali non risponde" }; }
   if (r.status === 204 || r.status === 404) return { nonTrovata: true };
   if (r.status === 401 || r.status === 403) return { errore: "la chiave del servizio dei dati aziendali non è valida o è scaduta (Impostazioni > Servizi)" };
@@ -141,7 +141,11 @@ Deno.serve(async (req) => {
     }
     if (azione !== "cerca") return json({ error: "Azione non prevista." }, 400);
 
-    const { data: scrive } = await utente.rpc("has_permission", { _user_id: chi.user.id, _page: "gestionale", _required: "write" });
+    // permesso e chiave si leggono insieme: sono due viaggi al database in meno prima della ricerca
+    const [{ data: scrive }, chiaveServizio] = await Promise.all([
+      utente.rpc("has_permission", { _user_id: chi.user.id, _page: "gestionale", _required: "write" }),
+      leggiToken(admin),
+    ]);
     if (!scrive) return json({ error: "Permesso negato." }, 403);
 
     const paese = String(corpo.paese ?? "IT").trim().toUpperCase().replace(/^GR$/, "EL");
@@ -151,10 +155,13 @@ Deno.serve(async (req) => {
 
     let avviso = "";
     if (paese === "IT") {
-      const { token } = await leggiToken(admin);
+      const { token } = chiaveServizio;
       if (token) {
+        const inizio = Date.now();
         const r = await cercaOpenapi(token, numero);
-        if ("dati" in r) return json({ trovata: true, fonte: "Registro imprese", paese, partita_iva: numero, ...r.dati });
+        const ms = Date.now() - inizio;
+        console.log("Openapi IT-advanced", { ms, esito: "dati" in r ? "trovata" : "errore" in r ? "errore" : "non trovata" });
+        if ("dati" in r) return json({ trovata: true, fonte: "Registro imprese", paese, partita_iva: numero, ms_servizio: ms, ...r.dati });
         if ("errore" in r) avviso = `Dati completi non disponibili: ${r.errore}. Uso l'archivio gratuito.`;
         // «non trovata» nel Registro imprese (es. professionisti): si prova comunque VIES
       }

@@ -81,7 +81,7 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
       ].filter(Boolean).join(" ");
       setEsitoRicerca({
         tono: doppia || esito.cessata || esito.avviso ? "avviso" : "ok",
-        testo: `${esito.denominazione || "Partita IVA attiva"}${esito.forma_giuridica ? ` (${esito.forma_giuridica.toLowerCase()})` : ""} — fonte: ${completa ? "Registro imprese" : "Agenzia delle Entrate (VIES)"}. ${riepilogo} ${coda}${nota}`,
+        testo: `${esito.denominazione || "Partita IVA attiva"}${esito.forma_giuridica ? ` (${esito.forma_giuridica.toLowerCase()})` : ""} — fonte: ${completa ? "Registro imprese" : "Agenzia delle Entrate (VIES)"}${esito.msServizio ? `, risposta in ${(esito.msServizio / 1000).toLocaleString("it-IT", { maximumFractionDigits: 1 })} s` : ""}. ${riepilogo} ${coda}${nota}`,
       });
     } catch (e) {
       setEsitoRicerca({ tono: "avviso", testo: `${messaggio(e)} Puoi compilare la scheda a mano.` });
@@ -157,6 +157,7 @@ export const AnagraficaDialog = ({ open, anagrafica, predefinito, onOpenChange, 
             </div>
             {campo("codice_fiscale", "Codice fiscale")}
           </div>
+          {cercando && <p className="text-xs rounded-sm border border-ink/20 bg-paper px-2 py-1.5 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Cerco i dati dell'azienda… intanto puoi continuare a compilare gli altri campi.</p>}
           {esitoRicerca && (
             <p className={`text-xs rounded-sm border px-2 py-1.5 ${esitoRicerca.tono === "ok" ? "border-emerald-700/40 bg-emerald-50 text-emerald-900" : "border-amber-600/50 bg-amber-50 text-amber-900"}`}>{esitoRicerca.testo}</p>
           )}

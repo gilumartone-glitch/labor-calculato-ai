@@ -53,6 +53,8 @@ export type AziendaTrovata = {
   codice_fiscale?: string | null; pec?: string | null; codice_sdi?: string | null; forma_giuridica?: string | null; rea?: string | null; cessata?: boolean;
   /** perché i dati completi non sono arrivati, se doveva arrivare di più */
   avviso?: string | null;
+  /** quanto ha impiegato il servizio esterno a rispondere, in millisecondi */
+  msServizio?: number | null;
 } & SedeAzienda;
 export type EsitoRicerca = AziendaTrovata | { trovata: false; messaggio: string };
 
@@ -80,7 +82,7 @@ export function interpretaRisposta(data: Record<string, unknown>, paese: string,
   return {
     trovata: true, fonte: testoO(data.fonte) ?? "VIES", paese, partita_iva: numero, denominazione: testoO(data.denominazione) ?? "", ...sede,
     codice_fiscale: testoO(data.codice_fiscale), pec: testoO(data.pec), codice_sdi: testoO(data.codice_sdi),
-    forma_giuridica: testoO(data.forma_giuridica), rea: testoO(data.rea), cessata: data.cessata === true, avviso: testoO(data.avviso),
+    forma_giuridica: testoO(data.forma_giuridica), rea: testoO(data.rea), cessata: data.cessata === true, avviso: testoO(data.avviso), msServizio: typeof data.ms_servizio === "number" ? data.ms_servizio : null,
   };
 }
 

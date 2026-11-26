@@ -85,7 +85,11 @@ export const GeneralSummary = ({
   useEffect(() => {
     try { localStorage.setItem(STORAGE, JSON.stringify(deptMargins)); } catch { /* ignore */ }
   }, [deptMargins]);
-  const marginFor = (k: string) => (deptMargins[k] ?? margin);
+  // Vendite: i prodotti hanno già il loro prezzo di vendita, quindi niente margine sopra.
+  const SENZA_MARGINE = "magazzino";
+  const marginFor = (k: string) => (k === SENZA_MARGINE ? 0 : deptMargins[k] ?? margin);
+  /** I margini per reparto come li ricevono stampe e preventivo: Vendite sempre a zero. */
+  const marginiReparti = { ...deptMargins, [SENZA_MARGINE]: 0 };
   const setMarginFor = (k: string, v: number) => setDeptMargins((prev) => ({ ...prev, [k]: v }));
   const resetMarginFor = (k: string) => setDeptMargins((prev) => { const next = { ...prev }; delete next[k]; return next; });
   // Base margine = costo senza trasferte e trasporti (che passano a costo)
@@ -246,6 +250,9 @@ export const GeneralSummary = ({
                   <dt className="text-xs uppercase tracking-wider">{d.label}</dt>
                   <dd className="tabular-nums">{eur(d.totals.total)}</dd>
                 </div>
+                {d.key === SENZA_MARGINE ? (
+                  <div className="mt-1 text-[10px] text-paper/50 uppercase tracking-wider">Prezzi di vendita · senza margine</div>
+                ) : (
                 <div className="flex justify-between items-center mt-1 text-[10px] text-paper/50">
                   <div className="flex items-center gap-1">
                     <span className="uppercase tracking-wider">Margine</span>
@@ -269,6 +276,7 @@ export const GeneralSummary = ({
                   </div>
                   <span className="tabular-nums text-paper/70">→ {eur(deptTotalWithMargin(d))}</span>
                 </div>
+                )}
               </div>
             );
           })}
@@ -361,7 +369,7 @@ export const GeneralSummary = ({
               jobName: jobName || schedinaTitle,
               quantity, margin, vat, applyVat,
               departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog })),
-              subProjects, deptMargins,
+              subProjects, deptMargins: marginiReparti,
             }, "cliente")}
             disabled={total === 0}
             className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-paper/40 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-paper/10 disabled:opacity-40"
@@ -374,7 +382,7 @@ export const GeneralSummary = ({
               jobName: jobName || schedinaTitle,
               quantity, margin, vat, applyVat,
               departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog })),
-              subProjects, deptMargins,
+              subProjects, deptMargins: marginiReparti,
             }, "interno")}
             disabled={total === 0}
             className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-paper/40 rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-paper/10 disabled:opacity-40"
@@ -388,7 +396,7 @@ export const GeneralSummary = ({
               jobName: jobName || schedinaTitle,
               quantity, margin, vat, applyVat,
               departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog, customer: d.customerType, vendite: d.vendite })),
-              subProjects, deptMargins,
+              subProjects, deptMargins: marginiReparti,
             })}
           />
         </div>

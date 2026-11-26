@@ -12,6 +12,9 @@ import { confermaDocumento, creaDocumento, salvaBozza, type Anagrafica, type Doc
  * Riepilogo di una scheda di Progettazione, così come lo mostra il «Riepilogo generale»:
  * stessi dati che alimentano la stampa del preventivo cliente.
  */
+/** Un prodotto venduto a magazzino: nome, caratteristiche (variante), unità di misura, quantità e prezzo all'unità. */
+export type VoceVendita = { nome: string; variante: string | null; um: string | null; quantita: number; prezzo: number };
+
 export type RiepilogoProgetto = {
   jobName: string;
   quantity: number;
@@ -19,7 +22,7 @@ export type RiepilogoProgetto = {
   vat: number;
   applyVat: boolean;
   /** `catalog`: il listino del reparto, per i nomi e i colori delle lavorazioni nel disegno */
-  departments: { key: string; label: string; totals: DepartmentTotals; state?: DepartmentState; catalog?: Catalog; /** listino applicato al reparto: rivenditore o cliente finale */ customer?: CustomerType }[];
+  departments: { key: string; label: string; totals: DepartmentTotals; state?: DepartmentState; catalog?: Catalog; /** listino applicato al reparto: rivenditore o cliente finale */ customer?: CustomerType; /** reparto Vendite: i prodotti venduti, con il prezzo all'unità di misura (prima del margine) */ vendite?: VoceVendita[] }[];
   subProjects?: SubProject[];
   deptMargins?: Record<string, number>;
 };
@@ -55,6 +58,11 @@ type Voce = { descrizione: string; dettagli: string | null; um: string | null; q
 function vociReparto(d: RiepilogoProgetto["departments"][number]): Voce[] {
   const st = d.state;
   const voci: Voce[] = [];
+  // Vendite: una riga per prodotto, con le sue caratteristiche e il prezzo all'unità di misura
+  for (const v of d.vendite ?? []) {
+    if (!(v.quantita > 0)) continue;
+    voci.push({ descrizione: v.nome.trim() || "Vendita", dettagli: v.variante?.trim() || null, um: v.um?.trim() || null, quantita: v.quantita, costo: v.quantita * (Number(v.prezzo) || 0), conMargine: true, tipo: "libera" });
+  }
   if (!st) return voci;
 
   const pezzi = st.pieces ?? [];

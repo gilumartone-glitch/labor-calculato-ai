@@ -27,6 +27,8 @@ interface GeneralSummaryProps {
     state?: DepartmentState;
     catalog?: Catalog;
     customerType?: CustomerType;
+    /** Reparto Vendite: i prodotti del carrello, uno per riga */
+    vendite?: { nome: string; variante: string | null; um: string | null; quantita: number; prezzo: number }[];
     details?: {
       materials?: string[];
       accessories?: string[];
@@ -385,7 +387,7 @@ export const GeneralSummary = ({
             riepilogo={() => ({
               jobName: jobName || schedinaTitle,
               quantity, margin, vat, applyVat,
-              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog, customer: d.customerType })),
+              departments: departments.map((d) => ({ key: d.key, label: d.label, totals: d.totals, state: d.state, catalog: d.catalog, customer: d.customerType, vendite: d.vendite })),
               subProjects, deptMargins,
             })}
           />

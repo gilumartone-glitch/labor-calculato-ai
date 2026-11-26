@@ -158,6 +158,37 @@ describe("preventivo del Gestionale da una scheda di Progettazione", () => {
     }
   });
 
+  it("Vendite: una riga per prodotto con caratteristiche, quantità e prezzo all'unità di misura", () => {
+    const input: RiepilogoProgetto = {
+      ...base, deptMargins: { magazzino: 0 }, margin: 30,
+      departments: [
+        { key: "magazzino", label: "Vendite", totals: { ...totali(461.5), materials: 461.5 },
+          vendite: [
+            { nome: "Velluto Verdi", variante: "nero · 500 g/m² · h 300 cm · ignifugo classe 1", um: "m", quantita: 25.5, prezzo: 14.9 },
+            { nome: "Tappeto danza — rotolo intero", variante: "20 × 1,6 m", um: "rotoli", quantita: 1, prezzo: 81.55 },
+            { nome: "Nastro biadesivo", variante: null, um: "pz", quantita: 3, prezzo: 0 },      // omaggio: resta in elenco a zero
+            { nome: "Scartato", variante: null, um: "pz", quantita: 0, prezzo: 10 },
+          ] },
+        { key: "stampa", label: "Stampa", totals: totali(100) },
+      ],
+    };
+    const p = preventivoDaProgettazione(input, aliquote);
+    expect(p.righe.map((r) => [r.tipo_riga, r.descrizione, r.dettagli, r.quantita, r.um, r.prezzo_unitario])).toEqual([
+      ["nota", "VENDITE", null, 0, null, 0],
+      ["libera", "Velluto Verdi", "nero · 500 g/m² · h 300 cm · ignifugo classe 1", 25.5, "m", 14.9],
+      ["libera", "Tappeto danza — rotolo intero", "20 × 1,6 m", 1, "rotoli", 81.55],
+      ["libera", "Nastro biadesivo", null, 3, "pz", 0],
+      ["lavorazione", "Stampa", null, 1, null, 130],
+    ]);
+    expect(p.righe.some((r) => r.descrizione === "Vendite" || /altre voci/.test(r.descrizione))).toBe(false);
+    expect(p.netto).toBe(591.5);
+    expect(calcolaTotali(p.righe, aliquote).imponibile).toBe(591.5);
+    // con il margine del reparto, il prezzo all'unità lo comprende
+    const conMargine = preventivoDaProgettazione({ ...input, deptMargins: { magazzino: 10 } }, aliquote);
+    expect(conMargine.righe[1].prezzo_unitario).toBe(16.39);
+    expect(calcolaTotali(conMargine.righe, aliquote).imponibile).toBe(conMargine.netto);
+  });
+
   it("gestisce IVA non applicata, aliquota non presente e quantità multiple", () => {
     expect(preventivoDaProgettazione({ ...base, applyVat: false }, aliquote).righe.every((r) => r.aliquota_id === null)).toBe(true);
     const senza = preventivoDaProgettazione({ ...base, vat: 5 }, aliquote);

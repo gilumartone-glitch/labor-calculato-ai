@@ -606,6 +606,8 @@ const Index = () => {
       const carts = parsed?.salesCarts;
       if (!carts || typeof carts !== "object") return null;
       const labels: string[] = [];
+      // le stesse righe, una per prodotto, per il preventivo del Gestionale (prodotto, caratteristiche, prezzo all'unità di misura)
+      const vendite: { nome: string; variante: string | null; um: string | null; quantita: number; prezzo: number }[] = [];
       let total = 0;
       for (const k of Object.keys(carts)) {
         const list = Array.isArray(carts[k]) ? carts[k] : [];
@@ -616,6 +618,7 @@ const Index = () => {
           total += sell;
           const desc = [l?.name, l?.variant && `(${l.variant})`].filter(Boolean).join(" ") || "Vendita";
           labels.push(`${desc} · ${qty} ${l?.unit || ""}${sell > 0 ? ` · €${sell.toFixed(2)}` : ""}`);
+          vendite.push({ nome: String(l?.name ?? "").trim() || "Vendita", variante: String(l?.variant ?? "").trim() || null, um: String(l?.unit ?? "").trim() || null, quantita: qty, prezzo: Number(l?.priceSell) || 0 });
         }
       }
       if (labels.length === 0) return null;
@@ -624,6 +627,7 @@ const Index = () => {
         label: "Vendite",
         totals: { materials: total, operations: 0, perimeters: 0, pieces: 0, transports: 0, total },
         details: { materials: labels },
+        vendite,
       };
     } catch { return null; }
   })();

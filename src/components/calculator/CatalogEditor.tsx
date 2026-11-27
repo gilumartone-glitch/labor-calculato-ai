@@ -758,35 +758,35 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
             <div className="border border-ink/20 rounded-sm divide-y divide-ink/10 overflow-visible">
               {/* header */}
               <div className="hidden md:grid grid-cols-24 gap-2 px-3 py-2 bg-muted/50 text-[10px] uppercase tracking-wider font-bold text-muted-foreground" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
-                <div className="col-span-3">Colore</div>
-                <div className="col-span-2">Spessore</div>
-                <div className="col-span-2">Finitura</div>
-                <div className="col-span-2">Ignifugo</div>
+                <div className="col-span-6">Colore</div>
+                <div className="col-span-4">Spessore</div>
+                <div className="col-span-7">Finitura</div>
+                <div className="col-span-7">Ignifugo</div>
                 {form.format === "lastra" && (
-                  <div className="col-span-2 text-right" title="Base lastra">
+                  <div className="col-span-4 text-right" title="Base lastra">
                     {`Base (${form.dimUnit})`}
                   </div>
                 )}
                 <div
-                  className={`${form.format === "lastra" ? "col-span-2" : "col-span-4"} text-right`}
+                  className={`${form.format === "lastra" ? "col-span-4" : "col-span-8"} text-right`}
                   title={form.format === "rotolo" ? "Altezza rotolo (larghezza del rullo)" : "Altezza"}
                 >
                   {form.format === "rotolo" ? `Altezza (${form.dimUnit})` : `H (${form.dimUnit})`}
                 </div>
-                <div className="col-span-3 text-right" title={`Prezzo di costo in €/${form.priceUnit}`}>
+                <div className="col-span-4 text-right" title={`Prezzo di costo in €/${form.priceUnit}`}>
                   Costo €/{form.priceUnit}
                 </div>
                 {isTappezzeria ? (
                   <>
-                    <div className="col-span-3 text-right" title="Prezzo di vendita rotolo intero">
+                    <div className="col-span-5 text-right" title="Prezzo di vendita rotolo intero">
                       Prezzo rotolo €/{form.priceUnit}
                     </div>
-                    <div className="col-span-3 text-right" title="Prezzo di vendita al taglio">
+                    <div className="col-span-5 text-right" title="Prezzo di vendita al taglio">
                       Prezzo taglio €/{form.priceUnit}
                     </div>
                   </>
                 ) : (
-                  <div className="col-span-6 text-center" title="Prezzi di vendita calcolati (Riv/Fin × intero/taglio)">
+                  <div className="col-span-10 text-center" title="Prezzi di vendita calcolati (Riv/Fin × intero/taglio)">
                     Vendita auto · Riv | Fin
                   </div>
                 )}
@@ -801,7 +801,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                 const finTaglio = cost * priceMultiplier("final", "cut");
                 return (
                   <div key={v.id} className="grid gap-2 px-3 py-2 items-center" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
-                    <div className="col-span-24 md:col-span-3">
+                    <div className="col-span-24 md:col-span-6">
                       <SelectWithAdd
                         value={v.color}
                         onChange={(val) => updateVariant(v.id, { color: val })}
@@ -810,7 +810,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                         placeholder="Colore"
                       />
                     </div>
-                    <div className="col-span-12 md:col-span-2">
+                    <div className="col-span-12 md:col-span-4">
                       <AutocompleteInput
                         value={v.thickness}
                         onChange={(val) => updateVariant(v.id, { thickness: val })}
@@ -819,7 +819,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                         className="w-full"
                       />
                     </div>
-                    <div className="col-span-12 md:col-span-2">
+                    <div className="col-span-12 md:col-span-7">
                       <SelectWithAdd
                         value={v.finish}
                         onChange={(val) => updateVariant(v.id, { finish: val })}
@@ -827,7 +827,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                         placeholder="Finitura"
                       />
                     </div>
-                    <div className="col-span-12 md:col-span-2">
+                    <div className="col-span-12 md:col-span-7">
                       <SelectWithAdd
                         value={v.fireproof}
                         onChange={(val) => updateVariant(v.id, { fireproof: val })}
@@ -836,7 +836,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                       />
                     </div>
                     {form.format === "lastra" && (
-                      <div className="col-span-8 md:col-span-2">
+                      <div className="col-span-8 md:col-span-4">
                         <input
                           type="number"
                           step="0.1"
@@ -847,7 +847,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                         />
                       </div>
                     )}
-                    <div className={form.format === "lastra" ? "col-span-8 md:col-span-2" : "col-span-8 md:col-span-4"}>
+                    <div className={form.format === "lastra" ? "col-span-8 md:col-span-4" : "col-span-8 md:col-span-8"}>
                       <input
                         type="number"
                         step="0.1"
@@ -857,7 +857,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                         className="input-bare w-full text-right font-mono text-sm"
                       />
                     </div>
-                    <div className="col-span-8 md:col-span-3">
+                    <div className="col-span-8 md:col-span-4">
                       <input
                         type="number"
                         step="0.01"
@@ -869,7 +869,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                     </div>
                     {isTappezzeria ? (
                       <>
-                        <div className="col-span-12 md:col-span-3">
+                        <div className="col-span-12 md:col-span-5">
                           <input
                             type="number"
                             step="0.01"
@@ -879,7 +879,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                             className="input-bare w-full text-right font-mono text-sm"
                           />
                         </div>
-                        <div className="col-span-12 md:col-span-3">
+                        <div className="col-span-12 md:col-span-5">
                           <input
                             type="number"
                             step="0.01"
@@ -892,7 +892,7 @@ export const CatalogEditor = ({ catalog, onCatalogChange, deptLabel, deptKey }: 
                       </>
 
                     ) : (
-                    <div className="col-span-24 md:col-span-6">
+                    <div className="col-span-24 md:col-span-10">
                       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1 bg-muted/40 border border-ink/10 rounded-sm font-mono text-[10px]">
                         <div className="col-span-2 grid grid-cols-[1fr_auto_auto] gap-x-2 text-muted-foreground">
                           <span></span>

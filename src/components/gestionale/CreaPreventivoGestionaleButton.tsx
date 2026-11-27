@@ -114,7 +114,10 @@ export const CreaPreventivoGestionaleButton = ({ riepilogo, disabled, className 
               <div className="border-2 border-ink/20 rounded-sm bg-paper px-3 py-2 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-semibold truncate">{preventivo.oggetto ?? "Progetto senza nome"}</span>
-                  <span className="tabular-nums">Imponibile <strong>{eur(preventivo.netto)}</strong></span>
+                  <span className="tabular-nums text-right">
+                    Imponibile <strong>{eur(preventivo.netto)}</strong>
+                    {preventivo.aliquotaMancante === null && <> + IVA {preventivo.percentualeIva}% {eur(preventivo.iva)} = <strong>{eur(preventivo.netto + preventivo.iva)}</strong></>}
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {preventivo.righe.filter((r) => r.tipo_riga !== "nota").length} righe: una per reparto, con il dettaglio di cosa comprende e senza i costi interni.

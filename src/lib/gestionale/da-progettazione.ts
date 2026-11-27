@@ -34,6 +34,9 @@ export type PreventivoDaProgetto = {
   netto: number;
   /** Aliquota non trovata tra quelle del Gestionale: le righe restano senza IVA e va scelta a mano. */
   aliquotaMancante: number | null;
+  /** aliquota applicata alle righe e IVA che ne risulta (0 se l'aliquota manca nel Gestionale) */
+  percentualeIva: number;
+  iva: number;
 };
 
 const arrotonda2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -119,7 +122,10 @@ function vociReparto(d: RiepilogoProgetto["departments"][number]): Voce[] {
  * La somma delle righe coincide al centesimo con il netto mostrato in Progettazione.
  */
 export function preventivoDaProgettazione(input: RiepilogoProgetto, aliquote: AliquotaIva[]): PreventivoDaProgetto {
-  const aliquota = input.applyVat ? aliquote.find((a) => a.percentuale === input.vat) ?? null : null;
+  // Un preventivo indica sempre l'IVA: quella del progetto, o il 22% se nel progetto non è impostata.
+  // (L'interruttore «applica IVA» di Progettazione vale solo per il totale mostrato lì.)
+  const percentualeIva = input.vat > 0 ? input.vat : 22;
+  const aliquota = aliquote.find((a) => a.percentuale === percentualeIva && !a.natura) ?? null;
   const aliquotaId = aliquota?.id ?? null;
   const margineDi = (k: string) => input.deptMargins?.[k] ?? input.margin;
 
@@ -187,7 +193,9 @@ export function preventivoDaProgettazione(input: RiepilogoProgetto, aliquote: Al
     oggetto: input.jobName.trim() || null,
     righe,
     netto,
-    aliquotaMancante: input.applyVat && !aliquota ? input.vat : null,
+    percentualeIva,
+    iva: aliquota ? arrotonda2(netto * percentualeIva / 100) : 0,
+    aliquotaMancante: aliquota ? null : percentualeIva,
   };
 }
 

@@ -226,9 +226,11 @@ export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: str
     const a = d.aliquote.find((x) => x.id === r.aliquota_id);
     return a ? (a.percentuale === 0 ? a.codice : `${quantita(a.percentuale)}%`) : "";
   };
+  const offerta = d.tipo === "preventivo" || d.tipo === "ordine";
   const testa = [
     ...(codici ? ["Codice"] : []), "Descrizione", "UM", "Q.tà",
-    ...(soloQuantita ? [] : ["Prezzo", ...(sconti ? ["Sc. %"] : []), "Importo", "IVA"]),
+    // nelle offerte si dice sempre che prezzi e importi sono senza IVA
+    ...(soloQuantita ? [] : [offerta ? "Prezzo\n+ IVA" : "Prezzo", ...(sconti ? ["Sc. %"] : []), offerta ? "Importo\n+ IVA" : "Importo", "IVA"]),
   ];
   const corpo = d.righe.map((r) => {
     const nota = r.tipo_riga === "nota";
@@ -283,13 +285,16 @@ export function creaPdfDocumento(azienda: DatiAzienda, d: DatiStampa, logo?: str
     const split = d.esigibilita_iva === "S" && (d.tipo === "fattura" || d.tipo === "nota_credito" || d.tipo === "ordine" || d.tipo === "preventivo");
     const bollo = d.bollo_virtuale && (d.tipo === "fattura" || d.tipo === "nota_credito");
     const daPagare = split ? tot.imponibile : tot.totale;
-    const voci: [string, string, boolean][] = [["Imponibile", euro(tot.imponibile), false]];
+    const voci: [string, string, boolean][] = [[offerta ? "Imponibile (IVA esclusa)" : "Imponibile", euro(tot.imponibile), false]];
     for (const [id, base] of basi) {
       const a = d.aliquote.find((x) => x.id === id);
       if (!a) continue;
       voci.push([a.percentuale === 0 ? t(a.descrizione, 60) : `IVA ${quantita(a.percentuale)}% su ${euro(base)}`, euro(Math.round(base * a.percentuale) / 100), false]);
     }
-    voci.push([d.tipo === "nota_credito" ? "TOTALE NOTA DI CREDITO" : "TOTALE DOCUMENTO", euro(tot.totale), true]);
+    // righe senza aliquota in un'offerta: l'IVA va comunque dichiarata, anche se non si può calcolare
+    const senzaAliquota = d.righe.filter((r) => r.tipo_riga !== "nota" && !r.aliquota_id).reduce((s, r) => s + importoRiga(r), 0);
+    if (offerta && Math.abs(senzaAliquota) >= 0.005) voci.push([`+ IVA di legge su ${euro(senzaAliquota)}`, "da aggiungere", false]);
+    voci.push([d.tipo === "nota_credito" ? "TOTALE NOTA DI CREDITO" : !offerta ? "TOTALE DOCUMENTO" : Math.abs(senzaAliquota) >= 0.005 ? "TOTALE" : "TOTALE IVA COMPRESA", offerta && Math.abs(senzaAliquota) >= 0.005 ? `${euro(tot.totale)} + IVA` : euro(tot.totale), true]);
     if (split) voci.push(["NETTO A PAGARE", euro(daPagare), true]);
 
     const xTot = MARGINE + LARGHEZZA - 84;

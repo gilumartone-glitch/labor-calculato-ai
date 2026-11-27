@@ -189,9 +189,16 @@ describe("preventivo del Gestionale da una scheda di Progettazione", () => {
     expect(calcolaTotali(conMargine.righe, aliquote).imponibile).toBe(conMargine.netto);
   });
 
-  it("gestisce IVA non applicata, aliquota non presente e quantità multiple", () => {
-    expect(preventivoDaProgettazione({ ...base, applyVat: false }, aliquote).righe.every((r) => r.aliquota_id === null)).toBe(true);
+  it("l'IVA c'è sempre, anche se in Progettazione non è applicata; aliquota non presente e quantità multiple", () => {
+    const spenta = preventivoDaProgettazione({ ...base, applyVat: false }, aliquote);
+    expect(spenta.righe.filter((r) => r.tipo_riga !== "nota").every((r) => r.aliquota_id === "a22")).toBe(true);
+    expect(spenta).toMatchObject({ percentualeIva: 22, aliquotaMancante: null });
+    expect(spenta.iva).toBe(Math.round(spenta.netto * 22) / 100);
+    expect(calcolaTotali(spenta.righe, aliquote).totale).toBe(Math.round((spenta.netto + spenta.iva) * 100) / 100);
+    // IVA a zero nel progetto: si usa il 22%
+    expect(preventivoDaProgettazione({ ...base, applyVat: false, vat: 0 }, aliquote).percentualeIva).toBe(22);
     const senza = preventivoDaProgettazione({ ...base, vat: 5 }, aliquote);
+    expect(senza.iva).toBe(0);
     expect(senza.aliquotaMancante).toBe(5);
     expect(senza.righe[0].aliquota_id).toBeNull();
     const lotto = preventivoDaProgettazione({ ...base, quantity: 4 }, aliquote);
